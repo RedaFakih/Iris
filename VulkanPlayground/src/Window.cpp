@@ -8,7 +8,7 @@ namespace vkPlayground {
 
 	static void GLFWErrorCallback(int error, const char* description)
 	{
-		std::cerr << error << "\n" << description << std::endl;
+		std::cerr << "[GLFW] Error: " << errno << " - Description: " << description << std::endl;
 	}
 
 	Ref<Window> Window::Create()

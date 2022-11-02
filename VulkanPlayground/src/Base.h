@@ -3,7 +3,7 @@
 #include <iostream>
 #include <memory>
 
-#define PG_ASSERT(x, message) { if(!(x)) { std::cerr << "Assertion Failed!\n"; std::cerr << message; } }
+#define PG_ASSERT(x, message) { if(!(x)) { std::cerr << "Assertion Failed!\n" << message << std::endl; } }
 
 namespace vkPlayground {
 

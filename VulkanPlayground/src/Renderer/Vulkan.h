@@ -5,7 +5,15 @@
 #include <vulkan/vulkan.h>
 #include <chrono>
 
+// These are for better debugging inside RenderDoc for example
+inline PFN_vkSetDebugUtilsObjectNameEXT fpSetDebugUtilsObjectNameEXT; // https://registry.khronos.org/vulkan/specs/1.3-extensions/man/html/vkSetDebugUtilsObjectTagEXT.html
+inline PFN_vkCmdBeginDebugUtilsLabelEXT fpCmdBeginDebugUtilsLabelEXT; // https://registry.khronos.org/vulkan/specs/1.3-extensions/man/html/vkCmdBeginDebugUtilsLabelEXT.html
+inline PFN_vkCmdEndDebugUtilsLabelEXT fpCmdEndDebugUtilsLabelEXT; // https://registry.khronos.org/vulkan/specs/1.3-extensions/man/html/vkCmdEndDebugUtilsLabelEXT.html
+inline PFN_vkCmdInsertDebugUtilsLabelEXT fpCmdInsertDebugUtilsLabelEXT; // https://registry.khronos.org/vulkan/specs/1.3-extensions/man/html/vkCmdInsertDebugUtilsLabelEXT.html
+
 namespace vkPlayground::Utils {
+
+	void VulkanLoadDebugUtilsExtensions(VkInstance instance);
 
 	inline const char* VKResultToString(VkResult result)
 	{
@@ -111,7 +119,7 @@ namespace vkPlayground::Utils {
 	{
 		if (res != VK_SUCCESS)
 		{
-			std::cerr << "VkResult is " << VKResultToString(res) << " " << __FILE__ << " " << __LINE__ << std::endl;
+			std::cerr << "[Vulkan] VkResult is " << VKResultToString(res) << " " << __FILE__ << " " << __LINE__ << std::endl;
 			if (res == VK_ERROR_DEVICE_LOST)
 			{
 				using namespace std::chrono_literals;

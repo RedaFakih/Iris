@@ -5,6 +5,8 @@
 
 #include <vulkan/vulkan.h>
 
+#define PG_USE_DEBUG_REPORT_CALLBACK_EXT 0
+
 namespace vkPlayground::Renderer {
 
 	class RendererContext
@@ -23,6 +25,9 @@ namespace vkPlayground::Renderer {
 
 		static VkInstance s_VulkanInstance;
 
+#if PG_USE_DEBUG_REPORT_CALLBACK_EXT
+		VkDebugReportCallbackEXT m_DebugReportCallback = VK_NULL_HANDLE;
+#endif
 		VkDebugUtilsMessengerEXT m_DebugUtilsMessenger = VK_NULL_HANDLE;
 
 	};

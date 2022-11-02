@@ -31,7 +31,8 @@ project "VulkanPlayground"
         "%{IncludeDir.glm}",
         "%{IncludeDir.VulkanSDK}",
         "%{IncludeDir.choc}",
-        "%{IncludeDir.stb}"
+        "%{IncludeDir.stb}",
+        "%{IncludeDir.spdlog}"
     }
 
     links

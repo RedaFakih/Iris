@@ -28,14 +28,43 @@ namespace vkPlayground::Renderer {
 
             if (instanceVersion < minimumSupportedVersion)
             {
-                std::cerr << "Incompatable Vulkan driver version!" << std::endl;
-                std::cerr << "\tYou have: " << VK_API_VERSION_MAJOR(instanceVersion) << " " << VK_API_VERSION_MINOR(instanceVersion) << " " << VK_API_VERSION_PATCH(instanceVersion) << std::endl;
-                std::cerr << "\tYou need at least: " << VK_API_VERSION_MAJOR(minimumSupportedVersion) << " " << VK_API_VERSION_MINOR(minimumSupportedVersion) << " " << VK_API_VERSION_PATCH(minimumSupportedVersion) << std::endl;
+                std::cerr << "[Renderer] Incompatible driver version!\n";
+                std::cerr << "[Renderer] \tYou have: " << VK_API_VERSION_MAJOR(instanceVersion) << "." << VK_API_VERSION_MINOR(instanceVersion) << "." << VK_API_VERSION_PATCH(instanceVersion) << std::endl;
+                std::cerr << "[Renderer] \tYou need at least: " << VK_API_VERSION_MAJOR(minimumSupportedVersion) << "." << VK_API_VERSION_MINOR(minimumSupportedVersion) << "." << VK_API_VERSION_PATCH(minimumSupportedVersion) << std::endl;
 
                 return false;
             }
 
             return true;
+        }
+
+#if PG_USE_DEBUG_REPORT_CALLBACK_EXT
+        static VKAPI_ATTR VkBool32 VKAPI_CALL VulkanDebugReportCallback(
+            VkDebugReportFlagsEXT flags,
+            VkDebugReportObjectTypeEXT objectType,
+            uint64_t object,
+            size_t location,
+            int32_t messageCode,
+            const char* pLayerPrefix,
+            const char* pMessage,
+            void* pUserData)
+        {
+            (void)flags, (void)object, (void)location, (void)messageCode, (void)pUserData, (void)pLayerPrefix;
+            std::cout << "[Renderer] VulkanDebugReportCallback:\n" << "\tObject Type: " << objectType << "\n\tMessage: " << pMessage << std::endl;
+
+            return VK_FALSE;
+        }
+#endif
+
+        static VKAPI_ATTR VkBool32 VKAPI_CALL VulkanDebugCallback(
+            VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
+            VkDebugUtilsMessageTypeFlagsEXT messageType,
+            const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
+            void* pUserData)
+        {
+            std::cerr << "[ValidationLayers] " << pCallbackData->pMessage << std::endl;
+
+            return VK_FALSE;
         }
 
     }
@@ -53,6 +82,19 @@ namespace vkPlayground::Renderer {
 
     RendererContext::~RendererContext()
     {
+        if (s_Validation)
+        {
+#if PG_USE_DEBUG_REPORT_CALLBACK_EXT
+            auto vkDestroyDebugReportCallbackEXT = (PFN_vkDestroyDebugReportCallbackEXT)(vkGetInstanceProcAddr(s_VulkanInstance, "vkDestroyDebugReportCallbackEXT"));
+            PG_ASSERT(vkDestroyDebugReportCallbackEXT != nullptr, "vkGetInstaceProcAddr returned null!");
+            vkDestroyDebugReportCallbackEXT(s_VulkanInstance, m_DebugReportCallback, nullptr);
+#endif
+
+            auto vkDestroyDebugUtilsMessengerEXT = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(s_VulkanInstance, "vkDestroyDebugUtilsMessengerEXT");
+            PG_ASSERT(vkDestroyDebugUtilsMessengerEXT != nullptr, "vkGetInstanceProcAddr returned null!");
+            vkDestroyDebugUtilsMessengerEXT(s_VulkanInstance, m_DebugUtilsMessenger, nullptr);
+        }
+
         vkDestroyInstance(s_VulkanInstance, nullptr);
         s_VulkanInstance = nullptr;
     }
@@ -93,7 +135,7 @@ namespace vkPlayground::Renderer {
         }
 
         VkValidationFeatureEnableEXT enables[] = { VK_VALIDATION_FEATURE_ENABLE_BEST_PRACTICES_EXT }; // https://registry.khronos.org/vulkan/specs/1.3-extensions/man/html/VkValidationFeatureEnableEXT.html
-        VkValidationFeaturesEXT features = {};
+        VkValidationFeaturesEXT features = {}; // this feature enables the output of warnings related to common misuse of the API, but which are not explicitly prohibited by the specification
         features.sType = VK_STRUCTURE_TYPE_VALIDATION_FEATURES_EXT;
         features.enabledValidationFeatureCount = 1; // Number of features to enable, corresponds to the number of enum values in the array
         features.pEnabledValidationFeatures = enables; // pointer to an array specifying the validation features to be enabled.
@@ -101,7 +143,7 @@ namespace vkPlayground::Renderer {
         VkInstanceCreateInfo instanceCreateInfo = {};
         instanceCreateInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
         instanceCreateInfo.pApplicationInfo = &appInfo;
-        instanceCreateInfo.pNext = nullptr; // &features
+        instanceCreateInfo.pNext = &features; // nullptr
         // Set the desired global extensions since Vulkan is platform agnostic we need extensions to interface with glfw and others...
         instanceCreateInfo.enabledExtensionCount = (uint32_t)instanceExtensions.size();
         instanceCreateInfo.ppEnabledExtensionNames = instanceExtensions.data();
@@ -119,10 +161,10 @@ namespace vkPlayground::Renderer {
             vkEnumerateInstanceLayerProperties(&instanceLayerCount, instanceLayerProperties.data());
 
             bool validationLayerSupported = false;
-            std::cout << "Vulkan instance layers:" << std::endl;
+            std::cout << "[Renderer] Vulkan instance layers:\n";
             for (const VkLayerProperties& layer : instanceLayerProperties)
             {
-                std::cout << "[Renderer]    " << layer.layerName << std::endl;
+                std::cout << "[Renderer] \t" << layer.layerName << std::endl;
                 if (strcmp(layer.layerName, validationLayerName) == 0)
                 {
                     validationLayerSupported = true;
@@ -145,13 +187,46 @@ namespace vkPlayground::Renderer {
         ////// Instance and surface creation
         ////////////////////////////////////////////////////////
         VK_CHECK_RESULT(vkCreateInstance(&instanceCreateInfo, nullptr, &s_VulkanInstance));
-        // TODO: Load Debug Utils Extensions...
+        vkPlayground::Utils::VulkanLoadDebugUtilsExtensions(s_VulkanInstance);
 
         // Load the debug messenger and setup the callback
         if (s_Validation)
         {
+#if PG_USE_DEBUG_REPORT_CALLBACK_EXT
+            auto vkCreateDebugReportCallbackEXT = (PFN_vkCreateDebugReportCallbackEXT)(vkGetInstanceProcAddr(s_VulkanInstance, "vkCreateDebugReportCallbackEXT"));
+            PG_ASSERT(vkCreateDebugReportCallbackEXT != nullptr, "vkGetInstanceProcAddr returned null!");
 
+            VkDebugReportCallbackCreateInfoEXT debugReportCreateInfo = {};
+            debugReportCreateInfo.sType = VK_STRUCTURE_TYPE_DEBUG_REPORT_CALLBACK_CREATE_INFO_EXT;
+            debugReportCreateInfo.flags = VK_DEBUG_REPORT_ERROR_BIT_EXT | VK_DEBUG_REPORT_WARNING_BIT_EXT | VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT;
+            debugReportCreateInfo.pfnCallback = Utils::VulkanDebugReportCallback;
+            debugReportCreateInfo.pUserData = nullptr;
+
+            VK_CHECK_RESULT(vkCreateDebugReportCallbackEXT(s_VulkanInstance, &debugReportCreateInfo, nullptr, &m_DebugReportCallback));
+#endif
+
+            auto vkCreateDebugUtilsMessengerEXT = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(s_VulkanInstance, "vkCreateDebugUtilsMessengerEXT");
+            PG_ASSERT(vkCreateDebugUtilsMessengerEXT != nullptr, "vkGetInstanceProcAddr returned null!");
+
+            VkDebugUtilsMessengerCreateInfoEXT debugMessengerCreateInfo = {};
+            debugMessengerCreateInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
+            debugMessengerCreateInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT 
+                                                     | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT 
+                                                     | VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT
+                                                     | VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT;
+            debugMessengerCreateInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT 
+                                                 | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT 
+                                                 | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT; // Callback is notified about all types of messages
+            debugMessengerCreateInfo.pfnUserCallback = Utils::VulkanDebugCallback;
+            debugMessengerCreateInfo.pUserData = nullptr; // Optional
+
+            VK_CHECK_RESULT(vkCreateDebugUtilsMessengerEXT(s_VulkanInstance, &debugMessengerCreateInfo, nullptr, &m_DebugUtilsMessenger));
         }
+
+        // Select and Create Physical Device
+        m_PhysicalDevice = VulkanPhysicalDevice::Create();
+
+        // TODO: Logical device and queue families
     }
 
 }
