@@ -57,10 +57,10 @@ namespace vkPlayground::Renderer {
 #endif
 
         static VKAPI_ATTR VkBool32 VKAPI_CALL VulkanDebugCallback(
-            VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
-            VkDebugUtilsMessageTypeFlagsEXT messageType,
+            VkDebugUtilsMessageSeverityFlagBitsEXT,
+            VkDebugUtilsMessageTypeFlagsEXT,
             const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
-            void* pUserData)
+            void*)
         {
             std::cerr << "[ValidationLayers] " << pCallbackData->pMessage << std::endl;
 
@@ -95,6 +95,8 @@ namespace vkPlayground::Renderer {
             vkDestroyDebugUtilsMessengerEXT(s_VulkanInstance, m_DebugUtilsMessenger, nullptr);
         }
 
+        m_Device->Destroy();
+
         vkDestroyInstance(s_VulkanInstance, nullptr);
         s_VulkanInstance = nullptr;
     }
@@ -122,9 +124,9 @@ namespace vkPlayground::Renderer {
         ////////////////////////////////////////////////////////
         ////// Extensions and validation
         ////////////////////////////////////////////////////////
-        
+
 #define VK_KHR_WIN32_SURFACE_EXTENSION_NAME "VK_KHR_win32_surface"
-        // VK_KHR_surface - VK_KHR_win32_surface
+                // VK_KHR_surface - VK_KHR_win32_surface
         std::vector<const char*> instanceExtensions = { VK_KHR_SURFACE_EXTENSION_NAME, VK_KHR_WIN32_SURFACE_EXTENSION_NAME };
         instanceExtensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME); // Very little performance hit, can be used in Release
         // This is for more debugging utilities just like the name identifies. Check Out: https://registry.khronos.org/vulkan/specs/1.3-extensions/man/html/VK_EXT_debug_utils.html
@@ -143,7 +145,7 @@ namespace vkPlayground::Renderer {
         VkInstanceCreateInfo instanceCreateInfo = {};
         instanceCreateInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
         instanceCreateInfo.pApplicationInfo = &appInfo;
-        instanceCreateInfo.pNext = &features; // nullptr
+        instanceCreateInfo.pNext = nullptr; // &features
         // Set the desired global extensions since Vulkan is platform agnostic we need extensions to interface with glfw and others...
         instanceCreateInfo.enabledExtensionCount = (uint32_t)instanceExtensions.size();
         instanceCreateInfo.ppEnabledExtensionNames = instanceExtensions.data();
@@ -155,7 +157,7 @@ namespace vkPlayground::Renderer {
             constexpr const char* validationLayerName = "VK_LAYER_KHRONOS_validation";
 
             // Check if this layer is available at instance level!
-            uint32_t instanceLayerCount = 0;
+            uint32_t instanceLayerCount;
             vkEnumerateInstanceLayerProperties(&instanceLayerCount, nullptr);
             std::vector<VkLayerProperties> instanceLayerProperties(instanceLayerCount);
             vkEnumerateInstanceLayerProperties(&instanceLayerCount, instanceLayerProperties.data());
@@ -210,13 +212,13 @@ namespace vkPlayground::Renderer {
 
             VkDebugUtilsMessengerCreateInfoEXT debugMessengerCreateInfo = {};
             debugMessengerCreateInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
-            debugMessengerCreateInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT 
-                                                     | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT 
-                                                     | VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT
-                                                     | VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT;
-            debugMessengerCreateInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT 
-                                                 | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT 
-                                                 | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT; // Callback is notified about all types of messages
+            debugMessengerCreateInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT
+                | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT
+                /*| VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT
+                | VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT*/;
+            debugMessengerCreateInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT
+                | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT
+                | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT; // Callback is notified about all types of messages
             debugMessengerCreateInfo.pfnUserCallback = Utils::VulkanDebugCallback;
             debugMessengerCreateInfo.pUserData = nullptr; // Optional
 
@@ -226,7 +228,13 @@ namespace vkPlayground::Renderer {
         // Select and Create Physical Device
         m_PhysicalDevice = VulkanPhysicalDevice::Create();
 
-        // TODO: Logical device and queue families
+        VkPhysicalDeviceFeatures enabledFeatures = {};
+        // TODO: Add features as we go...
+        m_Device = VulkanDevice::Create(m_PhysicalDevice, enabledFeatures);
+
+        // TODO: VMA Init...
+
+        // TODO: Pipeline caches...
     }
 
 }

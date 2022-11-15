@@ -2,8 +2,9 @@
 
 #include <iostream>
 #include <memory>
+#include <source_location>
 
-#define PG_ASSERT(x, message) { if(!(x)) { std::cerr << "Assertion Failed!\n" << message << std::endl; } }
+#define PG_ASSERT(x, message) { if(!(x)) { std::source_location loc = std::source_location::current(); std::cerr << "Assertion Failed in File: " << loc.file_name() << " Function: " << loc.function_name() << " Line: " << loc.line() << "!\n" << message << std::endl; __debugbreak(); } }
 
 namespace vkPlayground {
 

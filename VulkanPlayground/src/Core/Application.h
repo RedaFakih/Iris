@@ -2,6 +2,7 @@
 
 #include "Base.h"
 #include "Window.h"
+#include "AppEvents.h"
 
 #include <vulkan/vulkan.h>
 
@@ -14,6 +15,7 @@ namespace vkPlayground {
 		~Application();
 
 		void Run();
+		void OnEvent(Events::Event& e);
 
 	private:
 		void Init();
@@ -21,6 +23,7 @@ namespace vkPlayground {
 
 	private:
 		Ref<Window> m_Window;
+		bool m_Running = true;
 
 		float m_LastFrameTime = 0.0f;
 

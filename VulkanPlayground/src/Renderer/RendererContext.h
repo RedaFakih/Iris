@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Base.h"
+#include "Core/Base.h"
 #include "Device.h"
 
 #include <vulkan/vulkan.h>
@@ -18,6 +18,10 @@ namespace vkPlayground::Renderer {
 		static Scope<RendererContext> Create();
 
 		void Init();
+
+		Ref<VulkanDevice> GetDevice() const { return m_Device; }
+
+		static VkInstance GetInstance() { return s_VulkanInstance; }
 
 	private:
 		Ref<VulkanDevice> m_Device;
