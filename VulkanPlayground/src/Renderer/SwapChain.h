@@ -38,6 +38,17 @@ namespace vkPlayground::Renderer {
 		VkFormat m_ColorFormat;
 		VkColorSpaceKHR m_ColorSpace;
 
+		uint32_t m_ImageCount = 0;
+		std::vector<VkImage> m_VulkanImages;
+
+		struct SwapChainImages
+		{
+			VkImage Image = nullptr;
+			VkImageView ImageView = nullptr;
+		};
+
+		std::vector<SwapChainImages> m_Images;
+
 		uint32_t m_QueueNodeIndex = UINT32_MAX;
 		uint32_t m_Width = 0;
 		uint32_t m_Height = 0;

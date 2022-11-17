@@ -227,9 +227,46 @@ namespace vkPlayground::Renderer {
 			vkDestroySwapchainKHR(device, oldSwapChain, nullptr);
 		}
 
-		// TODO: Continue the work on image views
-	}
+		for (auto& image : m_Images)
+			vkDestroyImageView(device, image.ImageView, nullptr);
+		m_Images.clear();
 
+		// Get the swap chain images
+		VK_CHECK_RESULT(vkGetSwapchainImagesKHR(device, m_SwapChain, &m_ImageCount, nullptr));
+		PG_ASSERT(m_ImageCount, "");
+		m_Images.resize(m_ImageCount);
+		m_VulkanImages.resize(m_ImageCount);
+		VK_CHECK_RESULT(vkGetSwapchainImagesKHR(device, m_SwapChain, &m_ImageCount, m_VulkanImages.data()));
+
+		// Get the swap chain buffers containing the image and imageview
+		for (uint32_t i = 0; i < m_ImageCount; i++)
+		{
+			VkImageViewCreateInfo createInfo = {};
+			createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+			createInfo.pNext = nullptr;
+			createInfo.format = m_ColorFormat;
+			createInfo.image = m_VulkanImages[0];
+			createInfo.components = {
+				VK_COMPONENT_SWIZZLE_R,
+				VK_COMPONENT_SWIZZLE_G,
+				VK_COMPONENT_SWIZZLE_B,
+				VK_COMPONENT_SWIZZLE_A
+			};
+			createInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+			createInfo.subresourceRange.baseMipLevel = 0;
+			createInfo.subresourceRange.levelCount = 1;
+			createInfo.subresourceRange.baseArrayLayer = 0;
+			createInfo.subresourceRange.layerCount = 1;
+			createInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+			createInfo.flags = 0;
+
+			m_Images[i].Image = m_VulkanImages[i];
+
+			VK_CHECK_RESULT(vkCreateImageView(device, &createInfo, nullptr, &m_Images[i].ImageView));
+			VKUtils::SetDebugUtilsObjectName(device, VK_OBJECT_TYPE_IMAGE_VIEW, "SwapChain ImageView: " + std::to_string(i), m_Images[i].ImageView);
+		}
+	}
+	
 	void SwapChain::Destroy()
 	{
 		VkDevice device = m_Device->GetVulkanDevice();
@@ -238,6 +275,9 @@ namespace vkPlayground::Renderer {
 
 		if (m_SwapChain)
 			vkDestroySwapchainKHR(device, m_SwapChain, nullptr);
+
+		for (auto& image : m_Images)
+			vkDestroyImageView(device, image.ImageView, nullptr);
 
 		vkDestroySurfaceKHR(m_Instance, m_Surface, nullptr);
 	
