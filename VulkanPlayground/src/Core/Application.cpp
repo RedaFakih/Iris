@@ -1,11 +1,15 @@
 #include "Application.h"
 
+#include "Renderer/Shader.h"
+
 #include <glfw/glfw3.h>
 
 namespace vkPlayground {
 
 	Application::Application()
 	{
+
+		Renderer::Shader::Create("Shaders/SimpleShader.glsl");
 		PG_ASSERT(!s_Instance, "No more than 1 application can be created!");
 		s_Instance = this;
 

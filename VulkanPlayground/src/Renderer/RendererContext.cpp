@@ -2,10 +2,14 @@
 
 #include "Vulkan.h"
 
+#pragma warning(disable : 4005)
+
 #include <glfw/glfw3.h>
 
 #include <vector>
 #include <Windows.h> // MessageBox
+
+#pragma warning(default : 4005)
 
 #ifndef VK_API_VERSION_1_3
     #error Wrong vulkan SDK!

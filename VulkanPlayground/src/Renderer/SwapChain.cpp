@@ -265,6 +265,11 @@ namespace vkPlayground::Renderer {
 			VK_CHECK_RESULT(vkCreateImageView(device, &createInfo, nullptr, &m_Images[i].ImageView));
 			VKUtils::SetDebugUtilsObjectName(device, VK_OBJECT_TYPE_IMAGE_VIEW, "SwapChain ImageView: " + std::to_string(i), m_Images[i].ImageView);
 		}
+
+		// TODO: Command buffers?
+		// TODO: Synchronization Objects?
+		// TODO: RenderPasses?
+		// TODO: Per Image Framebuffers?
 	}
 	
 	void SwapChain::Destroy()
