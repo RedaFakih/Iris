@@ -13,7 +13,10 @@ project "VulkanPlayground"
         "src/**.cpp",
 
         "dependencies/stb/**.h",
-        "dependencies/stb/**.cpp"
+        "dependencies/stb/**.cpp",
+
+        "dependencies/Vma/**.h",
+        "dependencies/Vma/**.cpp"
     }
 
     defines
@@ -39,8 +42,7 @@ project "VulkanPlayground"
     {
         "GLFW",
         "ImGui",
-        "%{Library.Vulkan}",
-        "%{Library.VulkanUtils}"
+        "%{Library.Vulkan}"
     }
 
     filter "system:windows"

@@ -50,22 +50,6 @@ namespace vkPlayground::Events {
 
 	};
 
-	class WindowMaximizeEvent : public Event
-	{
-	public:
-		WindowMaximizeEvent() = default;
-
-		std::string toString() const override
-		{
-			std::stringstream ss;
-			ss << "Window Maximize Event!";
-			return ss.str();
-		}
-
-		EVENT_CLASS_TYPE(WindowMaximize)
-
-	};
-
 	class WindowCloseEvent : public Event
 	{
 	public:

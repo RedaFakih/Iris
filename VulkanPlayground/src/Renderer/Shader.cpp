@@ -1,10 +1,15 @@
 #include "Shader.h"
 
+#include "Renderer/Core/Vulkan.h"
+#include "Renderer/Core/RendererContext.h"
+
 #include <spirv_cross/spirv_glsl.hpp>
+#include <vulkan/vulkan.h>
+#include <spdlog/spdlog.h>
 
 #include <chrono>
 
-namespace vkPlayground::Renderer {
+namespace vkPlayground {
 
 	namespace Utils {
 
@@ -20,7 +25,7 @@ namespace vkPlayground::Renderer {
 				std::filesystem::create_directories(cacheDir);
 		}
 
-		shaderc_shader_kind ShaderTypeFromString(const std::string& type)
+		constexpr shaderc_shader_kind ShaderTypeFromString(const std::string& type)
 		{
 			if (type == "vertex")    return shaderc_vertex_shader;
 			if (type == "fragment")  return shaderc_fragment_shader;
@@ -29,7 +34,19 @@ namespace vkPlayground::Renderer {
 			return (shaderc_shader_kind)-1;
 		}
 
-		std::string FileExtensionFromType(shaderc_shader_kind type)
+		constexpr VkShaderStageFlagBits VkShaderStageFromShadercShaderKind(shaderc_shader_kind type)
+		{
+			switch (type)
+			{
+				case shaderc_fragment_shader:   return VK_SHADER_STAGE_FRAGMENT_BIT;
+				case shaderc_vertex_shader:		return VK_SHADER_STAGE_VERTEX_BIT;
+				case shaderc_compute_shader:	return VK_SHADER_STAGE_COMPUTE_BIT;
+			}
+
+			return (VkShaderStageFlagBits)-1;
+		}
+
+		constexpr std::string FileExtensionFromType(shaderc_shader_kind type)
 		{
 			switch (type)
 			{
@@ -41,7 +58,7 @@ namespace vkPlayground::Renderer {
 			return "";
 		}
 
-		std::string ShaderTypeToString(shaderc_shader_kind type)
+		constexpr std::string ShaderTypeToString(shaderc_shader_kind type)
 		{
 			switch (type)
 			{
@@ -53,12 +70,13 @@ namespace vkPlayground::Renderer {
 			return "";
 		}
 
-		std::string ReadTextFile(const std::string& filePath)
+		std::string ReadTextFile(std::string_view filePath)
 		{
 			std::string result;
 			
 			FILE* f;
-			fopen_s(&f, filePath.c_str(), "rb");
+			// NOTE: It is safe to call `.data()` here since the file path will be provided via a string literal which is guaranteed to be null terminated
+			fopen_s(&f, filePath.data(), "rb");
 			if (f)
 			{
 				fseek(f, 0, SEEK_END);
@@ -73,12 +91,12 @@ namespace vkPlayground::Renderer {
 		}
 	}
 
-	Ref<Shader> Shader::Create(const std::string& path)
+	Ref<Shader> Shader::Create(std::string_view path)
 	{
 		return CreateRef<Shader>(path);
 	}
 
-	Shader::Shader(const std::string& path)
+	Shader::Shader(std::string_view path)
 		: m_FilePath(path)
 	{
 		{
@@ -99,7 +117,6 @@ namespace vkPlayground::Renderer {
 
 	Shader::~Shader()
 	{
-
 	}
 
 	void Shader::LoadTwoStageShader(const std::string& source)
@@ -126,14 +143,14 @@ namespace vkPlayground::Renderer {
 			size_t eol = source.find_first_of("\r\n", pos);
 			if (eol == std::string::npos)
 			{
-				std::cerr << "Syntax Error!" << std::endl;
+				PG_CORE_ERROR_TAG("ShaderCompiler", "Syntax Error!");
 			}
 
 			size_t typeBegin = pos + typeIdentifierLength + 1;
 			std::string type = source.substr(typeBegin, eol - typeBegin);
 			if (type != "vertex" && type != "fragment")
 			{
-				std::cerr << "Unknown shader type!" << std::endl;
+				PG_CORE_ERROR_TAG("ShaderCompiler", "Unknown shader type!");
 			}
 
 			size_t nextLinePos = source.find_first_not_of("\r\n", eol);
@@ -161,7 +178,7 @@ namespace vkPlayground::Renderer {
 			fopen_s(&f, p.c_str(), "rb");
 			if (f && !forceCompile)
 			{
-				std::cout << "[Shader]: Found cache, loading shader cache..." << std::endl;
+				PG_CORE_DEBUG_TAG("Shader", "Found cache, loading shader cache...");
 
 				fseek(f, 0, SEEK_END);
 				uint64_t size = ftell(f);
@@ -172,12 +189,10 @@ namespace vkPlayground::Renderer {
 			}
 			else
 			{
-				std::cout << "[Shader]: No cache found! Compiling shaders..." << std::endl;
+				PG_CORE_DEBUG_TAG("Shader", "No cache found! Compiling shaders...");
 
 				if (f)
-				{
 					fclose(f); // Stop the file leak in-case force compile was set to true!
-				}
 
 				shaderc::Compiler compiler;
 				shaderc::CompileOptions options;
@@ -195,8 +210,8 @@ namespace vkPlayground::Renderer {
 				shaderc::SpvCompilationResult result = compiler.CompileGlslToSpv(spirv, type, m_FilePath.string().c_str(), options);
 				if (result.GetCompilationStatus() != shaderc_compilation_status_success)
 				{
-					std::cerr << "Compilation failed in stage: " << Utils::ShaderTypeToString(type) << std::endl;
-					std::cerr << "\tError Message: " << result.GetErrorMessage();
+					PG_CORE_ERROR_TAG("ShaderCompiler", "Compilation failed in stage: {0}", Utils::ShaderTypeToString(type));
+					PG_CORE_ERROR_TAG("ShaderCompiler", "\tError message: {0}", result.GetErrorMessage());
 
 					return false;
 				}
@@ -219,6 +234,42 @@ namespace vkPlayground::Renderer {
 
 	void Shader::CreateProgram()
 	{
+		VkDevice device = RendererContext::Get()->GetDevice()->GetVulkanDevice();
+
+		for (const auto& [type, spirvBin] : m_VulkanSPIRV)
+		{
+			VkShaderModuleCreateInfo shaderCreateInfo = {
+				.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
+				.codeSize = spirvBin.size() * sizeof(uint32_t),
+				.pCode = spirvBin.data()
+			};
+
+			VkShaderModule shaderModule;
+			VK_CHECK_RESULT(vkCreateShaderModule(device, &shaderCreateInfo, nullptr, &shaderModule));
+			VKUtils::SetDebugUtilsObjectName(device, VK_OBJECT_TYPE_SHADER_MODULE, std::format("{}.{}", m_Name, Utils::ShaderTypeToString(type)), shaderModule);
+			
+			m_PipelineShaderStageCreateInfos.emplace_back(VkPipelineShaderStageCreateInfo{
+				.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+				.stage = Utils::VkShaderStageFromShadercShaderKind(type),
+				.module = shaderModule,
+				.pName = "main"
+			});
+		}
+	}
+
+	void Shader::Release()
+	{
+		VkDevice device = RendererContext::Get()->GetDevice()->GetVulkanDevice();
+		for (const auto& pipelineShaderStageCIs : m_PipelineShaderStageCreateInfos)
+		{
+			if (pipelineShaderStageCIs.module)
+				vkDestroyShaderModule(device, pipelineShaderStageCIs.module, nullptr);
+		}
+
+		for (auto& pipelineShaderStageCIs : m_PipelineShaderStageCreateInfos)
+			pipelineShaderStageCIs.module = nullptr;
+
+		m_PipelineShaderStageCreateInfos.clear();
 	}
 
 	uint32_t Shader::GetLastTimeModified() const

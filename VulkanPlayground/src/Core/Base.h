@@ -1,10 +1,18 @@
 #pragma once
 
-#include <iostream>
-#include <memory>
+#include "Log.h"
 #include <source_location>
+#include <memory>
 
-#define PG_ASSERT(x, message) { if(!(x)) { std::source_location loc = std::source_location::current(); std::cerr << "Assertion Failed in File: " << loc.file_name() << " Function: " << loc.function_name() << " Line: " << loc.line() << "!\n" << message << std::endl; __debugbreak(); } }
+#define PG_ASSERT(x, message)\
+{\
+	if(!(x))\
+	{\
+		std::source_location loc = std::source_location::current();\
+		PG_CORE_CRITICAL_TAG("Core", "Assertion Failed in File: {0}, Function: {1}, Line: {2}!\n{3}", loc.file_name(), loc.function_name(), loc.line(), message);\
+		__debugbreak();\
+	}\
+}
 
 namespace vkPlayground {
 

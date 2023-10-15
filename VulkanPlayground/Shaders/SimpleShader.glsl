@@ -1,32 +1,15 @@
 #pragma vertex
 #version 450 core
 
-layout(push_constant) uniform Transform
-{
-    float A;
-    float B;
-} u_Test;
+layout(location = 0) in vec3 a_Position;
+layout(location = 1) in vec3 a_Color;
 
 layout(location = 0) out vec3 v_Color;
 
-vec2 g_Positions[3] = {
-    vec2( 0.0f, -0.5f),
-    vec2( 0.5f,  0.5f),
-    vec2(-0.5f,  0.5f)
-};
-
-vec3 g_Colors[3] = {
-    vec3(1.0f, 0.0f, 0.0f),
-    vec3(0.0f, 1.0f, 0.0f),
-    vec3(0.0f, 0.0f, 1.0f)
-};
-
 void main()
 {
-    float testest = u_Test.A;
-
-    v_Color = g_Colors[gl_VertexIndex];
-    gl_Position = vec4(g_Positions[gl_VertexIndex], 0.0f, 1.0f);
+    v_Color = a_Color;
+    gl_Position = vec4(a_Position, 1.0f);
 }
 
 #pragma fragment
