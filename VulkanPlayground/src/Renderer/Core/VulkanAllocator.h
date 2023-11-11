@@ -33,7 +33,6 @@ namespace vkPlayground {
 		void UnmapMemory(VmaAllocation allocation);
 
 		VmaAllocator& GetVmaAllocator();
-
 		GPUMemoryStats GetStats();
 
 	private:

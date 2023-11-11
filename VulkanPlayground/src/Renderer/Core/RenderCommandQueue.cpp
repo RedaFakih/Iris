@@ -6,20 +6,21 @@ namespace vkPlayground {
 
 	RenderCommandQueue::RenderCommandQueue()
 	{
-		m_CommandBuffer = new uint8_t[10 * 1024 * 1024]; // 10mb buffer
+		m_Capacity = 1024; // 1KB
+		m_CommandBuffer = new uint8_t[m_Capacity]; // Starting buffer of 1KB capacity
 		m_CommandBufferPtr = m_CommandBuffer;
-		memset(m_CommandBuffer, 0, 10 * 1024 * 1024);
+		std::memset(m_CommandBuffer, 0, m_Capacity);
 	}
 
 	RenderCommandQueue::~RenderCommandQueue()
 	{
 		delete[] m_CommandBuffer;
+		m_CommandBuffer = nullptr;
+		m_CommandBufferPtr = nullptr;
 	}
 
 	void* RenderCommandQueue::Allocate(RenderCommandFn fn, uint32_t size)
 	{
-		// TODO: Alignment
-		// 
 		// IMPORTANT NOTE:
 		// In memory the layout of the buffer is:
 		// |||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
@@ -32,7 +33,12 @@ namespace vkPlayground {
 		// 
 		// The size is stored in the buffer so that when we want to execute the commands one by one we can know how much to advance in
 		// order to advance the pointer to the next command correctly
-		
+
+		// Should also handle the case where we allocate but there is still no space to fit the render command func but that is rare and
+		// if that happens then we messed up really badly to get there
+		if (m_UsedBytes >= m_Capacity)
+			ReAlloc(m_Capacity * 2);
+
 		// We store the function pointer in the buffer then advance the pointer so that next write will not overwrite the function pointer
 		*reinterpret_cast<RenderCommandFn*>(m_CommandBufferPtr) = fn;
 		m_CommandBufferPtr += sizeof(RenderCommandFn);
@@ -44,6 +50,7 @@ namespace vkPlayground {
 		// We return the memory after both the function and its size have been stored
 		void* memory = m_CommandBufferPtr;
 		m_CommandBufferPtr += size;
+		m_UsedBytes = static_cast<size_t>(m_CommandBufferPtr - m_CommandBuffer);
 		
 		m_CommandCount++;
 		return memory;
@@ -51,6 +58,7 @@ namespace vkPlayground {
 
 	void RenderCommandQueue::Execute()
 	{
+		// Start from the base of the command buffer
 		uint8_t* buffer = m_CommandBuffer;
 
 		for (uint32_t i = 0; i < m_CommandCount; i++)
@@ -71,7 +79,21 @@ namespace vkPlayground {
 		}
 
 		m_CommandBufferPtr = m_CommandBuffer; // Reset the Ptr to the beginning of the CommandBuffer
+		m_UsedBytes = 0; // Reset the used bytes after execution for debugging purposes (it gets reset on every `Allocate` call anyways...)
 		m_CommandCount = 0;
+	}
+
+	void RenderCommandQueue::ReAlloc(size_t newCapacity)
+	{
+		uint8_t* newCommandBuffer = new uint8_t[newCapacity];
+		std::memcpy(newCommandBuffer, m_CommandBuffer, m_Capacity);
+
+		delete[] m_CommandBuffer;
+		m_CommandBuffer = newCommandBuffer;
+		m_CommandBufferPtr = m_CommandBuffer + m_UsedBytes; // Restore the pointer to the same position as it was on the past buffer
+
+		newCommandBuffer = nullptr;
+		m_Capacity = newCapacity;
 	}
 
 }
