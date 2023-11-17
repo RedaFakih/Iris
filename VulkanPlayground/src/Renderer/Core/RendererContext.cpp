@@ -41,18 +41,75 @@ namespace vkPlayground {
             return true;
         }
 
+        constexpr const char* VkDebugUtilsMessageType(const VkDebugUtilsMessageTypeFlagsEXT type)
+        {
+            switch (type)
+            {
+                case VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT:		return "General";
+                case VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT:	return "Validation";
+                case VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT:	return "Performance";
+            }
+
+            return "Unknown";
+        }
+
+        constexpr const char* VkDebugUtilsMessageSeverity(const VkDebugUtilsMessageSeverityFlagBitsEXT severity)
+        {
+            switch (severity)
+            {
+                case VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT:		return "Error";
+                case VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT:	return "Warning";
+                case VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT:		return "Info";
+                case VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT:	return "Verbose";
+            }
+
+            return "Unknown";
+        }
+
         static VKAPI_ATTR VkBool32 VKAPI_CALL VulkanDebugCallback(
             VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
             VkDebugUtilsMessageTypeFlagsEXT messageType,
             const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
-            void*)
+            void* pUserData)
         {
-            (void)messageSeverity;
+            (void)pUserData;
+
+            std::string labels, objects;
+            if (pCallbackData->cmdBufLabelCount)
+            {
+                labels = fmt::format("\tLabels ({0}): \n", pCallbackData->cmdBufLabelCount);
+                for (uint32_t i = 0; i < pCallbackData->cmdBufLabelCount; i++)
+                {
+                    const VkDebugUtilsLabelEXT& label = pCallbackData->pCmdBufLabels[i];
+                    const std::string colorStr = fmt::format("[{}, {}, {}, {}]", label.color[0], label.color[1], label.color[2], label.color[3]);
+                    labels.append(fmt::format("\t\t- Command buffer label[{0}]: Name: {1} Color: {2}\n", i, label.pLabelName ? label.pLabelName : "NULL", colorStr));
+                }
+            }
+
+            if (pCallbackData->objectCount)
+            {
+                objects = fmt::format("\tObjects ({0}): \n", pCallbackData->objectCount);
+                for (uint32_t i = 0; i < pCallbackData->objectCount; i++)
+                {
+                    const VkDebugUtilsObjectNameInfoEXT& object = pCallbackData->pObjects[i];
+                    objects.append(fmt::format("\t\t- Object[{0}]: Name: {1} Type: {2} Handle: {3:#x}\n", i, object.pObjectName ? object.pObjectName : "NULL", Utils::VkObjectTypeToString(object.objectType), object.objectHandle));
+                }
+            }
 
             if (messageType & VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT)
-                PG_CORE_WARN_TAG("ValidationLayers", "{0}", pCallbackData->pMessage);
+                PG_CORE_WARN_TAG("ValidationLayers", "Type: {0}, Severity: {1}\nMessage: \n\t{2}\n {3}, {4}",
+                    VkDebugUtilsMessageType(messageType), 
+                    VkDebugUtilsMessageSeverity(messageSeverity), 
+                    pCallbackData->pMessage, 
+                    labels, 
+                    objects);
             else
-                PG_CORE_ERROR_TAG("ValidationLayers", "{0}", pCallbackData->pMessage);
+                PG_CORE_ERROR_TAG("ValidationLayers", "Type: {0}, Severity: {1}\nMessage: \n\t{2}\n {3}, {4}", 
+                    VkDebugUtilsMessageType(messageType), 
+                    VkDebugUtilsMessageSeverity(messageSeverity), 
+                    pCallbackData->pMessage, 
+                    labels, 
+                    objects);
 
             return VK_FALSE;
         }
@@ -97,7 +154,6 @@ namespace vkPlayground {
 
         if (!Utils::CheckDriverAPIVersionSupport(VK_API_VERSION_1_2))
         {
-            MessageBox(nullptr, L"Incompatible Vulkan driver version. \nUpdate your GPU drivers!", L"vkPlayground Error", MB_OK | MB_ICONERROR);
             PG_ASSERT(false, "Incompatible vulkan driver!");
         }
 
@@ -117,7 +173,7 @@ namespace vkPlayground {
         ////////////////////////////////////////////////////////
 
 #define VK_KHR_WIN32_SURFACE_EXTENSION_NAME "VK_KHR_win32_surface"
-                // VK_KHR_surface - VK_KHR_win32_surface
+        // VK_KHR_surface - VK_KHR_win32_surface
         std::vector<const char*> instanceExtensions = { VK_KHR_SURFACE_EXTENSION_NAME, VK_KHR_WIN32_SURFACE_EXTENSION_NAME };
         instanceExtensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME); // Very little performance hit, can be used in Release
         // This is for more debugging utilities just like the name identifies. Check Out: https://registry.khronos.org/vulkan/specs/1.3-extensions/man/html/VK_EXT_debug_utils.html

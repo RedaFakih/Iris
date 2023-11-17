@@ -115,28 +115,43 @@ namespace vkPlayground::Utils {
 		return "";
 	}
 
-	inline void VulkanCheckResult(VkResult res)
+	// inline void VulkanCheckResult(VkResult res)
+	// {
+	// 	if (res != VK_SUCCESS)
+	// 	{
+	// 		PG_CORE_ERROR_TAG("Vulkan", "VkResult is `{0}`", VKResultToString(res));
+	// 		if (res == VK_ERROR_DEVICE_LOST)
+	// 		{
+	// 			using namespace std::chrono_literals;
+	// 			std::this_thread::sleep_for(3s);
+	// 		}
+	// 
+	// 		PG_ASSERT(res == VK_SUCCESS, "Device lost!");
+	// 	}
+	// }
+
+	inline void VulkanCheckResult(VkResult res, const char* file, int line)
 	{
 		if (res != VK_SUCCESS)
 		{
-			PG_CORE_ERROR_TAG("Vulkan", "VkResult is {0} {1} {2}", VKResultToString(res), __FILE__, __LINE__);
+			PG_CORE_ERROR_TAG("Vulkan", "VkResult is `{0}` in file: `{1}` at line: `{2}`", VKResultToString(res), file, line);
 			if (res == VK_ERROR_DEVICE_LOST)
 			{
 				using namespace std::chrono_literals;
 				std::this_thread::sleep_for(3s);
 			}
 
-			PG_ASSERT(res == VK_ERROR_DEVICE_LOST, "Device lost!");
+			PG_ASSERT(res == VK_SUCCESS, "Device lost!");
 		}
 	}
 
 }
 
-// NOTE: Should be stripped out from a console-less build
+// NOTE: Should be stripped out from console-less build
 #define VK_CHECK_RESULT(f)\
 {\
 	VkResult res = (f);\
-	::vkPlayground::Utils::VulkanCheckResult(res);\
+	::vkPlayground::Utils::VulkanCheckResult(res, __FILE__, __LINE__);\
 }
 
 namespace vkPlayground::VKUtils {

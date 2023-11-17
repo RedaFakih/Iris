@@ -18,9 +18,9 @@ namespace vkPlayground {
 
 	}
 
-	Ref<Window> Window::Create(const WindowSpecification& spec)
+	Scope<Window> Window::Create(const WindowSpecification& spec)
 	{
-		return CreateRef<Window>(spec);
+		return CreateScope<Window>(spec);
 	}
 
 	Window::Window(const WindowSpecification& spec)

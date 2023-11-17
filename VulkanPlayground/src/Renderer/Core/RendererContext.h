@@ -7,7 +7,7 @@
 
 namespace vkPlayground {
 
-	class RendererContext
+	class RendererContext : public RefCountedObject
 	{
 	public:
 		RendererContext();

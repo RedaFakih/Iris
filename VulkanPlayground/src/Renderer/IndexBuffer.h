@@ -7,7 +7,7 @@
 
 namespace vkPlayground {
 
-	class IndexBuffer // : public RefCountedObject
+	class IndexBuffer : public RefCountedObject
 	{
 	public:
 		// Create a buffer in DEVICE_LOCAL memory
@@ -20,7 +20,7 @@ namespace vkPlayground {
 		[[nodiscard]] static Ref<IndexBuffer> Create(uint32_t size);
 
 		// NOTE: Does not work if you created the buffer without giving it data directly which is not really advisable
-		void SetData(void* data, uint32_t size, uint32_t offset = 0);
+		void SetData(const void* data, uint32_t size, uint32_t offset = 0);
 
 		// Default element size for the index buffer is a 32-bit unsigned int 
 		uint32_t GetCount() const { return m_Size / sizeof(uint32_t); }

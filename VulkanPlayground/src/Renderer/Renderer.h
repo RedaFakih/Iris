@@ -1,9 +1,10 @@
 #pragma once
 
 #include "Core/Application.h"
-#include "Renderer/Core/RendererContext.h"
 #include "Renderer/Core/RenderCommandQueue.h"
+#include "Renderer/Core/RendererContext.h"
 #include "RendererConfiguration.h"
+#include "Shaders/Shader.h"
 
 namespace vkPlayground {
 
@@ -17,6 +18,8 @@ namespace vkPlayground {
 		static void Init();
 		static void Shutdown();
 
+		static Ref<ShadersLibrary> GetShadersLibrary();
+
 		// template<typename FuncT>
 		// static void Submit(FuncT&& func)
 
@@ -29,7 +32,7 @@ namespace vkPlayground {
 				(*pFunc)();
 
 				// NOTE: Instead of destroying we could try to ensure all items are trivially destructible
-				// however some items may contains std::string (uniforms) <- :TODO
+				// however some items may contains std::string (uniforms).
 				// static_assert(std::is_trivially_destructible_v<FuncT>, "FuncT must be trivially destructible");
 				pFunc->~FuncT();
 			};
@@ -41,6 +44,9 @@ namespace vkPlayground {
 		}
 
 		static RenderCommandQueue& GetRendererResourceReleaseQueue(uint32_t index);
+
+		// TODO: Register all the dependencies (Pipelines, Materials)
+		static void OnShaderReloaded(std::size_t hash);
 
 		static uint32_t GetCurrentFrameIndex();
 

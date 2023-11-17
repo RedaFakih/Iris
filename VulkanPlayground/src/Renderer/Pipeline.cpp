@@ -1,8 +1,7 @@
 #include "Pipeline.h"
 
-#include "Shader.h"
-#include "Renderer/Core/RendererContext.h"
 #include "Renderer.h"
+#include "Renderer/Core/RendererContext.h"
 
 namespace vkPlayground {
 
@@ -186,7 +185,8 @@ namespace vkPlayground {
 			.depthClampEnable = VK_FALSE,
 			.rasterizerDiscardEnable = VK_FALSE,
 			.polygonMode = m_Specification.WireFrame ? VK_POLYGON_MODE_LINE : VK_POLYGON_MODE_FILL,
-			.frontFace = VK_FRONT_FACE_CLOCKWISE,
+			// .frontFace = VK_FRONT_FACE_CLOCKWISE,
+			.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE, // TODO: Comeback to this since we dont want it to be like this
 			.depthBiasEnable = VK_FALSE,
 			.depthBiasConstantFactor = 0.0f,
 			.depthBiasClamp = 0.0f,
@@ -256,6 +256,12 @@ namespace vkPlayground {
 			.pPushConstantRanges = nullptr, // TODO: PushConstantRanges data from shader
 		};
 
+		pipelineLayoutInfo = {
+			.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+			.setLayoutCount = 1,
+			.pSetLayouts = &m_Specification.TemporaryPipelineSpecData.TemporaryDescSetLayout
+		};
+
 		VK_CHECK_RESULT(vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &m_PipelineLayout));
 
 		const auto& shaderStages = m_Specification.Shader->GetPipelineShaderStageCreateInfos();
@@ -274,7 +280,7 @@ namespace vkPlayground {
 			.pDynamicState = &dynamicState,
 			.layout = m_PipelineLayout,
 			// .renderPass =  framebuffer->GetRenderPass() // TODO: Get this renderpass from the framebuffer since it sets the correct renderpass if it is a swapchain target or not
-			.renderPass = m_Specification.TemporaryRenderPass
+			.renderPass = m_Specification.TemporaryPipelineSpecData.TemporaryRenderPass
 		};
 
 		VK_CHECK_RESULT(vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &m_VulkanPipeline));

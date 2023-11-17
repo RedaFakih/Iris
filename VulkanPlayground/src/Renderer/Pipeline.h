@@ -5,7 +5,7 @@
  */
 
 #include "Renderer/Core/Vulkan.h"
-#include "Shader.h"
+#include "Renderer/Shaders/Shader.h"
 #include "VertexBuffer.h"
 #include "Framebuffer.h"
 
@@ -37,12 +37,19 @@ namespace vkPlayground {
 		Always
 	};
 
+	// TODO: This is temporary untill shader reflection is working and framebuffers hold there renderpass objects
+	struct TempPipelineSpecData
+	{
+		VkRenderPass TemporaryRenderPass; // TODO: Temporary
+		VkDescriptorSetLayout TemporaryDescSetLayout; // TODO: Temporary
+	};
+
 	// NOTE: For Instancing we need to add one more layout for the instance data
 	struct PipelineSpecification
 	{
 		std::string DebugName;
 		Ref<Shader> Shader;
-		VkRenderPass TemporaryRenderPass; // TODO: Temporary
+		TempPipelineSpecData TemporaryPipelineSpecData;
 		Ref<Framebuffer> TargetFramebuffer;
 		VertexInputLayout Layout;
 		PrimitiveTopology Topology = PrimitiveTopology::Triangles;
@@ -65,7 +72,7 @@ namespace vkPlayground {
 		uint64_t ComputeShaderInvocations = 0;
 	};
 
-	class Pipeline // : public RefCountedObject
+	class Pipeline : public RefCountedObject
 	{
 	public:
 		Pipeline(const PipelineSpecification& spec);

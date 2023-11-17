@@ -1,6 +1,8 @@
 #pragma once
 
 #include "Log.h"
+#include "Ref.h"
+
 #include <source_location>
 #include <memory>
 
@@ -16,13 +18,10 @@
 
 namespace vkPlayground {
 
-	template<typename T>
-	using Ref = std::shared_ptr<T>;
-
 	template<typename T, typename... Args>
 	constexpr Ref<T> CreateRef(Args&&... args)
 	{
-		return std::make_shared<T>(std::forward<Args>(args)...);
+		return CreateReferencedObject<T>(std::forward<Args>(args)...);
 	}
 
 	template<typename T>

@@ -72,7 +72,7 @@ namespace vkPlayground {
 		//  Don't think we ever need to store the specification since all its members are used on the initialization
 		// ApllicationSpecificaton m_Specification;
 
-		Ref<Window> m_Window;
+		Scope<Window> m_Window;
 		bool m_Running = true;
 		bool m_Minimized = false;
 

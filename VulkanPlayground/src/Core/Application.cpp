@@ -1,6 +1,6 @@
 #include "Application.h"
 
-#include "Renderer/Shader.h"
+#include "Renderer/Shaders/Shader.h"
 #include "Renderer/Renderer.h"
 
 // TODO: THESE INCLUDES ARE TEMPORARY
@@ -8,9 +8,15 @@
 #include "Renderer/Pipeline.h"
 #include "Renderer/VertexBuffer.h"
 #include "Renderer/IndexBuffer.h"
+#include "Renderer/UniformBufferSet.h"
 
 #include <glfw/glfw3.h>
+#define GLM_FORCE_RADIANS
 #include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+
+// TODO: TEMP!
+#include <chrono>
 
 namespace vkPlayground {
 	
@@ -21,12 +27,22 @@ namespace vkPlayground {
 		glm::vec3 Color;
 	};
 
+	struct UniformBufferData
+	{
+		glm::mat4 Model;
+		glm::mat4 View;
+		glm::mat4 Projection;
+	};
+
 	// TODO: This should NOT BE HERE
 	static std::vector<Vertex> s_Vertices;
 	static std::vector<uint32_t> s_Indices;
+	static VkDescriptorPool s_DescriptorPool;
+	static VkDescriptorSetLayout s_DescriptorSetLayout;
+	static std::vector<VkDescriptorSet> s_DescriptorSets; // Per frame in flight all with same layout
 
 	// TODO: REMOVE
-	static void CreateStuff(Ref<Window> window)
+	static void CreateStuff(Window* window)
 	{
 		// TODO: REMOVE
 		// Interleaved vertex attributes
@@ -51,6 +67,22 @@ namespace vkPlayground {
 	static void DeleteStuff()
 	{
 		// TODO: REMOVE!
+
+		Renderer::SubmitReseourceFree([descSetLayout = s_DescriptorSetLayout, pool = s_DescriptorPool]()
+		{
+			VkDevice device = RendererContext::GetCurrentDevice()->GetVulkanDevice();
+			vkDestroyDescriptorPool(device, pool, nullptr);
+			vkDestroyDescriptorSetLayout(device, descSetLayout, nullptr);
+		});
+	}
+
+	// TODO: TEMPORARY
+	static float GetTime()
+	{
+		static auto startTime = std::chrono::high_resolution_clock::now();
+
+		auto currentTime = std::chrono::high_resolution_clock::now();
+		return std::chrono::duration<float, std::chrono::seconds::period>(startTime - currentTime).count();
 	}
 
 	// TODO: This is here just to create some the hello traingle maybe move all the pipeline initializtion and stuff to somewhere else...
@@ -76,7 +108,6 @@ namespace vkPlayground {
 		// Set some more configurations for the window. (e.g. start maximized/centered, is it resizable? and all the stuff...)
 
 		Renderer::SetConfig(spec.RendererConfig);
-		// Init Renderer (Should compile all shaders in there and add them to shader library and create all sorts of cool stuff
 		Renderer::Init();
 
 		if (spec.StartMaximized)
@@ -87,7 +118,7 @@ namespace vkPlayground {
 		m_Window->SetResizable(spec.Resizable);
 
 		// TODO: REMOVE
-		CreateStuff(m_Window);
+		CreateStuff(m_Window.get());
 	}
 
 	Application::~Application()
@@ -108,17 +139,89 @@ namespace vkPlayground {
 	void Application::Run()
 	{
 		// TODO: REMOVE!
-		Ref<Shader> shader = Shader::Create("Shaders/SimpleShader.glsl"); // TODO: Will be moved to Renderer::Init() with the shaderlibrary
+		 // TODO: Will be moved to Renderer::Init() with the shaderlibrary
+		Ref<Shader> shader = Renderer::GetShadersLibrary()->Get("SimpleShader");
+		Ref<UniformBufferSet> uniformBufferSet = UniformBufferSet::Create(sizeof(UniformBufferData));
+		
+		// Creating Descriptor stuff...
+		{
+			VkDevice device = RendererContext::GetCurrentDevice()->GetVulkanDevice();
+
+			// Describe which descriptor types our descriptor sets will contain...
+			VkDescriptorPoolSize poolSize = {
+				.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+				.descriptorCount = Renderer::GetConfig().FramesInFlight
+			};
+
+			VkDescriptorPoolCreateInfo descPoolInfo = {
+				.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
+				.maxSets = (uint32_t)Renderer::GetConfig().FramesInFlight, // Max num of descriptor set that may be allocated
+				.poolSizeCount = 1,
+				.pPoolSizes = &poolSize,
+			};
+
+			VK_CHECK_RESULT(vkCreateDescriptorPool(device, &descPoolInfo, nullptr, &s_DescriptorPool));
+
+			VkDescriptorSetLayoutBinding uboLayoutBinding = {
+				.binding = 0,
+				.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+				.descriptorCount = 1,
+				.stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
+				.pImmutableSamplers = nullptr // Only relevant for image sampling descriptors
+			};
+
+			// All descriptor binding are combined into one VkDescriptorSetLayout.
+			VkDescriptorSetLayoutCreateInfo descSetLayoutInfo = {
+				.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+				.bindingCount = 1,
+				.pBindings = &uboLayoutBinding
+			};
+			VK_CHECK_RESULT(vkCreateDescriptorSetLayout(device, &descSetLayoutInfo, nullptr, &s_DescriptorSetLayout));
+
+			std::vector<VkDescriptorSetLayout> layouts(Renderer::GetConfig().FramesInFlight, s_DescriptorSetLayout);
+			VkDescriptorSetAllocateInfo descSetAllocInfo = {
+				.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+				.descriptorPool = s_DescriptorPool,
+				.descriptorSetCount = Renderer::GetConfig().FramesInFlight,
+				.pSetLayouts = layouts.data()
+			};
+
+			s_DescriptorSets.resize(Renderer::GetConfig().FramesInFlight);
+			VK_CHECK_RESULT(vkAllocateDescriptorSets(device, &descSetAllocInfo, s_DescriptorSets.data()));
+
+			// Populate the descriptors...
+			for (uint32_t i = 0; i < Renderer::GetConfig().FramesInFlight; i++)
+			{
+				VkWriteDescriptorSet descriptorWrite = {
+					.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+					.dstSet = s_DescriptorSets[i],
+					.dstBinding = 0,
+					.dstArrayElement = 0, // Descriptors could be arrays so we need to specify the index to that (0 since we dont have an array)
+					.descriptorCount = 1,
+					.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+					.pImageInfo = nullptr, // Optional (for image descriptors)
+					.pBufferInfo = &uniformBufferSet->Get()->GetDescriptorBufferInfo(),
+					.pTexelBufferView = nullptr // Optional (for buffer views descriptors)
+				};
+				vkUpdateDescriptorSets(device, 1, &descriptorWrite, 0, nullptr);
+			}
+		}
 
 		VertexInputLayout layout = {
 			{ ShaderDataType::Float3, "a_Position" },
 			{ ShaderDataType::Float3, "a_Color"    }
 		};
-		
+
+		// TODO: TEMPORARY
+		TempPipelineSpecData tempPipelineSpecData = {
+			.TemporaryRenderPass = m_Window->GetSwapChain().GetRenderPass(),
+			.TemporaryDescSetLayout = s_DescriptorSetLayout
+		};
+
 		PipelineSpecification spec = {
 			.DebugName = "PlaygroundPipeline",
 			.Shader = shader,
-			.TemporaryRenderPass = m_Window->GetSwapChain().GetRenderPass(), // TODO: TEMPORARY
+			.TemporaryPipelineSpecData = tempPipelineSpecData, // TODO: TEMPORARY
 			.TargetFramebuffer = nullptr,
 			.Layout = layout,
 			.Topology = PrimitiveTopology::Triangles,
@@ -144,6 +247,17 @@ namespace vkPlayground {
 			{
 				m_Window->GetSwapChain().BeginFrame();
 
+				// Update uniform buffers (Begin Scene stuff)
+				UniformBufferData dataUB = {
+					.Model = glm::rotate(glm::mat4(1.0f), GetTime() * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f)),
+					.View = glm::lookAt(glm::vec3(2.0f), glm::vec3(0.0f), glm::vec3(0.0f, 0.0f, 1.0f)),
+					.Projection = glm::perspective(glm::radians(45.0f), m_Window->GetSwapChain().GetWidth() / (float)m_Window->GetSwapChain().GetHeight(), 0.1f, 10.0f)
+				};
+
+				dataUB.Projection[1][1] *= -1; // Flip the Y axis
+
+				uniformBufferSet->Get()->SetData(&dataUB, sizeof(UniformBufferData));
+
 				VkCommandBuffer commandBuffer = m_Window->GetSwapChain().GetCurrentDrawCommandBuffer();
 
 				VkCommandBufferBeginInfo commandBufferBeginInfo = { .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
@@ -154,11 +268,11 @@ namespace vkPlayground {
 					.renderPass = m_Window->GetSwapChain().GetRenderPass(),
 					.framebuffer = m_Window->GetSwapChain().GetCurrentFramebuffer(),
 					.renderArea = {
-						.offset = {.x = 0, .y = 0 },
-						.extent = {.width = m_Window->GetSwapChain().GetWidth(), .height = m_Window->GetSwapChain().GetHeight() }
+						.offset = { .x = 0, .y = 0 },
+						.extent = { .width = m_Window->GetSwapChain().GetWidth(), .height = m_Window->GetSwapChain().GetHeight() }
 					},
 					.clearValueCount = 1,
-					.pClearValues = [](auto&& temp) { return &temp; }(VkClearValue{.color = {.float32 = { 0.0f, 0.0f, 0.0f, 1.0f } } })
+					.pClearValues = [](auto&& temp) { return &temp; }(VkClearValue{ .color = { .float32 = { 0.0f, 0.0f, 0.0f, 1.0f } } })
 				};
 
 				vkCmdBeginRenderPass(commandBuffer, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
@@ -184,6 +298,16 @@ namespace vkPlayground {
 					VkBuffer vertexVulkanBuffer = vertexBuffer->GetVulkanBuffer();
 					vkCmdBindVertexBuffers(commandBuffer, 0, 1, &vertexVulkanBuffer, [](VkDeviceSize&& s) { return &s; }(0));
 					vkCmdBindIndexBuffer(commandBuffer, indexBuffer->GetVulkanBuffer(), 0, VK_INDEX_TYPE_UINT32);
+
+					vkCmdBindDescriptorSets(
+						commandBuffer,
+						VK_PIPELINE_BIND_POINT_GRAPHICS,
+						pipeline->GetVulkanPipelineLayout(), 
+						0, 
+						1,
+						&s_DescriptorSets[m_CurrentFrameIndex], 
+						0,
+						nullptr);
 
 					vkCmdDrawIndexed(commandBuffer, (uint32_t)s_Indices.size(), 1, 0, 0, 0);
 				}

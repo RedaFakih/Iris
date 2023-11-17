@@ -148,6 +148,9 @@ namespace vkPlayground {
 		m_Width = *width;
 		m_Height = *height;
 
+		if (*width == 0 || *height == 0)
+			return;
+
 		// Determine the number of images...
 		uint32_t numberOfSwapChainImages = surfaceCaps.minImageCount + 1;
 		if ((surfaceCaps.maxImageCount > 0) && (numberOfSwapChainImages > surfaceCaps.maxImageCount))
@@ -557,7 +560,18 @@ namespace vkPlayground {
 	uint32_t SwapChain::AcquireNextImage()
 	{
 		uint32_t imageIndex; // This index will be used to pick the framebuffer we render too (and command buffer we submit commands to).
-		VK_CHECK_RESULT(vkAcquireNextImageKHR(m_Device->GetVulkanDevice(), m_SwapChain, UINT64_MAX, m_Semaphores.PresentComplete, (VkFence)nullptr, &imageIndex));
+		// NOTE: If for some reason we fail to acquire the next image according to some problem that is stated by the spec we invalidate
+		// the swapchain and try again!
+		VkResult result = vkAcquireNextImageKHR(m_Device->GetVulkanDevice(), m_SwapChain, UINT64_MAX, m_Semaphores.PresentComplete, (VkFence)nullptr, &imageIndex);
+		if (result != VK_SUCCESS)
+		{
+			if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR)
+			{
+				OnResize(m_Width, m_Height);
+				VK_CHECK_RESULT(vkAcquireNextImageKHR(m_Device->GetVulkanDevice(), m_SwapChain, UINT64_MAX, m_Semaphores.PresentComplete, (VkFence)nullptr, &imageIndex));
+			}
+		}
+
 		return imageIndex;
 	}
 

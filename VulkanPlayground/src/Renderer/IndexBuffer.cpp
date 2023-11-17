@@ -92,7 +92,7 @@ namespace vkPlayground {
 		return CreateRef<IndexBuffer>(size);
 	}
 
-	void IndexBuffer::SetData(void* data, uint32_t size, uint32_t offset)
+	void IndexBuffer::SetData(const void* data, uint32_t size, uint32_t offset)
 	{
 		PG_ASSERT(false, "Do you really wan't to do this? Index buffers are usually created once with their data...");
 		PG_ASSERT(size <= m_Size, "Can't set more data than the buffer can hold!");
@@ -101,7 +101,7 @@ namespace vkPlayground {
 		VulkanAllocator allocator("IndexBuffer");
 
 		uint8_t* dstData = allocator.MapMemory<uint8_t>(m_MemoryAllocation);
-		std::memcpy(dstData, reinterpret_cast<uint8_t*>(data) + offset, size);
+		std::memcpy(dstData, reinterpret_cast<const uint8_t*>(data) + offset, size);
 		allocator.UnmapMemory(m_MemoryAllocation);
 	}
 

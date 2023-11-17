@@ -115,7 +115,7 @@ namespace vkPlayground {
 		None = 0, Static, Dynamic
 	};
 
-	class VertexBuffer // : ReCountedObject
+	class VertexBuffer : public RefCountedObject
 	{
 	public:
 		// Create a buffer in DEVICE_LOCAL memory
@@ -128,7 +128,7 @@ namespace vkPlayground {
 		[[nodiscard]] static Ref<VertexBuffer> Create(uint32_t size, VertexBufferUsage usage = VertexBufferUsage::Static);
 
 		// NOTE: Does not work if you created the buffer without giving it data directly
-		void SetData(void* data, uint32_t size, uint32_t offset = 0);
+		void SetData(const void* data, uint32_t size, uint32_t offset = 0);
 
 		uint32_t GetSize() const { return m_Size; }
 		VkBuffer GetVulkanBuffer() const { return m_VulkanBuffer; }

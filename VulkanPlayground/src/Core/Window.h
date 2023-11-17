@@ -30,7 +30,7 @@ namespace vkPlayground {
 		Window(const WindowSpecification& spec);
 		~Window();
 
-		static Ref<Window> Create(const WindowSpecification& spec);
+		static Scope<Window> Create(const WindowSpecification& spec);
 
 		void Init();
 		void Shutdown();
@@ -58,7 +58,7 @@ namespace vkPlayground {
 		const void SetTitle(const std::string& title) { m_Data.Title = title; }
 
 	private:
-		GLFWwindow* m_Window;
+		GLFWwindow* m_Window = nullptr;
 		WindowSpecification m_Specification;
 
 		struct WindowData

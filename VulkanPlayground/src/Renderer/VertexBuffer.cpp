@@ -92,14 +92,14 @@ namespace vkPlayground {
 		return CreateRef<VertexBuffer>(size, usage);
 	}
 
-	void VertexBuffer::SetData(void* data, uint32_t size, uint32_t offset)
+	void VertexBuffer::SetData(const void* data, uint32_t size, uint32_t offset)
 	{
 		PG_ASSERT(size <= m_Size, "Can't set more data than the buffer can hold!");
 
 		VulkanAllocator allocator("VertexBuffer");
 
 		uint8_t* dstData = allocator.MapMemory<uint8_t>(m_MemoryAllocation);
-		std::memcpy(dstData, reinterpret_cast<uint8_t*>(data) + offset, size);
+		std::memcpy(dstData, reinterpret_cast<const uint8_t*>(data) + offset, size);
 		allocator.UnmapMemory(m_MemoryAllocation);
 	}
 

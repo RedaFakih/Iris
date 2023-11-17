@@ -30,7 +30,7 @@ namespace vkPlayground {
 
 	// NOTE: This will hold the actual VkRenderPass Object however it will be in the PipelineSpecification and will have a custom images
 	// and maybe in the future `existing images` in its specification... kind of like in Aurora with openGL
-	class Framebuffer // : public RefCountedObject
+	class Framebuffer : public RefCountedObject
 	{
 	public:
 		Framebuffer() = default;

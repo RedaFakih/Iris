@@ -10,7 +10,7 @@
 
 namespace vkPlayground {
 
-	class VulkanPhysicalDevice // : public RefCountedObject
+	class VulkanPhysicalDevice : public RefCountedObject
 	{
 	public:
 		struct QueueFamilyIndices
@@ -73,7 +73,7 @@ namespace vkPlayground {
 	 *   As for deleting the Staging Buffer we could just do a `Renderer::SubmitReseourceFree` and it will delete the staging buffer at the
 	 *   beginning of the next frame that way nothing is using that buffer.
 	 */
-	class VulkanCommandPool // : public RefCountedObject
+	class VulkanCommandPool : public RefCountedObject
 	{
 	public:
 		VulkanCommandPool();
@@ -94,7 +94,7 @@ namespace vkPlayground {
 	};
 
 	// Vulkan Logical Device
-	class VulkanDevice // : public RefCountedObject
+	class VulkanDevice : public RefCountedObject
 	{
 	public:
 		VulkanDevice(const Ref<VulkanPhysicalDevice>& physicalDevice, const VkPhysicalDeviceFeatures& enabledFeatures);

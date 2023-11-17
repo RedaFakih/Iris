@@ -16,7 +16,11 @@ project "VulkanPlayground"
         "dependencies/stb/**.cpp",
 
         "dependencies/Vma/**.h",
-        "dependencies/Vma/**.cpp"
+        "dependencies/Vma/**.cpp",
+
+        "dependencies/yaml-cpp/include/**.h",
+        "dependencies/yaml-cpp/src/**.h",
+        "dependencies/yaml-cpp/src/**.cpp"
     }
 
     defines
@@ -35,7 +39,8 @@ project "VulkanPlayground"
         "%{IncludeDir.VulkanSDK}",
         "%{IncludeDir.choc}",
         "%{IncludeDir.stb}",
-        "%{IncludeDir.spdlog}"
+        "%{IncludeDir.spdlog}",
+        "%{IncludeDir.Yaml}"
     }
 
     links

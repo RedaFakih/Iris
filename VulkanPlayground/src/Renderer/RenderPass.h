@@ -13,7 +13,7 @@ namespace vkPlayground {
 		// TODO: Add a target framebuffer
 	};
 
-	class RenderPass // : public RefCountedObject
+	class RenderPass : public RefCountedObject
 	{
 	public:
 		RenderPass(const RenderPassSpecification& spec);
