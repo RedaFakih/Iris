@@ -1316,7 +1316,7 @@ class bigint {
     auto size = other.bigits_.size();
     bigits_.resize(size);
     auto data = other.bigits_.data();
-    std::copy(data, data + size, make_checked(bigits_.data(), size));
+    std::copy(data, data + size, bigits_.data());
     exp_ = other.exp_;
   }
 

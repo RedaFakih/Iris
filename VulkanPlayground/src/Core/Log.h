@@ -1,7 +1,6 @@
 #pragma once
 
 #include <spdlog/spdlog.h>
-#include <spdlog/fmt/bundled/format.h>
 #include <spdlog/fmt/ostr.h>
 
 #include <memory>
@@ -25,7 +24,7 @@ namespace vkPlayground::Logging {
 	template<typename... Args>
 	inline static void PrintMessage(Log::Level level, std::string_view tag, Args&&... args)
 	{
-		const auto& logger = GetCoreLogger();
+		const std::shared_ptr<spdlog::logger>& logger = GetCoreLogger();
 		std::string logString = tag.empty() ? "{0}{1}" : "[{0}]: {1}";
 		std::string formattedString = fmt::format(std::forward<Args>(args)...);
 
