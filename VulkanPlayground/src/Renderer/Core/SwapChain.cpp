@@ -475,13 +475,14 @@ namespace vkPlayground {
 	{
 		/*
 		 * NOTE: Here before doing anything in this frame we should submit ResourceFree commands of the previous frame since at this point
-		 * we know that anything (pipelines, renderpasses...) queued to destruction in the previous could now be deleted since there is
+		 * we know that anything (pipelines, renderpasses...) queued to destruction in the previous frame could now be deleted since there is
 		 * nothing that is still using them since that frame is already presented to the swapchain
 		 * 
 		 * So in some way we create our own render command queue to submit resource free commands to it and at this point `m_CurrentBufferIndex`
 		 * has not been updated yet so it is still trailing by a frame so will free everything without problems
 		 */
 		
+		// TODO: Should be done on the Renderthread, so `SwapChain::BeginFrame` should be called inside a `Renderer::Submit`
 		RenderCommandQueue& rendererResourceFreeQueue = Renderer::GetRendererResourceReleaseQueue(m_CurrentBufferIndex);
 		rendererResourceFreeQueue.Execute();
 

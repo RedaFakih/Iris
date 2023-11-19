@@ -1,7 +1,8 @@
 #pragma once
 
 /*
- *
+ * - Doing Now: Clean up the logs that are coming from the shader compilation and reflection to look better
+ * - Add all the complementary methods to the Shader class related to all the descriptor stuff...
  *
  *
  * NEXT STEP ON TUTORIAL: Images.

@@ -32,11 +32,13 @@ namespace vkPlayground {
 
 		void UnmapMemory(VmaAllocation allocation);
 
-		VmaAllocator& GetVmaAllocator();
-		GPUMemoryStats GetStats();
+		static VmaAllocator& GetVmaAllocator();
+		static GPUMemoryStats GetStats();
+		static void DumpStats();
 
 	private:
 		std::string_view m_Name;
+
 	};
 
 }

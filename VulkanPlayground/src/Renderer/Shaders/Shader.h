@@ -2,6 +2,7 @@
 
 #include "Core/Base.h"
 #include "ShaderResources.h"
+#include "ShaderUniform.h"
 
 #include <vulkan/vulkan.h>
 
@@ -17,6 +18,9 @@ namespace vkPlayground {
 	public:
 		struct ReflectionData
 		{
+			std::vector<ShaderResources::ShaderDescriptorSet> ShaderDescriptorSets;
+			// std::unordered_map<std::string, ShaderResourceDeclaration> Resources; // Mainly for all the types of images decriptors
+
 			// TODO: Reflection data for Descriptor Sets, Resources(Uniform buffers, Storage buffers, Images and textures), Constant Buffers
 			// and PushConstantRanges
 		};
@@ -35,14 +39,27 @@ namespace vkPlayground {
 		void Release();
 
 		std::size_t GetHash() const;
-
 		const std::string_view GetName() const { return m_Name; }
 		const std::filesystem::path& GetFilePath() const { return m_FilePath; }
 
+		bool TryReadReflectionData(StreamReader* reader);
+		void SerializeReflectionData(StreamWriter* serializer);
 		void SetReflectionData(const ReflectionData& reflectionData) { m_ReflectionData = reflectionData; }
 
 		// NOTE: To be used in the pipeline creation
 		const std::vector<VkPipelineShaderStageCreateInfo>& GetPipelineShaderStageCreateInfos() const { return m_PipelineShaderStageCreateInfos; }
+
+		VkDescriptorSetLayout GetDescriptorSetLayout(uint32_t set) { return m_DescriptorSetLayouts.at(set); }
+		std::vector<VkDescriptorSetLayout> GetAllDescriptorSetLayout();
+
+		ShaderResources::UniformBuffer& GetUniformBuffer(const uint32_t set = 0, const uint32_t binding = 0);
+		uint32_t GetUniformBufferCount(const uint32_t set = 0);
+
+		const std::vector<ShaderResources::ShaderDescriptorSet>& GetShaderDescriptorSets() const { return m_ReflectionData.ShaderDescriptorSets; }
+		bool HasDescriptorSet(uint32_t set) const { return m_DescriptorPoolTypeCounts.contains(set); }
+
+		// For getting the descriptor mainly for materials in the renderer
+		const VkWriteDescriptorSet* GetDescriptorSet(const std::string& name, uint32_t set = 0) const;
 
 	private:
 		void LoadAndCreateShaders(const std::map<VkShaderStageFlagBits, std::vector<uint32_t>>& shaderData);
@@ -58,8 +75,8 @@ namespace vkPlayground {
 
 		ReflectionData m_ReflectionData;
 
-		std::vector<VkDescriptorSetLayout> m_DescriptorSetLayout;
-		std::unordered_map<uint32_t, std::vector<VkDescriptorPoolSize>> m_TypeCounts;
+		std::vector<VkDescriptorSetLayout> m_DescriptorSetLayouts;
+		std::unordered_map<uint32_t, std::vector<VkDescriptorPoolSize>> m_DescriptorPoolTypeCounts;
 
 		friend class ShaderCompiler;
 	};

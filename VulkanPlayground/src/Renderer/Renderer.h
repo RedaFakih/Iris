@@ -1,6 +1,8 @@
 #pragma once
 
 #include "Core/Application.h"
+#include "Pipeline.h"
+#include "Renderer/Core/GPUMemoryStats.h"
 #include "Renderer/Core/RenderCommandQueue.h"
 #include "Renderer/Core/RendererContext.h"
 #include "RendererConfiguration.h"
@@ -11,14 +13,15 @@ namespace vkPlayground {
 	class Renderer
 	{
 	public:
-		using RenderCommandFn = void(*)(void*);
-
 		static Ref<RendererContext> GetContext() { return Application::Get().GetWindow().GetRendererContext(); }
 
 		static void Init();
 		static void Shutdown();
 
 		static Ref<ShadersLibrary> GetShadersLibrary();
+		static GPUMemoryStats GetGPUMemoryStats();
+		static RendererConfiguration& GetConfig();
+		static void SetConfig(const RendererConfiguration& config);
 
 		// template<typename FuncT>
 		// static void Submit(FuncT&& func)
@@ -37,7 +40,8 @@ namespace vkPlayground {
 				pFunc->~FuncT();
 			};
 
-			// TODO: Should be done on the render thread by wrapping it in an another Renderer::Submit(...);
+			// TODO: Should be done on the render thread by wrapping it in an another Renderer::Submit(...); and then we wrap the execute call
+			// that is inside `SwapChain::BeginFrame` in a `Renderer::Submit`
 			const uint32_t index = Renderer::GetCurrentFrameIndex();
 			void* storageBuffer = Renderer::GetRendererResourceReleaseQueue(index).Allocate(renderCmd, sizeof(func));
 			new(storageBuffer) FuncT(std::forward<FuncT>((FuncT&&)func));
@@ -46,12 +50,10 @@ namespace vkPlayground {
 		static RenderCommandQueue& GetRendererResourceReleaseQueue(uint32_t index);
 
 		// TODO: Register all the dependencies (Pipelines, Materials)
+		static void RegisterShaderDependency(Ref<Shader> shader, Ref<Pipeline> pipeline);
 		static void OnShaderReloaded(std::size_t hash);
 
 		static uint32_t GetCurrentFrameIndex();
-
-		static RendererConfiguration& GetConfig();
-		static void SetConfig(const RendererConfiguration& config);
 
 	private:
 

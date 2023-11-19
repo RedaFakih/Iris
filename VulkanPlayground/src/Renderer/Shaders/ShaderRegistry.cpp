@@ -17,7 +17,7 @@ namespace vkPlayground {
 		Deserialize(shaderCache);
 
 		VkShaderStageFlagBits changedState = {};
-		const bool shaderNotCached = shaderCache.find(shaderCompiler->m_FilePath.string()) == shaderCache.end();
+		const bool shaderNotCached = !shaderCache.contains(shaderCompiler->m_FilePath.string());
 
 		for (const auto& [stage, source] : shaderCompiler->m_ShaderSource)
 		{

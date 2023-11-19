@@ -38,7 +38,6 @@ namespace vkPlayground {
 	static std::vector<Vertex> s_Vertices;
 	static std::vector<uint32_t> s_Indices;
 	static VkDescriptorPool s_DescriptorPool;
-	static VkDescriptorSetLayout s_DescriptorSetLayout;
 	static std::vector<VkDescriptorSet> s_DescriptorSets; // Per frame in flight all with same layout
 
 	// TODO: REMOVE
@@ -68,11 +67,10 @@ namespace vkPlayground {
 	{
 		// TODO: REMOVE!
 
-		Renderer::SubmitReseourceFree([descSetLayout = s_DescriptorSetLayout, pool = s_DescriptorPool]()
+		Renderer::SubmitReseourceFree([pool = s_DescriptorPool]()
 		{
 			VkDevice device = RendererContext::GetCurrentDevice()->GetVulkanDevice();
 			vkDestroyDescriptorPool(device, pool, nullptr);
-			vkDestroyDescriptorSetLayout(device, descSetLayout, nullptr);
 		});
 	}
 
@@ -139,7 +137,6 @@ namespace vkPlayground {
 	void Application::Run()
 	{
 		// TODO: REMOVE!
-		 // TODO: Will be moved to Renderer::Init() with the shaderlibrary
 		Ref<Shader> shader = Renderer::GetShadersLibrary()->Get("SimpleShader");
 		Ref<UniformBufferSet> uniformBufferSet = UniformBufferSet::Create(sizeof(UniformBufferData));
 		
@@ -162,23 +159,7 @@ namespace vkPlayground {
 
 			VK_CHECK_RESULT(vkCreateDescriptorPool(device, &descPoolInfo, nullptr, &s_DescriptorPool));
 
-			VkDescriptorSetLayoutBinding uboLayoutBinding = {
-				.binding = 0,
-				.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-				.descriptorCount = 1,
-				.stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
-				.pImmutableSamplers = nullptr // Only relevant for image sampling descriptors
-			};
-
-			// All descriptor binding are combined into one VkDescriptorSetLayout.
-			VkDescriptorSetLayoutCreateInfo descSetLayoutInfo = {
-				.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
-				.bindingCount = 1,
-				.pBindings = &uboLayoutBinding
-			};
-			VK_CHECK_RESULT(vkCreateDescriptorSetLayout(device, &descSetLayoutInfo, nullptr, &s_DescriptorSetLayout));
-
-			std::vector<VkDescriptorSetLayout> layouts(Renderer::GetConfig().FramesInFlight, s_DescriptorSetLayout);
+			std::vector<VkDescriptorSetLayout> layouts(Renderer::GetConfig().FramesInFlight, shader->GetDescriptorSetLayout(0));
 			VkDescriptorSetAllocateInfo descSetAllocInfo = {
 				.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
 				.descriptorPool = s_DescriptorPool,
@@ -215,7 +196,6 @@ namespace vkPlayground {
 		// TODO: TEMPORARY
 		TempPipelineSpecData tempPipelineSpecData = {
 			.TemporaryRenderPass = m_Window->GetSwapChain().GetRenderPass(),
-			.TemporaryDescSetLayout = s_DescriptorSetLayout
 		};
 
 		PipelineSpecification spec = {
@@ -223,7 +203,7 @@ namespace vkPlayground {
 			.Shader = shader,
 			.TemporaryPipelineSpecData = tempPipelineSpecData, // TODO: TEMPORARY
 			.TargetFramebuffer = nullptr,
-			.Layout = layout,
+			.VertexLayout = layout,
 			.Topology = PrimitiveTopology::Triangles,
 			.DepthOperator = DepthCompareOperator::Greater,
 			.BackFaceCulling = true,
@@ -241,6 +221,8 @@ namespace vkPlayground {
 
 		while (m_Running)
 		{
+			static uint64_t frameCounter = 0;
+
 			ProcessEvents();
 
 			if (!m_Minimized)
@@ -324,6 +306,8 @@ namespace vkPlayground {
 			m_FrameTime = time - m_LastFrameTime;
 			m_TimeStep = glm::min<float>(m_FrameTime, 0.0333f);
 			m_LastFrameTime = time;
+
+			++frameCounter;
 		}
 	}
 

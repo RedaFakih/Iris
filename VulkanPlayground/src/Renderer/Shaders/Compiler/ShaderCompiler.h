@@ -50,6 +50,9 @@ namespace vkPlayground {
 
 		void ClearReflectionData();
 
+		bool TryReadCachedReflectionData();
+		void SerializeReflectinoData();
+
 		void ReflectAllShaderStages(const std::map<VkShaderStageFlagBits, std::vector<uint32_t>>& shaderData);
 		void Reflect(VkShaderStageFlagBits stage, const std::vector<uint32_t>& shaderData);
 

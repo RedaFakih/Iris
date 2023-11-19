@@ -41,17 +41,24 @@ namespace vkPlayground {
 
 	Shader::~Shader()
 	{
-		auto& pipelineCIs = m_PipelineShaderStageCreateInfos;
-		Renderer::SubmitReseourceFree([pipelineCIs]()
-			{
-				const VkDevice device = RendererContext::Get()->GetDevice()->GetVulkanDevice();
+		std::vector<VkPipelineShaderStageCreateInfo>& pipelineCIs = m_PipelineShaderStageCreateInfos;
+		std::vector<VkDescriptorSetLayout>& descriptorSetLayouts = m_DescriptorSetLayouts;
+		Renderer::SubmitReseourceFree([pipelineCIs, descriptorSetLayouts]()
+		{
+			const VkDevice device = RendererContext::Get()->GetDevice()->GetVulkanDevice();
 
-				for (const auto& pipelineShaderStageCI : pipelineCIs)
-				{
-					if (pipelineShaderStageCI.module)
-						vkDestroyShaderModule(device, pipelineShaderStageCI.module, nullptr);
-				}
-			});
+			for (const auto& pipelineShaderStageCI : pipelineCIs)
+			{
+				if (pipelineShaderStageCI.module)
+					vkDestroyShaderModule(device, pipelineShaderStageCI.module, nullptr);
+			}
+
+			for (const auto& descriptorSetLayout : descriptorSetLayouts)
+			{
+				if (descriptorSetLayout)
+					vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
+			}
+		});
 	}
 
 	void Shader::Reload()
@@ -85,13 +92,79 @@ namespace vkPlayground {
 			pipelineShaderStageCI.module = nullptr;
 
 		m_PipelineShaderStageCreateInfos.clear();
-		m_DescriptorSetLayout.clear();
-		m_TypeCounts.clear();
+		// NOTE: Cant clear those since they are needed for the DescriptorSetManager to create the DescriptorPool and other stuff
+		// m_DescriptorSetLayouts.clear();
+		// m_DescriptorPoolTypeCounts.clear();
 	}
 
 	std::size_t Shader::GetHash() const
 	{
 		return Hash::GenerateFNVHash(m_FilePath.string());
+	}
+
+	bool Shader::TryReadReflectionData(StreamReader* reader)
+	{
+		uint32_t shaderDescriptorSetCount;
+		reader->ReadRaw<uint32_t>(shaderDescriptorSetCount);
+
+		for (uint32_t i = 0; i < shaderDescriptorSetCount; i++)
+		{
+			ShaderResources::ShaderDescriptorSet& descriptorSet = m_ReflectionData.ShaderDescriptorSets.emplace_back();
+			reader->ReadMap(descriptorSet.UniformBuffers);
+		}
+
+		return true;
+	}
+
+	void Shader::SerializeReflectionData(StreamWriter* serializer)
+	{
+		serializer->WriteRaw<uint32_t>((uint32_t)m_ReflectionData.ShaderDescriptorSets.size());
+
+		for (const auto& descriptorSet : m_ReflectionData.ShaderDescriptorSets)
+		{
+			serializer->WriteMap(descriptorSet.UniformBuffers);
+		}
+	}
+
+	std::vector<VkDescriptorSetLayout> Shader::GetAllDescriptorSetLayout()
+	{
+		std::vector<VkDescriptorSetLayout> result;
+		result.reserve(m_DescriptorSetLayouts.size());
+		for (VkDescriptorSetLayout& layout : m_DescriptorSetLayouts)
+			result.emplace_back(layout);
+
+		return result;
+	}
+
+	ShaderResources::UniformBuffer& Shader::GetUniformBuffer(const uint32_t set, const uint32_t binding)
+	{
+		PG_ASSERT(m_ReflectionData.ShaderDescriptorSets.at(set).UniformBuffers.size() > binding, "");
+		return m_ReflectionData.ShaderDescriptorSets.at(set).UniformBuffers.at(binding);
+	}
+
+	uint32_t Shader::GetUniformBufferCount(const uint32_t set)
+	{
+		// If we dont have enough sets as the one requested
+		if (m_ReflectionData.ShaderDescriptorSets.size() < set)
+			return 0;
+
+		return static_cast<uint32_t>(m_ReflectionData.ShaderDescriptorSets.at(set).UniformBuffers.size());
+	}
+
+	const VkWriteDescriptorSet* Shader::GetDescriptorSet(const std::string& name, uint32_t set) const
+	{
+		PG_ASSERT(m_ReflectionData.ShaderDescriptorSets.size() > set, "");
+		PG_ASSERT(m_ReflectionData.ShaderDescriptorSets[set], "");
+
+		if (m_ReflectionData.ShaderDescriptorSets.at(set).WriteDescriptorSets.contains(name))
+		{
+			return &m_ReflectionData.ShaderDescriptorSets.at(set).WriteDescriptorSets.at(name);
+		}
+		else
+		{
+			PG_CORE_ERROR_TAG("Shader", "Shader {} does not contain the requested descriptor set {}", m_Name, name);
+			return nullptr;
+		}
 	}
 
 	void Shader::LoadAndCreateShaders(const std::map<VkShaderStageFlagBits, std::vector<uint32_t>>& shaderData)
@@ -125,7 +198,61 @@ namespace vkPlayground {
 
 	void Shader::CreateDescriptors()
 	{
-		// TODO: ...
+		VkDevice device = RendererContext::GetCurrentDevice()->GetVulkanDevice();
+
+		/////////////////////////////////////////////////////////////////////////////////////////////////////////
+		/// Descriptor Pool
+		/////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+		m_DescriptorPoolTypeCounts.clear();
+		for (uint32_t set = 0; set < m_ReflectionData.ShaderDescriptorSets.size(); set++)
+		{
+			auto& shaderDescriptorSet = m_ReflectionData.ShaderDescriptorSets[set];
+
+			if (shaderDescriptorSet.UniformBuffers.size())
+			{
+				VkDescriptorPoolSize& typeCount = m_DescriptorPoolTypeCounts[set].emplace_back();
+				typeCount.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+				typeCount.descriptorCount = (uint32_t)shaderDescriptorSet.UniformBuffers.size();
+			}
+
+			/////////////////////////////////////////////////////////////////////////////////////////////////////
+			/// Descriptor Set Layout
+			/////////////////////////////////////////////////////////////////////////////////////////////////////
+
+			std::vector<VkDescriptorSetLayoutBinding> layoutBindings;
+			for (auto& [binding, uniformBuffer] : shaderDescriptorSet.UniformBuffers)
+			{
+				VkDescriptorSetLayoutBinding& layoutBinding = layoutBindings.emplace_back();
+				layoutBinding.binding = binding;
+				layoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+				layoutBinding.descriptorCount = 1;
+				layoutBinding.stageFlags = uniformBuffer.ShaderStage;
+				layoutBinding.pImmutableSamplers = nullptr;
+
+				// All the other files will be filled inside the DescriptorSetManager class which will be owned by a renderpass
+				shaderDescriptorSet.WriteDescriptorSets[uniformBuffer.Name] = {
+					.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+					.dstBinding = layoutBinding.binding,
+					.descriptorCount = 1,
+					.descriptorType = layoutBinding.descriptorType
+				};
+			}
+
+			VkDescriptorSetLayoutCreateInfo descriptorSetLaytoutCI = {
+				.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+				.pNext = nullptr,
+				.bindingCount = (uint32_t)layoutBindings.size(),
+				.pBindings = layoutBindings.data()
+			};
+
+			PG_CORE_INFO_TAG("Shader", "Creating descriptor set {} with {} ubo's", set, shaderDescriptorSet.UniformBuffers.size());
+
+			if (set >= m_DescriptorSetLayouts.size())
+				m_DescriptorSetLayouts.resize(set + 1);
+
+			VK_CHECK_RESULT(vkCreateDescriptorSetLayout(device, &descriptorSetLaytoutCI, nullptr, &m_DescriptorSetLayouts[set]));
+		}
 	}
 
 	Ref<ShadersLibrary> ShadersLibrary::Create()
@@ -136,7 +263,7 @@ namespace vkPlayground {
 	void ShadersLibrary::Add(Ref<Shader> shader)
 	{
 		const std::string name(shader->GetName());
-		PG_ASSERT(m_Library.find(name) == m_Library.end(), "Shader already loaded!");
+		PG_ASSERT(!m_Library.contains(name), "Shader already loaded!");
 		m_Library[name] = shader;
 	}
 
@@ -146,19 +273,19 @@ namespace vkPlayground {
 		shader = ShaderCompiler::Compile(filePath, forceCompile, disableOptimizations);
 
 		const std::string name(shader->GetName());
-		PG_ASSERT(m_Library.find(name) == m_Library.end(), "Shader already loaded!");
+		PG_ASSERT(!m_Library.contains(name), "Shader already loaded!");
 		m_Library[name] = shader;
 	}
 
 	void ShadersLibrary::Load(std::string_view name, std::string_view filePath)
 	{
-		PG_ASSERT(m_Library.find(std::string(name)) == m_Library.end(), "Shader already loaded!");
+		PG_ASSERT(!m_Library.contains(std::string(name)), "Shader already loaded!");
 		m_Library[std::string(name)] = Shader::Create(filePath);
 	}
 
 	const Ref<Shader> ShadersLibrary::Get(const std::string& name) const
 	{
-		PG_ASSERT(m_Library.find(name) != m_Library.end(), "Cant find shader with name: {}", name);
+		PG_ASSERT(m_Library.contains(name), fmt::format("Cant find shader with name: {}", name));
 		return m_Library.at(name);
 	}
 

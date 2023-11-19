@@ -102,9 +102,10 @@ namespace vkPlayground {
 			return false;
 		}
 
-		if (forceCompile || stagesChanged)
+		if (forceCompile || stagesChanged || !TryReadCachedReflectionData())
 		{
 			ReflectAllShaderStages(spirvDebugData);
+			SerializeReflectinoData();
 		}
 
 		return true;
@@ -239,7 +240,7 @@ namespace vkPlayground {
 		// Couldnt get it from cache now we compile
 		if (outputBin.empty())
 		{
-			PG_CORE_DEBUG_TAG("ShaderCompiler", "Did not find shader cache, Compiling shader: {}, stage: {}", m_FilePath.string(), ShaderUtils::VkShaderStageToString(stage));
+			// PG_CORE_DEBUG_TAG("ShaderCompiler", "Shader cache not found! Compiling: {}, stage {}", m_FilePath.string(), ShaderUtils::VkShaderStageToString(stage));
 			CompilationOptions options;
 			if (debug)
 			{
@@ -311,8 +312,60 @@ namespace vkPlayground {
 
 	void ShaderCompiler::ClearReflectionData()
 	{
-		// TODO: CLear the reflection data
-		// m_ReflectionData.stuff.clear()...
+		m_ReflectionData.ShaderDescriptorSets.clear();
+		// TODO: Add the other stuff..
+	}
+
+	bool ShaderCompiler::TryReadCachedReflectionData()
+	{
+		char header[6] = { 'V', 'K', 'P', 'G', 'S', 'R' };
+
+		std::filesystem::path cacheDir = Utils::CreateCacheDirIfNeeded();
+		const auto reflectedPath = cacheDir / (m_FilePath.filename().string() + ".cachedVulkan.refl");
+
+		FileStreamReader reader(reflectedPath);
+		if (!reader)
+			return false;
+
+		reader.ReadRaw(header);
+
+		bool validHeader = memcmp(header, "VKPGSR", 6) == 0;
+		PG_ASSERT(validHeader, "Header is not valid!");
+		if (!validHeader)
+			return false;
+
+		ClearReflectionData();
+
+		uint32_t shaderDescriptorSetCount;
+		reader.ReadRaw<uint32_t>(shaderDescriptorSetCount);
+
+		for (uint32_t i = 0; i < shaderDescriptorSetCount; i++)
+		{
+			ShaderResources::ShaderDescriptorSet& descriptorSet = m_ReflectionData.ShaderDescriptorSets.emplace_back();
+			reader.ReadMap(descriptorSet.UniformBuffers);
+		}
+
+		return true;
+	}
+
+	void ShaderCompiler::SerializeReflectinoData()
+	{
+		char header[6] = { 'V', 'K', 'P', 'G', 'S', 'R' };
+
+		std::filesystem::path cacheDir = Utils::CreateCacheDirIfNeeded();
+		const auto reflectedPath = cacheDir / (m_FilePath.filename().string() + ".cachedVulkan.refl");
+
+		FileStreamWriter serializer(reflectedPath);
+		if (!serializer)
+			return;
+
+		serializer.WriteRaw(header);
+
+		serializer.WriteRaw<uint32_t>((uint32_t)m_ReflectionData.ShaderDescriptorSets.size());
+		for (const auto& descriptorSet : m_ReflectionData.ShaderDescriptorSets)
+		{
+			serializer.WriteMap(descriptorSet.UniformBuffers);
+		}
 	}
 
 	void ShaderCompiler::ReflectAllShaderStages(const std::map<VkShaderStageFlagBits, std::vector<uint32_t>>& shaderData)
@@ -360,6 +413,31 @@ namespace vkPlayground {
 				uint32_t descriptorSet = compiler.get_decoration(res.id, spv::DecorationDescriptorSet);
 				uint32_t binding = compiler.get_decoration(res.id, spv::DecorationBinding);
 				uint32_t bufferSize = (uint32_t)compiler.get_declared_struct_size(bufferType);
+
+				// Create/cache the resource in case other shaders reference the same resource that way it is readily available
+				if (descriptorSet >= m_ReflectionData.ShaderDescriptorSets.size())
+					m_ReflectionData.ShaderDescriptorSets.resize(descriptorSet + 1);
+
+				ShaderResources::ShaderDescriptorSet& shaderDescriptorSet = m_ReflectionData.ShaderDescriptorSets[descriptorSet];
+				if (s_UniformBuffers[descriptorSet].contains(binding))
+				{
+					ShaderResources::UniformBuffer& ubo = s_UniformBuffers.at(descriptorSet).at(binding);
+					if (bufferSize > ubo.Size)
+						ubo.Size = bufferSize;
+				}
+				else
+				{
+					ShaderResources::UniformBuffer& ubo = s_UniformBuffers.at(descriptorSet)[binding];
+					ubo.Name = name;
+					ubo.BindingPoint = binding;
+					ubo.Size = bufferSize;
+					ubo.ShaderStage = VK_SHADER_STAGE_ALL;
+					// NOTE: Here we set `VK_SHADER_STAGE_ALL` since `contains` only tries to compare the keys of the map so if we set a specific
+					// stage, say a uniform buffer was shared in 2 stages then for the fragment shader the uniformbuffer would be already cached
+					// and the shader stage would be `VK_SHADER_STAGE_VERTEX` which is obviously wrong so we just set `VK_SHADER_STAGE_ALL`
+				}
+
+				shaderDescriptorSet.UniformBuffers[binding] = s_UniformBuffers.at(descriptorSet).at(binding);
 
 				PG_CORE_TRACE_TAG("ShaderCompiler", " \tName: {0} (Set: {1}, Binding: {2})", name, descriptorSet, binding);
 				PG_CORE_TRACE_TAG("ShaderCompiler", " \tMember Count: {0}", memberCount);

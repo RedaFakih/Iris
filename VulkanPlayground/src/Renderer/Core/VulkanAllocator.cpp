@@ -138,4 +138,21 @@ namespace vkPlayground {
 		return stats;
 	}
 
+	void VulkanAllocator::DumpStats()
+	{
+		const auto& memoryProps = RendererContext::GetCurrentDevice()->GetPhysicalDevice()->GetPhysicalDeviceMemoryProps();
+		std::vector<VmaBudget> budgets(memoryProps.memoryHeapCount);
+		vmaGetHeapBudgets(s_Data->Allocator, budgets.data());
+
+		PG_CORE_WARN_TAG("Allocator", "-----------------------------------");
+		for (VmaBudget& b : budgets)
+		{
+			PG_CORE_WARN_TAG("Allocator", "VmaBudget.statistics.allocationBytes = {0}", Utils::BytesToString(b.statistics.allocationBytes));
+			PG_CORE_WARN_TAG("Allocator", "VmaBudget.statistics.blockBytes = {0}", Utils::BytesToString(b.statistics.blockBytes));
+			PG_CORE_WARN_TAG("Allocator", "VmaBudget.usage = {0}", Utils::BytesToString(b.usage));
+			PG_CORE_WARN_TAG("Allocator", "VmaBudget.budget = {0}", Utils::BytesToString(b.budget));
+		}
+		PG_CORE_WARN_TAG("Allocator", "-----------------------------------");
+	}
+
 }

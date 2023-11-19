@@ -1,8 +1,17 @@
 #include "Renderer.h"
 
+#include "Shaders/Compiler/ShaderCompiler.h"
+
 #include <glm/glm.hpp>
 
 namespace vkPlayground {
+
+	struct ShaderDependencies
+	{
+		std::vector<Ref<Pipeline>> Pipelines;
+	};
+
+	static std::unordered_map<std::size_t, ShaderDependencies> s_ShaderDependencies;
 
 	struct RendererData
 	{
@@ -22,13 +31,19 @@ namespace vkPlayground {
 
 		s_Data->m_ShaderLibrary = ShadersLibrary::Create();
 
-		Renderer::GetShadersLibrary()->Load("Shaders/SimpleShader.glsl");
+		Renderer::GetShadersLibrary()->Load("Shaders/Src/SimpleShader.glsl");
 	}
 
 	void Renderer::Shutdown()
 	{
+		s_ShaderDependencies.clear();
+
 		VkDevice device = RendererContext::GetCurrentDevice()->GetVulkanDevice();
 		vkDeviceWaitIdle(device);
+
+		ShaderCompiler::ClearUniformAndStorageBuffers();
+
+		delete s_Data;
 
 		// Clean all resources that were queued for destruction in the last frame
 		for (uint32_t i = 0; i < 3; i++)
@@ -38,6 +53,7 @@ namespace vkPlayground {
 		}
 
 		// Any more resource freeing will be here...
+		// Delete render command queues
 	}
 
 	Ref<ShadersLibrary> Renderer::GetShadersLibrary()
@@ -45,19 +61,9 @@ namespace vkPlayground {
 		return s_Data->m_ShaderLibrary;
 	}
 
-	RenderCommandQueue& Renderer::GetRendererResourceReleaseQueue(uint32_t index)
+	GPUMemoryStats Renderer::GetGPUMemoryStats()
 	{
-		return s_RendererResourceFreeQueue[index];
-	}
-
-	void Renderer::OnShaderReloaded(std::size_t hash)
-	{
-		// TODO: Invalidate all the dependencies...
-	}
-
-	uint32_t Renderer::GetCurrentFrameIndex()
-	{
-		return Application::Get().GetWindow().GetSwapChain().GetCurrentBufferIndex();
+		return VulkanAllocator::GetStats();
 	}
 
 	RendererConfiguration& Renderer::GetConfig()
@@ -68,6 +74,33 @@ namespace vkPlayground {
 	void Renderer::SetConfig(const RendererConfiguration& config)
 	{
 		s_RendererConfig = config;
+	}
+
+	RenderCommandQueue& Renderer::GetRendererResourceReleaseQueue(uint32_t index)
+	{
+		return s_RendererResourceFreeQueue[index];
+	}
+
+	void Renderer::RegisterShaderDependency(Ref<Shader> shader, Ref<Pipeline> pipeline)
+	{
+		s_ShaderDependencies[shader->GetHash()].Pipelines.push_back(pipeline);
+	}
+
+	void Renderer::OnShaderReloaded(std::size_t hash)
+	{
+		if (s_ShaderDependencies.contains(hash))
+		{
+			ShaderDependencies& deps = s_ShaderDependencies.at(hash);
+			for (Ref<Pipeline>& pipeline : deps.Pipelines)
+			{
+				pipeline->Invalidate();
+			}
+		}
+	}
+
+	uint32_t Renderer::GetCurrentFrameIndex()
+	{
+		return Application::Get().GetWindow().GetSwapChain().GetCurrentBufferIndex();
 	}
 
 }

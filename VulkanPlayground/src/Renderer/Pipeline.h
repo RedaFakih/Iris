@@ -41,7 +41,6 @@ namespace vkPlayground {
 	struct TempPipelineSpecData
 	{
 		VkRenderPass TemporaryRenderPass; // TODO: Temporary
-		VkDescriptorSetLayout TemporaryDescSetLayout; // TODO: Temporary
 	};
 
 	// NOTE: For Instancing we need to add one more layout for the instance data
@@ -51,7 +50,7 @@ namespace vkPlayground {
 		Ref<Shader> Shader;
 		TempPipelineSpecData TemporaryPipelineSpecData;
 		Ref<Framebuffer> TargetFramebuffer;
-		VertexInputLayout Layout;
+		VertexInputLayout VertexLayout;
 		PrimitiveTopology Topology = PrimitiveTopology::Triangles;
 		DepthCompareOperator DepthOperator = DepthCompareOperator::GreaterOrEqual;
 		bool BackFaceCulling = true;

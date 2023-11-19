@@ -70,7 +70,9 @@ namespace vkPlayground {
 		: m_Specification(spec)
 	{
 		PG_ASSERT(spec.Shader, "Shader is not provided!");
+		// PG_ASSERT(spec.TargetFramebuffer, "Framebuffer is not provided!");
 		Invalidate();
+		Renderer::RegisterShaderDependency(spec.Shader, this);
 	}
 
 	Pipeline::~Pipeline()
@@ -88,8 +90,12 @@ namespace vkPlayground {
 		VkDevice device = RendererContext::GetCurrentDevice()->GetVulkanDevice();
 		PG_ASSERT(m_Specification.Shader, "Shader can not be nullptr!");
 
-		// TODO: DescriptorSetLayouts from shader
+		Ref<Shader> shader = m_Specification.Shader;
+
+		std::vector<VkDescriptorSetLayout> descriptorSetLayouts = shader->GetAllDescriptorSetLayout();
 		// TODO: PushConstantRanges from shader
+
+
 
 		// Setting up the pipeline with the VkPipelineVertexInputStateCreateInfo struct to accept the vertex data that will be 
 		// passed to the vertex buffer
@@ -98,20 +104,20 @@ namespace vkPlayground {
 		std::vector<VkVertexInputBindingDescription> vertexInputBindingDescriptions;
 		VkVertexInputBindingDescription vertexInputBinding = {
 			.binding = 0,
-			.stride = m_Specification.Layout.GetStride(),
+			.stride = m_Specification.VertexLayout.GetStride(),
 			.inputRate = VK_VERTEX_INPUT_RATE_VERTEX
 		};
 		vertexInputBindingDescriptions.push_back(vertexInputBinding);
 
 		// Description for shader input attributes and their memory layouts
-		std::vector<VkVertexInputAttributeDescription> vertexInputAttributesDescriptions(m_Specification.Layout.GetElementCount());
+		std::vector<VkVertexInputAttributeDescription> vertexInputAttributesDescriptions(m_Specification.VertexLayout.GetElementCount());
 
 		// Binding for outerloop and location for inner loop
 		// Binding here is for each layout... For example we could have another layout for instance data and its attributes would
 		// be at binding 1 location 0, 1, 2... and so on.
 		uint32_t binding = 0;
 		uint32_t location = 0;
-		std::array<VertexInputLayout, 1> pipelineLayouts = { m_Specification.Layout }; // NOTE: 1 since we for now only have one layout (No instancing...)
+		std::array<VertexInputLayout, 1> pipelineLayouts = { m_Specification.VertexLayout }; // NOTE: 1 since we for now only have one layout (No instancing...)
 		for (const auto& layout : pipelineLayouts)
 		{
 			for (const auto& element : layout)
@@ -188,9 +194,6 @@ namespace vkPlayground {
 			// .frontFace = VK_FRONT_FACE_CLOCKWISE,
 			.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE, // TODO: Comeback to this since we dont want it to be like this
 			.depthBiasEnable = VK_FALSE,
-			.depthBiasConstantFactor = 0.0f,
-			.depthBiasClamp = 0.0f,
-			.depthBiasSlopeFactor = 0.0f,
 			.lineWidth = m_Specification.LineWidth // Dynamic
 		};
 		rasterizationState.cullMode = m_Specification.BackFaceCulling ? VK_CULL_MODE_BACK_BIT : VK_CULL_MODE_NONE; // Causes an error in aggregate init lol
@@ -227,14 +230,16 @@ namespace vkPlayground {
 		bool swapChainTarget = true; // TODO: Get from frambuffer
 		if (swapChainTarget)
 		{
-			blendAttachmentStates[0].blendEnable = VK_TRUE;
-			blendAttachmentStates[0].srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
-			blendAttachmentStates[0].dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-			blendAttachmentStates[0].colorBlendOp = VK_BLEND_OP_ADD;
-			blendAttachmentStates[0].srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
-			blendAttachmentStates[0].dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
-			blendAttachmentStates[0].alphaBlendOp = VK_BLEND_OP_ADD;
-			blendAttachmentStates[0].colorWriteMask = 0xf;  // VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT
+			blendAttachmentStates[0] = {
+				.blendEnable = VK_TRUE,
+				.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA,
+				.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
+				.colorBlendOp = VK_BLEND_OP_ADD,
+				.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE,
+				.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO,
+				.alphaBlendOp = VK_BLEND_OP_ADD,
+				.colorWriteMask = 0xf  // VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT
+			};
 		}
 		else
 		{
@@ -250,16 +255,11 @@ namespace vkPlayground {
 
 		VkPipelineLayoutCreateInfo pipelineLayoutInfo = {
 			.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-			.setLayoutCount = 0, // TODO: DescriptorSetLayouts size from shader
-			.pSetLayouts = nullptr, // TODO: DescriptorSetLayouts data from shader
+			.pNext = nullptr,
+			.setLayoutCount = static_cast<uint32_t>(descriptorSetLayouts.size()),
+			.pSetLayouts = descriptorSetLayouts.data(),
 			.pushConstantRangeCount = 0, // TODO: PushConstantRnages size from shader
 			.pPushConstantRanges = nullptr, // TODO: PushConstantRanges data from shader
-		};
-
-		pipelineLayoutInfo = {
-			.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-			.setLayoutCount = 1,
-			.pSetLayouts = &m_Specification.TemporaryPipelineSpecData.TemporaryDescSetLayout
 		};
 
 		VK_CHECK_RESULT(vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &m_PipelineLayout));
@@ -268,7 +268,7 @@ namespace vkPlayground {
 
 		VkGraphicsPipelineCreateInfo pipelineInfo = {
 			.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
-			.stageCount = (uint32_t)shaderStages.size(),
+			.stageCount = static_cast<uint32_t>(shaderStages.size()),
 			.pStages = shaderStages.data(),
 			.pVertexInputState = &vertexInputState,
 			.pInputAssemblyState = &inputAssemblyState,
