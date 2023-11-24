@@ -4,6 +4,9 @@
 #include "Renderer/Core/RendererContext.h"
 #include "Utils/StringUtils.h"
 
+// NOTE: Enable/Disable logging messages about the allocated chunks and total allocated memory since beginning...
+#define LOG_MEMORY_USAGE_MESSAGES 1
+
 namespace vkPlayground {
 
 	struct AllocatorStaticData
@@ -16,10 +19,17 @@ namespace vkPlayground {
 
 	static AllocatorStaticData* s_Data;
 
+	enum class AllocationType : uint8_t
+	{
+		None = 0,
+		Buffer,
+		Image
+	};
+
 	struct AllocationInfo
 	{
-		uint64_t AllocatedSize;
-		// TODO: Type? (Buffer, Image)
+		uint64_t AllocatedSize = 0;
+		AllocationType Type = AllocationType::None;
 	};
 
 	static std::map<VmaAllocation, AllocationInfo> s_AllocationMap;
@@ -67,18 +77,25 @@ namespace vkPlayground {
 		if (allocation == nullptr)
 		{
 			PG_CORE_ERROR_TAG("VulkanAllocator", "Failed to allocate GPU buffer!");
-			PG_CORE_ERROR_TAG("VulkanAllocator", "Requested Size: {}", Utils::BytesToString(bufferCreateInfo->size));
+			PG_CORE_ERROR_TAG("VulkanAllocator", "\tRequested Size: {}", Utils::BytesToString(bufferCreateInfo->size));
 			GPUMemoryStats stats = GetStats();
-			PG_CORE_ERROR_TAG("VulkanAllocator", "GPU memory usage: {} / {}", Utils::BytesToString(stats.Used), Utils::BytesToString(stats.TotalAvailable));
+			PG_CORE_ERROR_TAG("VulkanAllocator", "\tGPU memory usage: {} / {}", Utils::BytesToString(stats.Used), Utils::BytesToString(stats.TotalAvailable));
 		}
 
+#if LOG_MEMORY_USAGE_MESSAGES
 		PG_CORE_TRACE_TAG("VulkanAllocator", "{}: Allocating buffer with size: {}", m_Name, Utils::BytesToString(allocInfo.size));
+#endif
 
 		s_Data->TotalAllocatedBytes += allocInfo.size;
-		PG_CORE_INFO_TAG("VulkanAllocator", "{}: Total allocated since start: {}", m_Name, Utils::BytesToString(s_Data->TotalAllocatedBytes));
 
-		AllocationInfo allocationTrack = s_AllocationMap[allocation];
-		allocationTrack.AllocatedSize = allocInfo.size;
+#if LOG_MEMORY_USAGE_MESSAGES
+		PG_CORE_INFO_TAG("VulkanAllocator", "{}: Total allocated since start: {}", m_Name, Utils::BytesToString(s_Data->TotalAllocatedBytes));
+#endif
+
+		s_AllocationMap[allocation] = {
+			.AllocatedSize = allocInfo.size,
+			.Type = AllocationType::Buffer
+		};
 		s_Data->MemoryUsage += allocInfo.size;
 
 		return allocation;
@@ -99,7 +116,64 @@ namespace vkPlayground {
 		}
 		else
 		{
-			PG_CORE_ERROR_TAG("VulkanAllocator", "Could not find memory allocation: {}", (void*)allocation);
+			PG_CORE_ERROR_TAG("VulkanAllocator", "{}: Could not find memory allocation: {}", m_Name, (void*)allocation);
+		}
+	}
+
+	VmaAllocation VulkanAllocator::AllocateImage(const VkImageCreateInfo* imageCreateInfo, VmaMemoryUsage usage, VkImage* image, VkDeviceSize* allocatedSize)
+	{
+		VmaAllocationCreateInfo allocationCreateInfo = { .usage = usage };
+
+		VmaAllocationInfo allocInfo;
+		VmaAllocation allocation;
+		vmaCreateImage(s_Data->Allocator, imageCreateInfo, &allocationCreateInfo, image, &allocation, &allocInfo);
+		if (allocation == nullptr)
+		{
+			PG_CORE_ERROR_TAG("VulkanAllocator", "Failed to allocate GPU image!");
+			PG_CORE_ERROR_TAG("VulkanAllocator", "\tRequested Size: {}x{}x{}", imageCreateInfo->extent.width, imageCreateInfo->extent.height, imageCreateInfo->extent.depth);
+			PG_CORE_ERROR_TAG("VulkanAllocator", "\tMips: {}", imageCreateInfo->mipLevels);
+			PG_CORE_ERROR_TAG("VulkanAllocator", "\tLayers: {}", imageCreateInfo->arrayLayers);
+			GPUMemoryStats stats = GetStats();
+			PG_CORE_ERROR_TAG("VulkanAllocator", "\tGPU memory usage: {} / {}", Utils::BytesToString(stats.Used), Utils::BytesToString(stats.TotalAvailable));
+		}
+
+		if (allocatedSize)
+			*allocatedSize = allocInfo.size;
+#if LOG_MEMORY_USAGE_MESSAGES
+		PG_CORE_TRACE_TAG("VulkanAllocator", "{}: Allocating image with size: {}", m_Name, Utils::BytesToString(allocInfo.size));
+#endif
+
+		s_Data->TotalAllocatedBytes += allocInfo.size;
+
+#if LOG_MEMORY_USAGE_MESSAGES
+		PG_CORE_INFO_TAG("VulkanAllocator", "{}: Total allocated since start: {}", m_Name, Utils::BytesToString(s_Data->TotalAllocatedBytes));
+#endif
+
+		s_AllocationMap[allocation] = {
+			.AllocatedSize = allocInfo.size,
+			.Type = AllocationType::Image
+		};
+		s_Data->MemoryUsage += allocInfo.size;
+
+		return allocation;
+	}
+
+	void VulkanAllocator::DestroyImage(VmaAllocation allocation, VkImage image)
+	{
+		PG_ASSERT(image, "");
+		PG_ASSERT(allocation, "");
+
+		vmaDestroyImage(s_Data->Allocator, image, allocation);
+
+		auto it = s_AllocationMap.find(allocation);
+		if (it != s_AllocationMap.end())
+		{
+			s_Data->MemoryUsage -= it->second.AllocatedSize;
+			s_AllocationMap.erase(it);
+		}
+		else
+		{
+			PG_CORE_ERROR_TAG("VulkanAllocator", "{}: Could not find memory allocation: {}", m_Name, (void*)allocation);
 		}
 	}
 

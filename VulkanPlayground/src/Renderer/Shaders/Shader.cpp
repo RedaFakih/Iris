@@ -10,8 +10,6 @@
 #include <shaderc/shaderc.hpp>
 #include <vulkan/vulkan.h>
 
-#include <chrono>
-
 namespace vkPlayground {
 
 	Ref<Shader> Shader::Create()
@@ -111,8 +109,10 @@ namespace vkPlayground {
 		{
 			ShaderResources::ShaderDescriptorSet& descriptorSet = m_ReflectionData.ShaderDescriptorSets.emplace_back();
 			reader->ReadMap(descriptorSet.UniformBuffers);
+			reader->ReadMap(descriptorSet.ImageSamplers);
+			reader->ReadMap(descriptorSet.WriteDescriptorSets);
 		}
-
+		
 		return true;
 	}
 
@@ -123,10 +123,12 @@ namespace vkPlayground {
 		for (const auto& descriptorSet : m_ReflectionData.ShaderDescriptorSets)
 		{
 			serializer->WriteMap(descriptorSet.UniformBuffers);
+			serializer->WriteMap(descriptorSet.ImageSamplers);
+			serializer->WriteMap(descriptorSet.WriteDescriptorSets);
 		}
 	}
 
-	std::vector<VkDescriptorSetLayout> Shader::GetAllDescriptorSetLayout()
+	std::vector<VkDescriptorSetLayout> Shader::GetAllDescriptorSetLayouts()
 	{
 		std::vector<VkDescriptorSetLayout> result;
 		result.reserve(m_DescriptorSetLayouts.size());
@@ -204,16 +206,23 @@ namespace vkPlayground {
 		/// Descriptor Pool
 		/////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-		m_DescriptorPoolTypeCounts.clear();
+		// m_DescriptorPoolTypeCounts.clear();
+		// Resize the DSL vector to the number of sets we have in the shader
+		m_DescriptorSetLayouts.resize(m_ReflectionData.ShaderDescriptorSets.size());
 		for (uint32_t set = 0; set < m_ReflectionData.ShaderDescriptorSets.size(); set++)
 		{
 			auto& shaderDescriptorSet = m_ReflectionData.ShaderDescriptorSets[set];
 
+			// Add to the global VkDescriptorPoolSize for the global descriptor pool in the DescriptorSetManager
 			if (shaderDescriptorSet.UniformBuffers.size())
 			{
-				VkDescriptorPoolSize& typeCount = m_DescriptorPoolTypeCounts[set].emplace_back();
-				typeCount.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-				typeCount.descriptorCount = (uint32_t)shaderDescriptorSet.UniformBuffers.size();
+				m_DescriptorPoolTypeCounts[VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER] += (uint32_t)shaderDescriptorSet.UniformBuffers.size();
+			}
+
+			if (shaderDescriptorSet.ImageSamplers.size())
+			{
+				// TODO: Maybe also do it for `VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE`
+				m_DescriptorPoolTypeCounts[VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER] += (uint32_t)shaderDescriptorSet.ImageSamplers.size();
 			}
 
 			/////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -239,17 +248,39 @@ namespace vkPlayground {
 				};
 			}
 
+			for (auto& [binding, imageSampler] : shaderDescriptorSet.ImageSamplers)
+			{
+				VkDescriptorSetLayoutBinding& layoutBinding = layoutBindings.emplace_back();
+				layoutBinding.binding = binding;
+				layoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+				layoutBinding.descriptorCount = imageSampler.ArraySize;
+				layoutBinding.stageFlags = imageSampler.ShaderStage;
+				layoutBinding.pImmutableSamplers = nullptr;
+
+				PG_ASSERT(shaderDescriptorSet.UniformBuffers.contains(binding) == false, "Binding already present!");
+
+				// All the other files will be filled inside the DescriptorSetManager class which will be owned by a renderpass
+				shaderDescriptorSet.WriteDescriptorSets[imageSampler.Name] = {
+					.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+					.dstBinding = layoutBinding.binding,
+					.descriptorCount = layoutBinding.descriptorCount,
+					.descriptorType = layoutBinding.descriptorType,
+				};
+			}
+
 			VkDescriptorSetLayoutCreateInfo descriptorSetLaytoutCI = {
 				.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
 				.pNext = nullptr,
-				.bindingCount = (uint32_t)layoutBindings.size(),
+				.bindingCount = static_cast<uint32_t>(layoutBindings.size()),
 				.pBindings = layoutBindings.data()
 			};
 
-			PG_CORE_INFO_TAG("Shader", "Creating descriptor set {} with {} ubo's", set, shaderDescriptorSet.UniformBuffers.size());
+			PG_CORE_INFO_TAG("Shader", "Creating descriptor set {} with {} ubo's, {} samplers", set, 
+				shaderDescriptorSet.UniformBuffers.size(),
+				shaderDescriptorSet.ImageSamplers.size()
+			);
 
-			if (set >= m_DescriptorSetLayouts.size())
-				m_DescriptorSetLayouts.resize(set + 1);
+			m_ExistingSets.insert(set);
 
 			VK_CHECK_RESULT(vkCreateDescriptorSetLayout(device, &descriptorSetLaytoutCI, nullptr, &m_DescriptorSetLayouts[set]));
 		}

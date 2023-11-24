@@ -92,10 +92,7 @@ namespace vkPlayground {
 
 		Ref<Shader> shader = m_Specification.Shader;
 
-		std::vector<VkDescriptorSetLayout> descriptorSetLayouts = shader->GetAllDescriptorSetLayout();
 		// TODO: PushConstantRanges from shader
-
-
 
 		// Setting up the pipeline with the VkPipelineVertexInputStateCreateInfo struct to accept the vertex data that will be 
 		// passed to the vertex buffer
@@ -191,8 +188,7 @@ namespace vkPlayground {
 			.depthClampEnable = VK_FALSE,
 			.rasterizerDiscardEnable = VK_FALSE,
 			.polygonMode = m_Specification.WireFrame ? VK_POLYGON_MODE_LINE : VK_POLYGON_MODE_FILL,
-			// .frontFace = VK_FRONT_FACE_CLOCKWISE,
-			.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE, // TODO: Comeback to this since we dont want it to be like this
+			.frontFace = VK_FRONT_FACE_CLOCKWISE, // default for vkPlayground
 			.depthBiasEnable = VK_FALSE,
 			.lineWidth = m_Specification.LineWidth // Dynamic
 		};
@@ -253,6 +249,7 @@ namespace vkPlayground {
 			.pAttachments = blendAttachmentStates.data()
 		};
 
+		std::vector<VkDescriptorSetLayout> descriptorSetLayouts = shader->GetAllDescriptorSetLayouts();
 		VkPipelineLayoutCreateInfo pipelineLayoutInfo = {
 			.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
 			.pNext = nullptr,

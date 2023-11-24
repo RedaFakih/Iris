@@ -55,28 +55,4 @@ namespace vkPlayground {
 		uint32_t m_Offset = 0;
 	};
 
-	// NOTE: This is mainly used in the ShaderCompiler reflection stage for storing all the type of image/sampler/combind-image-sampler descriptor
-	// infos
-	class ShaderResourceDeclaration
-	{
-	public:
-		ShaderResourceDeclaration() = default;
-		ShaderResourceDeclaration(const std::string& name, uint32_t set, uint32_t binding, uint32_t count)
-			: m_Name(name), m_Set(set), m_Binding(binding), m_Count(count)
-		{
-		}
-
-		const std::string& GetName() const { return m_Name; }
-		uint32_t GetSet() const { return m_Set; }
-		uint32_t GetBinding() const { return m_Binding; }
-		uint32_t GetCount() const { return m_Count; }
-
-	private:
-		std::string m_Name;
-		uint32_t m_Set = 0;
-		uint32_t m_Binding = 0;
-		uint32_t m_Count = 0;
-
-	};
-
 }

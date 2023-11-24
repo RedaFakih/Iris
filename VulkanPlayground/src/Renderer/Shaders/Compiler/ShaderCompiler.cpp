@@ -92,6 +92,7 @@ namespace vkPlayground {
 
 		PG_CORE_DEBUG_TAG("ShaderCompiler", "Compiling shader: {}", m_FilePath.string());
 		m_ShaderSource = PreProcess(source);
+		// Compare shadersource hashes to see if the shader has changed
 		const VkShaderStageFlagBits stagesChanged = ShaderRegistry::HasChanged(this);
 		
 		std::map<VkShaderStageFlagBits, std::vector<uint32_t>> spirvDebugData;
@@ -343,6 +344,8 @@ namespace vkPlayground {
 		{
 			ShaderResources::ShaderDescriptorSet& descriptorSet = m_ReflectionData.ShaderDescriptorSets.emplace_back();
 			reader.ReadMap(descriptorSet.UniformBuffers);
+			reader.ReadMap(descriptorSet.ImageSamplers);
+			reader.ReadMap(descriptorSet.WriteDescriptorSets);
 		}
 
 		return true;
@@ -365,6 +368,8 @@ namespace vkPlayground {
 		for (const auto& descriptorSet : m_ReflectionData.ShaderDescriptorSets)
 		{
 			serializer.WriteMap(descriptorSet.UniformBuffers);
+			serializer.WriteMap(descriptorSet.ImageSamplers);
+			serializer.WriteMap(descriptorSet.WriteDescriptorSets);
 		}
 	}
 
@@ -392,10 +397,9 @@ namespace vkPlayground {
 		// General Info
 		PG_CORE_TRACE_TAG("ShaderCompiler", "{0} - {1}", m_FilePath.string(), ShaderUtils::VkShaderStageToString(stage));
 		PG_CORE_TRACE_TAG("ShaderCompiler", "\t{0} Uniform Buffers", resources.uniform_buffers.size());
-		// TODO: For now all we care about is the uniform buffers
 		// PG_CORE_TRACE_TAG("Renderer", "\t{0} Push Constant Buffers", resources.push_constant_buffers.size());
 		// PG_CORE_TRACE_TAG("Renderer", "\t{0} Storage Buffers", resources.storage_buffers.size());
-		// PG_CORE_TRACE_TAG("Renderer", "\t{0} Sampled Images", resources.sampled_images.size());
+		PG_CORE_TRACE_TAG("ShaderCompiler", "\t{0} Sampled Images", resources.sampled_images.size());
 		// PG_CORE_TRACE_TAG("Renderer", "\t{0} Storage Images", resources.storage_images.size());
 
 		PG_CORE_TRACE_TAG("ShaderCompiler", "============================");
@@ -444,6 +448,38 @@ namespace vkPlayground {
 				PG_CORE_TRACE_TAG("ShaderCompiler", " \tSize: {0}", bufferSize);
 				PG_CORE_TRACE_TAG("ShaderCompiler", "-------------------");
 			}
+		}
+
+		PG_CORE_TRACE_TAG("ShaderCompiler", "============================");
+		PG_CORE_WARN_TAG("ShaderCompiler", "Sampled Images:");
+		for (const spirv_cross::Resource& res : resources.sampled_images)
+		{
+			const std::string& name = res.name;
+			const spirv_cross::SPIRType& baseType = compiler.get_type(res.base_type_id);
+			const spirv_cross::SPIRType& type = compiler.get_type(res.type_id);
+
+			uint32_t binding = compiler.get_decoration(res.id, spv::DecorationBinding);
+			uint32_t descriptorSet = compiler.get_decoration(res.id, spv::DecorationDescriptorSet);
+			uint32_t dimension = baseType.image.dim;
+			uint32_t arraySize = baseType.array[0];
+			// Array size in case we have an array of samplers (2D batch rendering texture array) (sampler2D arr[32], NOT A sampler2DArray arr)
+			// in case the array size was 0 meaning there is no array we set it to 1 since there is 1 single image attachment instead of an array
+			if (arraySize == 0)
+				arraySize = 1;
+			if (descriptorSet >= m_ReflectionData.ShaderDescriptorSets.size())
+				m_ReflectionData.ShaderDescriptorSets.resize(static_cast<uint32_t>(descriptorSet + 1));
+
+			ShaderResources::ShaderDescriptorSet& shaderDescriptorSet = m_ReflectionData.ShaderDescriptorSets[descriptorSet];
+			shaderDescriptorSet.ImageSamplers[binding] = ShaderResources::ImageSampler{
+				.Name = name,
+				.DescriptorSet = descriptorSet,
+				.BindingPoint = binding,
+				.Dimension = dimension,
+				.ArraySize = arraySize, 
+				.ShaderStage = stage
+			};
+
+			PG_CORE_TRACE_TAG("ShaderCompiler", " \tName: {0} (Set: {1}, Binding: {2})", name, descriptorSet, binding);
 		}
 	}
 

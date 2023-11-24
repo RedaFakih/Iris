@@ -10,6 +10,7 @@
 #include <map>
 #include <string>
 #include <string_view>
+#include <set>
 
 namespace vkPlayground {
 
@@ -19,7 +20,6 @@ namespace vkPlayground {
 		struct ReflectionData
 		{
 			std::vector<ShaderResources::ShaderDescriptorSet> ShaderDescriptorSets;
-			// std::unordered_map<std::string, ShaderResourceDeclaration> Resources; // Mainly for all the types of images decriptors
 
 			// TODO: Reflection data for Descriptor Sets, Resources(Uniform buffers, Storage buffers, Images and textures), Constant Buffers
 			// and PushConstantRanges
@@ -50,13 +50,15 @@ namespace vkPlayground {
 		const std::vector<VkPipelineShaderStageCreateInfo>& GetPipelineShaderStageCreateInfos() const { return m_PipelineShaderStageCreateInfos; }
 
 		VkDescriptorSetLayout GetDescriptorSetLayout(uint32_t set) { return m_DescriptorSetLayouts.at(set); }
-		std::vector<VkDescriptorSetLayout> GetAllDescriptorSetLayout();
+		std::vector<VkDescriptorSetLayout> GetAllDescriptorSetLayouts();
 
 		ShaderResources::UniformBuffer& GetUniformBuffer(const uint32_t set = 0, const uint32_t binding = 0);
 		uint32_t GetUniformBufferCount(const uint32_t set = 0);
 
 		const std::vector<ShaderResources::ShaderDescriptorSet>& GetShaderDescriptorSets() const { return m_ReflectionData.ShaderDescriptorSets; }
-		bool HasDescriptorSet(uint32_t set) const { return m_DescriptorPoolTypeCounts.contains(set); }
+		bool HasDescriptorSet(uint32_t set) const { return m_ExistingSets.contains(set); }
+
+		static const std::unordered_map<VkDescriptorType, uint32_t>& GetDescriptorPoolSizes() { return m_DescriptorPoolTypeCounts; }
 
 		// For getting the descriptor mainly for materials in the renderer
 		const VkWriteDescriptorSet* GetDescriptorSet(const std::string& name, uint32_t set = 0) const;
@@ -76,7 +78,10 @@ namespace vkPlayground {
 		ReflectionData m_ReflectionData;
 
 		std::vector<VkDescriptorSetLayout> m_DescriptorSetLayouts;
-		std::unordered_map<uint32_t, std::vector<VkDescriptorPoolSize>> m_DescriptorPoolTypeCounts;
+		std::set<uint32_t> m_ExistingSets;
+
+		// Global pool sizes that are needed for the global descriptor pool instead of creating per-set descriptor pools since that is inefficient
+		inline static std::unordered_map<VkDescriptorType, uint32_t> m_DescriptorPoolTypeCounts;
 
 		friend class ShaderCompiler;
 	};

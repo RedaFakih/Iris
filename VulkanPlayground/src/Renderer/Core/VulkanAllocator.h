@@ -20,6 +20,9 @@ namespace vkPlayground {
 
 		[[nodiscard]] VmaAllocation AllocateBuffer(const VkBufferCreateInfo* bufferCreateInfo, VmaMemoryUsage usage, VkBuffer* buffer);
 		void DestroyBuffer(VmaAllocation allocation, VkBuffer buffer);
+
+		[[nodiscard]] VmaAllocation AllocateImage(const VkImageCreateInfo* imageCreateInfo, VmaMemoryUsage usage, VkImage* image, VkDeviceSize* allocatedSize = nullptr);
+		void DestroyImage(VmaAllocation allocation, VkImage image);
 		
 		template<typename T>
 		[[nodiscard]]
