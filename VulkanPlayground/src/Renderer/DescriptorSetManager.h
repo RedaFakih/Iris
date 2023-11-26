@@ -9,7 +9,7 @@
 /*
  * The way that the descriptor sets will work is by their increasing update frequency
  * so:
- *	- Set 0: Global renderer stuff -> Least updated set (Global as in global for the current frame)
+ *	- Set 0 - 2: Global renderer stuff -> Least updated set (Global as in global for the current frame)
  *  - Set 3: Per draw stuff -> Most updated set (materials...)
  * 
  * In between sets will also contain Global/per draw renderer stuff however that are updated a bit more than set 0 and a bit less than set 3
@@ -160,6 +160,10 @@ namespace vkPlayground {
 	{
 		Ref<Shader> Shader;
 		std::string DebugName;
+		
+		// TODO: Create some sort of flag here to specify if a descriptor set should be updated or not, because for something like BRDFLut that
+		// will not change through out the program it will only be updated once and therefore we could have only one shared descriptor set for it
+		// and we dont have to duplicate its sets to frame in flights duplicates
 
 		// Sets to be managed by the Manager instance
 		uint32_t StartingSet = 0;

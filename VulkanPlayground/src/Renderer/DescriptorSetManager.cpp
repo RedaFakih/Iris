@@ -181,11 +181,10 @@ namespace vkPlayground {
 
 		for (const auto& [set, setData] : m_InputResources)
 		{
-			// How many descriptors to create in the set since if we have buffer descriptors we need to duplicate them to the num of frames in flight
-			// uint32_t descriptorCountInSet = bufferSets.contains(set) ? descriptorSetCount : 1; NOTE: UNUSED
-			// TODO: Maybe change to one single call to allocate instead of looping?
+			// NOTE: Need to duplicate all the sets to the number of frames in flight.
+			// NOTE: In the future we should add the option to specify what sets should not be duplicated since they are static resources that
+			// do not get updated throughout the lifetime of the application
 			VkDescriptorSetLayout dsl = m_Specification.Shader->GetDescriptorSetLayout(set);
-			// const auto& layouts = m_Specification.Shader->GetAllDescriptorSetLayouts();
 			for (uint32_t frameIndex = 0; frameIndex < descriptorSetCount; frameIndex++)
 			{
 				VkDescriptorSetAllocateInfo allocInfo = {

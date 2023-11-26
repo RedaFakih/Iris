@@ -36,8 +36,12 @@ namespace vkPlayground {
 
 		// Should also handle the case where we allocate but there is still no space to fit the render command func but that is rare and
 		// if that happens then we messed up really badly to get there
+
+		// Pre-compute the used bytes so that we do not write outside of the commandbuffer when writing the data
+		m_UsedBytes += sizeof(RenderCommandFn) + sizeof(uint32_t) + size;
+		// Double on used bytes since at this point the capacity is lower...
 		if (m_UsedBytes >= m_Capacity)
-			ReAlloc(m_Capacity * 2);
+			ReAlloc(m_UsedBytes * 2, static_cast<std::size_t>(m_CommandBufferPtr - m_CommandBuffer));
 
 		// We store the function pointer in the buffer then advance the pointer so that next write will not overwrite the function pointer
 		*reinterpret_cast<RenderCommandFn*>(m_CommandBufferPtr) = fn;
@@ -50,7 +54,7 @@ namespace vkPlayground {
 		// We return the memory after both the function and its size have been stored
 		void* memory = m_CommandBufferPtr;
 		m_CommandBufferPtr += size;
-		m_UsedBytes = static_cast<size_t>(m_CommandBufferPtr - m_CommandBuffer);
+		m_UsedBytes = static_cast<size_t>(m_CommandBufferPtr - m_CommandBuffer); // Just for sanity checks (value should not change after this)
 		
 		m_CommandCount++;
 		return memory;
@@ -79,18 +83,18 @@ namespace vkPlayground {
 		}
 
 		m_CommandBufferPtr = m_CommandBuffer; // Reset the Ptr to the beginning of the CommandBuffer
-		m_UsedBytes = 0; // Reset the used bytes after execution for debugging purposes (it gets reset on every `Allocate` call anyways...)
+		m_UsedBytes = 0; // Reset the used bytes after execution for debugging purposes
 		m_CommandCount = 0;
 	}
 
-	void RenderCommandQueue::ReAlloc(size_t newCapacity)
+	void RenderCommandQueue::ReAlloc(std::size_t newCapacity, std::size_t ptrPosition)
 	{
 		uint8_t* newCommandBuffer = new uint8_t[newCapacity];
 		std::memcpy(newCommandBuffer, m_CommandBuffer, m_Capacity);
 
 		delete[] m_CommandBuffer;
 		m_CommandBuffer = newCommandBuffer;
-		m_CommandBufferPtr = m_CommandBuffer + m_UsedBytes; // Restore the pointer to the same position as it was on the past buffer
+		m_CommandBufferPtr = m_CommandBuffer + ptrPosition; // Restore the pointer to the same position as it was on the past buffer
 
 		newCommandBuffer = nullptr;
 		m_Capacity = newCapacity;
