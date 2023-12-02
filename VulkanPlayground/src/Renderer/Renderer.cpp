@@ -98,6 +98,33 @@ namespace vkPlayground {
 		}
 	}
 
+	void Renderer::InsertImageMemoryBarrier(
+		VkCommandBuffer commandBuffer,
+		VkImage image,
+		VkAccessFlags srcAccessMask,
+		VkAccessFlags dstAccessMask,
+		VkImageLayout oldImageLayout,
+		VkImageLayout newImageLayout,
+		VkPipelineStageFlags srcStageMask,
+		VkPipelineStageFlags dstStageMask,
+		VkImageSubresourceRange subresourceRange
+	)
+	{
+		VkImageMemoryBarrier imageMemBarrier = {
+			.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+			.srcAccessMask = srcAccessMask,
+			.dstAccessMask = dstAccessMask,
+			.oldLayout = oldImageLayout,
+			.newLayout = newImageLayout,
+			.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+			.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+			.image = image,
+			.subresourceRange = subresourceRange
+		};
+
+		vkCmdPipelineBarrier(commandBuffer, srcStageMask, dstStageMask, 0, 0, nullptr, 0, nullptr, 1, &imageMemBarrier);
+	}
+
 	uint32_t Renderer::GetCurrentFrameIndex()
 	{
 		return Application::Get().GetWindow().GetSwapChain().GetCurrentBufferIndex();

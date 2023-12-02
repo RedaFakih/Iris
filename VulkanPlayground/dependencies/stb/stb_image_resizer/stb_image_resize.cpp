@@ -1,6 +1,6 @@
 #ifndef STB_IMAGE_RESIZE_IMPLEMENTATION
 	#define STB_IMAGE_RESIZE_IMPLEMENTATION
-	#ifdef AURORA_DIST
+	#ifdef PLAYGROUND_RELEASE
 		#define STBIR_ASSERT(boolval)
 	#endif
 #endif

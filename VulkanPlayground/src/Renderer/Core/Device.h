@@ -36,6 +36,8 @@ namespace vkPlayground {
 		bool IsExtensionSupported(const std::string& extensionName) const;
 		uint32_t FindMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags props) const;
 
+		VkFormat GetDepthFormat() const { return /* TODO: */ VK_FORMAT_D24_UNORM_S8_UINT; }
+
 	private:
 		QueueFamilyIndices GetQueueFamilyIndices(int requestedIndices);
 

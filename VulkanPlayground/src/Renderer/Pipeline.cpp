@@ -70,7 +70,8 @@ namespace vkPlayground {
 		: m_Specification(spec)
 	{
 		PG_ASSERT(spec.Shader, "Shader is not provided!");
-		// PG_ASSERT(spec.TargetFramebuffer, "Framebuffer is not provided!");
+		PG_ASSERT(spec.TargetFramebuffer, "Framebuffer is not provided!");
+
 		Invalidate();
 		Renderer::RegisterShaderDependency(spec.Shader, this);
 	}
@@ -89,8 +90,6 @@ namespace vkPlayground {
 	{
 		VkDevice device = RendererContext::GetCurrentDevice()->GetVulkanDevice();
 		PG_ASSERT(m_Specification.Shader, "Shader can not be nullptr!");
-
-		Ref<Shader> shader = m_Specification.Shader;
 
 		// TODO: PushConstantRanges from shader
 
@@ -114,7 +113,8 @@ namespace vkPlayground {
 		// be at binding 1 location 0, 1, 2... and so on.
 		uint32_t binding = 0;
 		uint32_t location = 0;
-		std::array<VertexInputLayout, 1> pipelineLayouts = { m_Specification.VertexLayout }; // NOTE: 1 since we for now only have one layout (No instancing...)
+		// NOTE: 1 since we for now only have one layout (No instancing...)
+		std::array<VertexInputLayout, 1> pipelineLayouts = { m_Specification.VertexLayout };
 		for (const auto& layout : pipelineLayouts)
 		{
 			for (const auto& element : layout)
@@ -220,11 +220,10 @@ namespace vkPlayground {
 
 		// Color blend state describes how blend factors are calculated (if used)
 		// We need one blend attachment state per color attachment (even if blending is not used)
-		// TODO: 1 since we only have one color attachment on the swapchain, Make it work nicely with the framebuffer attachments...
-		size_t colorAttachmentCount = 1;
+		Ref<Framebuffer> framebuffer = m_Specification.TargetFramebuffer;
+		std::size_t colorAttachmentCount = framebuffer->GetColorAttachmentCount();
 		std::vector<VkPipelineColorBlendAttachmentState> blendAttachmentStates(colorAttachmentCount);
-		bool swapChainTarget = true; // TODO: Get from frambuffer
-		if (swapChainTarget)
+		if (framebuffer->GetSpecification().SwapchainTarget)
 		{
 			blendAttachmentStates[0] = {
 				.blendEnable = VK_TRUE,
@@ -239,7 +238,55 @@ namespace vkPlayground {
 		}
 		else
 		{
-			// TODO: Work with the framebuffer color attachments...
+			for (std::size_t i = 0; i < colorAttachmentCount; i++)
+			{
+				if (!framebuffer->GetSpecification().Blend)
+					break;
+
+				blendAttachmentStates[i].colorWriteMask = 0xf;
+				
+				const FramebufferTextureSpecification& attachmentSpec = framebuffer->GetSpecification().Attachments.Attachments[i];
+				FramebufferBlendMode blendMode;
+				if (framebuffer->GetSpecification().BlendMode == FramebufferBlendMode::None)
+					blendMode = attachmentSpec.BlendMode;
+				else
+					blendMode = framebuffer->GetSpecification().BlendMode;
+
+				blendAttachmentStates[i].blendEnable = attachmentSpec.Blend ? VK_TRUE : VK_FALSE;
+
+				blendAttachmentStates[i].colorBlendOp = VK_BLEND_OP_ADD;
+				blendAttachmentStates[i].alphaBlendOp = VK_BLEND_OP_ADD;
+				blendAttachmentStates[i].srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+				blendAttachmentStates[i].dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+
+				switch (blendMode)
+				{
+					case FramebufferBlendMode::OneZero:
+					{
+						blendAttachmentStates[i].srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
+						blendAttachmentStates[i].dstColorBlendFactor = VK_BLEND_FACTOR_ZERO;
+
+						break;
+					}
+					case FramebufferBlendMode::SrcAlphaOneMinusSrcAlpha:
+					{
+						blendAttachmentStates[i].srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+						blendAttachmentStates[i].dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+						blendAttachmentStates[i].srcAlphaBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+						blendAttachmentStates[i].dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+
+						break;
+					}
+					case FramebufferBlendMode::ZeroSrcColor:
+					{
+						blendAttachmentStates[i].srcColorBlendFactor = VK_BLEND_FACTOR_ZERO;
+						blendAttachmentStates[i].dstColorBlendFactor = VK_BLEND_FACTOR_SRC_COLOR;
+
+						break;
+					}
+					default: PG_ASSERT(false, "Unknown");
+				}
+			}
 		}
 
 		VkPipelineColorBlendStateCreateInfo colorBlendState = {
@@ -249,6 +296,7 @@ namespace vkPlayground {
 			.pAttachments = blendAttachmentStates.data()
 		};
 
+		Ref<Shader> shader = m_Specification.Shader;
 		std::vector<VkDescriptorSetLayout> descriptorSetLayouts = shader->GetAllDescriptorSetLayouts();
 		VkPipelineLayoutCreateInfo pipelineLayoutInfo = {
 			.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
@@ -261,7 +309,7 @@ namespace vkPlayground {
 
 		VK_CHECK_RESULT(vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &m_PipelineLayout));
 
-		const auto& shaderStages = m_Specification.Shader->GetPipelineShaderStageCreateInfos();
+		const auto& shaderStages = shader->GetPipelineShaderStageCreateInfos();
 
 		VkGraphicsPipelineCreateInfo pipelineInfo = {
 			.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
@@ -276,12 +324,14 @@ namespace vkPlayground {
 			.pColorBlendState = &colorBlendState,
 			.pDynamicState = &dynamicState,
 			.layout = m_PipelineLayout,
-			// .renderPass =  framebuffer->GetRenderPass() // TODO: Get this renderpass from the framebuffer since it sets the correct renderpass if it is a swapchain target or not
-			.renderPass = m_Specification.TemporaryPipelineSpecData.TemporaryRenderPass
+			.renderPass = m_Specification.TargetFramebuffer->GetVulkanRenderPass()
 		};
 
 		VK_CHECK_RESULT(vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &m_VulkanPipeline));
 		VKUtils::SetDebugUtilsObjectName(device, VK_OBJECT_TYPE_PIPELINE, m_Specification.DebugName, m_VulkanPipeline);
+
+		// NOTE: We can release the shader modules after the pipeline have been created
+		shader->Release();
 	}
 
 }

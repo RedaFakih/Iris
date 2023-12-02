@@ -31,7 +31,8 @@ namespace vkPlayground {
 		void SetInput(std::string_view name, Ref<UniformBufferSet> uniformBufferSet);
 		void SetInput(std::string_view name, Ref<Texture2D> texture);
 
-		// TODO: Getting output from framebuffer however that requires that the framebuffers are implemented first xD...
+		Ref<Texture2D> GetOutput(uint32_t index) const;
+		Ref<Texture2D> GetDepthOutput() const;
 
 		uint32_t GetFirstSetIndex() const;
 

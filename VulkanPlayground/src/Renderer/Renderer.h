@@ -53,6 +53,18 @@ namespace vkPlayground {
 		static void RegisterShaderDependency(Ref<Shader> shader, Ref<Pipeline> pipeline);
 		static void OnShaderReloaded(std::size_t hash);
 
+		static void InsertImageMemoryBarrier(
+			VkCommandBuffer commandBuffer,
+			VkImage image,
+			VkAccessFlags srcAccessMask,
+			VkAccessFlags dstAccessMask,
+			VkImageLayout oldImageLayout,
+			VkImageLayout newImageLayout,
+			VkPipelineStageFlags srcStageMask,
+			VkPipelineStageFlags dstStageMask,
+			VkImageSubresourceRange subresourceRange
+		);
+
 		static uint32_t GetCurrentFrameIndex();
 
 	private:

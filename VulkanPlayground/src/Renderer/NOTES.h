@@ -3,6 +3,9 @@
 /*
  *
  *
+ * TESTING TO BE DONE:
+ * - Test the code path for creating a pipeline with a framebuffer that is NOT a swapchain target...
+ * 
  * NEXT STEP ON TUTORIAL: Depth Buffering.
  *
  * NEXT THING TO WORK ON:

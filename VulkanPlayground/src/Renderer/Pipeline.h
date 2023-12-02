@@ -37,18 +37,11 @@ namespace vkPlayground {
 		Always
 	};
 
-	// TODO: This is temporary untill shader reflection is working and framebuffers hold there renderpass objects
-	struct TempPipelineSpecData
-	{
-		VkRenderPass TemporaryRenderPass; // TODO: Temporary
-	};
-
 	// NOTE: For Instancing we need to add one more layout for the instance data
 	struct PipelineSpecification
 	{
 		std::string DebugName;
 		Ref<Shader> Shader;
-		TempPipelineSpecData TemporaryPipelineSpecData;
 		Ref<Framebuffer> TargetFramebuffer;
 		VertexInputLayout VertexLayout;
 		PrimitiveTopology Topology = PrimitiveTopology::Triangles;
@@ -96,5 +89,5 @@ namespace vkPlayground {
 		VkPipeline m_VulkanPipeline = nullptr;
 		VkPipelineLayout m_PipelineLayout = nullptr;
 	};
-	
+
 }

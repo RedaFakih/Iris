@@ -54,6 +54,27 @@ namespace vkPlayground {
 		m_DescriptorSetManager.SetInput(name, texture);
 	}
 
+	Ref<Texture2D> RenderPass::GetOutput(uint32_t index) const
+	{
+		Ref<Framebuffer> framebuffer = m_Specification.Pipeline->GetSpecification().TargetFramebuffer;
+		if (index > framebuffer->GetColorAttachmentCount() + 1)
+			return nullptr;
+
+		if (index < framebuffer->GetColorAttachmentCount())
+			return framebuffer->GetImage(index);
+
+		return framebuffer->GetDepthImage();
+	}
+
+	Ref<Texture2D> RenderPass::GetDepthOutput() const
+	{
+		Ref<Framebuffer> framebuffer = m_Specification.Pipeline->GetSpecification().TargetFramebuffer;
+		if (!framebuffer->HasDepthAttachment())
+			return nullptr;
+
+		return framebuffer->GetDepthImage();
+	}
+
 	uint32_t RenderPass::GetFirstSetIndex() const
 	{
 		return m_DescriptorSetManager.GetFirstSetIndex();
