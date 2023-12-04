@@ -1,4 +1,4 @@
-#include <filesystem>
+#include "vkPch.h"
 #include "StringUtils.h"
 
 namespace vkPlayground::Utils {

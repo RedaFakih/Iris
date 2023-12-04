@@ -1,3 +1,4 @@
+#include "vkPch.h"
 #include "ShaderCompiler.h"
 
 #include "Core/Hash.h"
@@ -11,8 +12,6 @@
 
 #include <shaderc/shaderc.hpp>
 #include <spirv_cross/spirv_glsl.hpp>
-
-#include <fstream>
 
 namespace vkPlayground {
 

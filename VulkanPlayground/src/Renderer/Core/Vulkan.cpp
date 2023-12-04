@@ -1,3 +1,4 @@
+#include "vkPch.h"
 #include "Vulkan.h"
 
 namespace vkPlayground::Utils {

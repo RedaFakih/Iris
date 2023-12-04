@@ -15,6 +15,11 @@ namespace vkPlayground {
 		glm::vec4 MarkerColor;
 	};
 
+	// Forward declares
+	class UniformBuffer;
+	class UniformBufferSet;
+	class Texture2D;
+
 	class RenderPass : public RefCountedObject
 	{
 	public:
@@ -47,8 +52,8 @@ namespace vkPlayground {
 		Ref<Framebuffer> GetTargetFramebuffer() const { return m_Specification.Pipeline->GetSpecification().TargetFramebuffer; }
 		Ref<Pipeline> GetPipeline() const { return m_Specification.Pipeline; }
 
-		RenderPassSpecification& GetSpec() { return m_Specification; }
-		const RenderPassSpecification& GetSpec() const { return m_Specification; }
+		RenderPassSpecification& GetSpecification() { return m_Specification; }
+		const RenderPassSpecification& GetSpecification() const { return m_Specification; }
 
 	private:
 		RenderPassSpecification m_Specification;

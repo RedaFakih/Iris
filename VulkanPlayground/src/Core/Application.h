@@ -1,10 +1,10 @@
 #pragma once
 
-#include "Base.h"
-#include "Window.h"
 #include "AppEvents.h"
-#include "TimeStep.h"
+#include "Base.h"
 #include "Renderer/RendererConfiguration.h"
+#include "TimeStep.h"
+#include "Window.h"
 
 #include <vulkan/vulkan.h>
 

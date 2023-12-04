@@ -4,7 +4,6 @@
  * Abstraction for the uniform buffers since we need to have `frame in flight` number of uniform buffers
  */
 
-#include "Renderer.h"
 #include "UniformBuffer.h"
 
 #include <map>
@@ -14,29 +13,16 @@ namespace vkPlayground {
 	class UniformBufferSet : public RefCountedObject
 	{
 	public:
-		UniformBufferSet(size_t size, uint32_t framesInFlight)
-		{
-			if (framesInFlight == 0)
-				framesInFlight = Renderer::GetConfig().FramesInFlight;
-		
-			for (uint32_t frame = 0; frame < framesInFlight; frame++)
-				m_UniformBuffers[frame] = UniformBuffer::Create(size);
-		}
+		UniformBufferSet(size_t size, uint32_t framesInFlight);
 
-		~UniformBufferSet()
-		{
-		}
+		~UniformBufferSet() = default;
 
 		[[nodiscard]] inline static Ref<UniformBufferSet> Create(size_t size, uint32_t frame = 0)
 		{
 			return CreateRef<UniformBufferSet>(size, frame);
 		}
 
-		inline Ref<UniformBuffer> Get()
-		{
-			uint32_t frame = Renderer::GetCurrentFrameIndex();
-			return Get(frame);
-		}
+		Ref<UniformBuffer> Get();
 
 		inline Ref<UniformBuffer> Get(uint32_t frame)
 		{

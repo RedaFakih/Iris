@@ -8,9 +8,8 @@
 
 #include <filesystem>
 #include <map>
-#include <string>
-#include <string_view>
 #include <set>
+#include <string_view>
 
 namespace vkPlayground {
 
@@ -58,7 +57,7 @@ namespace vkPlayground {
 		const std::vector<ShaderResources::ShaderDescriptorSet>& GetShaderDescriptorSets() const { return m_ReflectionData.ShaderDescriptorSets; }
 		bool HasDescriptorSet(uint32_t set) const { return m_ExistingSets.contains(set); }
 
-		static const std::unordered_map<VkDescriptorType, uint32_t>& GetDescriptorPoolSizes() { return m_DescriptorPoolTypeCounts; }
+		const std::unordered_map<VkDescriptorType, uint32_t>& GetDescriptorPoolSizes() const { return m_DescriptorPoolTypeCounts; }
 
 		// For getting the descriptor mainly for materials in the renderer
 		const VkWriteDescriptorSet* GetDescriptorSet(const std::string& name, uint32_t set = 0) const;
@@ -81,7 +80,7 @@ namespace vkPlayground {
 		std::set<uint32_t> m_ExistingSets;
 
 		// Global pool sizes that are needed for the global descriptor pool instead of creating per-set descriptor pools since that is inefficient
-		inline static std::unordered_map<VkDescriptorType, uint32_t> m_DescriptorPoolTypeCounts;
+		std::unordered_map<VkDescriptorType, uint32_t> m_DescriptorPoolTypeCounts;
 
 		friend class ShaderCompiler;
 	};

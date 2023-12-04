@@ -1,3 +1,4 @@
+#include "vkPch.h"
 #include "Pipeline.h"
 
 #include "Renderer.h"
@@ -53,6 +54,10 @@ namespace vkPlayground {
 				case ShaderDataType::Int2:		return VK_FORMAT_R32G32_SINT;
 				case ShaderDataType::Int3:		return VK_FORMAT_R32G32B32_SINT;
 				case ShaderDataType::Int4:		return VK_FORMAT_R32G32B32A32_SINT;
+				case ShaderDataType::UInt:		return VK_FORMAT_R32_UINT;
+				case ShaderDataType::UInt2:		return VK_FORMAT_R32G32_UINT;
+				case ShaderDataType::UInt3:		return VK_FORMAT_R32G32B32_UINT;
+				case ShaderDataType::UInt4:		return VK_FORMAT_R32G32B32A32_UINT;
 			}
 
 			PG_ASSERT(false, "Unreachable!");
@@ -141,8 +146,7 @@ namespace vkPlayground {
 		// Input assembly state describes how primitives are assembled
 		VkPipelineInputAssemblyStateCreateInfo inputAssemblyState = {
 			.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
-			.topology = Utils::GetVulkanTopologyFromTopology(m_Specification.Topology),
-			.primitiveRestartEnable = VK_FALSE
+			.topology = Utils::GetVulkanTopologyFromTopology(m_Specification.Topology)
 		};
 
 		// VkViewport viewport = {
@@ -197,26 +201,22 @@ namespace vkPlayground {
 		VkPipelineMultisampleStateCreateInfo multiSampleState = {
 			.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
 			.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT,
-			.sampleShadingEnable = VK_FALSE,
 			.pSampleMask = nullptr,
-			.alphaToCoverageEnable = VK_FALSE,
-			.alphaToOneEnable = VK_FALSE
 		};
 
-		VkPipelineDepthStencilStateCreateInfo depthStencilState = {
-			.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
-			.depthTestEnable = m_Specification.DepthTest ? VK_TRUE : VK_FALSE,
-			.depthWriteEnable = m_Specification.DepthWrite ? VK_TRUE : VK_FALSE,
-			.depthCompareOp = Utils::GetVulkanCompareOpFromDepthComarator(m_Specification.DepthOperator),
-			.depthBoundsTestEnable = VK_FALSE,
-			.stencilTestEnable = VK_FALSE,
-			.front = {
-				.failOp = VK_STENCIL_OP_KEEP,
-				.passOp = VK_STENCIL_OP_KEEP,
-				.compareOp = VK_COMPARE_OP_ALWAYS
-			},
-			.back = depthStencilState.front
-		};
+		VkPipelineDepthStencilStateCreateInfo depthStencilState = {};
+		depthStencilState.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+		depthStencilState.depthTestEnable = m_Specification.DepthTest ? VK_TRUE : VK_FALSE;
+		depthStencilState.depthWriteEnable = m_Specification.DepthWrite ? VK_TRUE : VK_FALSE;
+		depthStencilState.depthCompareOp = Utils::GetVulkanCompareOpFromDepthComarator(m_Specification.DepthOperator);
+		depthStencilState.depthBoundsTestEnable = VK_FALSE;
+		depthStencilState.stencilTestEnable = VK_FALSE;
+		depthStencilState.front.failOp = VK_STENCIL_OP_KEEP;
+		depthStencilState.front.passOp = VK_STENCIL_OP_KEEP;
+		depthStencilState.front.compareOp = VK_COMPARE_OP_ALWAYS;
+		depthStencilState.back.failOp = VK_STENCIL_OP_KEEP;
+		depthStencilState.back.passOp = VK_STENCIL_OP_KEEP;
+		depthStencilState.back.compareOp = VK_COMPARE_OP_ALWAYS;
 
 		// Color blend state describes how blend factors are calculated (if used)
 		// We need one blend attachment state per color attachment (even if blending is not used)
@@ -311,21 +311,20 @@ namespace vkPlayground {
 
 		const auto& shaderStages = shader->GetPipelineShaderStageCreateInfos();
 
-		VkGraphicsPipelineCreateInfo pipelineInfo = {
-			.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
-			.stageCount = static_cast<uint32_t>(shaderStages.size()),
-			.pStages = shaderStages.data(),
-			.pVertexInputState = &vertexInputState,
-			.pInputAssemblyState = &inputAssemblyState,
-			.pViewportState = &viewportStateInfo,
-			.pRasterizationState = &rasterizationState,
-			.pMultisampleState = &multiSampleState,
-			.pDepthStencilState = &depthStencilState,
-			.pColorBlendState = &colorBlendState,
-			.pDynamicState = &dynamicState,
-			.layout = m_PipelineLayout,
-			.renderPass = m_Specification.TargetFramebuffer->GetVulkanRenderPass()
-		};
+		VkGraphicsPipelineCreateInfo pipelineInfo = {};
+		pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+		pipelineInfo.stageCount = static_cast<uint32_t>(shaderStages.size());
+		pipelineInfo.pStages = shaderStages.data();
+		pipelineInfo.pVertexInputState = &vertexInputState;
+		pipelineInfo.pInputAssemblyState = &inputAssemblyState;
+		pipelineInfo.pViewportState = &viewportStateInfo;
+		pipelineInfo.pRasterizationState = &rasterizationState;
+		pipelineInfo.pMultisampleState = &multiSampleState;
+		pipelineInfo.pDepthStencilState = &depthStencilState;
+		pipelineInfo.pColorBlendState = &colorBlendState;
+		pipelineInfo.pDynamicState = &dynamicState;
+		pipelineInfo.layout = m_PipelineLayout;
+		pipelineInfo.renderPass = m_Specification.TargetFramebuffer->GetVulkanRenderPass();
 
 		VK_CHECK_RESULT(vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &m_VulkanPipeline));
 		VKUtils::SetDebugUtilsObjectName(device, VK_OBJECT_TYPE_PIPELINE, m_Specification.DebugName, m_VulkanPipeline);

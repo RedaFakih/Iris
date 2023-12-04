@@ -1,3 +1,4 @@
+#include "vkPch.h"
 #include "RendererContext.h"
 
 #include "Core/Application.h"
@@ -6,8 +7,6 @@
 #include "Renderer/Renderer.h"
 
 #include <glfw/glfw3.h>
-
-#include <vector>
 
 // Vulkan version 1.3 forced.
 #ifndef VK_API_VERSION_1_3

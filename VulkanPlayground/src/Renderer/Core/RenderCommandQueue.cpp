@@ -1,6 +1,5 @@
+#include "vkPch.h"
 #include "RenderCommandQueue.h"
-
-#include <cstring>
 
 namespace vkPlayground {
 

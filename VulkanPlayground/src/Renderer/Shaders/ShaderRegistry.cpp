@@ -1,10 +1,9 @@
+#include "vkPch.h"
 #include "ShaderRegistry.h"
 
 #include "ShaderUtils.h"
 
 #include <yaml-cpp/yaml.h>
-
-#include <fstream>
 
 namespace vkPlayground {
 

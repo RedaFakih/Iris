@@ -1,3 +1,4 @@
+#include "vkPch.h"
 #include "VertexBuffer.h"
 
 #include "Renderer/Core/RendererContext.h"

@@ -3,17 +3,15 @@
 /*
  *
  *
- * TESTING TO BE DONE:
- * - Test the code path for creating a pipeline with a framebuffer that is NOT a swapchain target...
  * 
- * NEXT STEP ON TUTORIAL: Depth Buffering.
+ * NEXT STEP ON TUTORIAL: Loading Models.
  *
  * NEXT THING TO WORK ON:
- * - DescriptorSetManager
- * - Pipeline abstraction
- * - Framebuffer abstraction
- * - Texture abstraction
- * - Images abstraction
+ * - DescriptorSetManager (Constant Expansion with shader reflection)
+ * - Model loading (tinygltf maybe?)
+ * - Camera...
+ * - Scene?
+ * - SceneRenderer
  * 
  * TO BE EXPANDED: (constant expansion)
  * - Shader reflection to get descriptor data

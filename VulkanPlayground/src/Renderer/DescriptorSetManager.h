@@ -1,10 +1,11 @@
 #pragma once
 
-#include "Shaders/Shader.h"
-#include "Texture.h"
-#include "UniformBufferSet.h"
+#include "Core/Base.h"
+
+#include <vulkan/vulkan.h>
 
 #include <set>
+#include <map>
 
 /*
  * The way that the descriptor sets will work is by their increasing update frequency
@@ -106,6 +107,12 @@ namespace vkPlayground {
 
 	}
 
+	// Forward declares
+	class Shader;
+	class Texture2D;
+	class UniformBuffer;
+	class UniformBufferSet;
+
 	struct RenderPassInput
 	{
 		DescriptorResourceType Type = DescriptorResourceType::None;
@@ -165,6 +172,9 @@ namespace vkPlayground {
 		// will not change through out the program it will only be updated once and therefore we could have only one shared descriptor set for it
 		// and we dont have to duplicate its sets to frame in flights duplicates
 
+		// Leave this on true... better to have default placeholder resources
+		bool DefaultResources = true;
+
 		// Sets to be managed by the Manager instance
 		uint32_t StartingSet = 0;
 		uint32_t EndingSet = 3;
@@ -176,7 +186,8 @@ namespace vkPlayground {
 		struct WriteDescriptor
 		{
 			VkWriteDescriptorSet WriteDescriptorSet;
-			// std::vector<void*> ResourceHandles; // TODO: What the truck is this?
+			// This is used to cache data about resources before (if any) where invalidated and determines whether we need to update the write descriptors
+			std::vector<void*> ResourceHandles;
 		};
 
 	public:
@@ -210,6 +221,8 @@ namespace vkPlayground {
 			return nullptr;
 		}
 
+		bool IsInvalidated(uint32_t set, uint32_t binding) const;
+
 		// Finds descriptor sets that have a set of buffers (UniformBufferSet, ...) descriptors
 		std::set<uint32_t> HasBufferSets() const;
 		bool HasDescriptorSets() const;
@@ -231,6 +244,8 @@ namespace vkPlayground {
 
 		// Input resources (Set -> Binding -> Resource)
 		std::map<uint32_t, std::map<uint32_t, RenderPassInput>> m_InputResources;
+		// This is to store whether any resources where invalidated during the frame and whether we need to update the write descriptors
+		std::map<uint32_t, std::map<uint32_t, RenderPassInput>> m_InvalidatedInputResources;
 		std::map<std::string, RenderPassInputDeclaration> m_InputDeclarations;
 
 		// Frame in flight -> set -> binding -> WriteDescriptor

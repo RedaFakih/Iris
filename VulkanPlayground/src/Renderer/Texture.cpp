@@ -1,6 +1,8 @@
+#include "vkPch.h"
 #include "Texture.h"
 
 #include "Renderer.h"
+#include "Renderer/Core/Vulkan.h"
 #include "Utils/TextureImporter.h"
 
 /*
@@ -113,7 +115,7 @@ namespace vkPlayground {
         }
         else // Fallback
         {
-            if (m_Specification.Format != ImageFormat::DEPTH24STENCIL8 && m_Specification.Format != ImageFormat::DEPTH32F && m_Specification.Format != ImageFormat::DEPTH32FSTENCIL8UINT)
+            if (m_Specification.Usage != ImageUsage::Attachment)
             {
                 Utils::ValidateSpecification(m_Specification);
                 uint32_t size = (uint32_t)Utils::GetMemorySize(m_Specification.Format, m_Specification.Width, m_Specification.Height);
@@ -323,9 +325,6 @@ namespace vkPlayground {
         // {
         //     // We should generally never not have data unless the texture is an attachment since not having data is only possible in case of
         //     // storage iamges which will be separated into their own thing...
-        //     PG_ASSERT(false, "We should never NOT have data in this class since not having data is for storage images"
-        //                   "which invalidate on resize and then get filled with data through shaders"
-        //                   "Also this should NEVER be hit since the fallback branch in the memory contructor allocates memory and inits to 0");
         // }
 
         // VkImageAspectFlags aspectMask = Utils::IsDepthFormat(m_Specification.Format) ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
@@ -351,6 +350,7 @@ namespace vkPlayground {
         // ready to be retrieved by the shader
         // Sampler do not reference an image like in old APIs, rather they are their own standalone objects and can be used for multiple types of
         // images however in playground each texture could own its own sampler
+        // Attachment images will have samplers which allows the user to sample from them in another pass if they want
         if (m_Specification.CreateSampler)
         {
             Ref<VulkanPhysicalDevice> physicalDevice = RendererContext::GetCurrentDevice()->GetPhysicalDevice();

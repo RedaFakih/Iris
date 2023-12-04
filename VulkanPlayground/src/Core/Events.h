@@ -1,7 +1,7 @@
 #pragma once
 
-#include <string>
 #include <sstream>
+#include <string>
 
 #define PG_STRINGIFY_MACRO(x) #x
 

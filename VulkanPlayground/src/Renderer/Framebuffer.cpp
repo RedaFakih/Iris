@@ -1,3 +1,4 @@
+#include "vkPch.h"
 #include "Framebuffer.h"
 
 #include "Renderer.h"
@@ -8,20 +9,15 @@ namespace vkPlayground {
 
         inline VkAttachmentLoadOp GetVulkanAttachmentLoadOp(const FramebufferSpecification& spec, const FramebufferTextureSpecification& attachmentSpec)
         {
-            switch (attachmentSpec.LoadOp)
+            if (attachmentSpec.LoadOp == AttachmentLoadOp::Inherit)
             {
-                case AttachmentLoadOp::Inherit:
-                {
-                    if (Utils::IsDepthFormat(attachmentSpec.Format))
-                        return spec.ClearDepthOnLoad ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD;
+                if (Utils::IsDepthFormat(attachmentSpec.Format))
+                    return spec.ClearDepthOnLoad ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD;
 
-                    return spec.ClearColorOnLoad ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD;
-                }
-                case AttachmentLoadOp::Clear:   return VK_ATTACHMENT_LOAD_OP_CLEAR;
-                case AttachmentLoadOp::Load:    return VK_ATTACHMENT_LOAD_OP_LOAD;
+                return spec.ClearColorOnLoad ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD;
             }
 
-            return VK_ATTACHMENT_LOAD_OP_MAX_ENUM;
+            return attachmentSpec.LoadOp == AttachmentLoadOp::Clear ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD;
         }
 
         inline VkSampleCountFlagBits GetSamplerCount(uint32_t samples)
@@ -125,19 +121,17 @@ namespace vkPlayground {
                 m_DepthAttachmentImage->Invalidate();
 
                 VkAttachmentDescription& attachmentDescription = attachmentDescriptions.emplace_back();
-                attachmentDescription = VkAttachmentDescription{
-                    .flags = 0,
-                    .format = Utils::GetVulkanImageFormat(attachmentSpec.Format),
-                    .samples = Utils::GetSamplerCount(m_Specification.Samples),
-                    .loadOp = Utils::GetVulkanAttachmentLoadOp(m_Specification, attachmentSpec),
-                    // TODO: If we are sampling it need to be store otherwise DONT_CARE
-                    .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
-                    .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
-                    .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
-                    .initialLayout = attachmentDescription.loadOp == VK_ATTACHMENT_LOAD_OP_CLEAR ? VK_IMAGE_LAYOUT_UNDEFINED : VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL
-                };
+                attachmentDescription.flags = 0;
+                attachmentDescription.format = Utils::GetVulkanImageFormat(attachmentSpec.Format);
+                attachmentDescription.samples = Utils::GetSamplerCount(m_Specification.Samples);
+                attachmentDescription.loadOp = Utils::GetVulkanAttachmentLoadOp(m_Specification, attachmentSpec);
+                // TODO: If we are sampling it need to be store otherwise DONT_CARE
+                attachmentDescription.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+                attachmentDescription.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+                attachmentDescription.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+                attachmentDescription.initialLayout = attachmentDescription.loadOp == VK_ATTACHMENT_LOAD_OP_CLEAR ? VK_IMAGE_LAYOUT_UNDEFINED : VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
 
-                if (attachmentSpec.Format == ImageFormat::DEPTH24STENCIL8 || attachmentSpec.Format == ImageFormat::DEPTH32FSTENCIL8UINT)
+                if (attachmentSpec.Format == ImageFormat::DEPTH24STENCIL8 || true)
                 {
                     // TODO: If we are sampling the image then we put VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
                     attachmentDescription.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
@@ -168,25 +162,23 @@ namespace vkPlayground {
                 image->Invalidate();
 
                 VkAttachmentDescription& attachmentDescription = attachmentDescriptions.emplace_back();
-                attachmentDescription = VkAttachmentDescription{
-                    .flags = 0,
-                    .format = Utils::GetVulkanImageFormat(attachmentSpec.Format),
-                    .samples = Utils::GetSamplerCount(m_Specification.Samples),
-                    .loadOp = Utils::GetVulkanAttachmentLoadOp(m_Specification, attachmentSpec),
-                    // TODO: If we are sampling it need to be store otherwise DONT_CARE
-                    .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
-                    .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
-                    .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
-                    .initialLayout = attachmentDescription.loadOp == VK_ATTACHMENT_LOAD_OP_CLEAR ? VK_IMAGE_LAYOUT_UNDEFINED : VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-                    .finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
-                };
+                attachmentDescription.flags = 0;
+                attachmentDescription.format = Utils::GetVulkanImageFormat(attachmentSpec.Format);
+                attachmentDescription.samples = Utils::GetSamplerCount(m_Specification.Samples);
+                attachmentDescription.loadOp = Utils::GetVulkanAttachmentLoadOp(m_Specification, attachmentSpec);
+                // TODO: If we are sampling it need to be store otherwise DONT_CARE
+                attachmentDescription.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+                attachmentDescription.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+                attachmentDescription.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+                attachmentDescription.initialLayout = attachmentDescription.loadOp == VK_ATTACHMENT_LOAD_OP_CLEAR ? VK_IMAGE_LAYOUT_UNDEFINED : VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+                attachmentDescription.finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
                 m_ClearValues[attachmentIndex].color = {
                     {
                         m_Specification.ClearColor.r,
                         m_Specification.ClearColor.g,
                         m_Specification.ClearColor.b,
-                        m_Specification.ClearColor.a,
+                        m_Specification.ClearColor.a
                     }
                 };
                 colorAttachmentReferences.emplace_back(VkAttachmentReference{ attachmentIndex, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL });
@@ -198,9 +190,10 @@ namespace vkPlayground {
         VkSubpassDescription subpassDesc = {
             .pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
             .colorAttachmentCount = static_cast<uint32_t>(colorAttachmentReferences.size()),
-            .pColorAttachments = colorAttachmentReferences.data(),
-            .pDepthStencilAttachment = m_DepthAttachmentImage ? &depthAttachmentReference : nullptr
+            .pColorAttachments = colorAttachmentReferences.data()
         };
+        if (m_DepthAttachmentImage)
+            subpassDesc.pDepthStencilAttachment = &depthAttachmentReference;
 
         // Use subpass dependencies for layout transitions...
         std::vector<VkSubpassDependency> dependencies;
@@ -327,10 +320,11 @@ namespace vkPlayground {
     {
         if (m_VulkanFramebuffer)
         {
-            Renderer::SubmitReseourceFree([framebuffer = m_VulkanFramebuffer]()
+            Renderer::SubmitReseourceFree([framebuffer = m_VulkanFramebuffer, renderpass = m_VulkanRenderPass]()
             {
                 VkDevice device = RendererContext::GetCurrentDevice()->GetVulkanDevice();
                 vkDestroyFramebuffer(device, framebuffer, nullptr);
+                vkDestroyRenderPass(device, renderpass, nullptr);
             });
 
             uint32_t attachmentIndex = 0;

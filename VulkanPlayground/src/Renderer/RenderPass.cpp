@@ -1,4 +1,7 @@
+#include "vkPch.h"
 #include "RenderPass.h"
+
+#include "UniformBufferSet.h"
 
 namespace vkPlayground {
 

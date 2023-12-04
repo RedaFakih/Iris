@@ -1,10 +1,8 @@
+#include "vkPch.h"
 #include "Device.h"
 
-#include "Renderer/Core/Vulkan.h"
 #include "Renderer/Core/RendererContext.h"
-
-#include <thread>
-#include <chrono>
+#include "Renderer/Core/Vulkan.h"
 
 namespace vkPlayground {
 
@@ -83,7 +81,7 @@ namespace vkPlayground {
 		// Get queue family indices for the requested queue family types
 		// Note that the indices may overlap depending on the implementation
 
-		constexpr float DefaultQueuePriority = 0.0f;
+		static constexpr float DefaultQueuePriority = 0.0f;
 
 		int requestedQueueTypes = VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT | VK_QUEUE_TRANSFER_BIT;
 		m_QueueFamilyIndices = GetQueueFamilyIndices(requestedQueueTypes);
@@ -112,7 +110,8 @@ namespace vkPlayground {
 			// TODO:
 		}
 
-		// TODO: Depth format
+		m_DepthFormat = FindDepthFormat();
+		PG_ASSERT(m_DepthFormat, "Need to have a default depth format!");
 	}
 
 	VulkanPhysicalDevice::~VulkanPhysicalDevice()
@@ -147,8 +146,32 @@ namespace vkPlayground {
 		return result;
 	}
 
+	VkFormat VulkanPhysicalDevice::FindDepthFormat() const
+	{
+		// Since all depth formats might be optional, we need to find the most suitable one starting from the highest precision packed format
+		std::array<VkFormat, 5> candidates = {
+			VK_FORMAT_D32_SFLOAT_S8_UINT,
+			VK_FORMAT_D32_SFLOAT,
+			VK_FORMAT_D24_UNORM_S8_UINT,
+			VK_FORMAT_D16_UNORM_S8_UINT,
+			VK_FORMAT_D16_UNORM
+		};
+
+		for (VkFormat format : candidates)
+		{
+			VkFormatProperties props;
+			vkGetPhysicalDeviceFormatProperties(m_PhysicalDevice, format, &props);
+
+			// Format must support depth and stencil attachment for optimal tiling
+			if (props.optimalTilingFeatures & VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT)
+				return format;
+		}
+
+		return VK_FORMAT_UNDEFINED;
+	}
+
 	// Used when we want to get the memory properties of a buffer and find memory type for `VkMemoryAllocateInfo`
-	uint32_t VulkanPhysicalDevice::FindMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags props) const
+	uint32_t VulkanPhysicalDevice::FindMemoryTypeIndex(uint32_t typeFilter, VkMemoryPropertyFlags props) const
 	{
 		for (uint32_t i = 0; i < m_MemoryProperties.memoryTypeCount; i++)
 		{
@@ -186,9 +209,6 @@ namespace vkPlayground {
 			.pQueueCreateInfos = physicalDevice->m_QueueCreateInfos.data(),
 			.pEnabledFeatures = &enabledFeatures
 		};
-
-		// If a pNext(Chain) has been passed, we need to add it to the device creation info
-		VkPhysicalDeviceFeatures2 physicalDeviceFeatures2 = {};
 
 		// NOTE: Debug Labels (formerly known as Markers) are implicitely supported with the VK_EXT_debug_utils extension...
 		

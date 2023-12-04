@@ -1,4 +1,11 @@
+#include "vkPch.h"
 #include "DescriptorSetManager.h"
+
+#include "Renderer.h"
+#include "Renderer/Core/Vulkan.h"
+#include "Shaders/Shader.h"
+#include "Texture.h"
+#include "UniformBufferSet.h"
 
 namespace vkPlayground {
 
@@ -43,16 +50,28 @@ namespace vkPlayground {
 				// The number of elements in the array or 1 if no array exists in the shader for this descriptor
 				inputDeclaration.Count = writeDescriptor.descriptorCount;
 
-				// TODO: Insert default resources here for image descriptors once we have default images in renderer
-				// TODO: Actually maybe do this after the whole information about the image sampler is known (Dimentsion, Type, size...)
+				if(m_Specification.DefaultResources)
 				{
 					RenderPassInput& input = m_InputResources[set][binding];
 					input.Type = Utils::GetDefaultResourceType(writeDescriptor.descriptorType);
 					input.Input.resize(writeDescriptor.descriptorCount);
+
+					// Set default textures
+					if (inputDeclaration.Type == RenderPassInputType::ImageSampler2D)
+					{
+						for (size_t i = 0; i < input.Input.size(); i++)
+						{
+							input.Input[i] = Renderer::GetWhiteTexture();
+						}
+					}
+					// TODO: Cube textures
 				}
 
 				for (uint32_t frameIndex = 0; frameIndex < framesInFlight; frameIndex++)
-					m_WriteDescriptorMap[frameIndex][set][binding] = { .WriteDescriptorSet = writeDescriptor };
+					m_WriteDescriptorMap[frameIndex][set][binding] = { 
+						.WriteDescriptorSet = writeDescriptor, 
+						.ResourceHandles = std::vector<void*>(writeDescriptor.descriptorCount)
+					};
 
 				if (shaderDescriptorSet.ImageSamplers.contains(binding))
 				{
@@ -67,6 +86,7 @@ namespace vkPlayground {
 							case 3: inputDeclaration.Type = RenderPassInputType::ImageSampler3D; break;
 						}
 					}
+					// TODO: Storage images
 				}
 			}
 		}
@@ -140,7 +160,7 @@ namespace vkPlayground {
 		// Create DescriptorPool
 		{
 			// Get the global amount of VkDescriptorPoolSize after all shaders have been reflected
-			const std::unordered_map<VkDescriptorType, uint32_t> descriptorPoolSizes = Shader::GetDescriptorPoolSizes();
+			const std::unordered_map<VkDescriptorType, uint32_t> descriptorPoolSizes = m_Specification.Shader->GetDescriptorPoolSizes();
 
 			std::vector<VkDescriptorPoolSize> sizes(descriptorPoolSizes.size());
 			uint32_t m = 0;
@@ -216,11 +236,11 @@ namespace vkPlayground {
 						{
 							Ref<UniformBuffer> uniformBuffer = input.Input[0];
 							writeDescriptor.pBufferInfo = &uniformBuffer->GetDescriptorBufferInfo();
-							// storedWriteDescriptor.ResourceHandles[0] = writeDescriptor.pBufferInfo->buffer; `TODO`
+							storedWriteDescriptor.ResourceHandles[0] = writeDescriptor.pBufferInfo->buffer;
 
 							// Defer the resource if it does not exist yet...
-							// if (writeDescriptor.pBufferInfo->buffer == nullptr)
-							// 	m_InvalidatedInputResources[set][binding] = input;
+							if (writeDescriptor.pBufferInfo->buffer == nullptr)
+								m_InvalidatedInputResources[set][binding] = input;
 
 							break;
 						}
@@ -228,11 +248,11 @@ namespace vkPlayground {
 						{
 							Ref<UniformBufferSet> uniformBufferSet = input.Input[0];
 							writeDescriptor.pBufferInfo = &uniformBufferSet->Get(frameIndex)->GetDescriptorBufferInfo();
-							// storedWriteDescriptor.ResourceHandles[0] = writeDescriptor.pBufferInfo->buffer; `TODO`
+							storedWriteDescriptor.ResourceHandles[0] = writeDescriptor.pBufferInfo->buffer;
 
 							// Defer the resource if it does not exist yet...
-							// if (writeDescriptor.pBufferInfo->buffer == nullptr)
-							// 	m_InvalidatedInputResources[set][binding] = input;
+							if (writeDescriptor.pBufferInfo->buffer == nullptr)
+								m_InvalidatedInputResources[set][binding] = input;
 
 							break;
 						}
@@ -255,11 +275,11 @@ namespace vkPlayground {
 								writeDescriptor.pImageInfo = &texture->GetDescriptorImageInfo();
 							}
 
-							// storedWriteDescriptor.ResourceHandles[0] = writeDescriptor.pImageInfo->imageView;
+							storedWriteDescriptor.ResourceHandles[0] = writeDescriptor.pImageInfo->imageView;
 
 							// Defer the resource if it does not exist yet...
-							// if (writeDescriptor.pImageInfo->imageView == nullptr)
-							// 	m_InvalidatedInputResources[set][binding] = input;
+							if (writeDescriptor.pImageInfo->imageView == nullptr)
+								m_InvalidatedInputResources[set][binding] = input;
 
 							break;
 						}
@@ -270,7 +290,7 @@ namespace vkPlayground {
 				for (const auto& [binding, writeDescriptor] : writeDescriptorMap)
 				{
 					// Include if valid otherwise we defer it (untill when we want to use that way the resources are created)
-					// if (!IsInvalidated(set, binding)) `TODO`
+					if (!IsInvalidated(set, binding))
 						writeDescriptors.emplace_back(writeDescriptor.WriteDescriptorSet);
 				}
 
@@ -285,12 +305,135 @@ namespace vkPlayground {
 
 	void DescriptorSetManager::InvalidateAndUpdate()
 	{
+		VkDevice device = RendererContext::GetCurrentDevice()->GetVulkanDevice();
 		uint32_t currentFrameIndex = Renderer::GetCurrentFrameIndex();
 
 		// Check for invalidated resources...
+		for (const auto& [set, inputs] : m_InputResources)
+		{
+			for (const auto& [binding, input] : inputs)
+			{
+				switch (input.Type)
+				{
+					case DescriptorResourceType::UniformBuffer:
+					{
+						Ref<UniformBuffer> uniformBuffer = input.Input[0];
+						const VkDescriptorBufferInfo& bufferInfo = uniformBuffer->GetDescriptorBufferInfo();
+						if (bufferInfo.buffer != m_WriteDescriptorMap[currentFrameIndex].at(set).at(binding).ResourceHandles[0])
+						{
+							m_InvalidatedInputResources[set][binding] = input;
+							break;
+						}
 
-		// Since we will not have anything to invalidate yet, we can just return since nothing will happen...
-		return;
+						break;
+					}
+					case DescriptorResourceType::UniformBufferSet:
+					{
+						Ref<UniformBufferSet> uniformBufferSet = input.Input[0];
+						const VkDescriptorBufferInfo& bufferInfo = uniformBufferSet->Get(currentFrameIndex)->GetDescriptorBufferInfo();
+						if (bufferInfo.buffer != m_WriteDescriptorMap[currentFrameIndex].at(set).at(binding).ResourceHandles[0])
+						{
+							m_InvalidatedInputResources[set][binding] = input;
+							break;
+						}
+
+						break;
+					}
+					case DescriptorResourceType::Texture2D:
+					{
+						for (std::size_t i = 0; i < input.Input.size(); i++)
+						{
+							Ref<Texture2D> texture = input.Input[i];
+							const VkDescriptorImageInfo& imageInfo = texture->GetDescriptorImageInfo();
+							if (imageInfo.imageView != m_WriteDescriptorMap[currentFrameIndex].at(set).at(binding).ResourceHandles[i])
+							{
+								m_InvalidatedInputResources[set][binding] = input;
+								break;
+							}
+						}
+
+						break;
+					}
+				}
+			}
+		}
+
+		// Nothing to do
+		if (m_InvalidatedInputResources.empty())
+			return;
+
+		// Returns the sets that contain a UniformBufferSet/StorageBufferSet resource
+		std::set<uint32_t> bufferSets = HasBufferSets();
+		uint32_t descriptorSetCount = Renderer::GetConfig().FramesInFlight;
+
+		for (const auto& [set, setData] : m_InvalidatedInputResources)
+		{
+			std::vector<VkWriteDescriptorSet> writeDescriptorSetsToUpdate;
+			writeDescriptorSetsToUpdate.reserve(setData.size());
+
+			std::vector<std::vector<VkDescriptorImageInfo>> imageInfoStorage;
+			uint32_t imageInfoStorageIndex = 0;
+			for (const auto& [binding, input] : setData)
+			{
+				WriteDescriptor& storedWriteDescriptor = m_WriteDescriptorMap[currentFrameIndex].at(set).at(binding);
+
+				VkWriteDescriptorSet& writeDescriptor = storedWriteDescriptor.WriteDescriptorSet;
+				switch (input.Type)
+				{
+					case DescriptorResourceType::UniformBuffer:
+					{
+						Ref<UniformBuffer> uniformBuffer = input.Input[0];
+						writeDescriptor.pBufferInfo = &uniformBuffer->GetDescriptorBufferInfo();
+						storedWriteDescriptor.ResourceHandles[0] = writeDescriptor.pBufferInfo->buffer;
+
+						break;
+					}
+					case DescriptorResourceType::UniformBufferSet:
+					{
+						Ref<UniformBufferSet> uniformBufferSet = input.Input[0];
+						writeDescriptor.pBufferInfo = &uniformBufferSet->Get(currentFrameIndex)->GetDescriptorBufferInfo();
+						storedWriteDescriptor.ResourceHandles[0] = writeDescriptor.pBufferInfo->buffer;
+
+						break;
+					}
+					case DescriptorResourceType::Texture2D:
+					{
+						if (input.Input.size() > 1)
+						{
+							imageInfoStorage.emplace_back(input.Input.size());
+							for (uint32_t i = 0; i < input.Input.size(); i++)
+							{
+								Ref<Texture2D> texture = input.Input[i];
+								imageInfoStorage[imageInfoStorageIndex][i] = texture->GetDescriptorImageInfo();
+								storedWriteDescriptor.ResourceHandles[i] = imageInfoStorage[imageInfoStorageIndex][i].imageView;
+							}
+							writeDescriptor.pImageInfo = imageInfoStorage[imageInfoStorageIndex].data();
+							++imageInfoStorageIndex;
+						}
+						else
+						{
+							Ref<Texture2D> texture = input.Input[0];
+							writeDescriptor.pImageInfo = &texture->GetDescriptorImageInfo();
+							storedWriteDescriptor.ResourceHandles[0] = writeDescriptor.pImageInfo->imageView;
+						}
+
+						break;
+					}
+				}
+
+				writeDescriptorSetsToUpdate.emplace_back(writeDescriptor);
+			}
+			
+			PG_CORE_INFO_TAG("Renderer", "DescriptorSetManager::InvalidateAndUpdate ({}) - updating {} descriptors in set {} (frameIndex = {})", m_Specification.DebugName, writeDescriptorSetsToUpdate.size(), set, currentFrameIndex);
+			vkUpdateDescriptorSets(
+				device, 
+				static_cast<uint32_t>(writeDescriptorSetsToUpdate.size()),
+				writeDescriptorSetsToUpdate.data(),
+				0, nullptr
+			);
+		}
+
+		m_InvalidatedInputResources.clear();
 	}
 
 	void DescriptorSetManager::SetInput(std::string_view name, Ref<UniformBuffer> uniformBuffer)
@@ -321,6 +464,17 @@ namespace vkPlayground {
 			m_InputResources.at(decl->Set).at(decl->Binding).Set(texture, index);
 		else
 			PG_CORE_ERROR_TAG("Renderer", "[RenderPass: {}] Input {} not found!", m_Specification.DebugName, name);
+	}
+
+	bool DescriptorSetManager::IsInvalidated(uint32_t set, uint32_t binding) const
+	{
+		if (m_InvalidatedInputResources.contains(set))
+		{
+			const auto& resource = m_InvalidatedInputResources.at(binding);
+			return resource.contains(binding);
+		}
+
+		return false;
 	}
 
 	std::set<uint32_t> DescriptorSetManager::HasBufferSets() const

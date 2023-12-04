@@ -1,11 +1,8 @@
+#include "vkPch.h"
 #include "ShaderPreprocessor.h"
 
 #include "Core/Base.h"
 #include "Renderer/Shaders/ShaderUtils.h"
-
-#include <regex>
-#include <sstream>
-#include <map>
 
 namespace vkPlayground {
 

@@ -1,14 +1,19 @@
 #pragma once
 
 #include "Core/Application.h"
-#include "Pipeline.h"
 #include "Renderer/Core/GPUMemoryStats.h"
 #include "Renderer/Core/RenderCommandQueue.h"
 #include "Renderer/Core/RendererContext.h"
 #include "RendererConfiguration.h"
-#include "Shaders/Shader.h"
 
 namespace vkPlayground {
+
+	// Forward declares
+	class Shader;
+	class ShadersLibrary;
+	class Texture2D;
+	class RenderPass;
+	class Pipeline;
 
 	class Renderer
 	{
@@ -46,6 +51,14 @@ namespace vkPlayground {
 			void* storageBuffer = Renderer::GetRendererResourceReleaseQueue(index).Allocate(renderCmd, sizeof(func));
 			new(storageBuffer) FuncT(std::forward<FuncT>((FuncT&&)func));
 		}
+
+		static void BeginRenderPass(VkCommandBuffer commandBuffer, Ref<RenderPass> renderPass, bool explicitClear = false);
+		static void EndRenderPass(VkCommandBuffer commandBuffer);
+
+		// static void SubmitFullScreenQuad(VkCommandBuffer commandBuffer, Ref<Pipeline> pipeline /* TODO: Material */);
+
+		static Ref<Texture2D> GetWhiteTexture();
+		static Ref<Texture2D> GetBlackTexture();
 
 		static RenderCommandQueue& GetRendererResourceReleaseQueue(uint32_t index);
 

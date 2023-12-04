@@ -1,3 +1,4 @@
+#include "vkPch.h"
 #include "FileStream.h"
 
 namespace vkPlayground {

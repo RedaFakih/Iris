@@ -4,9 +4,9 @@
 
 #include <vulkan/vulkan.h>
 
-#include <vector>
-#include <unordered_set>
 #include <map>
+#include <unordered_set>
+#include <vector>
 
 namespace vkPlayground {
 
@@ -29,17 +29,18 @@ namespace vkPlayground {
 		const QueueFamilyIndices& GetQueueFamilyIndices() const { return m_QueueFamilyIndices; }
 
 		const VkPhysicalDeviceProperties& GetPhysicalDeviceProperties() const { return m_Properties; }
+		const VkPhysicalDeviceMemoryProperties& GetPhysicalDeviceMemoryProps() const { return m_MemoryProperties; }
 		const VkPhysicalDeviceLimits& GetPhysicalDeviceLimits() const { return m_Properties.limits; }
 		const VkPhysicalDeviceFeatures& GetPhysicalDeviceFeatures() const { return m_Features; }
-		const VkPhysicalDeviceMemoryProperties& GetPhysicalDeviceMemoryProps() const { return m_MemoryProperties; }
 
 		bool IsExtensionSupported(const std::string& extensionName) const;
-		uint32_t FindMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags props) const;
+		uint32_t FindMemoryTypeIndex(uint32_t typeFilter, VkMemoryPropertyFlags props) const;
 
-		VkFormat GetDepthFormat() const { return /* TODO: */ VK_FORMAT_D24_UNORM_S8_UINT; }
+		VkFormat GetDepthFormat() const { return m_DepthFormat; }
 
 	private:
 		QueueFamilyIndices GetQueueFamilyIndices(int requestedIndices);
+		VkFormat FindDepthFormat() const;
 
 	private:
 		// This will be implicitely destroyed when the VkInstance gets destroyed
@@ -52,7 +53,10 @@ namespace vkPlayground {
 
 		std::vector<VkQueueFamilyProperties> m_QueueFamilyProperties;
 		std::vector<VkDeviceQueueCreateInfo> m_QueueCreateInfos;
+
 		std::unordered_set<std::string> m_SupportedExtensions;
+
+		VkFormat m_DepthFormat = VK_FORMAT_UNDEFINED;
 
 		friend class VulkanDevice;
 

@@ -7,6 +7,9 @@ project "VulkanPlayground"
     targetdir ("%{wks.location}/bin/" .. outputdir .. "/%{prj.name}")
     objdir ("%{wks.location}/bin/Intermediates/" .. outputdir .. "/%{prj.name}")
 
+    pchheader "vkPch.h"
+    pchsource "src/vkPch.cpp"
+
     files
     {
         "src/**.h",
@@ -14,6 +17,8 @@ project "VulkanPlayground"
 
         "dependencies/stb/**.h",
         "dependencies/stb/**.cpp",
+        "dependencies/tinygltf/tinygltf/tiny_gltf.h",
+        "dependencies/tinygltf/tinygltf/tiny_gltf.cpp",
 
         "dependencies/Vma/**.h",
         "dependencies/Vma/**.cpp",
@@ -39,6 +44,8 @@ project "VulkanPlayground"
         "%{IncludeDir.VulkanSDK}",
         "%{IncludeDir.choc}",
         "%{IncludeDir.stb}",
+        "%{IncludeDir.tinygltf}",
+        "%{IncludeDir.rapidjson}",
         "%{IncludeDir.spdlog}",
         "%{IncludeDir.Yaml}"
     }
@@ -85,4 +92,16 @@ project "VulkanPlayground"
         }
 
     filter "files:dependencies/stb/**.cpp"
+        flags { "NoPCH" }
+
+    filter "files:dependencies/yaml-cpp/src/**.cpp"
+        flags { "NoPCH" }
+
+    filter "files:dependencies/tinygltf/tinygltf/**.cpp"
+        flags { "NoPCH" }
+
+    filter "files:dependencies/Vma/**.cpp"
+        flags { "NoPCH" }
+
+    filter "files:src/Main.cpp"
         flags { "NoPCH" }

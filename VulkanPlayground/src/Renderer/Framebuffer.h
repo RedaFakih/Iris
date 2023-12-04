@@ -83,9 +83,6 @@ namespace vkPlayground {
 		// None means use the blending mode in FramebufferTextureSpecification
 		FramebufferBlendMode BlendMode = FramebufferBlendMode::None;
 
-		// Controls whether the frambuffer is resizable or not...
-		bool Resizable = true;
-
 		// Screenbuffer? Render to swapchain and dont create a framebuffer 
 		bool SwapchainTarget = false;
 
@@ -108,17 +105,17 @@ namespace vkPlayground {
 		void Resize(uint32_t width, uint32_t height, bool forceRecreate = false);
 		void Release();
 
-		uint32_t GetWidth() const { return m_Specification.Width; }
-		uint32_t GetHeight() const { return m_Specification.Height; }
+		uint32_t GetWidth() const { return m_Width; }
+		uint32_t GetHeight() const { return m_Height; }
 
 		Ref<Texture2D> GetImage(uint32_t attachmentIndex = 0) const { PG_ASSERT(attachmentIndex < m_ColorAttachmentImages.size(), ""); return m_ColorAttachmentImages[attachmentIndex]; }
 		Ref<Texture2D> GetDepthImage() const { return m_DepthAttachmentImage; }
 		std::size_t GetColorAttachmentCount() const { return m_Specification.SwapchainTarget ? 1 : m_ColorAttachmentImages.size(); }
-		bool HasDepthAttachment() const { return m_DepthAttachmentImage == nullptr; }
+		bool HasDepthAttachment() const { return m_DepthAttachmentImage != nullptr; }
 
 		VkRenderPass GetVulkanRenderPass() const { return m_VulkanRenderPass; }
 		VkFramebuffer GetVulkanFramebuffer() const { return m_VulkanFramebuffer; }
-		const std::vector<VkClearValue>& GetClearValues() const { return m_ClearValues; }
+		const std::vector<VkClearValue>& GetVulkanClearValues() const { return m_ClearValues; }
 
 		FramebufferSpecification& GetSpecification() { return m_Specification; }
 		const FramebufferSpecification& GetSpecification() const { return m_Specification; }

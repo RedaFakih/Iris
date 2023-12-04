@@ -1,12 +1,12 @@
 #pragma once
 
-#include "Base.h"
 #include "AppEvents.h"
+#include "Base.h"
 #include "Renderer/Core/RendererContext.h"
 #include "Renderer/Core/SwapChain.h"
 
-#include <string>
 #include <functional>
+#include <string>
 
 struct GLFWwindow;
 

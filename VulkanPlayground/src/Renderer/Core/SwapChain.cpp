@@ -1,3 +1,4 @@
+#include "vkPch.h"
 #include "SwapChain.h"
 
 #include "Renderer/Core/Vulkan.h"
@@ -129,7 +130,7 @@ namespace vkPlayground {
 		}
 
 		VkExtent2D swapchainExtent = {};
-		// If width (and height) equals the special value 0xFFFFFFFF, the size of the surface will be set by the swapchain
+		// If width and height are equal to the special value 0xFFFFFFFF, the size of the surface will be set by the swapchain
 		if (surfaceCaps.currentExtent.width == (uint32_t)-1)
 		{
 			// If the surface size is undefined, the size is set to
@@ -173,7 +174,7 @@ namespace vkPlayground {
 		// Find a supported composite alpha format (not all devices support alpha opaque)...
 		VkCompositeAlphaFlagBitsKHR compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
 		// Simply select the first composite alpha format available..
-		std::vector<VkCompositeAlphaFlagBitsKHR> compositeAlphaFlags =
+		std::array<VkCompositeAlphaFlagBitsKHR, 4> compositeAlphaFlags =
 		{
 			VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
 			VK_COMPOSITE_ALPHA_PRE_MULTIPLIED_BIT_KHR,
@@ -181,7 +182,7 @@ namespace vkPlayground {
 			VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR
 		};
 
-		for (VkCompositeAlphaFlagBitsKHR& compositeAlphaFlag : compositeAlphaFlags)
+		for (VkCompositeAlphaFlagBitsKHR compositeAlphaFlag : compositeAlphaFlags)
 		{
 			if (surfaceCaps.supportedCompositeAlpha & compositeAlphaFlag)
 			{
@@ -361,8 +362,6 @@ namespace vkPlayground {
 					.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
 				};
 
-				// TODO: VkAttachmentReference for the depth attachment
-
 				VkSubpassDescription subpassDesc = {
 					.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
 					.inputAttachmentCount = 0,
@@ -382,10 +381,12 @@ namespace vkPlayground {
 				VkSubpassDependency subPassDependency = {
 					.srcSubpass = VK_SUBPASS_EXTERNAL, // Refers to implicit subpass
 					.dstSubpass = 0, // Refers to our subpass (it is the first and only one).
-					.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, // We need to wait for the swapchain to finish reading from the image before we can access it
-					.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, // Operation that should wait are in the color attachment stage and involve writing to it
+					// We need to wait for the swapchain to finish reading from the image before we can access it
+					.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+					// Operation that should wait are in the color attachment stage and involve writing to it
+					.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
 					.srcAccessMask = 0,
-					.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+					.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT
 				};
 
 				VkRenderPassCreateInfo renderPassInfo = {

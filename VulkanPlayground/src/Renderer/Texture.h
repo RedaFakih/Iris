@@ -5,9 +5,9 @@
 #include "Renderer/Core/RendererContext.h"
 #include "Renderer/Core/VulkanAllocator.h"
 
+#include <vulkan/vulkan.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/integer.hpp>
-#include <vulkan/vulkan.h>
 
 namespace vkPlayground {
 

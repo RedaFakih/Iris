@@ -1,7 +1,8 @@
+#include "vkPch.h"
 #include "VulkanAllocator.h"
 
-#include "Renderer/Core/Vulkan.h"
 #include "Renderer/Core/RendererContext.h"
+#include "Renderer/Core/Vulkan.h"
 #include "Utils/StringUtils.h"
 
 // NOTE: Enable/Disable logging messages about the allocated chunks and total allocated memory since beginning...

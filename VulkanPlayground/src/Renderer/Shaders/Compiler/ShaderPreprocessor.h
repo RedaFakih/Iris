@@ -2,9 +2,9 @@
 
 #include <vulkan/vulkan.h>
 
-#include <vector>
-#include <string>
 #include <map>
+#include <string>
+#include <vector>
 
 namespace vkPlayground {
 

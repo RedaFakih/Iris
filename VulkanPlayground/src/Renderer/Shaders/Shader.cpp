@@ -1,3 +1,4 @@
+#include "vkPch.h"
 #include "Shader.h"
 
 #include "Compiler/ShaderCompiler.h"
@@ -206,7 +207,6 @@ namespace vkPlayground {
 		/// Descriptor Pool
 		/////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-		// m_DescriptorPoolTypeCounts.clear();
 		// Resize the DSL vector to the number of sets we have in the shader
 		m_DescriptorSetLayouts.resize(m_ReflectionData.ShaderDescriptorSets.size());
 		for (uint32_t set = 0; set < m_ReflectionData.ShaderDescriptorSets.size(); set++)
