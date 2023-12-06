@@ -68,6 +68,16 @@ namespace vkPlayground::ShaderResources {
 		}
 	};
 
+	struct PushConstantRange
+	{
+		VkShaderStageFlagBits ShaderStage = VK_SHADER_STAGE_FLAG_BITS_MAX_ENUM;
+		uint32_t Size = 0;
+		uint32_t Offset = 0;
+
+		static void Serialize(StreamWriter* stream, const PushConstantRange& instance) { stream->WriteRaw(instance); }
+		static void Deserialize(StreamReader* stream, PushConstantRange& instance) { stream->ReadRaw(instance); }
+	};
+
 	struct ShaderDescriptorSet
 	{
 		std::unordered_map<uint32_t, UniformBuffer> UniformBuffers; // binding -> uniform buffer

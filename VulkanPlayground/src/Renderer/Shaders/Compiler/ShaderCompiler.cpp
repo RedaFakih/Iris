@@ -17,9 +17,9 @@ namespace vkPlayground {
 
 	namespace Utils {
 
-		inline static std::filesystem::path CreateCacheDirIfNeeded()
+		inline static std::string CreateCacheDirIfNeeded()
 		{
-			std::filesystem::path cacheDir = "Shaders/Cache";
+			std::string cacheDir = "Shaders/Cache";
 			if (!std::filesystem::exists(cacheDir))
 				std::filesystem::create_directories(cacheDir);
 
@@ -64,17 +64,44 @@ namespace vkPlayground {
 			f.close();
 			return result;
 		}
+
+		static ShaderUniformType SPIRTypeToShaderUniformType(spirv_cross::SPIRType type)
+		{
+			switch (type.basetype)
+			{
+				case spirv_cross::SPIRType::Boolean:  return ShaderUniformType::Bool;
+				case spirv_cross::SPIRType::Int:
+					if (type.vecsize == 1)            return ShaderUniformType::Int;
+					if (type.vecsize == 2)            return ShaderUniformType::IVec2;
+					if (type.vecsize == 3)            return ShaderUniformType::IVec3;
+					if (type.vecsize == 4)            return ShaderUniformType::IVec4;
+
+				case spirv_cross::SPIRType::UInt:     return ShaderUniformType::UInt;
+				case spirv_cross::SPIRType::Float:
+					if (type.columns == 3)            return ShaderUniformType::Mat3;
+					if (type.columns == 4)            return ShaderUniformType::Mat4;
+
+					if (type.vecsize == 1)            return ShaderUniformType::Float;
+					if (type.vecsize == 2)            return ShaderUniformType::Vec2;
+					if (type.vecsize == 3)            return ShaderUniformType::Vec3;
+					if (type.vecsize == 4)            return ShaderUniformType::Vec4;
+					break;
+				}
+
+			PG_ASSERT(false, "Unknown type!");
+			return ShaderUniformType::None;
+		}
 	}
 
 	// set -> binding point -> buffer
 	static std::unordered_map<uint32_t, std::unordered_map<uint32_t, ShaderResources::UniformBuffer>> s_UniformBuffers;
 
-	ShaderCompiler::ShaderCompiler(const std::filesystem::path& filePath, bool disableOptimization)
+	ShaderCompiler::ShaderCompiler(const std::string& filePath, bool disableOptimization)
 		: m_FilePath(filePath), m_DisableOptimizations(disableOptimization)
 	{
 	}
 
-	Ref<ShaderCompiler> ShaderCompiler::Create(const std::filesystem::path& filePath, bool disableOptimization)
+	Ref<ShaderCompiler> ShaderCompiler::Create(const std::string& filePath, bool disableOptimization)
 	{
 		return CreateRef<ShaderCompiler>(filePath, disableOptimization);
 	}
@@ -86,10 +113,10 @@ namespace vkPlayground {
 		m_SPIRVData.clear();
 
 		Utils::CreateCacheDirIfNeeded();
-		const std::string source = Utils::ReadTextFileWithoutBOM(m_FilePath.string());
+		const std::string source = Utils::ReadTextFileWithoutBOM(m_FilePath);
 		PG_ASSERT(source.size(), "Failed to load shader source text file!");
 
-		PG_CORE_DEBUG_TAG("ShaderCompiler", "Compiling shader: {}", m_FilePath.string());
+		PG_CORE_DEBUG_TAG("ShaderCompiler", "Compiling shader: {}", m_FilePath);
 		m_ShaderSource = PreProcess(source);
 		// Compare shadersource hashes to see if the shader has changed
 		const VkShaderStageFlagBits stagesChanged = ShaderRegistry::HasChanged(this);
@@ -116,16 +143,15 @@ namespace vkPlayground {
 		s_UniformBuffers.clear();
 	}
 
-	Ref<Shader> ShaderCompiler::Compile(const std::filesystem::path& filePath, bool forceCompile, bool disableOptimizations)
+	Ref<Shader> ShaderCompiler::Compile(const std::string& filePath, bool forceCompile, bool disableOptimizations)
 	{
 		// Set name for the shader
-		std::string filePathString = filePath.string();
-		std::size_t lastSlash = filePathString.find_last_of("/\\");
+		std::size_t lastSlash = filePath.find_last_of("/\\");
 		lastSlash = lastSlash == std::string::npos ? 0 : lastSlash + 1;
 
-		std::size_t lastDot = filePathString.rfind(".");
-		std::size_t filenameSize = lastDot == std::string::npos ? filePathString.size() - lastSlash : lastDot - lastSlash;
-		std::string name = filePathString.substr(lastSlash, filenameSize);
+		std::size_t lastDot = filePath.rfind(".");
+		std::size_t filenameSize = lastDot == std::string::npos ? filePath.size() - lastSlash : lastDot - lastSlash;
+		std::string name = filePath.substr(lastSlash, filenameSize);
 
 		Ref<Shader> shader = Shader::Create();
 		shader->m_FilePath = filePath;
@@ -173,10 +199,10 @@ namespace vkPlayground {
 			shaderc::CompileOptions options;
 			options.AddMacroDefinition(ShaderUtils::VkShaderStageToMacroString(stage));
 
-			const shaderc::PreprocessedSourceCompilationResult res = compiler.PreprocessGlsl(shaderSource, ShaderUtils::VkShaderStageToShaderc(stage), m_FilePath.string().c_str(), options);
+			const shaderc::PreprocessedSourceCompilationResult res = compiler.PreprocessGlsl(shaderSource, ShaderUtils::VkShaderStageToShaderc(stage), m_FilePath.c_str(), options);
 			if (res.GetCompilationStatus() != shaderc_compilation_status_success)
 			{
-				PG_CORE_ERROR_TAG("ShaderCompiler", "Failed to preprocess `{}`s {} shader.\nError: {}", m_FilePath.string(), ShaderUtils::VkShaderStageToString(stage), res.GetErrorMessage());
+				PG_CORE_ERROR_TAG("ShaderCompiler", "Failed to preprocess `{}`s {} shader.\nError: {}", m_FilePath, ShaderUtils::VkShaderStageToString(stage), res.GetErrorMessage());
 			}
 
 			m_StagesMetadata[stage].Hash = Hash::GenerateFNVHash(shaderSource);
@@ -201,10 +227,10 @@ namespace vkPlayground {
 		if (options.Optimize)
 			shadercOptions.SetOptimizationLevel(shaderc_optimization_level_performance);
 
-		const shaderc::SpvCompilationResult module = compiler.CompileGlslToSpv(source, ShaderUtils::VkShaderStageToShaderc(stage), m_FilePath.string().c_str(), shadercOptions);
+		const shaderc::SpvCompilationResult module = compiler.CompileGlslToSpv(source, ShaderUtils::VkShaderStageToShaderc(stage), m_FilePath.c_str(), shadercOptions);
 		if (module.GetCompilationStatus() != shaderc_compilation_status_success)
 		{
-			return fmt::format("Could not compile shader file: {}, at stage: {}.\nError: {}", m_FilePath.string(), ShaderUtils::VkShaderStageToString(stage), module.GetErrorMessage());
+			return fmt::format("Could not compile shader file: {}, at stage: {}.\nError: {}", m_FilePath, ShaderUtils::VkShaderStageToString(stage), module.GetErrorMessage());
 		}
 
 		outputBin = std::vector<uint32_t>(module.begin(), module.end());
@@ -228,7 +254,7 @@ namespace vkPlayground {
 
 	bool ShaderCompiler::CompileOrGetVulkanBinary(VkShaderStageFlagBits stage, std::vector<uint32_t>& outputBin, bool debug, VkShaderStageFlagBits stagesChanged, bool forceCompile)
 	{
-		std::filesystem::path cacheDirectory = Utils::CreateCacheDirIfNeeded();
+		std::string cacheDirectory = Utils::CreateCacheDirIfNeeded();
 
 		// Check if we have a cached version if we dont need to force compile
 		const char* extension = ShaderUtils::ShaderStageCachedFileExtension(stage, debug);
@@ -257,7 +283,7 @@ namespace vkPlayground {
 			std::string error = Compile(outputBin, stage, options);
 			if (error.size())
 			{
-				PG_CORE_ERROR_TAG("ShaderCompiler", "Error compiling shader: {} stage: {}.\nError: {}", m_FilePath.string(), ShaderUtils::VkShaderStageToString(stage), error);
+				PG_CORE_ERROR_TAG("ShaderCompiler", "Error compiling shader: {} stage: {}.\nError: {}", m_FilePath, ShaderUtils::VkShaderStageToString(stage), error);
 				// Fallback to still run on the old shader
 				TryGetVulkanCachedBinary(cacheDirectory, extension, outputBin);
 				if (outputBin.empty())
@@ -266,14 +292,15 @@ namespace vkPlayground {
 				}
 				else
 				{
-					PG_CORE_CRITICAL_TAG("ShaderCompiler", "Failed to compile shader: {}, stage: {} so a cached version was loaded instead!", m_FilePath.string(), ShaderUtils::VkShaderStageToString(stage));
+					PG_CORE_CRITICAL_TAG("ShaderCompiler", "Failed to compile shader: {}, stage: {} so a cached version was loaded instead!", m_FilePath, ShaderUtils::VkShaderStageToString(stage));
 				}
 
 				return false;
 			}
 			else
 			{
-				const std::filesystem::path path = cacheDirectory / (m_FilePath.filename().string() + extension);
+				const std::filesystem::path filePathPath = m_FilePath;
+				const std::filesystem::path path = std::filesystem::path(cacheDirectory) / (filePathPath.filename().string() + extension);
 				const std::string cachedFilePath = path.string();
 
 				FILE* f = fopen(cachedFilePath.c_str(), "wb");
@@ -284,7 +311,7 @@ namespace vkPlayground {
 				}
 				else
 				{
-					PG_CORE_ERROR_TAG("ShaderCompiler", "Failed to cache shader: {}, stage: {} binary", m_FilePath.string(), ShaderUtils::VkShaderStageToString(stage));
+					PG_CORE_ERROR_TAG("ShaderCompiler", "Failed to cache shader: {}, stage: {} binary", m_FilePath, ShaderUtils::VkShaderStageToString(stage));
 					return false;
 				}
 			}
@@ -293,9 +320,10 @@ namespace vkPlayground {
 		return true;
 	}
 
-	void ShaderCompiler::TryGetVulkanCachedBinary(const std::filesystem::path& cacheDirectory, const std::string& extension, std::vector<uint32_t>& outputBinary) const
+	void ShaderCompiler::TryGetVulkanCachedBinary(const std::string& cacheDirectory, const std::string& extension, std::vector<uint32_t>& outputBinary) const
 	{
-		const std::filesystem::path path = cacheDirectory / (m_FilePath.filename().string() + extension);
+		const std::filesystem::path filePathPath = m_FilePath;
+		const std::filesystem::path path = std::filesystem::path(cacheDirectory) / (filePathPath.filename().string() + extension);
 		const std::string cachedFilePath = path.string();
 
 		FILE* f = fopen(cachedFilePath.c_str(), "rb");
@@ -313,7 +341,8 @@ namespace vkPlayground {
 	void ShaderCompiler::ClearReflectionData()
 	{
 		m_ReflectionData.ShaderDescriptorSets.clear();
-		// TODO: Add the other stuff..
+		m_ReflectionData.ConstantBuffers.clear();
+		m_ReflectionData.PushConstantRanges.clear();
 	}
 
 	bool ShaderCompiler::TryReadCachedReflectionData()
@@ -321,7 +350,8 @@ namespace vkPlayground {
 		char header[6] = { 'V', 'K', 'P', 'G', 'S', 'R' };
 
 		std::filesystem::path cacheDir = Utils::CreateCacheDirIfNeeded();
-		const auto reflectedPath = cacheDir / (m_FilePath.filename().string() + ".cachedVulkan.refl");
+		const std::filesystem::path filePathPath = m_FilePath;
+		const auto reflectedPath = cacheDir / (filePathPath.filename().string() + ".cachedVulkan.refl");
 
 		FileStreamReader reader(reflectedPath);
 		if (!reader)
@@ -347,6 +377,9 @@ namespace vkPlayground {
 			reader.ReadMap(descriptorSet.WriteDescriptorSets);
 		}
 
+		reader.ReadMap(m_ReflectionData.ConstantBuffers);
+		reader.ReadArray(m_ReflectionData.PushConstantRanges);
+
 		return true;
 	}
 
@@ -355,7 +388,8 @@ namespace vkPlayground {
 		char header[6] = { 'V', 'K', 'P', 'G', 'S', 'R' };
 
 		std::filesystem::path cacheDir = Utils::CreateCacheDirIfNeeded();
-		const auto reflectedPath = cacheDir / (m_FilePath.filename().string() + ".cachedVulkan.refl");
+		const std::filesystem::path filePathPath = m_FilePath;
+		const auto reflectedPath = cacheDir / (filePathPath.filename().string() + ".cachedVulkan.refl");
 
 		FileStreamWriter serializer(reflectedPath);
 		if (!serializer)
@@ -370,6 +404,9 @@ namespace vkPlayground {
 			serializer.WriteMap(descriptorSet.ImageSamplers);
 			serializer.WriteMap(descriptorSet.WriteDescriptorSets);
 		}
+
+		serializer.WriteMap(m_ReflectionData.ConstantBuffers);
+		serializer.WriteArray(m_ReflectionData.PushConstantRanges);
 	}
 
 	void ShaderCompiler::ReflectAllShaderStages(const std::map<VkShaderStageFlagBits, std::vector<uint32_t>>& shaderData)
@@ -394,9 +431,9 @@ namespace vkPlayground {
 		spirv_cross::ShaderResources resources = compiler.get_shader_resources();
 
 		// General Info
-		PG_CORE_TRACE_TAG("ShaderCompiler", "{0} - {1}", m_FilePath.string(), ShaderUtils::VkShaderStageToString(stage));
+		PG_CORE_TRACE_TAG("ShaderCompiler", "{0} - {1}", m_FilePath, ShaderUtils::VkShaderStageToString(stage));
 		PG_CORE_TRACE_TAG("ShaderCompiler", "\t{0} Uniform Buffers", resources.uniform_buffers.size());
-		// PG_CORE_TRACE_TAG("Renderer", "\t{0} Push Constant Buffers", resources.push_constant_buffers.size());
+		PG_CORE_TRACE_TAG("ShaderCompiler", "\t{0} Push Constant Buffers", resources.push_constant_buffers.size());
 		// PG_CORE_TRACE_TAG("Renderer", "\t{0} Storage Buffers", resources.storage_buffers.size());
 		PG_CORE_TRACE_TAG("ShaderCompiler", "\t{0} Sampled Images", resources.sampled_images.size());
 		// PG_CORE_TRACE_TAG("Renderer", "\t{0} Storage Images", resources.storage_images.size());
@@ -446,6 +483,49 @@ namespace vkPlayground {
 				PG_CORE_TRACE_TAG("ShaderCompiler", " \tMember Count: {0}", memberCount);
 				PG_CORE_TRACE_TAG("ShaderCompiler", " \tSize: {0}", bufferSize);
 				PG_CORE_TRACE_TAG("ShaderCompiler", "-------------------");
+			}
+		}
+
+		PG_CORE_TRACE_TAG("ShaderCompiler", "============================");
+		PG_CORE_WARN_TAG("ShaderCompiler", "Push Constant Buffers:");
+		for (const spirv_cross::Resource& res : resources.push_constant_buffers)
+		{
+			const std::string& bufferName = res.name;
+			const spirv_cross::SPIRType& bufferType = compiler.get_type(res.base_type_id);
+			std::size_t bufferSize = compiler.get_declared_struct_size(bufferType);
+			uint32_t memberCount = static_cast<uint32_t>(bufferType.member_types.size());
+			uint32_t bufferOffset = 0;
+
+			if (m_ReflectionData.PushConstantRanges.size())
+				bufferOffset = m_ReflectionData.PushConstantRanges.back().Offset + m_ReflectionData.PushConstantRanges.back().Size;
+
+			ShaderResources::PushConstantRange& pushConstantRange = m_ReflectionData.PushConstantRanges.emplace_back();
+			pushConstantRange.ShaderStage = stage;
+			pushConstantRange.Size = static_cast<uint32_t>(bufferSize);
+			pushConstantRange.Offset = bufferOffset;
+
+			// Skip empty push constant buffers
+			if (bufferName.empty())
+				continue;
+
+			ShaderBuffer& shaderBuffer = m_ReflectionData.ConstantBuffers[bufferName];
+			shaderBuffer.Name = bufferName;
+			shaderBuffer.Size = static_cast<uint32_t>(bufferSize - bufferOffset);
+
+			PG_CORE_TRACE_TAG("ShaderCompiler", " \tName: {0}", bufferName);
+			PG_CORE_TRACE_TAG("ShaderCompiler", " \tMember Count: {0}", memberCount);
+			PG_CORE_TRACE_TAG("ShaderCompiler", " \tSize: {0}", bufferSize);
+			PG_CORE_TRACE_TAG("ShaderCompiler", "-------------------");
+
+			for (uint32_t i = 0; i < memberCount; i++)
+			{
+				const spirv_cross::SPIRType& type = compiler.get_type(bufferType.member_types[i]);
+				const std::string& name = compiler.get_member_name(bufferType.self, i);
+				uint32_t size = static_cast<uint32_t>(compiler.get_declared_struct_member_size(bufferType, i));
+				uint32_t offset = compiler.type_struct_member_offset(bufferType, i) - bufferOffset;
+
+				std::string uniformName = fmt::format("{}.{}", bufferName, name);
+				shaderBuffer.Uniforms[uniformName] = ShaderUniform(uniformName, Utils::SPIRTypeToShaderUniformType(type), size, offset);
 			}
 		}
 

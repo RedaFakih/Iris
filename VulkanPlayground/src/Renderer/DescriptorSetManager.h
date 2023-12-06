@@ -192,7 +192,8 @@ namespace vkPlayground {
 
 	public:
 		DescriptorSetManager() = default;
-		DescriptorSetManager(const DescriptorSetManagerSpecification& spec) noexcept;
+		DescriptorSetManager(const DescriptorSetManagerSpecification& spec);
+		DescriptorSetManager(const DescriptorSetManager& other);
 		~DescriptorSetManager();
 
 		bool Validate();
@@ -228,6 +229,7 @@ namespace vkPlayground {
 		bool HasDescriptorSets() const;
 		uint32_t GetFirstSetIndex() const;
 		const std::vector<VkDescriptorSet>& GetDescriptorSets(uint32_t frameIndex) const;
+		const std::map<std::string, RenderPassInputDeclaration>& GetInputDeclarations() const { return m_InputDeclarations; }
 
 		VkDescriptorPool GetDescriptorPool() const { return m_DescriptorPool; }
 

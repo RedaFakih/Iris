@@ -1,16 +1,15 @@
 #pragma once
 
 /*
- *
- *
+ * NOTE(Shader - Pipeline):
+ * - Fix a bug where when reloading shader some pipeline resources are not destroyed and regenerated (layout, pipeline)
  * 
  * NEXT STEP ON TUTORIAL: Loading Models.
  *
  * NEXT THING TO WORK ON:
+ * - Add ImGui
  * - DescriptorSetManager (Constant Expansion with shader reflection)
- * - Model loading (tinygltf maybe?)
- * - Camera...
- * - Scene?
+ * - Scene and Entities
  * - SceneRenderer
  * 
  * TO BE EXPANDED: (constant expansion)

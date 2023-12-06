@@ -13,11 +13,18 @@
 #include "Renderer/RenderPass.h"
 #include "Renderer/Framebuffer.h"
 #include "Renderer/Mesh.h"
+#include "Renderer/Material.h"
+#include "Editor/EditorCamera.h"
+#include "Input/Input.h"
 
 #include <glfw/glfw3.h>
 
 // TODO: REMOVE
-#include <stb_image_writer/stb_image_write.h>
+//#include <stb_image_writer/stb_image_write.h>
+//#include <fastgltf/glm_element_traits.hpp>
+//#include <fastgltf/parser.hpp>
+//#include <fastgltf/tools.hpp>
+//#include <fastgltf/types.hpp>
 
 namespace vkPlayground {
 	
@@ -32,15 +39,15 @@ namespace vkPlayground {
 	struct UniformBufferData
 	{
 		glm::mat4 Model;
-		glm::mat4 View;
-		glm::mat4 Projection;
+		glm::mat4 ViewProjection;
 	};
 
 	// TODO: This should NOT BE HERE
+	static EditorCamera s_Camera;
 	static std::vector<Vertex> s_Vertices;
 	static std::vector<uint32_t> s_Indices;
-	static std::vector<QuadVertex> s_QuadVertices;
-	static std::vector<uint32_t> s_QuadIndices;
+	//static std::vector<Vertex> s_TestVertices;
+	//static std::vector<uint32_t> s_TestIndices;
 
 	// TODO: REMOVE
 	static void CreateStuff(Window* window)
@@ -71,16 +78,7 @@ namespace vkPlayground {
 			4, 5, 6, 6, 7, 4 
 		};
 
-		s_QuadVertices = {
-			{ {-1.0f, -1.0f, 0.0f }, { 1.0f, 0.0f } },
-			{ { 1.0f, -1.0f, 0.0f }, { 0.0f, 0.0f } },
-			{ { 1.0f,  1.0f, 0.0f }, { 0.0f, 1.0f } },
-			{ {-1.0f,  1.0f, 0.0f }, { 1.0f, 1.0f } }
-		};
-
-		s_QuadIndices = {
-			0, 1, 2, 2, 3, 0
-		};
+		s_Camera = EditorCamera(45.0f, 1280.0f, 720.0f, 0.1f, 10000.0f);
 	}
 
 	// TODO: REMOVE!
@@ -89,8 +87,87 @@ namespace vkPlayground {
 		// TODO: REMOVE!
 	}
 
+	//void LoadModelFromFileBase(std::filesystem::path path, glm::mat4 rootTransform, bool binary)
+	//{
+	//	using fastgltf::Extensions;
+	//	auto parser = fastgltf::Parser(Extensions::KHR_texture_basisu | Extensions::KHR_mesh_quantization |
+	//		Extensions::EXT_meshopt_compression | Extensions::KHR_lights_punctual);
+	//
+	//	auto data = fastgltf::GltfDataBuffer();
+	//	data.loadFromFile(path);
+	//
+	//	constexpr auto options = fastgltf::Options::LoadExternalBuffers | //fastgltf::Options::LoadExternalImages |
+	//		fastgltf::Options::LoadGLBBuffers;
+	//	auto asset = binary ? parser.loadBinaryGLTF(&data, path.parent_path(), options) : parser.loadGLTF(&data, path.parent_path(), options);
+	//
+	//	if (auto err = asset.error(); err != fastgltf::Error::None)
+	//	{
+	//		// TODO: Log error
+	//	}
+	//
+	//	fastgltf::Primitive& primitive = asset->meshes[0].primitives[0];
+	//	fastgltf::Texture& texture = asset->textures[0];
+	//
+	//	if (asset->images.size())
+	//	{
+	//		fastgltf::Image& image = asset->images[texture.imageIndex.value()];
+	//		TextureSpecification spec = {
+	//			.DebugName = std::string(image.name),
+	//		};
+	//		auto uri = std::get_if<fastgltf::sources::URI>(&image.data)->uri;
+	//		auto uriString = std::string(uri.path());
+	//		auto parentPath = path.parent_path();
+	//		auto filePath = parentPath / uriString;
+	//		// TODO: Load the textures...
+	//	}
+	//
+	//	if (primitive.indicesAccessor.has_value()) 
+	//	{
+	//		auto& accessor = asset->accessors[primitive.indicesAccessor.value()];
+	//		s_TestIndices.resize(accessor.count);
+	//
+	//		fastgltf::iterateAccessorWithIndex<std::uint32_t>(
+	//		asset.get(), accessor, [&](std::uint32_t index, std::size_t idx) {
+	//			s_TestIndices[idx] = index;
+	//		});
+	//	}
+	//
+	//	if (auto it = primitive.findAttribute("POSITION"); it)
+	//	{
+	//		auto& accessor = asset->accessors[it->second];
+	//		s_TestVertices.resize(accessor.count);
+	//
+	//		fastgltf::iterateAccessorWithIndex<glm::vec3>(
+	//		asset.get(), accessor, [&](glm::vec3 position, std::size_t idx) {
+	//			s_TestVertices[idx].Position = position;
+	//		});
+	//	}
+	//
+	//	glm::vec3 color = { 1.0f, 0.0f, 1.0f };
+	//	if (primitive.materialIndex.has_value())
+	//	{
+	//		auto& material = asset->materials[primitive.materialIndex.value()];
+	//		color.r = material.pbrData.baseColorFactor[0];
+	//		color.g = material.pbrData.baseColorFactor[1];
+	//		color.b = material.pbrData.baseColorFactor[2];
+	//	}
+	//
+	//	if (auto it = primitive.findAttribute("TEXCOORD_0"); it)
+	//	{
+	//		auto& accessor = asset->accessors[it->second];
+	//		s_TestVertices.resize(accessor.count);
+	//
+	//		fastgltf::iterateAccessorWithIndex<glm::vec2>(
+	//			asset.get(), accessor, [&](glm::vec2 texCoord, std::size_t idx) {
+	//				s_TestVertices[idx].TexCoord = texCoord;
+	//				s_TestVertices[idx].Color = color;
+	//			});
+	//	}
+	//}
+
 	// TODO: This is here just to create some the hello traingle maybe move all the pipeline initializtion and stuff to somewhere else...
 	Application::Application(const ApplicationSpecification& spec)
+		: m_Specification(spec)
 	{
 		PG_ASSERT(!s_Instance, "No more than 1 application can be created!");
 		s_Instance = this;
@@ -167,6 +244,12 @@ namespace vkPlayground {
 		// texture->CopyToHostBuffer(textureBuffer, true);
 		// stbi_write_png("assets/textures/output.png", texture->GetWidth(), texture->GetHeight(), 4, textureBuffer.Data, texture->GetWidth() * 4);
 
+		//glm::mat4 transform = glm::rotate(glm::mat4(1.0f), glm::radians(180.0f), { 1.0f, 0.0f, 0.0f })
+		//	* glm::scale(glm::mat4(1.0f), glm::vec3(0.2f));
+		//LoadModelFromFileBase("assets/meshes/stormtrooper/stormtrooper.gltf", transform, false);
+		//Ref<VertexBuffer> vertexBuffer = VertexBuffer::Create(s_TestVertices.data(), (uint32_t)(sizeof(Vertex) * s_TestVertices.size()));
+		//Ref<IndexBuffer> indexBuffer = IndexBuffer::Create(s_TestIndices.data(), (uint32_t)(sizeof(uint32_t) * s_TestIndices.size()));
+
 		// Rendering pass
 		Ref<RenderPass> renderingPass;
 		{
@@ -211,6 +294,7 @@ namespace vkPlayground {
 
 		// Screen pass
 		Ref<RenderPass> screenPass;
+		Ref<Material> screenPassMaterial = Material::Create(screenShader, "ScreenPassMaterial");
 		{
 			FramebufferSpecification screenFBSpec = {
 				.DebugName = "Screen FB",
@@ -242,14 +326,13 @@ namespace vkPlayground {
 				.MarkerColor = glm::vec4(0.0f, 1.0f, 0.0f, 1.0f)
 			};
 			screenPass = RenderPass::Create(screenPassSpec);
-			screenPass->SetInput("u_Texture", renderingPass->GetOutput(0)); // Get the first color output of that pass
 			screenPass->Bake();
 		}
 
 		Ref<VertexBuffer> vertexBuffer = VertexBuffer::Create(s_Vertices.data(), (uint32_t)(sizeof(Vertex) * s_Vertices.size()));
 		Ref<IndexBuffer> indexBuffer = IndexBuffer::Create(s_Indices.data(), (uint32_t)(sizeof(uint32_t) * s_Indices.size()));
-		Ref<VertexBuffer> quadVertexBuffer = VertexBuffer::Create(s_QuadVertices.data(), (uint32_t)(sizeof(QuadVertex) * s_QuadVertices.size()));
-		Ref<IndexBuffer> quadIndexBuffer = IndexBuffer::Create(s_QuadIndices.data(), (uint32_t)(sizeof(uint32_t) * s_QuadIndices.size()));
+
+		s_Camera.SetActive(true);
 
 		while (m_Running)
 		{
@@ -261,28 +344,14 @@ namespace vkPlayground {
 			{
 				m_Window->GetSwapChain().BeginFrame();
 
-				constexpr float speed = 8.0f;
-				static glm::vec3 translationVector = { 0.0f, 0.0f, 0.0f };
-				if (glfwGetKey(m_Window->GetNativeWindow(), GLFW_KEY_W))
-					translationVector.x += 0.1f * m_TimeStep * speed;
-				if (glfwGetKey(m_Window->GetNativeWindow(), GLFW_KEY_S))
-					translationVector.x -= 0.1f * m_TimeStep * speed;
-				if (glfwGetKey(m_Window->GetNativeWindow(), GLFW_KEY_D))
-					translationVector.y += 0.1f * m_TimeStep * speed;
-				if (glfwGetKey(m_Window->GetNativeWindow(), GLFW_KEY_A))
-					translationVector.y -= 0.1f * m_TimeStep * speed;
-				if (glfwGetKey(m_Window->GetNativeWindow(), GLFW_KEY_Q))
-					translationVector.z -= 0.1f * m_TimeStep * speed;
-				if (glfwGetKey(m_Window->GetNativeWindow(), GLFW_KEY_E))
-					translationVector.z += 0.1f * m_TimeStep * speed;
-				if (glfwGetKey(m_Window->GetNativeWindow(), GLFW_KEY_F))
-					translationVector = { 0.0f, 0.0f, 0.0f };
+				if (Input::IsKeyDown(KeyCode::F))
+					s_Camera.Focus({ 0.0f, 0.0f, 0.0f });
 
 				// Update uniform buffers (Begin Scene stuff)
 				UniformBufferData dataUB = {
-					.Model = glm::translate(glm::mat4(1.0f), translationVector) * glm::rotate(glm::mat4(1.0f), GetTime() * glm::radians(0.0f), glm::vec3(0.0f, 0.0f, 1.0f)),
-					.View = glm::lookAt(glm::vec3(1.0f, 1.0f, 1.0f), glm::vec3(0.0f), glm::vec3(0.0f, 0.0f, 1.0f)),
-					.Projection = glm::perspective(glm::radians(45.0f), m_Window->GetSwapChain().GetWidth() / (float)m_Window->GetSwapChain().GetHeight(), 0.1f, 10.0f)
+					//.Model = glm::rotate(glm::mat4(1.0f), GetTime() * glm::radians(1.0f), glm::vec3(0.0f, 0.0f, 1.0f)),
+					.Model = glm::translate(glm::mat4(1.0f), { 0.0f, 0.0f, 0.0f }),
+					.ViewProjection = std::move(s_Camera.GetProjection() * s_Camera.GetViewMatrix())
 				};
 
 				uniformBufferSet->Get()->SetData(&dataUB, sizeof(UniformBufferData));
@@ -306,15 +375,18 @@ namespace vkPlayground {
 				}
 
 				// Second render pass renders to the screen
+				Ref<Texture2D> texture = renderingPass->GetOutput(0);
+				if (texture)
 				{
+					screenPassMaterial->Set("u_Texture", texture);
 					Renderer::BeginRenderPass(commandBuffer, screenPass);
-
-					VkBuffer vertexVulkanBuffer = quadVertexBuffer->GetVulkanBuffer();
-					vkCmdBindVertexBuffers(commandBuffer, 0, 1, &vertexVulkanBuffer, [](VkDeviceSize&& s) { return &s; }(0));
-					vkCmdBindIndexBuffer(commandBuffer, quadIndexBuffer->GetVulkanBuffer(), 0, VK_INDEX_TYPE_UINT32);
-					
-					vkCmdDrawIndexed(commandBuffer, (uint32_t)s_QuadIndices.size(), 1, 0, 0, 0);
-
+					Renderer::SubmitFullScreenQuad(commandBuffer, screenPass->GetPipeline(), screenPassMaterial);
+					Renderer::EndRenderPass(commandBuffer);
+				}
+				else
+				{
+					// Clear pass
+					Renderer::BeginRenderPass(commandBuffer, screenPass);
 					Renderer::EndRenderPass(commandBuffer);
 				}
 
@@ -323,6 +395,7 @@ namespace vkPlayground {
 				m_Window->SwapBuffers();
 
 				m_CurrentFrameIndex = (m_CurrentFrameIndex + 1) % Renderer::GetConfig().FramesInFlight;
+				s_Camera.OnUpdate(m_TimeStep);
 			}
 
 			float time = GetTime();
@@ -352,6 +425,8 @@ namespace vkPlayground {
 	void Application::OnEvent(Events::Event& e)
 	{
 		Events::EventDispatcher dispatcher(e);
+
+		s_Camera.OnEvent(e);
 
 		dispatcher.Dispatch<Events::WindowResizeEvent>([this](Events::WindowResizeEvent& event) { return OnWindowResize(event); });
 		dispatcher.Dispatch<Events::WindowCloseEvent>([this](Events::WindowCloseEvent& event) { return OnWindowClose(event); });

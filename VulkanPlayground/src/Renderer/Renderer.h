@@ -14,6 +14,7 @@ namespace vkPlayground {
 	class Texture2D;
 	class RenderPass;
 	class Pipeline;
+	class Material;
 
 	class Renderer
 	{
@@ -55,15 +56,16 @@ namespace vkPlayground {
 		static void BeginRenderPass(VkCommandBuffer commandBuffer, Ref<RenderPass> renderPass, bool explicitClear = false);
 		static void EndRenderPass(VkCommandBuffer commandBuffer);
 
-		// static void SubmitFullScreenQuad(VkCommandBuffer commandBuffer, Ref<Pipeline> pipeline /* TODO: Material */);
+		static void SubmitFullScreenQuad(VkCommandBuffer commandBuffer, Ref<Pipeline> pipeline, Ref<Material> material);
 
 		static Ref<Texture2D> GetWhiteTexture();
 		static Ref<Texture2D> GetBlackTexture();
 
 		static RenderCommandQueue& GetRendererResourceReleaseQueue(uint32_t index);
 
-		// TODO: Register all the dependencies (Pipelines, Materials)
+		// TODO: Register all the dependencies (Compute Pipelines)
 		static void RegisterShaderDependency(Ref<Shader> shader, Ref<Pipeline> pipeline);
+		static void RegisterShaderDependency(Ref<Shader> shader, Ref<Material> material);
 		static void OnShaderReloaded(std::size_t hash);
 
 		static void InsertImageMemoryBarrier(

@@ -1,7 +1,9 @@
 #pragma once
 
-#include "AppEvents.h"
 #include "Base.h"
+#include "Events/AppEvents.h"
+#include "Events/KeyEvents.h"
+#include "Events/MouseEvents.h"
 #include "Renderer/Core/RendererContext.h"
 #include "Renderer/Core/SwapChain.h"
 

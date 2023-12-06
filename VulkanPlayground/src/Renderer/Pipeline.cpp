@@ -87,7 +87,7 @@ namespace vkPlayground {
 		{
 			VkDevice device = RendererContext::GetCurrentDevice()->GetVulkanDevice();
 			vkDestroyPipeline(device, pipeline, nullptr);
-			vkDestroyPipelineLayout(device, layout , nullptr);
+			vkDestroyPipelineLayout(device, layout, nullptr);
 		});
 	}
 
@@ -95,8 +95,6 @@ namespace vkPlayground {
 	{
 		VkDevice device = RendererContext::GetCurrentDevice()->GetVulkanDevice();
 		PG_ASSERT(m_Specification.Shader, "Shader can not be nullptr!");
-
-		// TODO: PushConstantRanges from shader
 
 		// Setting up the pipeline with the VkPipelineVertexInputStateCreateInfo struct to accept the vertex data that will be 
 		// passed to the vertex buffer
@@ -297,14 +295,27 @@ namespace vkPlayground {
 		};
 
 		Ref<Shader> shader = m_Specification.Shader;
+
+		const std::vector<ShaderResources::PushConstantRange>& pushConstantRanges = shader->GetPushConstantRanges();
+		std::vector<VkPushConstantRange> vulkanPushConstantRanges(pushConstantRanges.size());
+		for (uint32_t i = 0; i < pushConstantRanges.size(); i++)
+		{
+			const ShaderResources::PushConstantRange& pushConstantRange = pushConstantRanges[i];
+			VkPushConstantRange& vulkanPushConstantRange = vulkanPushConstantRanges[i];
+
+			vulkanPushConstantRange.stageFlags = pushConstantRange.ShaderStage;
+			vulkanPushConstantRange.size = pushConstantRange.Size;
+			vulkanPushConstantRange.offset = pushConstantRange.Offset;
+		}
+
 		std::vector<VkDescriptorSetLayout> descriptorSetLayouts = shader->GetAllDescriptorSetLayouts();
 		VkPipelineLayoutCreateInfo pipelineLayoutInfo = {
 			.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
 			.pNext = nullptr,
 			.setLayoutCount = static_cast<uint32_t>(descriptorSetLayouts.size()),
 			.pSetLayouts = descriptorSetLayouts.data(),
-			.pushConstantRangeCount = 0, // TODO: PushConstantRnages size from shader
-			.pPushConstantRanges = nullptr, // TODO: PushConstantRanges data from shader
+			.pushConstantRangeCount = static_cast<uint32_t>(vulkanPushConstantRanges.size()),
+			.pPushConstantRanges = vulkanPushConstantRanges.data()
 		};
 
 		VK_CHECK_RESULT(vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &m_PipelineLayout));

@@ -11,8 +11,7 @@ layout(location = 1) out vec2 v_TexCoord;
 layout(std140, set = 0, binding = 0) uniform TransformUniformBuffer
 {
     mat4 Model;
-    mat4 View;
-    mat4 Projection;
+    mat4 ViewProjection;
 } u_TransformData;
 
 // Bruh testing comments
@@ -24,7 +23,7 @@ void main()
 {
     v_Color = a_Color;
     v_TexCoord = a_TexCoord;
-    gl_Position = u_TransformData.Projection * (u_TransformData.View * (u_TransformData.Model * vec4(a_Position, 1.0f)));
+    gl_Position = u_TransformData.ViewProjection * (u_TransformData.Model * vec4(a_Position, 1.0f));
 }
 
 #version 450 core
@@ -37,6 +36,12 @@ layout(location = 1) in vec2 v_TexCoord;
 
 // Should be in set 3
 layout(set = 1, binding = 0) uniform sampler2D u_Texture;
+
+layout(push_constant) uniform Material
+{
+    vec4 Color;
+    float Emission;
+} u_MaterialInfo;
 
 void main()
 {

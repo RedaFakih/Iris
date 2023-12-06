@@ -16,20 +16,20 @@ namespace vkPlayground {
 		Deserialize(shaderCache);
 
 		VkShaderStageFlagBits changedState = {};
-		const bool shaderNotCached = !shaderCache.contains(shaderCompiler->m_FilePath.string());
+		const bool shaderNotCached = !shaderCache.contains(shaderCompiler->m_FilePath);
 
 		for (const auto& [stage, source] : shaderCompiler->m_ShaderSource)
 		{
 			// We use the std::map's `[]` operator so it inserts if it is not there...
-			if (shaderNotCached || shaderCompiler->m_StagesMetadata.at(stage) != shaderCache[shaderCompiler->m_FilePath.string()][stage])
+			if (shaderNotCached || shaderCompiler->m_StagesMetadata.at(stage) != shaderCache[shaderCompiler->m_FilePath][stage])
 			{
-				shaderCache[shaderCompiler->m_FilePath.string()][stage] = shaderCompiler->m_StagesMetadata.at(stage);
+				shaderCache[shaderCompiler->m_FilePath][stage] = shaderCompiler->m_StagesMetadata.at(stage);
 				*(int*)&changedState |= stage;
 			}
 		}
 
 		// Update cache in case we added a stage but didn't remove the deleted (in file) stages
-		shaderCache.at(shaderCompiler->m_FilePath.string()) = shaderCompiler->m_StagesMetadata;
+		shaderCache.at(shaderCompiler->m_FilePath) = shaderCompiler->m_StagesMetadata;
 
 		if (changedState)
 		{

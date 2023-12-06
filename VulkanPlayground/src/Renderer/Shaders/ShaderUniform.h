@@ -1,5 +1,9 @@
 #pragma once
 
+#include "Serialization/StreamReader.h"
+#include "Serialization/StreamWriter.h"
+
+#include <unordered_map>
 #include <string>
 #include <vector>
 
@@ -48,11 +52,48 @@ namespace vkPlayground {
 			return "None";
 		}
 
+		static void Serialize(StreamWriter* serializer, const ShaderUniform& instance)
+		{
+			serializer->WriteString(instance.m_Name);
+			serializer->WriteRaw(instance.m_Type);
+			serializer->WriteRaw(instance.m_Size);
+			serializer->WriteRaw(instance.m_Offset);
+		}
+
+		static void Deserialize(StreamReader* deserializer, ShaderUniform& instance)
+		{
+			deserializer->ReadString(instance.m_Name);
+			deserializer->ReadRaw(instance.m_Type);
+			deserializer->ReadRaw(instance.m_Size);
+			deserializer->ReadRaw(instance.m_Offset);
+		}
+
 	private:
 		std::string m_Name;
 		ShaderUniformType m_Type = ShaderUniformType::None;
 		uint32_t m_Size = 0;
 		uint32_t m_Offset = 0;
+	};
+
+	struct ShaderBuffer
+	{
+		std::string Name;
+		uint32_t Size = 0;
+		std::unordered_map<std::string, ShaderUniform> Uniforms;
+
+		static void Serialize(StreamWriter* serializer, const ShaderBuffer& instance)
+		{
+			serializer->WriteString(instance.Name);
+			serializer->WriteRaw(instance.Size);
+			serializer->WriteMap(instance.Uniforms);
+		}
+
+		static void Deserialize(StreamReader* deserializer, ShaderBuffer& instance)
+		{
+			deserializer->ReadString(instance.Name);
+			deserializer->ReadRaw(instance.Size);
+			deserializer->ReadMap(instance.Uniforms);
+		}
 	};
 
 }

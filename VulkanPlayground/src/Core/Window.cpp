@@ -2,6 +2,7 @@
 #include "Window.h"
 
 #include "Core/Application.h"
+#include "Input/Input.h"
 #include "Renderer/Core/VulkanAllocator.h"
 
 #include <glfw/glfw3.h>
@@ -113,12 +114,88 @@ namespace vkPlayground {
 			data.EventCallback(event);
 		});
 
+		glfwSetKeyCallback(m_Window, [](GLFWwindow* window, int key, int scancode, int action, int mods)
+		{
+			WindowData& data = *(WindowData*)glfwGetWindowUserPointer(window);
+
+			switch (action)
+			{
+				case GLFW_PRESS:
+				{
+					Input::UpdateKeyState((KeyCode)key, KeyState::Pressed);
+					Events::KeyPressedEvent event((KeyCode)key, 0);
+					data.EventCallback(event);
+					break;
+				}
+				case GLFW_RELEASE:
+				{
+					Input::UpdateKeyState((KeyCode)key, KeyState::Released);
+					Events::KeyReleasedEvent event((KeyCode)key);
+					data.EventCallback(event);
+					break;
+				}
+				case GLFW_REPEAT:
+				{
+					Input::UpdateKeyState((KeyCode)key, KeyState::Held);
+					Events::KeyPressedEvent event((KeyCode)key, true);
+					data.EventCallback(event);
+					break;
+				}
+			}
+		});
+
+		glfwSetCharCallback(m_Window, [](GLFWwindow* window, unsigned int keycode)
+		{
+			WindowData& data = *(WindowData*)glfwGetWindowUserPointer(window);
+
+			Events::KeyTypedEvent event((KeyCode)keycode);
+			
+			data.EventCallback(event);
+		});
+
+		glfwSetMouseButtonCallback(m_Window, [](GLFWwindow* window, int button, int action, int mods)
+		{
+			WindowData& data = *(WindowData*)glfwGetWindowUserPointer(window);
+
+			switch (action)
+			{
+				case GLFW_PRESS:
+				{
+					Events::MouseButtonPressedEvent event((MouseButton)button);
+					data.EventCallback(event);
+					break;
+				}
+				case GLFW_RELEASE:
+				{
+					Events::MouseButtonReleasedEvent event((MouseButton)button);
+					data.EventCallback(event);
+					break;
+				}
+			}
+		});
+
+		glfwSetScrollCallback(m_Window, [](GLFWwindow* window, double xOffset, double yOffset)
+		{
+			WindowData& data = *(WindowData*)glfwGetWindowUserPointer(window);
+
+			Events::MouseScrolledEvent event((float)xOffset, (float)yOffset);
+			data.EventCallback(event);
+		});
+
+		glfwSetCursorPosCallback(m_Window, [](GLFWwindow* window, double xPos, double yPos)
+		{
+			WindowData& data = *(WindowData*)glfwGetWindowUserPointer(window);
+
+			Events::MouseMovedEvent event((float)xPos, (float)yPos);
+			data.EventCallback(event);
+		});
+
 		// Update window to actual size
 		{
 			int width, height;
 			glfwGetWindowSize(m_Window, &width, &height);
-			m_Data.Width = width;
-			m_Data.Height = height;
+			m_Data.Width = static_cast<uint32_t>(width);
+			m_Data.Height = static_cast<uint32_t>(height);
 		}
 	}
 

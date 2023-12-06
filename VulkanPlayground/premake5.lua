@@ -17,8 +17,6 @@ project "VulkanPlayground"
 
         "dependencies/stb/**.h",
         "dependencies/stb/**.cpp",
-        "dependencies/tinygltf/tinygltf/tiny_gltf.h",
-        "dependencies/tinygltf/tinygltf/tiny_gltf.cpp",
 
         "dependencies/Vma/**.h",
         "dependencies/Vma/**.cpp",
@@ -44,8 +42,7 @@ project "VulkanPlayground"
         "%{IncludeDir.VulkanSDK}",
         "%{IncludeDir.choc}",
         "%{IncludeDir.stb}",
-        "%{IncludeDir.tinygltf}",
-        "%{IncludeDir.rapidjson}",
+        "%{IncludeDir.fastgltf}",
         "%{IncludeDir.spdlog}",
         "%{IncludeDir.Yaml}"
     }
@@ -54,6 +51,7 @@ project "VulkanPlayground"
     {
         "GLFW",
         "ImGui",
+        "FastGLTF",
         "%{Library.Vulkan}"
     }
 
@@ -95,9 +93,6 @@ project "VulkanPlayground"
         flags { "NoPCH" }
 
     filter "files:dependencies/yaml-cpp/src/**.cpp"
-        flags { "NoPCH" }
-
-    filter "files:dependencies/tinygltf/tinygltf/**.cpp"
         flags { "NoPCH" }
 
     filter "files:dependencies/Vma/**.cpp"

@@ -6,7 +6,6 @@
 
 #include <vulkan/vulkan.h>
 
-#include <filesystem>
 #include <map>
 
 namespace vkPlayground {
@@ -20,9 +19,9 @@ namespace vkPlayground {
 	class ShaderCompiler : public RefCountedObject
 	{
 	public:
-		ShaderCompiler(const std::filesystem::path& filePath, bool disableOptimization = false);
+		ShaderCompiler(const std::string& filePath, bool disableOptimization = false);
 
-		[[nodiscard]] static Ref<ShaderCompiler> Create(const std::filesystem::path& filePath, bool disableOptimization = false);
+		[[nodiscard]] static Ref<ShaderCompiler> Create(const std::string& filePath, bool disableOptimization = false);
 
 		bool Reload(bool forceCompile = false);
 
@@ -31,7 +30,7 @@ namespace vkPlayground {
 		// If multiple shaders reference the same buffers that we dont have define on every shader compilation rather they are cached
 		static void ClearUniformAndStorageBuffers();
 
-		static Ref<Shader> Compile(const std::filesystem::path& filepath, bool forceCompile = false, bool disableOptimizations = false);
+		static Ref<Shader> Compile(const std::string& filepath, bool forceCompile = false, bool disableOptimizations = false);
 		static bool TryRecompile(Ref<Shader> shader);
 
 	private:
@@ -46,7 +45,7 @@ namespace vkPlayground {
 		std::string Compile(std::vector<uint32_t>& outputBin, VkShaderStageFlagBits stage, CompilationOptions options) const;
 		bool CompileOrGetVulkanBinaries(std::map<VkShaderStageFlagBits, std::vector<uint32_t>>& outputDebugBin, std::map<VkShaderStageFlagBits, std::vector<uint32_t>>& outputBin, VkShaderStageFlagBits stagesChanged, bool forceCompile);
 		bool CompileOrGetVulkanBinary(VkShaderStageFlagBits stage, std::vector<uint32_t>& outputBin, bool debug, VkShaderStageFlagBits stagesChanged, bool forceCompile);
-		void TryGetVulkanCachedBinary(const std::filesystem::path& cacheDirectory, const std::string& extension, std::vector<uint32_t>& outputBinary) const;
+		void TryGetVulkanCachedBinary(const std::string& cacheDirectory, const std::string& extension, std::vector<uint32_t>& outputBinary) const;
 
 		void ClearReflectionData();
 
@@ -57,7 +56,7 @@ namespace vkPlayground {
 		void Reflect(VkShaderStageFlagBits stage, const std::vector<uint32_t>& shaderData);
 
 	private:
-		std::filesystem::path m_FilePath;
+		std::string m_FilePath;
 		bool m_DisableOptimizations = false;
 
 		std::map<VkShaderStageFlagBits, std::string> m_ShaderSource;

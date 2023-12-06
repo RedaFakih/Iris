@@ -56,14 +56,20 @@ namespace vkPlayground {
 		}
 
 		template<typename T>
-		constexpr T* Read(std::size_t offset = 0) const
+		constexpr T& Read(std::size_t offset = 0)
 		{
-			return *static_cast<T*>(Data + offset);
+			return *reinterpret_cast<T*>(Data + offset);
 		}
 
-		uint8_t* Read(std::size_t size, std::size_t offset = 0) const
+		template<typename T>
+		constexpr const T& Read(std::size_t offset = 0) const
 		{
-			PG_ASSERT(size + offset <= Size, "");
+			return *reinterpret_cast<T*>(Data + offset);
+		}
+
+		uint8_t* ReadBytes(std::size_t size, std::size_t offset) const
+		{
+			PG_ASSERT(size + offset <= Size, "Overflow");
 			uint8_t* data = new uint8_t[size];
 			std::memcpy(data, Data + offset, size);
 			return data;

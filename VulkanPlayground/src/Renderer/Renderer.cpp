@@ -1,7 +1,10 @@
 #include "vkPch.h"
 #include "Renderer.h"
 
+#include "Material.h"
 #include "RenderPass.h"
+#include "VertexBuffer.h"
+#include "IndexBuffer.h"
 #include "Shaders/Compiler/ShaderCompiler.h"
 #include "Shaders/Shader.h"
 #include "Texture.h"
@@ -15,6 +18,7 @@ namespace vkPlayground {
 	struct ShaderDependencies
 	{
 		std::vector<Ref<Pipeline>> Pipelines;
+		std::vector<Ref<Material>> Meterials;
 	};
 
 	static std::unordered_map<std::size_t, ShaderDependencies> s_ShaderDependencies;
@@ -25,6 +29,9 @@ namespace vkPlayground {
 
 		Ref<Texture2D> BlackTexutre;
 		Ref<Texture2D> WhiteTexutre;
+
+		Ref<VertexBuffer> QuadVertexBuffer;
+		Ref<IndexBuffer> QuadIndexBuffer;
 	};
 
 	static RendererData* s_Data = nullptr;
@@ -39,6 +46,30 @@ namespace vkPlayground {
 		s_RendererConfig.FramesInFlight = glm::min<uint32_t>(s_RendererConfig.FramesInFlight, Application::Get().GetWindow().GetSwapChain().GetImageCount());
 
 		s_Data->ShaderLibrary = ShadersLibrary::Create();
+
+		// Create fullscreen quad
+		struct QuadVertex
+		{
+			glm::vec3 Position;
+			glm::vec2 TexCoord;
+		};
+
+		QuadVertex data[4];
+		data[0].Position = glm::vec3(-1.0f, -1.0f, 0.0f);
+		data[0].TexCoord = glm::vec2(0.0f, 0.0f);
+
+		data[1].Position = glm::vec3(1.0f, -1.0f, 0.0f);
+		data[1].TexCoord = glm::vec2(1.0f, 0.0f);
+
+		data[2].Position = glm::vec3(1.0f, 1.0f, 0.0f);
+		data[2].TexCoord = glm::vec2(1.0f, 1.0f);
+
+		data[3].Position = glm::vec3(-1.0f, 1.0f, 0.0f);
+		data[3].TexCoord = glm::vec2(0.0f, 1.0f);
+
+		s_Data->QuadVertexBuffer = VertexBuffer::Create(data, 4 * sizeof(QuadVertex));
+		uint32_t indices[6] = { 0, 1, 2, 2, 3, 0 };
+		s_Data->QuadIndexBuffer = IndexBuffer::Create(indices, 6 * sizeof(uint32_t));
 
 		Renderer::GetShadersLibrary()->Load("Shaders/Src/SimpleShader.glsl");
 		Renderer::GetShadersLibrary()->Load("Shaders/Src/TexturePass.glsl");
@@ -257,6 +288,40 @@ namespace vkPlayground {
 		fpCmdEndDebugUtilsLabelEXT(commandBuffer);
 	}
 
+	void Renderer::SubmitFullScreenQuad(VkCommandBuffer commandBuffer, Ref<Pipeline> pipeline, Ref<Material> material)
+	{
+		uint32_t frameIndex = Renderer::GetCurrentFrameIndex();
+		VkCommandBuffer vkCommandBuffer = commandBuffer;
+
+		VkPipelineLayout layout = pipeline->GetVulkanPipelineLayout();
+
+		VkBuffer vbQuadBuffer = s_Data->QuadVertexBuffer->GetVulkanBuffer();
+		VkDeviceSize offsets[1] = { 0 };
+		vkCmdBindVertexBuffers(vkCommandBuffer, 0, 1, &vbQuadBuffer, offsets);
+
+		VkBuffer ibQuadBuffer = s_Data->QuadIndexBuffer->GetVulkanBuffer();
+		vkCmdBindIndexBuffer(vkCommandBuffer, ibQuadBuffer, 0, VK_INDEX_TYPE_UINT32);
+
+		if (material)
+		{
+			VkDescriptorSet descSet = material->GetDescriptorSet(frameIndex);
+			if (descSet)
+				vkCmdBindDescriptorSets(vkCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, layout, material->GetFirstSetIndex(), 1, &descSet, 0, nullptr);
+
+			Buffer uniformStorageBuffer = material->GetUniformStorageBuffer();
+			if (uniformStorageBuffer)
+				vkCmdPushConstants(
+					vkCommandBuffer,
+					layout,
+					VK_SHADER_STAGE_FRAGMENT_BIT,
+					0,
+					static_cast<uint32_t>(uniformStorageBuffer.Size),
+					uniformStorageBuffer.Data);
+		}
+
+		vkCmdDrawIndexed(vkCommandBuffer, s_Data->QuadIndexBuffer->GetCount(), 1, 0, 0, 0);
+	}
+
 	Ref<Texture2D> Renderer::GetWhiteTexture()
 	{
 		return s_Data->WhiteTexutre;
@@ -277,6 +342,11 @@ namespace vkPlayground {
 		s_ShaderDependencies[shader->GetHash()].Pipelines.push_back(pipeline);
 	}
 
+	void Renderer::RegisterShaderDependency(Ref<Shader> shader, Ref<Material> material)
+	{
+		s_ShaderDependencies[shader->GetHash()].Meterials.push_back(material);
+	}
+
 	void Renderer::OnShaderReloaded(std::size_t hash)
 	{
 		if (s_ShaderDependencies.contains(hash))
@@ -285,6 +355,11 @@ namespace vkPlayground {
 			for (Ref<Pipeline>& pipeline : deps.Pipelines)
 			{
 				pipeline->Invalidate();
+			}
+
+			for (Ref<Material>& material : deps.Meterials)
+			{
+				material->OnShaderReloaded();
 			}
 		}
 	}

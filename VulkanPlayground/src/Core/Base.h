@@ -16,6 +16,8 @@
 	}\
 }
 
+#define PG_SET_EVENT_FN(function) [this](auto&&... args) -> decltype(auto) { return this->function(std::forward<decltype(args)>(args)...); }
+
 namespace vkPlayground {
 
 	template<typename T, typename... Args>

@@ -19,8 +19,7 @@ layout(location = 0) out vec4 o_Color;
 
 layout(location = 0) in vec2 v_TexCoord;
 
-// Should be in set 3
-layout(set = 0, binding = 0) uniform sampler2D u_Texture;
+layout(set = 3, binding = 0) uniform sampler2D u_Texture;
 
 void main()
 {
@@ -43,7 +42,7 @@ void main()
 
 //    vec3 sum = vec3(0.0);
 //    ivec2 texSize = textureSize(u_Texture, 0);
-    // Iterate over the 3x3 kernel
+//    // Iterate over the 3x3 kernel
 //    for (int i = -1; i <= 1; ++i) {
 //        for (int j = -1; j <= 1; ++j) {
 //            vec2 offset = vec2(i, j);

@@ -9,10 +9,18 @@
 
 namespace vkPlayground {
 
-	DescriptorSetManager::DescriptorSetManager(const DescriptorSetManagerSpecification& spec) noexcept
+	DescriptorSetManager::DescriptorSetManager(const DescriptorSetManagerSpecification& spec)
 		: m_Specification(spec)
 	{
 		Init();
+	}
+
+	DescriptorSetManager::DescriptorSetManager(const DescriptorSetManager& other)
+		: m_Specification(other.m_Specification)
+	{
+		Init();
+		m_InputResources = other.m_InputResources;
+		Bake();
 	}
 
 	DescriptorSetManager::~DescriptorSetManager()

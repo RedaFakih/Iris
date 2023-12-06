@@ -19,6 +19,7 @@ outputdir = "%{cfg.architecture}-%{cfg.buildcfg}"
 group "Dependencies"
     include "VulkanPlayground/dependencies/glfw"
     include "VulkanPlayground/dependencies/ImGui/imgui"
+    include "VulkanPlayground/dependencies/fastgltf"
 group ""
 
 group "Core"

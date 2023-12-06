@@ -6,7 +6,6 @@
 
 #include <vulkan/vulkan.h>
 
-#include <filesystem>
 #include <map>
 #include <set>
 #include <string_view>
@@ -19,9 +18,9 @@ namespace vkPlayground {
 		struct ReflectionData
 		{
 			std::vector<ShaderResources::ShaderDescriptorSet> ShaderDescriptorSets;
-
-			// TODO: Reflection data for Descriptor Sets, Resources(Uniform buffers, Storage buffers, Images and textures), Constant Buffers
-			// and PushConstantRanges
+			// The two below more or less reference the same thing but serve different purposes
+			std::unordered_map<std::string, ShaderBuffer> ConstantBuffers; // These are used for material uniform creation
+			std::vector<ShaderResources::PushConstantRange> PushConstantRanges; // These are used for the pipeline creation
 		};
 
 	public:
@@ -39,7 +38,7 @@ namespace vkPlayground {
 
 		std::size_t GetHash() const;
 		const std::string_view GetName() const { return m_Name; }
-		const std::filesystem::path& GetFilePath() const { return m_FilePath; }
+		const std::string& GetFilePath() const { return m_FilePath; }
 
 		bool TryReadReflectionData(StreamReader* reader);
 		void SerializeReflectionData(StreamWriter* serializer);
@@ -56,6 +55,8 @@ namespace vkPlayground {
 
 		const std::vector<ShaderResources::ShaderDescriptorSet>& GetShaderDescriptorSets() const { return m_ReflectionData.ShaderDescriptorSets; }
 		bool HasDescriptorSet(uint32_t set) const { return m_ExistingSets.contains(set); }
+		const std::unordered_map<std::string, ShaderBuffer>& GetShaderBuffers() const { return m_ReflectionData.ConstantBuffers; }
+		const std::vector<ShaderResources::PushConstantRange>& GetPushConstantRanges() const { return m_ReflectionData.PushConstantRanges; }
 
 		const std::unordered_map<VkDescriptorType, uint32_t>& GetDescriptorPoolSizes() const { return m_DescriptorPoolTypeCounts; }
 
@@ -68,7 +69,7 @@ namespace vkPlayground {
 
 	private:
 		std::string m_Name;
-		std::filesystem::path m_FilePath;
+		std::string m_FilePath;
 		bool m_DisableOptimizations = false;
 
 		std::map<VkShaderStageFlagBits, std::vector<uint32_t>> m_VulkanSPIRV;

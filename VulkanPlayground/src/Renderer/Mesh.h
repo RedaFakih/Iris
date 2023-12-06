@@ -5,6 +5,8 @@
 
 #include <glm/glm.hpp>
 
+#include <string>
+
 namespace vkPlayground {
 
 	struct Vertex
@@ -19,15 +21,20 @@ namespace vkPlayground {
 		uint32_t V1, V2, V3;
 	};
 
-	class Mesh : public RefCountedObject
+	class MeshSource : public RefCountedObject
 	{
 	public:
-		Mesh(Ref<VertexBuffer> vertexBuffer, Ref<IndexBuffer> indexBuffer);
+		MeshSource(const std::string& filepath);
 
 		Ref<VertexBuffer> GetVertexBuffer() const { return m_VertexBuffer; }
 		Ref<IndexBuffer> GetIndexBuffer() const { return m_IndexBuffer; }
 
 	private:
+		void LoadFromFile();
+
+	private:
+		std::string m_AssetPath;
+
 		Ref<VertexBuffer> m_VertexBuffer;
 		Ref<IndexBuffer> m_IndexBuffer;
 

@@ -98,7 +98,7 @@ namespace vkPlayground {
 
 	std::size_t Shader::GetHash() const
 	{
-		return Hash::GenerateFNVHash(m_FilePath.string());
+		return Hash::GenerateFNVHash(m_FilePath);
 	}
 
 	bool Shader::TryReadReflectionData(StreamReader* reader)
@@ -114,6 +114,9 @@ namespace vkPlayground {
 			reader->ReadMap(descriptorSet.WriteDescriptorSets);
 		}
 		
+		reader->ReadMap(m_ReflectionData.ConstantBuffers);
+		reader->ReadArray(m_ReflectionData.PushConstantRanges);
+
 		return true;
 	}
 
@@ -127,6 +130,9 @@ namespace vkPlayground {
 			serializer->WriteMap(descriptorSet.ImageSamplers);
 			serializer->WriteMap(descriptorSet.WriteDescriptorSets);
 		}
+
+		serializer->WriteMap(m_ReflectionData.ConstantBuffers);
+		serializer->WriteArray(m_ReflectionData.PushConstantRanges);
 	}
 
 	std::vector<VkDescriptorSetLayout> Shader::GetAllDescriptorSetLayouts()
@@ -301,7 +307,7 @@ namespace vkPlayground {
 	void ShadersLibrary::Load(std::string_view filePath, bool forceCompile, bool disableOptimizations)
 	{
 		Ref<Shader> shader;
-		shader = ShaderCompiler::Compile(filePath, forceCompile, disableOptimizations);
+		shader = ShaderCompiler::Compile(std::string(filePath), forceCompile, disableOptimizations);
 
 		const std::string name(shader->GetName());
 		PG_ASSERT(!m_Library.contains(name), "Shader already loaded!");

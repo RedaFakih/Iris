@@ -1,11 +1,19 @@
 #include "vkPch.h"
 #include "Mesh.h"
 
+#include <fastgltf/parser.hpp>
+
 namespace vkPlayground {
 
-	Mesh::Mesh(Ref<VertexBuffer> vertexBuffer, Ref<IndexBuffer> indexBuffer)
-		: m_VertexBuffer(vertexBuffer), m_IndexBuffer(indexBuffer)
+	MeshSource::MeshSource(const std::string& filepath)
+		: m_AssetPath(filepath)
 	{
+		LoadFromFile();
+	}
+
+	void MeshSource::LoadFromFile()
+	{
+		fastgltf::Parser parser;
 	}
 
 }

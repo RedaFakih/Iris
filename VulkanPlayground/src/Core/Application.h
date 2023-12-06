@@ -1,7 +1,7 @@
 #pragma once
 
-#include "AppEvents.h"
 #include "Base.h"
+#include "Events/Events.h"
 #include "Renderer/RendererConfiguration.h"
 #include "TimeStep.h"
 #include "Window.h"
@@ -63,14 +63,15 @@ namespace vkPlayground {
 
 		uint32_t GetCurrentFrameIndex() const { return m_CurrentFrameIndex; }
 
+		const ApplicationSpecification& GetSpecification() const { return m_Specification; }
+
 	private:
 		bool OnWindowResize(Events::WindowResizeEvent& e);
 		bool OnWindowClose(Events::WindowCloseEvent& e);
 		bool OnWindowMinimize(Events::WindowMinimizeEvent& e);
 
 	private:
-		//  Don't think we ever need to store the specification since all its members are used on the initialization
-		// ApllicationSpecificaton m_Specification;
+		ApplicationSpecification m_Specification;
 
 		Scope<Window> m_Window;
 		bool m_Running = true;
