@@ -2,6 +2,8 @@ include "Dependencies.lua"
 
 workspace "VulkanPlayground"
     architecture "x86_64"
+    startproject "PlaygroundEditor"
+    conformancemode "On"
 
     configurations
     {
@@ -24,4 +26,5 @@ group ""
 
 group "Core"
     include "VulkanPlayground"
+    include "PlaygroundEditor"
 group ""

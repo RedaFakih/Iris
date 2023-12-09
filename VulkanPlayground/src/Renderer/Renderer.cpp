@@ -1,19 +1,37 @@
 #include "vkPch.h"
 #include "Renderer.h"
 
-#include "Material.h"
-#include "RenderPass.h"
-#include "VertexBuffer.h"
 #include "IndexBuffer.h"
+#include "Material.h"
+#include "Renderer/Core/RenderCommandBuffer.h"
+#include "RenderPass.h"
 #include "Shaders/Compiler/ShaderCompiler.h"
 #include "Shaders/Shader.h"
 #include "Texture.h"
 #include "UniformBufferSet.h"
+#include "VertexBuffer.h"
 
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
 namespace vkPlayground {
+
+	namespace Utils {
+
+		constexpr static const char* VulkanVendorIDToString(uint32_t vendorID)
+		{
+			switch (vendorID)
+			{
+				case 0x10DE: return "NVIDIA";
+				case 0x1002: return "AMD";
+				case 0x8086: return "INTEL";
+				case 0x13B5: return "ARM";
+			}
+
+			return "Unknown";
+		}
+
+	}
 
 	struct ShaderDependencies
 	{
@@ -32,20 +50,81 @@ namespace vkPlayground {
 
 		Ref<VertexBuffer> QuadVertexBuffer;
 		Ref<IndexBuffer> QuadIndexBuffer;
+
+		std::vector<VkDescriptorPool> DescriptorPools;
+		std::vector<uint32_t> DescriptorPoolAllocationCount;
+
+		uint32_t DrawCallCount = 0;
+
+		RendererCapabilities RendererCaps;
 	};
 
-	static RendererData* s_Data = nullptr;
 	static RendererConfiguration s_RendererConfig;
+	static RendererData* s_Data = nullptr;
+	
 	// We create 3 which is corresponding with how many frames in flight we have
 	static RenderCommandQueue s_RendererResourceFreeQueue[3];
 
 	void Renderer::Init()
 	{
 		s_Data = new RendererData();
-
+		
 		s_RendererConfig.FramesInFlight = glm::min<uint32_t>(s_RendererConfig.FramesInFlight, Application::Get().GetWindow().GetSwapChain().GetImageCount());
 
+		{
+			Ref<VulkanPhysicalDevice> physicalDevice = RendererContext::GetCurrentDevice()->GetPhysicalDevice();
+			const VkPhysicalDeviceProperties& properties = physicalDevice->GetPhysicalDeviceProperties();
+
+			RendererCapabilities& caps = s_Data->RendererCaps;
+			caps.Vendor = Utils::VulkanVendorIDToString(properties.vendorID);
+			caps.Device = properties.deviceName;
+			caps.Version = std::to_string(properties.driverVersion);
+			caps.MaxAnisotropy = properties.limits.maxSamplerAnisotropy;
+			caps.MaxSamples = properties.limits.framebufferColorSampleCounts;
+			// NOTE: Not sure if this is true but it makes sense...
+			caps.MaxTextureUnits = properties.limits.maxPerStageDescriptorSampledImages + properties.limits.maxPerStageDescriptorStorageImages;
+		}
+
+		PG_CORE_INFO_TAG("Renderer", "Vendor: {}", s_Data->RendererCaps.Vendor);
+		PG_CORE_INFO_TAG("Renderer", "Device: {}", s_Data->RendererCaps.Device);
+		PG_CORE_INFO_TAG("Renderer", "Driver Version: {}", s_Data->RendererCaps.Version);
+
 		s_Data->ShaderLibrary = ShadersLibrary::Create();
+
+		s_Data->DescriptorPools.resize(s_RendererConfig.FramesInFlight);
+		s_Data->DescriptorPoolAllocationCount.resize(s_RendererConfig.FramesInFlight);
+
+		// Create Descriptor Pool
+		VkDescriptorPoolSize poolSizes[] =
+		{
+			{ VK_DESCRIPTOR_TYPE_SAMPLER, 1000 },
+			{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000 },
+			{ VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000 },
+			{ VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000 },
+			{ VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1000 },
+			{ VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1000 },
+			{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000 },
+			{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000 },
+			{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000 },
+			{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000 },
+			{ VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000 }
+		};
+
+		VkDescriptorPoolCreateInfo poolInfo = {
+			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
+			.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT, // TODO: WHat about this?
+			.maxSets = 100000,
+			.poolSizeCount = (uint32_t)std::size(poolSizes),
+			.pPoolSizes = poolSizes
+		};
+
+		VkDevice device = RendererContext::GetCurrentDevice()->GetVulkanDevice();
+		uint32_t framesInFlight = Renderer::GetConfig().FramesInFlight;
+		for (uint32_t i = 0; i < framesInFlight; i++)
+		{
+			VK_CHECK_RESULT(vkCreateDescriptorPool(device, &poolInfo, nullptr, &s_Data->DescriptorPools[i]));
+			s_Data->DescriptorPoolAllocationCount[i] = 0;
+		}
 
 		// Create fullscreen quad
 		struct QuadVertex
@@ -71,8 +150,8 @@ namespace vkPlayground {
 		uint32_t indices[6] = { 0, 1, 2, 2, 3, 0 };
 		s_Data->QuadIndexBuffer = IndexBuffer::Create(indices, 6 * sizeof(uint32_t));
 
-		Renderer::GetShadersLibrary()->Load("Shaders/Src/SimpleShader.glsl");
-		Renderer::GetShadersLibrary()->Load("Shaders/Src/TexturePass.glsl");
+		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/SimpleShader.glsl");
+		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/TexturePass.glsl");
 
 		constexpr uint32_t whiteTextureData = 0xffffffff;
 		TextureSpecification spec = {
@@ -94,6 +173,9 @@ namespace vkPlayground {
 
 		VkDevice device = RendererContext::GetCurrentDevice()->GetVulkanDevice();
 		vkDeviceWaitIdle(device);
+
+		for (VkDescriptorPool descriptorPool : s_Data->DescriptorPools)
+			vkDestroyDescriptorPool(device, descriptorPool, nullptr);
 
 		ShaderCompiler::ClearUniformAndStorageBuffers();
 
@@ -120,6 +202,11 @@ namespace vkPlayground {
 		return VulkanAllocator::GetStats();
 	}
 
+	RendererCapabilities& Renderer::GetCapabilities()
+	{
+		return s_Data->RendererCaps;
+	}
+
 	RendererConfiguration& Renderer::GetConfig()
 	{
 		return s_RendererConfig;
@@ -130,10 +217,30 @@ namespace vkPlayground {
 		s_RendererConfig = config;
 	}
 
-	void Renderer::BeginRenderPass(VkCommandBuffer commandBuffer, Ref<RenderPass> renderPass, bool explicitClear)
+	void Renderer::BeginFrame()
+	{
+		Ref<VulkanDevice> logicalDevice = RendererContext::GetCurrentDevice();
+		VkDevice device = logicalDevice->GetVulkanDevice();
+
+		// Reset the command pools of the temporary and secondary command buffers
+		logicalDevice->GetOrCreateThreadLocalCommandPool()->Reset();
+
+		uint32_t bufferIndex = Application::Get().GetWindow().GetSwapChain().GetCurrentBufferIndex();
+		vkResetDescriptorPool(device, s_Data->DescriptorPools[bufferIndex], 0);
+		std::memset(s_Data->DescriptorPoolAllocationCount.data(), 0, s_Data->DescriptorPoolAllocationCount.size() * sizeof(uint32_t));
+
+		s_Data->DrawCallCount = 0;
+	}
+
+	void Renderer::EndFrame()
+	{
+	}
+
+	void Renderer::BeginRenderPass(Ref<RenderCommandBuffer> renderCommandBuffer, Ref<RenderPass> renderPass, bool explicitClear)
 	{
 		// PG_CORE_TRACE_TAG("Renderer", "BeginRenderPass - {}", renderPass->GetSpecification().DebugName);
 
+		VkCommandBuffer commandBuffer = renderCommandBuffer->GetActiveCommandBuffer();
 		uint32_t frameIndex = Renderer::GetCurrentFrameIndex();
 
 		VkDebugUtilsLabelEXT debugLabel = {
@@ -256,8 +363,6 @@ namespace vkPlayground {
 		};
 		vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
-		// TODO: Auto layout transitions for input resources
-
 		Ref<Pipeline> pipeline = renderPass->GetPipeline();
 		VkPipeline vulkanPipeline = pipeline->GetVulkanPipeline();
 		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkanPipeline);
@@ -282,16 +387,18 @@ namespace vkPlayground {
 		}
 	}
 
-	void Renderer::EndRenderPass(VkCommandBuffer commandBuffer)
+	void Renderer::EndRenderPass(Ref<RenderCommandBuffer> renderCommandBuffer)
 	{
+		VkCommandBuffer commandBuffer = renderCommandBuffer->GetActiveCommandBuffer();
+
 		vkCmdEndRenderPass(commandBuffer);
 		fpCmdEndDebugUtilsLabelEXT(commandBuffer);
 	}
 
-	void Renderer::SubmitFullScreenQuad(VkCommandBuffer commandBuffer, Ref<Pipeline> pipeline, Ref<Material> material)
+	void Renderer::SubmitFullScreenQuad(Ref<RenderCommandBuffer> renderCommandBuffer, Ref<Pipeline> pipeline, Ref<Material> material)
 	{
 		uint32_t frameIndex = Renderer::GetCurrentFrameIndex();
-		VkCommandBuffer vkCommandBuffer = commandBuffer;
+		VkCommandBuffer vkCommandBuffer = renderCommandBuffer->GetActiveCommandBuffer();
 
 		VkPipelineLayout layout = pipeline->GetVulkanPipelineLayout();
 
@@ -320,6 +427,19 @@ namespace vkPlayground {
 		}
 
 		vkCmdDrawIndexed(vkCommandBuffer, s_Data->QuadIndexBuffer->GetCount(), 1, 0, 0, 0);
+		s_Data->DrawCallCount++;
+	}
+
+	VkDescriptorSet Renderer::AllocateDescriptorSet(VkDescriptorSetAllocateInfo& allocInfo)
+	{
+		VkDescriptorSet result;
+
+		uint32_t bufferIndex = Renderer::GetCurrentFrameIndex();
+		allocInfo.descriptorPool = s_Data->DescriptorPools[bufferIndex];
+		VK_CHECK_RESULT(vkAllocateDescriptorSets(RendererContext::GetCurrentDevice()->GetVulkanDevice(), &allocInfo, &result));
+		s_Data->DescriptorPoolAllocationCount[bufferIndex] += allocInfo.descriptorSetCount;
+
+		return result;
 	}
 
 	Ref<Texture2D> Renderer::GetWhiteTexture()

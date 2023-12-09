@@ -27,8 +27,10 @@ project "ImGui"
 
     includedirs
     {
+        "../../../src",
         "%{IncludeDir.GLFW}",
-        "%{IncludeDir.VulkanSDK}"         
+        "%{IncludeDir.VulkanSDK}",
+        "%{IncludeDir.spdlog}"
     }
 
     filter "system:windows"

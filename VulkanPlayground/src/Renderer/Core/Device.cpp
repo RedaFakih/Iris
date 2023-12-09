@@ -3,6 +3,7 @@
 
 #include "Renderer/Core/RendererContext.h"
 #include "Renderer/Core/Vulkan.h"
+#include "Renderer/Renderer.h"
 
 namespace vkPlayground {
 
@@ -253,10 +254,27 @@ namespace vkPlayground {
 		GetThreadLocalCommandPool()->FlushCommandBuffer(commandBuffer, queue);
 	}
 
+	VkCommandBuffer VulkanDevice::CreateSecondaryCommandBuffer(const char* debugName)
+	{
+		VkCommandBuffer cmdBuffer = nullptr;
+
+		VkCommandBufferAllocateInfo allocInfo = {
+			.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+			.commandPool = GetOrCreateThreadLocalCommandPool()->GetGraphicsCommandPool(Renderer::GetCurrentFrameIndex()),
+			.level = VK_COMMAND_BUFFER_LEVEL_SECONDARY,
+			.commandBufferCount = 1
+		};
+
+		VK_CHECK_RESULT(vkAllocateCommandBuffers(m_LogicalDevice, &allocInfo, &cmdBuffer));
+		VKUtils::SetDebugUtilsObjectName(m_LogicalDevice, VK_OBJECT_TYPE_COMMAND_BUFFER, debugName, cmdBuffer);
+
+		return cmdBuffer;
+	}
+
 	Ref<VulkanCommandPool> VulkanDevice::GetThreadLocalCommandPool()
 	{
 		std::thread::id threadID = std::this_thread::get_id();
-		PG_ASSERT(m_CommandPools.find(threadID) != m_CommandPools.end(), "Not Found!");
+		PG_ASSERT(m_CommandPools.contains(threadID), "Not found!");
 
 		return m_CommandPools.at(threadID);
 	}
@@ -284,11 +302,15 @@ namespace vkPlayground {
 
 		VkCommandPoolCreateInfo commandPoolInfo = {
 			.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
-			.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT, 
+			.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT,
 			.queueFamilyIndex = (uint32_t)device->GetPhysicalDevice()->GetQueueFamilyIndices().Graphics,
 		};
 
-		VK_CHECK_RESULT(vkCreateCommandPool(vulkanDevice, &commandPoolInfo, nullptr, &m_GraphicsCommandPool));
+		uint32_t framesInFlight = Renderer::GetConfig().FramesInFlight;
+
+		m_GraphicsCommandPools.resize(framesInFlight);
+		for (uint32_t i = 0; i < framesInFlight; i++)
+			VK_CHECK_RESULT(vkCreateCommandPool(vulkanDevice, &commandPoolInfo, nullptr, &m_GraphicsCommandPools[i]));
 
 		// TODO: Also for m_ComputeCommandPool
 	}
@@ -297,7 +319,9 @@ namespace vkPlayground {
 	{
 		VkDevice device = RendererContext::GetCurrentDevice()->GetVulkanDevice();
 
-		vkDestroyCommandPool(device, m_GraphicsCommandPool, nullptr);
+		for(uint32_t i = 0; i < m_GraphicsCommandPools.size(); i++)
+			vkDestroyCommandPool(device, m_GraphicsCommandPools[i], nullptr);
+
 		// TODO: Also for m_ComputeCommandPool
 	}
 
@@ -306,13 +330,24 @@ namespace vkPlayground {
 		return CreateRef<VulkanCommandPool>();
 	}
 
+	void VulkanCommandPool::Reset()
+	{
+		VkDevice device = RendererContext::GetCurrentDevice()->GetVulkanDevice();
+		uint32_t frameIndex = Renderer::GetCurrentFrameIndex();
+
+		vkResetCommandPool(device, m_GraphicsCommandPools[frameIndex], 0);
+
+		// TODO: For compute command pool
+	}
+
 	VkCommandBuffer VulkanCommandPool::AllocateCommandBuffer(bool begin/* , bool compute */)
 	{
 		VkDevice device = RendererContext::GetCurrentDevice()->GetVulkanDevice();
+		uint32_t frameIndex = Renderer::GetCurrentFrameIndex();
 
 		VkCommandBufferAllocateInfo allocateInfo = {
 			.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
-			.commandPool = m_GraphicsCommandPool, // compute ? m_ComputeCommandPool : m_GraphicsCommandPool
+			.commandPool = m_GraphicsCommandPools[frameIndex], // compute ? m_ComputeCommandPool : m_GraphicsCommandPool
 			.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
 			.commandBufferCount = 1
 		};
@@ -323,7 +358,9 @@ namespace vkPlayground {
 		// In case we want to start the new command buffer directly
 		if (begin)
 		{
-			VkCommandBufferBeginInfo beginInfo = { .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
+			VkCommandBufferBeginInfo beginInfo = { 
+				.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+			};
 			VK_CHECK_RESULT(vkBeginCommandBuffer(commandBuffer, &beginInfo));
 		}
 
@@ -339,6 +376,7 @@ namespace vkPlayground {
 	void VulkanCommandPool::FlushCommandBuffer(VkCommandBuffer commandBuffer, VkQueue queue)
 	{
 		VkDevice device = RendererContext::GetCurrentDevice()->GetVulkanDevice();
+		uint32_t frameIndex = Renderer::GetCurrentFrameIndex();
 
 		PG_ASSERT(commandBuffer != VK_NULL_HANDLE, "Can't flush a null buffer");
 
@@ -365,6 +403,6 @@ namespace vkPlayground {
 		VK_CHECK_RESULT(vkWaitForFences(device, 1, &fence, VK_TRUE, UINT64_MAX));
 
 		vkDestroyFence(device, fence, nullptr);
-		vkFreeCommandBuffers(device, m_GraphicsCommandPool, 1, &commandBuffer);
+		vkFreeCommandBuffers(device, m_GraphicsCommandPools[frameIndex], 1, &commandBuffer);
 	}
 }

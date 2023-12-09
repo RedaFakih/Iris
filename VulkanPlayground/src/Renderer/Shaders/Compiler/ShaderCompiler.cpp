@@ -19,7 +19,7 @@ namespace vkPlayground {
 
 		inline static std::string CreateCacheDirIfNeeded()
 		{
-			std::string cacheDir = "Shaders/Cache";
+			std::string cacheDir = "Resources/Shaders/Cache";
 			if (!std::filesystem::exists(cacheDir))
 				std::filesystem::create_directories(cacheDir);
 

@@ -58,17 +58,17 @@ namespace vkPlayground {
 		{
 			m_CameraType = CameraType::BlenderCam;
 
-			if (Input::IsMouseButtonPressed(MouseButton::ButtonRight))
+			if (Input::IsMouseButtonDown(MouseButton::ButtonRight))
 			{
 				Utils::DisableMouse();
 				MouseRotate(delta);
 			}
-			else if (Input::IsMouseButtonPressed(MouseButton::ButtonLeft))
+			else if (Input::IsMouseButtonDown(MouseButton::ButtonLeft))
 			{
 				Utils::DisableMouse();
 				MousePan(delta);
 			}
-			else if (Input::IsMouseButtonPressed(MouseButton::ButtonMiddle))
+			else if (Input::IsMouseButtonDown(MouseButton::ButtonMiddle))
 			{
 				Utils::DisableMouse();
 				MouseZoom((delta.x + delta.y) * 0.1f);
@@ -76,7 +76,7 @@ namespace vkPlayground {
 			else
 				Utils::EnableMouse();
 		}
-		else if (Input::IsMouseButtonPressed(MouseButton::ButtonRight) && !Input::IsKeyDown(KeyCode::LeftAlt))
+		else if (Input::IsMouseButtonDown(MouseButton::ButtonRight) && !Input::IsKeyDown(KeyCode::LeftAlt))
 		{
 			m_CameraType = CameraType::FirstPerson;
 			Utils::DisableMouse();

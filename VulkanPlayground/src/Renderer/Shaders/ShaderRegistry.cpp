@@ -7,7 +7,7 @@
 
 namespace vkPlayground {
 
-	constexpr static const char* s_ShaderRegistryPath = "Shaders/ShaderRegistry.cache";
+	constexpr static const char* s_ShaderRegistryPath = "Resources/Shaders/ShaderRegistry.cache";
 
 	VkShaderStageFlagBits ShaderRegistry::HasChanged(Ref<ShaderCompiler> shaderCompiler)
 	{

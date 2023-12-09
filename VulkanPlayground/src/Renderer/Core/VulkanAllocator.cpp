@@ -91,6 +91,7 @@ namespace vkPlayground {
 
 #if LOG_MEMORY_USAGE_MESSAGES
 		PG_CORE_INFO_TAG("VulkanAllocator", "{}: Total allocated since start: {}", m_Name, Utils::BytesToString(s_Data->TotalAllocatedBytes));
+		// PG_CORE_INFO_TAG("VulkanAllocator", "{}: Memory Usage: {}", m_Name, Utils::BytesToString(s_Data->MemoryUsage));
 #endif
 
 		s_AllocationMap[allocation] = {
@@ -148,6 +149,7 @@ namespace vkPlayground {
 
 #if LOG_MEMORY_USAGE_MESSAGES
 		PG_CORE_INFO_TAG("VulkanAllocator", "{}: Total allocated since start: {}", m_Name, Utils::BytesToString(s_Data->TotalAllocatedBytes));
+		// PG_CORE_INFO_TAG("VulkanAllocator", "{}: Memory Usage: {}", m_Name, Utils::BytesToString(s_Data->MemoryUsage));
 #endif
 
 		s_AllocationMap[allocation] = {

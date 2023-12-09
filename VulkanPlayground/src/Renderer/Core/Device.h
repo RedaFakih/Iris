@@ -87,16 +87,22 @@ namespace vkPlayground {
 
 		static Ref<VulkanCommandPool> Create();
 
+		// TODO: Maybe add a reset function that resets the pool at the beginning of each frame?
+		// Since the buffers that are being allocated and used from this pool are only one time use buffers or buffers that implicitly reset
+		// every frame
+		void Reset();
+
 		VkCommandBuffer AllocateCommandBuffer(bool begin /* , bool compute = false */);
 		void FlushCommandBuffer(VkCommandBuffer commandBuffer);
 		void FlushCommandBuffer(VkCommandBuffer commandBuffer, VkQueue queue);
 
-		VkCommandPool GetGraphicsCommandPool() const { return m_GraphicsCommandPool; }
-		// TODO: VkCommandPool GetComputeCommandPool() const { return m_ComputeCommandPool; }
+		VkCommandPool GetGraphicsCommandPool(uint32_t frameIndex) const { PG_ASSERT(frameIndex < m_GraphicsCommandPools.size(), ""); return m_GraphicsCommandPools[frameIndex]; }
+		// TODO: VkCommandPool GetComputeCommandPool(uint32_t frameIndex) const { PG_ASSERT(frameIndex < m_GraphicsCommandPools.size(), ""); return m_ComputeCommandPools[frameIndex]; }
 
 	private:
-		VkCommandPool m_GraphicsCommandPool;
-		// TODO: VkCommandPool m_ComputeCommandPool;
+		// Per-frame command pools to get better perf
+		std::vector<VkCommandPool> m_GraphicsCommandPools;
+		// TODO: std::vector<VkCommandPool> m_ComputeCommandPools;
 	};
 
 	// Vulkan Logical Device
@@ -117,6 +123,8 @@ namespace vkPlayground {
 		void FlushCommandBuffer(VkCommandBuffer commandBuffer); // Defaults to the Graphics queue
 		void FlushCommandBuffer(VkCommandBuffer commandBuffer, VkQueue queue);
 
+		VkCommandBuffer CreateSecondaryCommandBuffer(const char* debugName);
+
 		const Ref<VulkanPhysicalDevice> GetPhysicalDevice() const { return m_PhysicalDevice; }
 		VkDevice GetVulkanDevice() const { return m_LogicalDevice; }
 
@@ -133,6 +141,8 @@ namespace vkPlayground {
 		// TODO: VkQueue m_ComputeQueue;
 
 		std::map<std::thread::id, Ref<VulkanCommandPool>> m_CommandPools;
+
+		friend class Renderer;
 	};
 
 }

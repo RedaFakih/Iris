@@ -57,7 +57,7 @@ struct ImGui_ImplVulkan_InitInfo
     VkPipelineCache                 PipelineCache;
     VkDescriptorPool                DescriptorPool;
     uint32_t                        Subpass;
-    uint32_t                        MinImageCount;          // >= 2
+    uint32_t                        MinImageCount;          // >= 3
     uint32_t                        ImageCount;             // >= MinImageCount
     VkSampleCountFlagBits           MSAASamples;            // >= VK_SAMPLE_COUNT_1_BIT (0 -> default to VK_SAMPLE_COUNT_1_BIT)
     const VkAllocationCallbacks*    Allocator;
@@ -75,11 +75,8 @@ IMGUI_IMPL_API void         ImGui_ImplVulkan_SetMinImageCount(uint32_t min_image
 
 // Register a texture (VkDescriptorSet == ImTextureID)
 // FIXME: This is experimental in the sense that we are unsure how to best design/tackle this problem, please post to https://github.com/ocornut/imgui/pull/914 if you have suggestions.
-IMGUI_IMPL_API VkDescriptorSet ImGui_ImplVulkan_AddTexture(VkSampler sampler, VkImageView image_view, VkImageLayout image_layout);
-
-// Optional: load Vulkan functions with a custom function loader
-// This is only useful with IMGUI_IMPL_VULKAN_NO_PROTOTYPES / VK_NO_PROTOTYPES
-IMGUI_IMPL_API bool         ImGui_ImplVulkan_LoadFunctions(PFN_vkVoidFunction(*loader_func)(const char* function_name, void* user_data), void* user_data = NULL);
+IMGUI_IMPL_API ImTextureID ImGui_ImplVulkan_AddTexture(VkSampler sampler, VkImageView image_view, VkImageLayout image_layout);
+IMGUI_IMPL_API ImTextureID ImGui_ImplVulkan_UpdateTextureInfo(VkDescriptorSet descSet, VkSampler sampler, VkImageView image_view, VkImageLayout image_layout);
 
 //-------------------------------------------------------------------------
 // Internal / Miscellaneous Vulkan Helpers

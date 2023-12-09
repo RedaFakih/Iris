@@ -116,20 +116,20 @@ namespace vkPlayground::Utils {
 		return "";
 	}
 
-	// inline void VulkanCheckResult(VkResult res)
-	// {
-	// 	if (res != VK_SUCCESS)
-	// 	{
-	// 		PG_CORE_ERROR_TAG("Vulkan", "VkResult is `{0}`", VKResultToString(res));
-	// 		if (res == VK_ERROR_DEVICE_LOST)
-	// 		{
-	// 			using namespace std::chrono_literals;
-	// 			std::this_thread::sleep_for(3s);
-	// 		}
-	// 
-	// 		PG_ASSERT(res == VK_SUCCESS, "Device lost!");
-	// 	}
-	// }
+	inline void VulkanCheckResult(VkResult res)
+	{
+		if (res != VK_SUCCESS)
+		{
+			PG_CORE_ERROR_TAG("Vulkan", "VkResult is `{0}`", VKResultToString(res));
+			if (res == VK_ERROR_DEVICE_LOST)
+			{
+				using namespace std::chrono_literals;
+				std::this_thread::sleep_for(3s);
+			}
+	
+			PG_ASSERT(res == VK_SUCCESS, "Device lost!");
+		}
+	}
 
 	inline void VulkanCheckResult(VkResult res, const char* file, int line)
 	{

@@ -23,13 +23,11 @@ namespace vkPlayground {
 		KeyState OldState = KeyState::None;
 	};
 
-	struct Controller
+	struct ButtonData
 	{
-		int ID;
-		std::string Name;
-		std::map<int, bool> ButtonStates;
-		std::map<int, float> AxisStates;
-		std::map<int, uint8_t> HatStates;
+		MouseButton Button;
+		KeyState State = KeyState::None;
+		KeyState OldState = KeyState::None;
 	};
 
 	class Input
@@ -42,33 +40,27 @@ namespace vkPlayground {
 		static bool IsKeyReleased(KeyCode keyCode);
 
 		// Mouse
-		static bool IsMouseButtonPressed(MouseButton mouseCode);
+		static bool IsMouseButtonPressed(MouseButton button);
+		static bool IsMouseButtonHeld(MouseButton button);
+		static bool IsMouseButtonDown(MouseButton button);
+		static bool IsMouseButtonReleased(MouseButton button);
 		static std::pair<float, float> GetMousePosition();
 		static float GetMouseX();
 		static float GetMouseY();
-
-		// Controller
-		static bool IsControllerPresent(int id);
-		static std::vector<int> GetConnectedControllerIDs();
-		static const Controller* GetController(int id);
-		static std::string_view GetControllerName(int id);
-		static bool IsControllerButtonPressed(int id, int button);
-		static float GetControllerAxis(int id, int axis);
-		static uint8_t GetControllerHat(int id, int hat);
-		static const std::map<int, Controller>& GetControllers() { return s_Controllers; }
 
 		static void SetCursorMode(CursorMode mode);
 		[[nodiscard]] static CursorMode GetCursorMode();
 
 	private:
 		static void TransitionPressedKeys();
+		static void TransitionPressedButtons();
 		static void ClearReleasedKeys();
 		static void UpdateKeyState(KeyCode key, KeyState newState);
-		static void Update();
+		static void UpdateButtonState(MouseButton button, KeyState newState);
 
 	private:
-		static std::map<KeyCode, KeyData> s_KeyData;
-		static std::map<int, Controller> s_Controllers;
+		inline static std::map<KeyCode, KeyData> s_KeyData;
+		inline static std::map<MouseButton, ButtonData> s_ButtonData;
 
 		friend class Application;
 		friend class Window;

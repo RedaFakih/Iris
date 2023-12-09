@@ -294,12 +294,15 @@ namespace vkPlayground {
 			};
 
 			m_CommandBuffers.resize(m_ImageCount);
+			int i = 0;
 			for (auto& commandBuffer : m_CommandBuffers)
 			{
 				VK_CHECK_RESULT(vkCreateCommandPool(device, &commandPoolInfo, nullptr, &commandBuffer.CommandPool));
 
 				cbAllocateInfo.commandPool = commandBuffer.CommandPool;
 				VK_CHECK_RESULT(vkAllocateCommandBuffers(device, &cbAllocateInfo, &commandBuffer.CommandBuffer));
+				VKUtils::SetDebugUtilsObjectName(device, VK_OBJECT_TYPE_COMMAND_BUFFER, fmt::format("SwapChainCommandBuffer {}", i), commandBuffer.CommandBuffer);
+				i++;
 			}
 		}
 

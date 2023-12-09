@@ -1,5 +1,5 @@
 project "VulkanPlayground"
-    kind "ConsoleApp"
+    kind "StaticLib"
     language "C++"
     cppdialect "C++20"
     staticruntime "off"
@@ -98,5 +98,5 @@ project "VulkanPlayground"
     filter "files:dependencies/Vma/**.cpp"
         flags { "NoPCH" }
 
-    filter "files:src/Main.cpp"
+    filter "files:src/ImGui/imgui_demo.cpp"
         flags { "NoPCH" }

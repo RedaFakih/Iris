@@ -1,0 +1,290 @@
+#include "vkPch.h"
+#include "ImGuiLayer.h"
+
+#include "Core/Application.h"
+#include "Renderer/Core/RendererContext.h"
+#include "Renderer/Core/Vulkan.h"
+#include "Renderer/Renderer.h"
+#include "Themes.h"
+
+#include <imgui/imgui_impl_glfw.h>
+#include <imgui/imgui_impl_vulkan.h>
+
+namespace vkPlayground {
+
+	static VkDescriptorPool s_ImGuiDescriptorPool = nullptr;
+
+    ImGuiLayer::ImGuiLayer()
+    {
+    }
+
+    ImGuiLayer::~ImGuiLayer()
+    {
+    }
+
+    ImGuiLayer* ImGuiLayer::Create()
+    {
+        return new ImGuiLayer();
+    }
+
+    void ImGuiLayer::OnAttach()
+    {
+		// Setup Dear ImGui context
+		IMGUI_CHECKVERSION();
+		ImGui::CreateContext();
+		ImGuiIO& io = ImGui::GetIO();
+		io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;       // Enable Keyboard Controls
+		io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;           // Enable Docking
+		io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;         // Enable Multi-Viewport / Platform Windows
+
+		// TODO: Configure Fonts
+
+		// Setup Dear ImGui style
+		ImGui::StyleColorsDark();
+		SetDarkThemeColors();
+		
+		ImGuiStyle& style = ImGui::GetStyle();
+		if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+		{
+			style.WindowRounding = 0.0f;
+			style.Colors[ImGuiCol_WindowBg].w = 1.0f;
+		}
+		style.Colors[ImGuiCol_WindowBg] = ImVec4(0.15f, 0.15f, 0.15f, style.Colors[ImGuiCol_WindowBg].w);
+
+		Application& app = Application::Get();
+		GLFWwindow* window = app.GetWindow().GetNativeWindow();
+		VkDevice device = RendererContext::GetCurrentDevice()->GetVulkanDevice();
+
+		// Create a descriptor pool in order to allocate all the descriptor sets for the imgui textures
+		// Create Descriptor Pool (vkGuide)
+		VkDescriptorPoolSize poolSizes[] =
+		{
+			{ VK_DESCRIPTOR_TYPE_SAMPLER, 100 },
+			{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 100 },
+			{ VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 100 },
+			{ VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 100 },
+			{ VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 100 },
+			{ VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 100 },
+			{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 100 },
+			{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 100 },
+			{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 100 },
+			{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 100 },
+			{ VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 100 }
+		};
+
+		VkDescriptorPoolCreateInfo descPoolCI = {
+			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
+			.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT, // TODO: WHat about this?
+			.maxSets = 100 * IM_ARRAYSIZE(poolSizes),
+			.poolSizeCount = static_cast<uint32_t>(IM_ARRAYSIZE(poolSizes)),
+			.pPoolSizes = poolSizes
+		};
+		VK_CHECK_RESULT(vkCreateDescriptorPool(device, &descPoolCI, nullptr, &s_ImGuiDescriptorPool));
+
+		ImGui_ImplGlfw_InitForVulkan(window, true);
+		ImGui_ImplVulkan_InitInfo initInfo = {
+			.Instance = RendererContext::GetInstance(),
+			.PhysicalDevice = RendererContext::GetCurrentDevice()->GetPhysicalDevice()->GetVulkanPhysicalDevice(),
+			.Device = device,
+			.QueueFamily = static_cast<uint32_t>(RendererContext::GetCurrentDevice()->GetPhysicalDevice()->GetQueueFamilyIndices().Graphics),
+			.Queue = RendererContext::GetCurrentDevice()->GetGraphicsQueue(),
+			.PipelineCache = nullptr,
+			.DescriptorPool = s_ImGuiDescriptorPool,
+			.MinImageCount = 3,
+			.ImageCount = Application::Get().GetWindow().GetSwapChain().GetImageCount(),
+			.Allocator = nullptr,
+			.CheckVkResultFn = Utils::VulkanCheckResult
+		};
+		ImGui_ImplVulkan_Init(&initInfo, Application::Get().GetWindow().GetSwapChain().GetRenderPass());
+
+		// Upload fonts
+		{
+			VkCommandBuffer commandBuffer = RendererContext::GetCurrentDevice()->GetCommandBuffer(true);
+			ImGui_ImplVulkan_CreateFontsTexture(commandBuffer);
+			RendererContext::GetCurrentDevice()->FlushCommandBuffer(commandBuffer);
+		}
+    }
+
+    void ImGuiLayer::OnDetach()
+    {
+        VkDevice device = RendererContext::GetCurrentDevice()->GetVulkanDevice();
+
+		Renderer::SubmitReseourceFree([device, descriptorPool = s_ImGuiDescriptorPool]()
+		{
+			vkDestroyDescriptorPool(device, descriptorPool, nullptr);
+		});
+
+        VK_CHECK_RESULT(vkDeviceWaitIdle(device));
+        ImGui_ImplVulkan_Shutdown();
+        ImGui_ImplGlfw_Shutdown();
+        ImGui::DestroyContext();
+    }
+
+	void ImGuiLayer::Begin()
+	{
+		ImGui_ImplVulkan_NewFrame();
+		ImGui_ImplGlfw_NewFrame();
+		ImGui::NewFrame();
+		// ImGuizmo::BeginFrame();
+	}
+
+	void ImGuiLayer::End()
+	{
+		ImGui::Render();
+
+		// Begin render pass that renders to swap chain
+		// inherit command buffer from swapchain
+		// render
+		// end renderpass
+
+		SwapChain& swapChain = Application::Get().GetWindow().GetSwapChain();
+
+		uint32_t width = swapChain.GetWidth();
+		uint32_t height = swapChain.GetHeight();
+		uint32_t commandBufferIndex = swapChain.GetCurrentBufferIndex();
+
+		VkCommandBufferBeginInfo drawCmdBufferBeginInfo = {
+			.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+			.pNext = nullptr,
+			.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT
+		};
+
+		VkCommandBuffer drawCommandBuffer = swapChain.GetCurrentDrawCommandBuffer();
+		VK_CHECK_RESULT(vkBeginCommandBuffer(drawCommandBuffer, &drawCmdBufferBeginInfo));
+
+		VkClearValue clearValue = {
+			.color = { .float32{ 0.1f, 0.1f, 0.1f, 1.0f } }
+		};
+
+		VkRenderPassBeginInfo renderPassBeginInfo = {
+			.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
+			.pNext = nullptr,
+			.renderPass = swapChain.GetRenderPass(),
+			.framebuffer = swapChain.GetCurrentFramebuffer(),
+			.renderArea = {
+				.offset = { 0, 0 },
+				.extent = { width, height }
+			},
+			.clearValueCount = 1,
+			.pClearValues = &clearValue
+		};
+
+		vkCmdBeginRenderPass(drawCommandBuffer, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+
+		VkViewport viewport = {
+			.x = 0.0f,
+			.y = static_cast<float>(height),
+			.width = static_cast<float>(width),
+			.height = -static_cast<float>(height),
+			.minDepth = 0.0f,
+			.maxDepth = 1.0f
+		};
+		vkCmdSetViewport(drawCommandBuffer, 0, 1, &viewport);
+
+		VkRect2D scissor = {
+			.offset = {.x = 0, .y = 0 },
+			.extent = {.width = width, .height = height }
+		};
+		vkCmdSetScissor(drawCommandBuffer, 0, 1, &scissor);
+
+		ImDrawData* mainDrawData = ImGui::GetDrawData();
+		ImGui_ImplVulkan_RenderDrawData(mainDrawData, drawCommandBuffer);
+
+		vkCmdEndRenderPass(drawCommandBuffer);
+
+		VK_CHECK_RESULT(vkEndCommandBuffer(drawCommandBuffer));
+
+		// Update and Render additional Platform Windows
+		ImGuiIO& io = ImGui::GetIO();
+		if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+		{
+			ImGui::UpdatePlatformWindows();
+			ImGui::RenderPlatformWindowsDefault();
+		}
+	}
+
+    void ImGuiLayer::SetDarkThemeColors()
+    {
+		ImGuiStyle& style = ImGui::GetStyle();
+		ImVec4 (&colors)[55] = ImGui::GetStyle().Colors;
+
+		//========================================================
+		/// Colours
+
+		// Headers
+		colors[ImGuiCol_Header] = ImGui::ColorConvertU32ToFloat4(Colors::Theme::groupHeader);
+		colors[ImGuiCol_HeaderHovered] = ImGui::ColorConvertU32ToFloat4(Colors::Theme::groupHeader);
+		colors[ImGuiCol_HeaderActive] = ImGui::ColorConvertU32ToFloat4(Colors::Theme::groupHeader);
+
+		// Buttons
+		colors[ImGuiCol_Button] = ImColor(56, 56, 56, 200);
+		colors[ImGuiCol_ButtonHovered] = ImColor(70, 70, 70, 255);
+		colors[ImGuiCol_ButtonActive] = ImColor(56, 56, 56, 150);
+
+		// Frame BG
+		colors[ImGuiCol_FrameBg] = ImGui::ColorConvertU32ToFloat4(Colors::Theme::propertyField);
+		colors[ImGuiCol_FrameBgHovered] = ImGui::ColorConvertU32ToFloat4(Colors::Theme::propertyField);
+		colors[ImGuiCol_FrameBgActive] = ImGui::ColorConvertU32ToFloat4(Colors::Theme::propertyField);
+
+		// Tabs
+		colors[ImGuiCol_Tab] = ImGui::ColorConvertU32ToFloat4(Colors::Theme::titlebar);
+		colors[ImGuiCol_TabHovered] = ImColor(255, 225, 135, 30);
+		colors[ImGuiCol_TabActive] = ImColor(255, 225, 135, 60);
+		colors[ImGuiCol_TabUnfocused] = ImGui::ColorConvertU32ToFloat4(Colors::Theme::titlebar);
+		colors[ImGuiCol_TabUnfocusedActive] = colors[ImGuiCol_TabHovered];
+
+		// Title
+		colors[ImGuiCol_TitleBg] = ImGui::ColorConvertU32ToFloat4(Colors::Theme::titlebar);
+		colors[ImGuiCol_TitleBgActive] = ImGui::ColorConvertU32ToFloat4(Colors::Theme::titlebar);
+		colors[ImGuiCol_TitleBgCollapsed] = ImVec4{ 0.15f, 0.1505f, 0.151f, 1.0f };
+
+		// Resize Grip
+		colors[ImGuiCol_ResizeGrip] = ImVec4(0.91f, 0.91f, 0.91f, 0.25f);
+		colors[ImGuiCol_ResizeGripHovered] = ImVec4(0.81f, 0.81f, 0.81f, 0.67f);
+		colors[ImGuiCol_ResizeGripActive] = ImVec4(0.46f, 0.46f, 0.46f, 0.95f);
+
+		// Scrollbar
+		colors[ImGuiCol_ScrollbarBg] = ImVec4(0.02f, 0.02f, 0.02f, 0.53f);
+		colors[ImGuiCol_ScrollbarGrab] = ImVec4(0.31f, 0.31f, 0.31f, 1.0f);
+		colors[ImGuiCol_ScrollbarGrabHovered] = ImVec4(0.41f, 0.41f, 0.41f, 1.0f);
+		colors[ImGuiCol_ScrollbarGrabActive] = ImVec4(0.51f, 0.51f, 0.51f, 1.0f);
+
+		// Check Mark
+		colors[ImGuiCol_CheckMark] = ImColor(200, 200, 200, 255);
+
+		// Slider
+		colors[ImGuiCol_SliderGrab] = ImVec4(0.51f, 0.51f, 0.51f, 0.7f);
+		colors[ImGuiCol_SliderGrabActive] = ImVec4(0.66f, 0.66f, 0.66f, 1.0f);
+
+		// Text
+		colors[ImGuiCol_Text] = ImGui::ColorConvertU32ToFloat4(Colors::Theme::text);
+
+		// Checkbox
+		colors[ImGuiCol_CheckMark] = ImGui::ColorConvertU32ToFloat4(Colors::Theme::text);
+
+		// Separator
+		colors[ImGuiCol_Separator] = ImGui::ColorConvertU32ToFloat4(Colors::Theme::backgroundDark);
+		colors[ImGuiCol_SeparatorActive] = ImGui::ColorConvertU32ToFloat4(Colors::Theme::highlight);
+		colors[ImGuiCol_SeparatorHovered] = ImColor(39, 185, 242, 150);
+
+		// Window Background
+		colors[ImGuiCol_WindowBg] = ImGui::ColorConvertU32ToFloat4(Colors::Theme::titlebar);
+		colors[ImGuiCol_ChildBg] = ImGui::ColorConvertU32ToFloat4(Colors::Theme::background);
+		colors[ImGuiCol_PopupBg] = ImGui::ColorConvertU32ToFloat4(Colors::Theme::backgroundPopup);
+		colors[ImGuiCol_Border] = ImGui::ColorConvertU32ToFloat4(Colors::Theme::backgroundDark);
+
+		// Tables
+		colors[ImGuiCol_TableHeaderBg] = ImGui::ColorConvertU32ToFloat4(Colors::Theme::groupHeader);
+		colors[ImGuiCol_TableBorderLight] = ImGui::ColorConvertU32ToFloat4(Colors::Theme::backgroundDark);
+
+		// Menubar
+		colors[ImGuiCol_MenuBarBg] = ImVec4{ 0.0f, 0.0f, 0.0f, 0.0f };
+
+		//========================================================
+		/// Style
+		style.FrameRounding = 2.5f;
+		style.FrameBorderSize = 1.0f;
+		style.IndentSpacing = 11.0f;
+    }
+
+}

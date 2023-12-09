@@ -5,6 +5,7 @@
 #include "Renderer/Core/RenderCommandQueue.h"
 #include "Renderer/Core/RendererContext.h"
 #include "RendererConfiguration.h"
+#include "RendererCapabilities.h"
 
 namespace vkPlayground {
 
@@ -15,6 +16,7 @@ namespace vkPlayground {
 	class RenderPass;
 	class Pipeline;
 	class Material;
+	class RenderCommandBuffer;
 
 	class Renderer
 	{
@@ -26,6 +28,7 @@ namespace vkPlayground {
 
 		static Ref<ShadersLibrary> GetShadersLibrary();
 		static GPUMemoryStats GetGPUMemoryStats();
+		static RendererCapabilities& GetCapabilities();
 		static RendererConfiguration& GetConfig();
 		static void SetConfig(const RendererConfiguration& config);
 
@@ -53,10 +56,15 @@ namespace vkPlayground {
 			new(storageBuffer) FuncT(std::forward<FuncT>((FuncT&&)func));
 		}
 
-		static void BeginRenderPass(VkCommandBuffer commandBuffer, Ref<RenderPass> renderPass, bool explicitClear = false);
-		static void EndRenderPass(VkCommandBuffer commandBuffer);
+		static void BeginFrame();
+		static void EndFrame();
 
-		static void SubmitFullScreenQuad(VkCommandBuffer commandBuffer, Ref<Pipeline> pipeline, Ref<Material> material);
+		static void BeginRenderPass(Ref<RenderCommandBuffer> renderCommandBuffer, Ref<RenderPass> renderPass, bool explicitClear = false);
+		static void EndRenderPass(Ref<RenderCommandBuffer> renderCommandBuffer);
+
+		static void SubmitFullScreenQuad(Ref<RenderCommandBuffer> renderCommandBuffer, Ref<Pipeline> pipeline, Ref<Material> material);
+
+		static VkDescriptorSet AllocateDescriptorSet(VkDescriptorSetAllocateInfo& allocInfo);
 
 		static Ref<Texture2D> GetWhiteTexture();
 		static Ref<Texture2D> GetBlackTexture();

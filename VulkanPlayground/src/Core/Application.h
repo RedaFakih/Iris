@@ -1,10 +1,12 @@
 #pragma once
 
 #include "Base.h"
+#include "LayerStack.h"
 #include "Events/Events.h"
 #include "Renderer/RendererConfiguration.h"
 #include "TimeStep.h"
 #include "Window.h"
+#include "ImGui/ImGuiLayer.h"
 
 #include <vulkan/vulkan.h>
 
@@ -22,6 +24,7 @@ namespace vkPlayground {
 		std::string WorkingDirectory;
 		bool StartMaximized = true;
 		bool Resizable = true;
+		bool EnableImGui = false;
 		RendererConfiguration RendererConfig;
 	};
 
@@ -29,14 +32,23 @@ namespace vkPlayground {
 	{
 	public:
 		Application(const ApplicationSpecification& spec);
-		~Application();
+		virtual ~Application();
+
+		virtual void OnInit() {}
+		virtual void OnShutdown() {}
 
 		void Run();
-		void ProcessEvents();
 		void OnEvent(Events::Event& e);
 		
+		void PushLayer(Layer* layer);
+		void PopLayer(Layer* layer);
+		void PushOverlay(Layer* layer);
+		void PopOverlay(Layer* layer);
+		void RenderImGui();
+
 		inline static Application& Get() { return *s_Instance; }
 		inline Window& GetWindow() { return *m_Window; }
+		inline ImGuiLayer* GetImGuiLayer() { return m_ImGuiLayer; }
 
 		template<typename Func>
 		inline void QueueEvent(Func&& func) { m_EventQueue.push(std::forward<Func>(func)); }
@@ -66,6 +78,8 @@ namespace vkPlayground {
 		const ApplicationSpecification& GetSpecification() const { return m_Specification; }
 
 	private:
+		void ProcessEvents();
+
 		bool OnWindowResize(Events::WindowResizeEvent& e);
 		bool OnWindowClose(Events::WindowCloseEvent& e);
 		bool OnWindowMinimize(Events::WindowMinimizeEvent& e);
@@ -76,6 +90,9 @@ namespace vkPlayground {
 		Scope<Window> m_Window;
 		bool m_Running = true;
 		bool m_Minimized = false;
+
+		LayerStack m_LayerStack;
+		ImGuiLayer* m_ImGuiLayer = nullptr;
 
 		TimeStep m_FrameTime;
 		TimeStep m_TimeStep;
@@ -88,10 +105,8 @@ namespace vkPlayground {
 
 		inline static Application* s_Instance = nullptr;
 
-		// friend class Renderer; NOTE: For now not needed
-
 	};
 
-	Application* CreateApplication(const ApplicationSpecification& spec);
+	Application* CreateApplication(int argc, char** argv);
 
 }
