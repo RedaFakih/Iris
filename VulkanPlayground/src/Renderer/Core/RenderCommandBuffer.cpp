@@ -137,7 +137,8 @@ namespace vkPlayground {
 		uint32_t frameIndex = Renderer::GetCurrentFrameIndex();
 		VkDevice device = RendererContext::GetCurrentDevice()->GetVulkanDevice();
 
-		VK_CHECK_RESULT(vkResetCommandPool(device, m_CommandBuffers[frameIndex].CommandPool, 0));
+		if (m_CommandBuffers.size())
+			VK_CHECK_RESULT(vkResetCommandPool(device, m_CommandBuffers[frameIndex].CommandPool, 0));
 
 		VkCommandBufferBeginInfo beginInfo = {
 			.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
