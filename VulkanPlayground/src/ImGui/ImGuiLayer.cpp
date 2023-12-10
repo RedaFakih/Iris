@@ -125,7 +125,7 @@ namespace vkPlayground {
 		ImGui_ImplVulkan_NewFrame();
 		ImGui_ImplGlfw_NewFrame();
 		ImGui::NewFrame();
-		// ImGuizmo::BeginFrame();
+		// ImGuizmo::BeginFrame(); // TODO:
 	}
 
 	void ImGuiLayer::End()
@@ -133,7 +133,6 @@ namespace vkPlayground {
 		ImGui::Render();
 
 		// Begin render pass that renders to swap chain
-		// inherit command buffer from swapchain
 		// render
 		// end renderpass
 
@@ -182,8 +181,8 @@ namespace vkPlayground {
 		vkCmdSetViewport(drawCommandBuffer, 0, 1, &viewport);
 
 		VkRect2D scissor = {
-			.offset = {.x = 0, .y = 0 },
-			.extent = {.width = width, .height = height }
+			.offset = { .x = 0, .y = 0 },
+			.extent = { .width = width, .height = height }
 		};
 		vkCmdSetScissor(drawCommandBuffer, 0, 1, &scissor);
 
@@ -209,12 +208,12 @@ namespace vkPlayground {
 		ImVec4 (&colors)[55] = ImGui::GetStyle().Colors;
 
 		//========================================================
-		/// Colours
+		/// Colors
 
 		// Headers
-		colors[ImGuiCol_Header] = ImGui::ColorConvertU32ToFloat4(Colors::Theme::groupHeader);
-		colors[ImGuiCol_HeaderHovered] = ImGui::ColorConvertU32ToFloat4(Colors::Theme::groupHeader);
-		colors[ImGuiCol_HeaderActive] = ImGui::ColorConvertU32ToFloat4(Colors::Theme::groupHeader);
+		colors[ImGuiCol_Header] = ImGui::ColorConvertU32ToFloat4(Colors::Theme::GroupHeader);
+		colors[ImGuiCol_HeaderHovered] = ImGui::ColorConvertU32ToFloat4(Colors::Theme::GroupHeader);
+		colors[ImGuiCol_HeaderActive] = ImGui::ColorConvertU32ToFloat4(Colors::Theme::GroupHeader);
 
 		// Buttons
 		colors[ImGuiCol_Button] = ImColor(56, 56, 56, 200);
@@ -222,20 +221,20 @@ namespace vkPlayground {
 		colors[ImGuiCol_ButtonActive] = ImColor(56, 56, 56, 150);
 
 		// Frame BG
-		colors[ImGuiCol_FrameBg] = ImGui::ColorConvertU32ToFloat4(Colors::Theme::propertyField);
-		colors[ImGuiCol_FrameBgHovered] = ImGui::ColorConvertU32ToFloat4(Colors::Theme::propertyField);
-		colors[ImGuiCol_FrameBgActive] = ImGui::ColorConvertU32ToFloat4(Colors::Theme::propertyField);
+		colors[ImGuiCol_FrameBg] = ImGui::ColorConvertU32ToFloat4(Colors::Theme::PropertyField);
+		colors[ImGuiCol_FrameBgHovered] = ImGui::ColorConvertU32ToFloat4(Colors::Theme::PropertyField);
+		colors[ImGuiCol_FrameBgActive] = ImGui::ColorConvertU32ToFloat4(Colors::Theme::PropertyField);
 
 		// Tabs
-		colors[ImGuiCol_Tab] = ImGui::ColorConvertU32ToFloat4(Colors::Theme::titlebar);
+		colors[ImGuiCol_Tab] = ImGui::ColorConvertU32ToFloat4(Colors::Theme::Titlebar);
 		colors[ImGuiCol_TabHovered] = ImColor(255, 225, 135, 30);
 		colors[ImGuiCol_TabActive] = ImColor(255, 225, 135, 60);
-		colors[ImGuiCol_TabUnfocused] = ImGui::ColorConvertU32ToFloat4(Colors::Theme::titlebar);
+		colors[ImGuiCol_TabUnfocused] = ImGui::ColorConvertU32ToFloat4(Colors::Theme::Titlebar);
 		colors[ImGuiCol_TabUnfocusedActive] = colors[ImGuiCol_TabHovered];
 
 		// Title
-		colors[ImGuiCol_TitleBg] = ImGui::ColorConvertU32ToFloat4(Colors::Theme::titlebar);
-		colors[ImGuiCol_TitleBgActive] = ImGui::ColorConvertU32ToFloat4(Colors::Theme::titlebar);
+		colors[ImGuiCol_TitleBg] = ImGui::ColorConvertU32ToFloat4(Colors::Theme::Titlebar);
+		colors[ImGuiCol_TitleBgActive] = ImGui::ColorConvertU32ToFloat4(Colors::Theme::Titlebar);
 		colors[ImGuiCol_TitleBgCollapsed] = ImVec4{ 0.15f, 0.1505f, 0.151f, 1.0f };
 
 		// Resize Grip
@@ -257,25 +256,25 @@ namespace vkPlayground {
 		colors[ImGuiCol_SliderGrabActive] = ImVec4(0.66f, 0.66f, 0.66f, 1.0f);
 
 		// Text
-		colors[ImGuiCol_Text] = ImGui::ColorConvertU32ToFloat4(Colors::Theme::text);
+		colors[ImGuiCol_Text] = ImGui::ColorConvertU32ToFloat4(Colors::Theme::Text);
 
 		// Checkbox
-		colors[ImGuiCol_CheckMark] = ImGui::ColorConvertU32ToFloat4(Colors::Theme::text);
+		colors[ImGuiCol_CheckMark] = ImGui::ColorConvertU32ToFloat4(Colors::Theme::Text);
 
 		// Separator
-		colors[ImGuiCol_Separator] = ImGui::ColorConvertU32ToFloat4(Colors::Theme::backgroundDark);
-		colors[ImGuiCol_SeparatorActive] = ImGui::ColorConvertU32ToFloat4(Colors::Theme::highlight);
+		colors[ImGuiCol_Separator] = ImGui::ColorConvertU32ToFloat4(Colors::Theme::BackgroundDark);
+		colors[ImGuiCol_SeparatorActive] = ImGui::ColorConvertU32ToFloat4(Colors::Theme::Highlight);
 		colors[ImGuiCol_SeparatorHovered] = ImColor(39, 185, 242, 150);
 
 		// Window Background
-		colors[ImGuiCol_WindowBg] = ImGui::ColorConvertU32ToFloat4(Colors::Theme::titlebar);
-		colors[ImGuiCol_ChildBg] = ImGui::ColorConvertU32ToFloat4(Colors::Theme::background);
-		colors[ImGuiCol_PopupBg] = ImGui::ColorConvertU32ToFloat4(Colors::Theme::backgroundPopup);
-		colors[ImGuiCol_Border] = ImGui::ColorConvertU32ToFloat4(Colors::Theme::backgroundDark);
+		colors[ImGuiCol_WindowBg] = ImGui::ColorConvertU32ToFloat4(Colors::Theme::Titlebar);
+		colors[ImGuiCol_ChildBg] = ImGui::ColorConvertU32ToFloat4(Colors::Theme::Background);
+		colors[ImGuiCol_PopupBg] = ImGui::ColorConvertU32ToFloat4(Colors::Theme::BackgroundPopup);
+		colors[ImGuiCol_Border] = ImGui::ColorConvertU32ToFloat4(Colors::Theme::BackgroundDark);
 
 		// Tables
-		colors[ImGuiCol_TableHeaderBg] = ImGui::ColorConvertU32ToFloat4(Colors::Theme::groupHeader);
-		colors[ImGuiCol_TableBorderLight] = ImGui::ColorConvertU32ToFloat4(Colors::Theme::backgroundDark);
+		colors[ImGuiCol_TableHeaderBg] = ImGui::ColorConvertU32ToFloat4(Colors::Theme::GroupHeader);
+		colors[ImGuiCol_TableBorderLight] = ImGui::ColorConvertU32ToFloat4(Colors::Theme::BackgroundDark);
 
 		// Menubar
 		colors[ImGuiCol_MenuBarBg] = ImVec4{ 0.0f, 0.0f, 0.0f, 0.0f };

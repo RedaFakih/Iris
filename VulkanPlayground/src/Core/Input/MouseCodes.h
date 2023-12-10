@@ -15,9 +15,9 @@ namespace vkPlayground {
 		Button6 = 6,
 		Button7 = 7,
 
-		ButtonLeft = Button0,
-		ButtonRight = Button1,
-		ButtonMiddle = Button2
+		Left = Button0,
+		Right = Button1,
+		Middle = Button2
 	};
 
 	inline std::ostream& operator<<(std::ostream& stream, MouseButton code)
@@ -38,6 +38,6 @@ namespace vkPlayground {
 #define AR_MOUSE_BUTTON_6        ::vkPlayground::MouseButton::Button6
 #define AR_MOUSE_BUTTON_7        ::vkPlayground::MouseButton::Button7
 
-#define AR_MOUSE_BUTTON_LEFT     ::vkPlayground::MouseButton::ButtonLeft
-#define AR_MOUSE_BUTTON_RIGHT    ::vkPlayground::MouseButton::ButtonRight
-#define AR_MOUSE_BUTTON_MIDDLE   ::vkPlayground::MouseButton::ButtonMiddle#pragma once
+#define AR_MOUSE_BUTTON_LEFT     ::vkPlayground::MouseButton::Left
+#define AR_MOUSE_BUTTON_RIGHT    ::vkPlayground::MouseButton::Right
+#define AR_MOUSE_BUTTON_MIDDLE   ::vkPlayground::MouseButton::Middle#pragma once

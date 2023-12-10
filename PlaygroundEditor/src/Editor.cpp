@@ -32,7 +32,7 @@ namespace vkPlayground {
 			.WindowHeight = 720,
 			.FullScreen = false,
 			.VSync = false,
-			.StartMaximized = false,
+			.StartMaximized = true,
 			.Resizable = true,
 			.EnableImGui = true,
 			.RendererConfig = { .FramesInFlight = 3 }

@@ -44,6 +44,7 @@ project "VulkanPlayground"
         "%{IncludeDir.stb}",
         "%{IncludeDir.fastgltf}",
         "%{IncludeDir.spdlog}",
+        "%{IncludeDir.EnTT}",
         "%{IncludeDir.Yaml}"
     }
 

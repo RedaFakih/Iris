@@ -20,6 +20,7 @@ project "PlaygroundEditor"
         "%{wks.location}/VulkanPlayground/dependencies",
         "%{IncludeDir.ImGui}",
         "%{IncludeDir.glm}",
+        "%{IncludeDir.choc}",
         "%{IncludeDir.VulkanSDK}"
     }
 
@@ -30,7 +31,8 @@ project "PlaygroundEditor"
 
     defines
     {
-        "GLM_FORCE_DEPTH_ZERO_TO_ONE"
+        "GLM_FORCE_DEPTH_ZERO_TO_ONE",
+        "_CRT_SECURE_NO_WARNINGS"
     }
 
     filter "system:windows"

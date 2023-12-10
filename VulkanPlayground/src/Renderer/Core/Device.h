@@ -87,9 +87,6 @@ namespace vkPlayground {
 
 		static Ref<VulkanCommandPool> Create();
 
-		// TODO: Maybe add a reset function that resets the pool at the beginning of each frame?
-		// Since the buffers that are being allocated and used from this pool are only one time use buffers or buffers that implicitly reset
-		// every frame
 		void Reset();
 
 		VkCommandBuffer AllocateCommandBuffer(bool begin /* , bool compute = false */);

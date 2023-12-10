@@ -1,6 +1,8 @@
 #include "EditorLayer.h"
 
 #include "Core/Input/Input.h"
+#include "Editor/EditorResources.h"
+#include "Renderer/Core/RenderCommandBuffer.h"
 #include "Renderer/Core/Vulkan.h" // TODO: TEMP! No vulkan calls should be here
 #include "Renderer/Framebuffer.h"
 #include "Renderer/IndexBuffer.h"
@@ -11,14 +13,18 @@
 #include "Renderer/RenderPass.h"
 #include "Renderer/UniformBufferSet.h"
 #include "Renderer/VertexBuffer.h"
-#include "Renderer/Core/RenderCommandBuffer.h"
+
+#include "ImGui/ImGuiUtils.h"
+
+#include <glfw/include/glfw/glfw3.h>
 
 #include <imgui/imgui.h>
-#include <imgui/imgui_impl_vulkan.h>
+
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
 // TODO: REMOVE
+//////#include <stb/stb_image_writer/stb_image_write.h>
 //#include <stb_image_writer/stb_image_write.h>
 //#include <fastgltf/glm_element_traits.hpp>
 //#include <fastgltf/parser.hpp>
@@ -119,7 +125,7 @@ namespace vkPlayground {
 	//}
 
 	EditorLayer::EditorLayer()
-		: m_EditorCamera(45.0f, 1280.0f, 720.0f, 0.1f, 10000.0f)
+		: Layer("EditorLayer"), m_EditorCamera(45.0f, 1280.0f, 720.0f, 0.1f, 10000.0f)
 	{
 	}
 
@@ -155,6 +161,8 @@ namespace vkPlayground {
 			4, 5, 6, 6, 7, 4
 		};
 
+		EditorResources::Init();
+
 		m_CommandBuffer = RenderCommandBuffer::Create(0, "EditorLayer");
 
 		// TODO: REMOVE!
@@ -177,10 +185,6 @@ namespace vkPlayground {
 		// Currently its red but whatever
 		constexpr uint32_t blackTextureData = 0xff0000ff;
 		Ref<Texture2D> texture2 = Texture2D::Create(textureSpec2, Buffer((uint8_t*)&blackTextureData, sizeof(uint32_t)));
-
-		// Buffer textureBuffer;
-		// texture->CopyToHostBuffer(textureBuffer, true);
-		// stbi_write_png("assets/textures/output.png", texture->GetWidth(), texture->GetHeight(), 4, textureBuffer.Data, texture->GetWidth() * 4);
 
 		//glm::mat4 transform = glm::rotate(glm::mat4(1.0f), glm::radians(180.0f), { 1.0f, 0.0f, 0.0f })
 		//	* glm::scale(glm::mat4(1.0f), glm::vec3(0.2f));
@@ -272,81 +276,218 @@ namespace vkPlayground {
 
 	void EditorLayer::OnDetach()
 	{
+		EditorResources::Shutdown();
 	}
 
 	void EditorLayer::OnUpdate(TimeStep ts)
 	{
+		m_EditorCamera.SetActive(m_AllowViewportCameraEvents);
+		m_EditorCamera.OnUpdate(ts);
+
+		if (Input::IsKeyDown(KeyCode::F))
+			m_EditorCamera.Focus({ 0.0f, 0.0f, 0.0f });
+
+		// Update uniform buffers (Begin Scene stuff)
+		UniformBufferData dataUB = {
+			//.Model = glm::rotate(glm::mat4(1.0f), GetTime() * glm::radians(1.0f), glm::vec3(0.0f, 0.0f, 1.0f)),
+			.Model = glm::translate(glm::mat4(1.0f), glm::vec3{ 0.0f, 0.0f, 0.0f }),
+			.ViewProjection = std::move(m_EditorCamera.GetProjection() * m_EditorCamera.GetViewMatrix())
+		};
+
+		m_UniformBufferSet->Get()->SetData(&dataUB, sizeof(UniformBufferData));
+
+		m_CommandBuffer->Begin();
+		VkCommandBuffer commandBuffer = m_CommandBuffer->GetActiveCommandBuffer();
+
+		// First render pass renders to the framebuffer
 		{
-			if (Input::IsKeyDown(KeyCode::F))
-				m_EditorCamera.Focus({ 0.0f, 0.0f, 0.0f });
+			Renderer::BeginRenderPass(m_CommandBuffer, m_RenderingPass);
 
-			// Update uniform buffers (Begin Scene stuff)
-			UniformBufferData dataUB = {
-				//.Model = glm::rotate(glm::mat4(1.0f), GetTime() * glm::radians(1.0f), glm::vec3(0.0f, 0.0f, 1.0f)),
-				.Model = glm::translate(glm::mat4(1.0f), glm::vec3{ 0.0f, 0.0f, 0.0f }),
-				.ViewProjection = std::move(m_EditorCamera.GetProjection() * m_EditorCamera.GetViewMatrix())
-			};
+			VkBuffer vertexVulkanBuffer = m_VertexBuffer->GetVulkanBuffer();
+			vkCmdBindVertexBuffers(commandBuffer, 0, 1, &vertexVulkanBuffer, [](VkDeviceSize&& s) { return &s; }(0));
+			vkCmdBindIndexBuffer(commandBuffer, m_IndexBuffer->GetVulkanBuffer(), 0, VK_INDEX_TYPE_UINT32);
 
-			m_UniformBufferSet->Get()->SetData(&dataUB, sizeof(UniformBufferData));
+			vkCmdDrawIndexed(commandBuffer, (uint32_t)m_IndexBuffer->GetCount(), 1, 0, 0, 0);
 
-			m_CommandBuffer->Begin();
-			VkCommandBuffer commandBuffer = m_CommandBuffer->GetActiveCommandBuffer();
-
-			// First render pass renders to the framebuffer
-			{
-				Renderer::BeginRenderPass(m_CommandBuffer, m_RenderingPass);
-
-				VkBuffer vertexVulkanBuffer = m_VertexBuffer->GetVulkanBuffer();
-				vkCmdBindVertexBuffers(commandBuffer, 0, 1, &vertexVulkanBuffer, [](VkDeviceSize&& s) { return &s; }(0));
-				vkCmdBindIndexBuffer(commandBuffer, m_IndexBuffer->GetVulkanBuffer(), 0, VK_INDEX_TYPE_UINT32);
-
-				vkCmdDrawIndexed(commandBuffer, (uint32_t)m_IndexBuffer->GetCount(), 1, 0, 0, 0);
-
-				Renderer::EndRenderPass(m_CommandBuffer);
-			}
-
-			// Second render pass renders to the screen
-			Ref<Texture2D> texture = m_RenderingPass->GetOutput(0);
-			if (texture)
-			{
-				m_ScreenPassMaterial->Set("u_Texture", texture);
-				Renderer::BeginRenderPass(m_CommandBuffer, m_ScreenPass);
-				Renderer::SubmitFullScreenQuad(m_CommandBuffer, m_ScreenPass->GetPipeline(), m_ScreenPassMaterial);
-				Renderer::EndRenderPass(m_CommandBuffer);
-			}
-			else
-			{
-				// Clear pass
-				Renderer::BeginRenderPass(m_CommandBuffer, m_ScreenPass);
-				Renderer::EndRenderPass(m_CommandBuffer);
-			}
-
-			m_CommandBuffer->End();
-			m_CommandBuffer->Submit();
-
-			m_EditorCamera.OnUpdate(ts);
+			Renderer::EndRenderPass(m_CommandBuffer);
 		}
+
+		// Second render pass renders to the screen
+		Ref<Texture2D> texture = m_RenderingPass->GetOutput(0);
+		if (texture)
+		{
+			m_ScreenPassMaterial->Set("u_Texture", texture);
+			Renderer::BeginRenderPass(m_CommandBuffer, m_ScreenPass);
+			Renderer::SubmitFullScreenQuad(m_CommandBuffer, m_ScreenPass->GetPipeline(), m_ScreenPassMaterial);
+			Renderer::EndRenderPass(m_CommandBuffer);
+		}
+		else
+		{
+			// Clear pass
+			Renderer::BeginRenderPass(m_CommandBuffer, m_ScreenPass);
+			Renderer::EndRenderPass(m_CommandBuffer);
+		}
+
+		m_CommandBuffer->End();
+		m_CommandBuffer->Submit();
+
+		//if (Input::IsKeyDown(KeyCode::R))
+		//{
+		//	Buffer textureBuffer;
+		//	texture->CopyToHostBuffer(textureBuffer, true);
+		//	stbi_write_png("Resources/assets/textures/output.png", texture->GetWidth(), texture->GetHeight(), 4, textureBuffer.Data, texture->GetWidth() * 4);
+		//}
+
+		bool leftAltWithEitherLeftOrMiddleButtonOrJustRight = (Input::IsKeyDown(KeyCode::LeftAlt) && (Input::IsMouseButtonDown(MouseButton::Left) || (Input::IsMouseButtonDown(MouseButton::Middle)))) || Input::IsMouseButtonDown(MouseButton::Right);
+		bool notStartCameraViewportAndViewportHoveredFocused = !m_StartedCameraClickInViewport && m_ViewportPanelFocused && m_ViewportPanelMouseOver;
+		if (leftAltWithEitherLeftOrMiddleButtonOrJustRight && notStartCameraViewportAndViewportHoveredFocused)
+			m_StartedCameraClickInViewport = true;
+
+		bool NotRightAndNOTLeftAltANDLeftOrMiddle = !Input::IsMouseButtonDown(MouseButton::Right) && !(Input::IsKeyDown(KeyCode::LeftAlt) && (Input::IsMouseButtonDown(MouseButton::Left) || Input::IsMouseButtonDown(MouseButton::Middle)));
+		if (NotRightAndNOTLeftAltANDLeftOrMiddle)
+			m_StartedCameraClickInViewport = true;
 	}
 
 	void EditorLayer::OnImGuiRender()
 	{
-		ImGui::Begin("Wassup?");
+		StartDocking();
 
-		ImGui::TextColored({ 1.0f, 0.0f, 1.0f, 1.0f }, "Hello my friend, how are you?");
+		ImGui::ShowDemoWindow(); // Testing imgui stuff
+
+		ShowViewport();
+
+		EndDocking();
+	}
+
+	void EditorLayer::StartDocking()
+	{
+		ImGuiIO& io = ImGui::GetIO();
+		ImGuiStyle& style = ImGui::GetStyle();
+
+		if (ImGui::IsMouseClicked(ImGuiMouseButton_Left) || (ImGui::IsMouseClicked(ImGuiMouseButton_Right) && !m_StartedCameraClickInViewport))
+		{
+			// TODO: Check if scene is not playing
+			ImGui::FocusWindow(GImGui->HoveredWindow);
+			Input::SetCursorMode(CursorMode::Normal);
+		}
+
+		io.ConfigWindowsResizeFromEdges = io.BackendFlags & ImGuiBackendFlags_HasMouseCursors;
+
+		// We are using the ImGuiWindowFlags_NoDocking flag to make the parent window not dockable into,
+		// because it would be confusing to have two docking targets within each others.
+		ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoDocking;
+
+		ImGuiViewport* viewport = ImGui::GetMainViewport();
+		ImGui::SetNextWindowPos(viewport->Pos);
+		ImGui::SetNextWindowSize(viewport->Size);
+		ImGui::SetNextWindowViewport(viewport->ID);
+		ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+		ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+		window_flags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
+		window_flags |= ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
+
+		GLFWwindow* window = Application::Get().GetWindow().GetNativeWindow();
+		bool isMaximized = (bool)glfwGetWindowAttrib(window, GLFW_MAXIMIZED);
+		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, isMaximized ? ImVec2(6.0f, 6.0f) : ImVec2(1.0f, 1.0f));
+		ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 3.0f);
+	
+		ImGui::PushStyleColor(ImGuiCol_MenuBarBg, ImVec4{ 0.0f, 0.0f, 0.0f, 0.0f });
+		ImGui::Begin("Dockspace Demo", nullptr, window_flags);
+		ImGui::PopStyleColor();
+		ImGui::PopStyleVar(2);
+
+		ImGui::PopStyleVar(2);
+
+		// TODO: Render window outer border?
+		{
+			UI::ImGuiScopedColor windowBorder(ImGuiCol_Border, IM_COL32(50, 50, 50, 255));
+			// Draw window border if window is not maximized
+			if (!isMaximized)
+				UI::RenderWindowOuterBorders(ImGui::GetCurrentWindow());
+		}
+
+		float minWinSizeX = style.WindowMinSize.x;
+		ImGui::DockSpace(ImGui::GetID("MyDockspace"));
+		style.WindowMinSize.x = minWinSizeX;
+	}
+
+	void EditorLayer::EndDocking()
+	{
+		ImGui::End();
+	}
+
+	void EditorLayer::ShowViewport()
+	{
+		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+		ImGui::Begin("Viewport", 0, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoScrollbar);
+
+		m_ViewportPanelMouseOver = ImGui::IsWindowHovered();
+		m_ViewportPanelFocused = ImGui::IsWindowFocused();
+
+		ImVec2 viewportOffset = ImGui::GetCursorPos(); // Includes tab bar
+		ImVec2 viewportSize = ImGui::GetContentRegionAvail();
+		m_EditorCamera.SetViewportSize(static_cast<uint32_t>(viewportSize.x), static_cast<uint32_t>(viewportSize.y));
+
+		//ImGui::TextColored({ 1.0f, 0.0f, 1.0f, 1.0f }, "Hello my friend, how are you?");
+		//static glm::vec3 color = { 0.0f, 0.0f, 0.0f };
+		//UI::ColorEdit3Control("Albedo", color);
 
 		Ref<Texture2D> texture = m_RenderingPass->GetOutput(0);
-		const VkDescriptorImageInfo& imageInfo = texture->GetDescriptorImageInfo();
-		const auto textureID = ImGui_ImplVulkan_AddTexture(imageInfo.sampler, imageInfo.imageView, imageInfo.imageLayout);
-		uint32_t width = Application::Get().GetWindow().GetWidth();
-		uint32_t height = Application::Get().GetWindow().GetHeight();
-		ImGui::Image(textureID, { (float)width, (float)height }, { 0, 1 }, { 1, 0 });
+		UI::Image(texture, viewportSize, { 0, 1 }, { 1, 0 });
+
+		m_ViewportRect = UI::GetWindowRect();
+
+		m_AllowViewportCameraEvents = (ImGui::IsMouseHoveringRect(m_ViewportRect.Min, m_ViewportRect.Max) && m_ViewportPanelFocused) || m_StartedCameraClickInViewport;
 
 		ImGui::End();
+		ImGui::PopStyleVar();
 	}
 
 	void EditorLayer::OnEvent(Events::Event& e)
 	{
-		m_EditorCamera.OnEvent(e);
+		if (m_AllowViewportCameraEvents)
+			m_EditorCamera.OnEvent(e);
+
+		Events::EventDispatcher dispatcher(e);
+		dispatcher.Dispatch<Events::KeyPressedEvent>([this](Events::KeyPressedEvent& e) { return OnKeyPressed(e); });
+		dispatcher.Dispatch<Events::MouseButtonPressedEvent>([this](Events::MouseButtonPressedEvent& e) { return OnMouseButtonPressed(e); });
+	}
+
+	bool EditorLayer::OnKeyPressed(Events::KeyPressedEvent& e)
+	{
+		if (UI::IsWindowFocused("Viewport"))
+		{
+			if (m_ViewportPanelMouseOver && !Input::IsMouseButtonDown(MouseButton::Right))
+			{
+				switch (e.GetKeyCode())
+				{
+					// TODO:
+				case KeyCode::F:
+					m_EditorCamera.Focus(glm::vec3(0.0f));
+				}
+			}
+		}
+
+		return false;
+	}
+
+	bool EditorLayer::OnMouseButtonPressed(Events::MouseButtonPressedEvent& e)
+	{
+		// TODO:
+
+		return false;
+	}
+
+	std::pair<float, float> EditorLayer::GetMouseInViewportSpace() const
+	{
+		auto [mx, my] = ImGui::GetMousePos();
+
+		mx -= m_ViewportRect.Min.x;
+		my -= m_ViewportRect.Min.y;
+		ImVec2 viewportSize = { m_ViewportRect.Max.x - m_ViewportRect.Min.x, m_ViewportRect.Max.y - m_ViewportRect.Min.y };
+		my = viewportSize.y - my; // Invert my
+
+		return { (mx / viewportSize.x) * 2.0f - 1.0f, (my / viewportSize.y) * 2.0f - 1.0f };
 	}
 
 }

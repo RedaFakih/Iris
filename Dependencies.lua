@@ -9,6 +9,7 @@ IncludeDir["stb"]                 = "%{wks.location}/VulkanPlayground/dependenci
 IncludeDir["glm"]                 = "%{wks.location}/VulkanPlayground/dependencies/glm"
 IncludeDir["spdlog"]              = "%{wks.location}/VulkanPlayground/dependencies/spdlog/include"
 IncludeDir["fastgltf"]            = "%{wks.location}/VulkanPlayground/dependencies/fastgltf/include"
+IncludeDir["EnTT"]                = "%{wks.location}/VulkanPlayground/dependencies/entt/include"
 IncludeDir["VulkanSDK"]           = "%{VULKAN_SDK}/Include"
 IncludeDir["Yaml"]                = "%{wks.location}/VulkanPlayground/dependencies/yaml-cpp/include"
 IncludeDir["choc"]                = "%{wks.location}/VulkanPlayground/dependencies/Choc"

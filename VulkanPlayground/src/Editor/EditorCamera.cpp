@@ -58,17 +58,17 @@ namespace vkPlayground {
 		{
 			m_CameraType = CameraType::BlenderCam;
 
-			if (Input::IsMouseButtonDown(MouseButton::ButtonRight))
+			if (Input::IsMouseButtonDown(MouseButton::Right))
 			{
 				Utils::DisableMouse();
 				MouseRotate(delta);
 			}
-			else if (Input::IsMouseButtonDown(MouseButton::ButtonLeft))
+			else if (Input::IsMouseButtonDown(MouseButton::Left))
 			{
 				Utils::DisableMouse();
 				MousePan(delta);
 			}
-			else if (Input::IsMouseButtonDown(MouseButton::ButtonMiddle))
+			else if (Input::IsMouseButtonDown(MouseButton::Middle))
 			{
 				Utils::DisableMouse();
 				MouseZoom((delta.x + delta.y) * 0.1f);
@@ -76,7 +76,7 @@ namespace vkPlayground {
 			else
 				Utils::EnableMouse();
 		}
-		else if (Input::IsMouseButtonDown(MouseButton::ButtonRight) && !Input::IsKeyDown(KeyCode::LeftAlt))
+		else if (Input::IsMouseButtonDown(MouseButton::Right) && !Input::IsKeyDown(KeyCode::LeftAlt))
 		{
 			m_CameraType = CameraType::FirstPerson;
 			Utils::DisableMouse();
@@ -183,7 +183,7 @@ namespace vkPlayground {
 
 	bool EditorCamera::OnMouseScroll(Events::MouseScrolledEvent& e)
 	{
-		if (Input::IsMouseButtonPressed(MouseButton::ButtonRight))
+		if (Input::IsMouseButtonPressed(MouseButton::Right))
 		{
 			m_NormalSpeed += e.GetYOffset() * 0.3f * m_NormalSpeed;
 			m_NormalSpeed = std::clamp(m_NormalSpeed, MIN_SPEED, MAX_SPEED);
