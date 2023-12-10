@@ -5,6 +5,8 @@
 #include "Core/Events/MouseEvents.h"
 #include "Core/Layer.h"
 #include "Editor/EditorCamera.h"
+#include "Scene/Scene.h"
+#include "Renderer/SceneRenderer.h"
 
 #include <imgui/imgui_internal.h>
 
@@ -44,6 +46,9 @@ namespace vkPlayground {
 		void ShowViewport();
 
 	private:
+		Ref<Scene> m_EditorScene;
+		Ref<SceneRenderer> m_ViewportRenderer;
+
 		EditorCamera m_EditorCamera;
 
 		ImRect m_ViewportRect;

@@ -14,6 +14,7 @@ project "VulkanPlayground"
     {
         "src/**.h",
         "src/**.cpp",
+        "src/**.inl",
 
         "dependencies/stb/**.h",
         "dependencies/stb/**.cpp",

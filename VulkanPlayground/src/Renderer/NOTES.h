@@ -7,10 +7,11 @@
  * NEXT STEP ON TUTORIAL: Loading Models.
  *
  * NEXT THING TO WORK ON:
- * - Add ImGui
- * - DescriptorSetManager (Constant Expansion with shader reflection)
- * - Scene and Entities
  * - SceneRenderer
+ * - Scene And Entity
+ * - Clean Up EditorLayer and manage the scene and scene renderer correctly
+ * - Add a Renderer2D
+ * - DescriptorSetManager (Constant Expansion with shader reflection)
  * 
  * TO BE EXPANDED: (constant expansion)
  * - Shader reflection to get descriptor data

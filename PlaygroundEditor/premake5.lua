@@ -21,6 +21,7 @@ project "PlaygroundEditor"
         "%{IncludeDir.ImGui}",
         "%{IncludeDir.glm}",
         "%{IncludeDir.choc}",
+        "%{IncludeDir.EnTT}",
         "%{IncludeDir.VulkanSDK}"
     }
 

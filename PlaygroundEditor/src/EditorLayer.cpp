@@ -161,6 +161,12 @@ namespace vkPlayground {
 			4, 5, 6, 6, 7, 4
 		};
 
+		m_EditorScene = Scene::Create("Editor Scene");
+		m_ViewportRenderer = SceneRenderer::Create(m_EditorScene);
+		// TODO: 
+		//m_ViewportRenderer->SetScene(m_EditorScene);
+		//m_ViewportRenderer->SetLineWidth(m_LineWidth);
+
 		EditorResources::Init();
 
 		m_CommandBuffer = RenderCommandBuffer::Create(0, "EditorLayer");
@@ -270,8 +276,6 @@ namespace vkPlayground {
 
 		m_VertexBuffer = VertexBuffer::Create(s_Vertices.data(), (uint32_t)(sizeof(Vertex) * s_Vertices.size()));
 		m_IndexBuffer = IndexBuffer::Create(s_Indices.data(), (uint32_t)(sizeof(uint32_t) * s_Indices.size()));
-
-		m_EditorCamera.SetActive(true);
 	}
 
 	void EditorLayer::OnDetach()
@@ -345,7 +349,7 @@ namespace vkPlayground {
 
 		bool NotRightAndNOTLeftAltANDLeftOrMiddle = !Input::IsMouseButtonDown(MouseButton::Right) && !(Input::IsKeyDown(KeyCode::LeftAlt) && (Input::IsMouseButtonDown(MouseButton::Left) || Input::IsMouseButtonDown(MouseButton::Middle)));
 		if (NotRightAndNOTLeftAltANDLeftOrMiddle)
-			m_StartedCameraClickInViewport = true;
+			m_StartedCameraClickInViewport = false;
 	}
 
 	void EditorLayer::OnImGuiRender()
@@ -426,11 +430,10 @@ namespace vkPlayground {
 
 		ImVec2 viewportOffset = ImGui::GetCursorPos(); // Includes tab bar
 		ImVec2 viewportSize = ImGui::GetContentRegionAvail();
+		// TODO: 
+		//m_ViewportRenderer->SetViewportSize(static_cast<uint32_t>(viewportSize.x), static_cast<uint32_t>(viewportSize.y));
+		m_EditorScene->SetViewportSize(static_cast<uint32_t>(viewportSize.x), static_cast<uint32_t>(viewportSize.y));
 		m_EditorCamera.SetViewportSize(static_cast<uint32_t>(viewportSize.x), static_cast<uint32_t>(viewportSize.y));
-
-		//ImGui::TextColored({ 1.0f, 0.0f, 1.0f, 1.0f }, "Hello my friend, how are you?");
-		//static glm::vec3 color = { 0.0f, 0.0f, 0.0f };
-		//UI::ColorEdit3Control("Albedo", color);
 
 		Ref<Texture2D> texture = m_RenderingPass->GetOutput(0);
 		UI::Image(texture, viewportSize, { 0, 1 }, { 1, 0 });
