@@ -10,6 +10,7 @@
 #include "Texture.h"
 #include "UniformBufferSet.h"
 #include "VertexBuffer.h"
+#include "IndexBuffer.h"
 
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -47,6 +48,7 @@ namespace vkPlayground {
 
 		Ref<Texture2D> BlackTexutre;
 		Ref<Texture2D> WhiteTexutre;
+		Ref<Texture2D> ErrorTexture;
 
 		Ref<VertexBuffer> QuadVertexBuffer;
 		Ref<IndexBuffer> QuadIndexBuffer;
@@ -152,6 +154,9 @@ namespace vkPlayground {
 
 		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/SimpleShader.glsl");
 		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/TexturePass.glsl");
+		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/Compositing.glsl");
+		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/Renderer2D_Quad.glsl");
+		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/Renderer2D_Line.glsl");
 
 		constexpr uint32_t whiteTextureData = 0xffffffff;
 		TextureSpecification spec = {
@@ -165,6 +170,10 @@ namespace vkPlayground {
 		constexpr uint32_t blackTextureData = 0xff000000;
 		spec.DebugName = "BlackTexture";
 		s_Data->BlackTexutre = Texture2D::Create(spec, Buffer((uint8_t*)&blackTextureData, sizeof(uint32_t)));
+		
+		constexpr uint32_t errorTextureData = 0xff0000ff;
+		spec.DebugName = "ErrorTexture";
+		s_Data->ErrorTexture = Texture2D::Create(spec, Buffer((uint8_t*)&errorTextureData, sizeof(uint32_t)));
 	}
 
 	void Renderer::Shutdown()
@@ -430,6 +439,34 @@ namespace vkPlayground {
 		s_Data->DrawCallCount++;
 	}
 
+	void Renderer::RenderGeometry(Ref<RenderCommandBuffer> renderCommandBuffer, Ref<Pipeline> pipeline, Ref<Material> material, Ref<VertexBuffer> vertexBuffer, Ref<IndexBuffer> indexBuffer, const glm::mat4& transform, uint32_t indexCount)
+	{
+		if (indexCount == 0)
+			indexCount = indexBuffer->GetCount();
+
+		uint32_t frameIndex = Renderer::GetCurrentFrameIndex();
+		VkCommandBuffer commandbuffer = renderCommandBuffer->GetActiveCommandBuffer();
+		VkPipelineLayout layout = pipeline->GetVulkanPipelineLayout();
+
+		VkBuffer vbBuffer = vertexBuffer->GetVulkanBuffer();
+		VkDeviceSize offset = 0;
+		vkCmdBindVertexBuffers(commandbuffer, 0, 1, &vbBuffer, &offset);
+
+		VkBuffer ibBuffer = indexBuffer->GetVulkanBuffer();
+		vkCmdBindIndexBuffer(commandbuffer, ibBuffer, 0, VK_INDEX_TYPE_UINT32);
+
+		VkDescriptorSet descSet = material->GetDescriptorSet(frameIndex);
+		if (descSet)
+			vkCmdBindDescriptorSets(commandbuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, layout, material->GetFirstSetIndex(), 1, &descSet, 0, nullptr);
+
+		vkCmdPushConstants(commandbuffer, layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &transform);
+		Buffer uniformStorageBuffer = material->GetUniformStorageBuffer();
+		if (uniformStorageBuffer)
+			vkCmdPushConstants(commandbuffer, layout, VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(glm::mat4), static_cast<uint32_t>(uniformStorageBuffer.Size), uniformStorageBuffer.Data);
+
+		vkCmdDrawIndexed(commandbuffer, indexCount, 1, 0, 0, 0);
+	}
+
 	VkDescriptorSet Renderer::AllocateDescriptorSet(VkDescriptorSetAllocateInfo& allocInfo)
 	{
 		VkDescriptorSet result;
@@ -450,6 +487,11 @@ namespace vkPlayground {
 	Ref<Texture2D> Renderer::GetBlackTexture()
 	{
 		return s_Data->BlackTexutre;
+	}
+
+	Ref<Texture2D> Renderer::GetErrorTexture()
+	{
+		return s_Data->ErrorTexture;
 	}
 
 	RenderCommandQueue& Renderer::GetRendererResourceReleaseQueue(uint32_t index)
@@ -474,14 +516,28 @@ namespace vkPlayground {
 			ShaderDependencies& deps = s_ShaderDependencies.at(hash);
 			for (Ref<Pipeline>& pipeline : deps.Pipelines)
 			{
+				PG_CORE_TRACE_TAG("Renderer", "Invalidating pipeline ({0}) for shader ({1}) reload request", pipeline->GetSpecification().DebugName, pipeline->GetSpecification().Shader->GetName());
 				pipeline->Invalidate();
 			}
 
 			for (Ref<Material>& material : deps.Meterials)
 			{
+				PG_CORE_TRACE_TAG("Renderer", "Reloading material ({0}) for shader ({1}) reload request", material->GetName(), material->GetShader()->GetName());
 				material->OnShaderReloaded();
 			}
 		}
+	}
+
+	void Renderer::InsertMemoryBarrier(VkCommandBuffer commandBuffer, VkAccessFlags srcAccessMask, VkAccessFlags dstAccessMask, VkPipelineStageFlags srcStageMask, VkPipelineStageFlags dstStageMask)
+	{
+		VkMemoryBarrier memoryBarrier = {
+			.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER,
+			.pNext = nullptr,
+			.srcAccessMask = srcAccessMask,
+			.dstAccessMask = dstAccessMask
+		};
+
+		vkCmdPipelineBarrier(commandBuffer, srcStageMask, dstStageMask, 0, 1, &memoryBarrier, 0, nullptr, 0, nullptr);
 	}
 
 	void Renderer::InsertImageMemoryBarrier(

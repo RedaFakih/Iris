@@ -8,10 +8,11 @@ layout(location = 2) in vec2 a_TexCoord;
 layout(location = 0) out vec3 v_Color;
 layout(location = 1) out vec2 v_TexCoord;
 
-layout(std140, set = 0, binding = 0) uniform TransformUniformBuffer
+layout(std140, set = 0, binding = 1) uniform TransformUniformBuffer
 {
     mat4 Model;
     mat4 ViewProjection;
+    vec2 DepthUnpackConsts;
 } u_TransformData;
 
 // Bruh testing comments

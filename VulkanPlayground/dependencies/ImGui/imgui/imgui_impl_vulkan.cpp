@@ -82,6 +82,8 @@ struct ImGui_ImplVulkanH_FrameRenderBuffers
 {
     VmaAllocation       VertexBufferAllocation;
     VmaAllocation       IndexBufferAllocation;
+    VmaAllocationInfo   VertexBufferAllocationInfo; // NOTE: Added just to not hit the vmaAllocator every frame retrieving info from the VmaAllocation object
+    VmaAllocationInfo   IndexBufferAllocationInfo; // NOTE: Added just to not hit the vmaAllocator every frame retrieving info from the VmaAllocation object
     VkDeviceSize        VertexBufferSize;
     VkDeviceSize        IndexBufferSize;
     VkBuffer            VertexBuffer;
@@ -302,7 +304,7 @@ static void check_vk_result(VkResult err)
         v->CheckVkResultFn(err);
 }
 
-static void CreateOrResizeBuffer(VkBuffer& buffer, VmaAllocation& buffer_allocation, VkDeviceSize& p_buffer_size, size_t new_size, VkBufferUsageFlagBits usage)
+static void CreateOrResizeBuffer(VkBuffer& buffer, VmaAllocation& buffer_allocation, VmaAllocationInfo& allocation_info, VkDeviceSize& p_buffer_size, size_t new_size, VkBufferUsageFlagBits usage)
 {
     ImGui_ImplVulkan_Data* bd = ImGui_ImplVulkan_GetBackendData();
     ImGui_ImplVulkan_InitInfo* v = &bd->VulkanInitInfo;
@@ -318,7 +320,7 @@ static void CreateOrResizeBuffer(VkBuffer& buffer, VmaAllocation& buffer_allocat
     buffer_info.usage = usage;
     buffer_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-    buffer_allocation = allocator.AllocateBuffer(&buffer_info, VMA_MEMORY_USAGE_CPU_TO_GPU, &buffer);
+    buffer_allocation = allocator.AllocateBuffer(&buffer_info, VMA_MEMORY_USAGE_CPU_TO_GPU, &buffer, &allocation_info);
 
     VkMemoryRequirements req;
     vkGetBufferMemoryRequirements(v->Device, buffer, &req);
@@ -406,9 +408,9 @@ void ImGui_ImplVulkan_RenderDrawData(ImDrawData* draw_data, VkCommandBuffer comm
         size_t vertex_size = draw_data->TotalVtxCount * sizeof(ImDrawVert);
         size_t index_size = draw_data->TotalIdxCount * sizeof(ImDrawIdx);
         if (rb->VertexBuffer == VK_NULL_HANDLE || rb->VertexBufferSize < vertex_size)
-            CreateOrResizeBuffer(rb->VertexBuffer, rb->VertexBufferAllocation, rb->VertexBufferSize, vertex_size, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
+            CreateOrResizeBuffer(rb->VertexBuffer, rb->VertexBufferAllocation, rb->VertexBufferAllocationInfo, rb->VertexBufferSize, vertex_size, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
         if (rb->IndexBuffer == VK_NULL_HANDLE || rb->IndexBufferSize < index_size)
-            CreateOrResizeBuffer(rb->IndexBuffer, rb->IndexBufferAllocation, rb->IndexBufferSize, index_size, VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
+            CreateOrResizeBuffer(rb->IndexBuffer, rb->IndexBufferAllocation, rb->IndexBufferAllocationInfo, rb->IndexBufferSize, index_size, VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
 
         // Upload vertex/index data into a single contiguous GPU buffer
 
@@ -428,6 +430,24 @@ void ImGui_ImplVulkan_RenderDrawData(ImDrawData* draw_data, VkCommandBuffer comm
             vtx_dst += cmd_list->VtxBuffer.Size;
             idx_dst += cmd_list->IdxBuffer.Size;
         }
+
+        VkMappedMemoryRange mappedMemoryRanges[2];
+        mappedMemoryRanges[0] = {
+            .sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE,
+            .pNext = nullptr,
+            .memory = rb->VertexBufferAllocationInfo.deviceMemory,
+            .offset = 0,
+            .size = VK_WHOLE_SIZE
+        };
+        mappedMemoryRanges[1] = {
+            .sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE,
+            .pNext = nullptr,
+            .memory = rb->IndexBufferAllocationInfo.deviceMemory,
+            .offset = 0,
+            .size = VK_WHOLE_SIZE
+        };
+        VkResult err = vkFlushMappedMemoryRanges(v->Device, 2, mappedMemoryRanges);
+        check_vk_result(err);
 
         allocator.UnmapMemory(rb->VertexBufferAllocation);
         allocator.UnmapMemory(rb->IndexBufferAllocation);

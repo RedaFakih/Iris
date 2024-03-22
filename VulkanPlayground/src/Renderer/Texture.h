@@ -97,10 +97,14 @@ namespace vkPlayground {
 	class Texture2D : public RefCountedObject
 	{
 	public:
+		// NOTE: If the first constructor is used then an Invalidate call should follow to get a valid image
+		Texture2D(const TextureSpecification& spec);
 		Texture2D(const TextureSpecification& spec, const std::string& filePath);
-		Texture2D(const TextureSpecification& spec, Buffer imageData = Buffer());
+		Texture2D(const TextureSpecification& spec, Buffer imageData);
 		~Texture2D();
 
+		// NOTE: If CreateNull is used then an Invalidate call should follow to get a valid image
+		[[nodiscard]] static Ref<Texture2D> CreateNull(const TextureSpecification& spec);
 		[[nodiscard]] static Ref<Texture2D> Create(const TextureSpecification& spec, const std::string& filePath);
 		[[nodiscard]] static Ref<Texture2D> Create(const TextureSpecification& spec, Buffer imageData = Buffer());
 
@@ -108,6 +112,8 @@ namespace vkPlayground {
 		void Resize(uint32_t width, uint32_t height);
 		void GenerateMips();
 		void Release();
+
+		uint64_t GetHash() const { return (uint64_t)m_ImageView; }
 
 		void CopyToHostBuffer(Buffer& buffer, bool writeMips = false) const;
 
@@ -164,6 +170,7 @@ namespace vkPlayground {
 				case ImageFormat::RGBA16F:		return 2 * 4;
 				case ImageFormat::RGBA32F:		return 4 * 4;
 				case ImageFormat::B10R11G11UF:	return 4;
+				case ImageFormat::DEPTH32F:		return 4;
 			}
 
 			PG_ASSERT(false, "");

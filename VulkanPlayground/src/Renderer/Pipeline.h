@@ -1,9 +1,5 @@
 #pragma once
 
-/*
- * TODO: Continue this abstraction for framebuffers after reaching the texturing and getting a fairly nice texture abstraction layer
- */
-
 #include "Framebuffer.h"
 #include "Renderer/Core/Vulkan.h"
 #include "Renderer/Shaders/Shader.h"
@@ -82,6 +78,9 @@ namespace vkPlayground {
 		VkPipelineLayout GetVulkanPipelineLayout() { return m_PipelineLayout; }
 
 		inline bool IsDynamicLineWidth() const { return m_Specification.Topology == PrimitiveTopology::Lines || m_Specification.Topology == PrimitiveTopology::LineStrip || m_Specification.WireFrame; }
+
+	private:
+		void Release();
 
 	private:
 		PipelineSpecification m_Specification;

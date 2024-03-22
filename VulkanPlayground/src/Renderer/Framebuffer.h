@@ -17,6 +17,14 @@ namespace vkPlayground {
 		ZeroSrcColor
 	};
 
+	// Weird name but this is to specify whether the attachment is an existing one or a new one basically...
+	enum class AttachmentPassThroughUsage
+	{
+		None = 0,
+		Input, // Create a new image or takes an existing one and sets the final layout to be setup to be an input attachment for upcoming steps...
+		Sampled // Create a new one and set the final layout to be ready for sampling
+	};
+
 	enum class AttachmentLoadOp
 	{
 		None = 0,
@@ -29,7 +37,7 @@ namespace vkPlayground {
 	{
 		FramebufferTextureSpecification() = default;
 		FramebufferTextureSpecification(ImageFormat format) : Format(format) {}
-		FramebufferTextureSpecification(ImageFormat format, bool blend) : Format(format), Blend(blend) {}
+		FramebufferTextureSpecification(ImageFormat format, AttachmentPassThroughUsage sampled) : Format(format), Sampled(sampled) {}
 		FramebufferTextureSpecification(ImageFormat format, bool blend, FramebufferBlendMode mode) 
 			: Format(format), Blend(blend), BlendMode(mode) {}
 		FramebufferTextureSpecification(ImageFormat format, bool blend, FramebufferBlendMode mode, AttachmentLoadOp loadop)
@@ -40,6 +48,7 @@ namespace vkPlayground {
 			: Format(format), Blend(blend), BlendMode(mode), LoadOp(loadop), FilterMode(filter), WrapMode(wrap) {}
 
 		ImageFormat Format;
+		AttachmentPassThroughUsage Sampled = AttachmentPassThroughUsage::Sampled; // Put to Input in order to set final layout to be ATTACHMENT_OPTIMAL if you want to use as input attachment later
 		bool Blend = true;
 		FramebufferBlendMode BlendMode = FramebufferBlendMode::SrcAlphaOneMinusSrcAlpha;
 		AttachmentLoadOp LoadOp = AttachmentLoadOp::Inherit;
@@ -68,10 +77,10 @@ namespace vkPlayground {
 		// TODO: float Scale = 1.0f; // rendering scale of the framebuffer
 
 		// Clear settings...
-		glm::vec4 ClearColor = { 1.0f, 0.0f, 1.0f, 1.0f };
 		bool ClearColorOnLoad = true;
-		float DepthClearValue = 0.0f;
+		glm::vec4 ClearColor = { 0.0f, 0.0f, 0.0f, 1.0f };
 		bool ClearDepthOnLoad = true;
+		float DepthClearValue = 0.0f;
 
 		FramebufferAttachmentSpecification Attachments;
 
@@ -88,7 +97,8 @@ namespace vkPlayground {
 
 		// Will the framebuffer be used for Transfer ops? Sets the Transfer for texture specification to `true`
 		bool Transfer = false;
-		// TODO: Existing images...
+
+		std::map<uint32_t, Ref<Texture2D>> ExistingImages;
 	};
 
 	// This will hold the actual VkRenderPass Object however it will be in the PipelineSpecification and will have a custom images

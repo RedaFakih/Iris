@@ -8,18 +8,22 @@ namespace vkPlayground {
 	{
 	public:
 		Camera() = default;
-		Camera(const glm::mat4& projection);
+		Camera(const glm::mat4& projection, const glm::mat4& unReversedProjection);
 		Camera(float degFov, float width, float height, float nearClip, float farClip);
 		virtual ~Camera() = default;
 
-		void SetProjectionMatrix(const glm::mat4& projection);
+		void SetProjectionMatrix(const glm::mat4& projection, const glm::mat4& unReversedProjection);
 		void SetPerspectiveProjectionMatrix(float degFov, float width, float height, float nearClip, float farClip);
 		void SetOrthographicProjectionMatrix(float width, float height, float nearClip, float farClip);
 
-		const glm::mat4& GetProjection() const { return m_Projection; }
+		const glm::mat4& GetProjectionMatrix() const { return m_ProjectionMatrix; }
+		const glm::mat4& GetUnReversedProjectionMatrix() const { return m_UnReversedProjectionMatrix; }
 
 	private:
-		glm::mat4 m_Projection = glm::mat4{ 1.0f };
+		// NOTE: The projection matrix that is used for rendering has the near clip and the far clip reversed so that we can clear the depth buffer to 0.0f and use >= depth compare operation
+		glm::mat4 m_ProjectionMatrix = glm::mat4{ 1.0f };
+		glm::mat4 m_UnReversedProjectionMatrix = glm::mat4{ 1.0f };
+
 	};
 
 }

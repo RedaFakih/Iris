@@ -18,7 +18,7 @@ namespace vkPlayground {
 		static void Init();
 		static void Shutdown();
 
-		[[nodiscard]] VmaAllocation AllocateBuffer(const VkBufferCreateInfo* bufferCreateInfo, VmaMemoryUsage usage, VkBuffer* buffer);
+		[[nodiscard]] VmaAllocation AllocateBuffer(const VkBufferCreateInfo* bufferCreateInfo, VmaMemoryUsage usage, VkBuffer* buffer, VmaAllocationInfo* allocationInfo = nullptr);
 		void DestroyBuffer(VmaAllocation allocation, VkBuffer buffer);
 
 		[[nodiscard]] VmaAllocation AllocateImage(const VkImageCreateInfo* imageCreateInfo, VmaMemoryUsage usage, VkImage* image, VkDeviceSize* allocatedSize = nullptr);
@@ -34,6 +34,8 @@ namespace vkPlayground {
 		}
 
 		void UnmapMemory(VmaAllocation allocation);
+
+		VmaAllocationInfo GetAllocationInfo(VmaAllocation allocation) const;
 
 		static VmaAllocator& GetVmaAllocator();
 		static GPUMemoryStats GetStats();

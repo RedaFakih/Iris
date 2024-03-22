@@ -83,18 +83,16 @@ namespace vkPlayground {
 
 	Pipeline::~Pipeline()
 	{
-		Renderer::SubmitReseourceFree([pipeline = m_VulkanPipeline, layout = m_PipelineLayout]()
-		{
-			VkDevice device = RendererContext::GetCurrentDevice()->GetVulkanDevice();
-			vkDestroyPipeline(device, pipeline, nullptr);
-			vkDestroyPipelineLayout(device, layout, nullptr);
-		});
+		Release();
 	}
 
 	void Pipeline::Invalidate()
 	{
 		VkDevice device = RendererContext::GetCurrentDevice()->GetVulkanDevice();
 		PG_ASSERT(m_Specification.Shader, "Shader can not be nullptr!");
+
+		// Make sure past resources are cleared in case we are reloading shaders
+		Release();
 
 		// Setting up the pipeline with the VkPipelineVertexInputStateCreateInfo struct to accept the vertex data that will be 
 		// passed to the vertex buffer
@@ -202,19 +200,24 @@ namespace vkPlayground {
 			.pSampleMask = nullptr,
 		};
 
-		VkPipelineDepthStencilStateCreateInfo depthStencilState = {};
-		depthStencilState.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
-		depthStencilState.depthTestEnable = m_Specification.DepthTest ? VK_TRUE : VK_FALSE;
-		depthStencilState.depthWriteEnable = m_Specification.DepthWrite ? VK_TRUE : VK_FALSE;
-		depthStencilState.depthCompareOp = Utils::GetVulkanCompareOpFromDepthComarator(m_Specification.DepthOperator);
-		depthStencilState.depthBoundsTestEnable = VK_FALSE;
-		depthStencilState.stencilTestEnable = VK_FALSE;
-		depthStencilState.front.failOp = VK_STENCIL_OP_KEEP;
-		depthStencilState.front.passOp = VK_STENCIL_OP_KEEP;
-		depthStencilState.front.compareOp = VK_COMPARE_OP_ALWAYS;
-		depthStencilState.back.failOp = VK_STENCIL_OP_KEEP;
-		depthStencilState.back.passOp = VK_STENCIL_OP_KEEP;
-		depthStencilState.back.compareOp = VK_COMPARE_OP_ALWAYS;
+		VkPipelineDepthStencilStateCreateInfo depthStencilState = {
+			.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
+			.depthTestEnable = m_Specification.DepthTest ? VK_TRUE : VK_FALSE,
+			.depthWriteEnable = m_Specification.DepthWrite ? VK_TRUE : VK_FALSE,
+			.depthCompareOp = Utils::GetVulkanCompareOpFromDepthComarator(m_Specification.DepthOperator),
+			.depthBoundsTestEnable = VK_FALSE,
+			.stencilTestEnable = VK_FALSE,
+			.front = {
+				.failOp = VK_STENCIL_OP_KEEP,
+				.passOp = VK_STENCIL_OP_KEEP,
+				.compareOp = VK_COMPARE_OP_ALWAYS
+			},
+			.back = {
+				.failOp = VK_STENCIL_OP_KEEP,
+				.passOp = VK_STENCIL_OP_KEEP,
+				.compareOp = VK_COMPARE_OP_ALWAYS
+			}
+		};
 
 		// Color blend state describes how blend factors are calculated (if used)
 		// We need one blend attachment state per color attachment (even if blending is not used)
@@ -340,8 +343,22 @@ namespace vkPlayground {
 		VK_CHECK_RESULT(vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &m_VulkanPipeline));
 		VKUtils::SetDebugUtilsObjectName(device, VK_OBJECT_TYPE_PIPELINE, m_Specification.DebugName, m_VulkanPipeline);
 
-		// NOTE: We can release the shader modules after the pipeline have been created
-		shader->Release();
+		// NOTE: We can not release the shader modules after the pipeline have been created
+		// since some systems in the engine (Renderer2D) may try to recreate their pipelines and so would need the shader modules again
+		// shader->ReleaseShaderModules();
+	}
+
+	void Pipeline::Release()
+	{
+		if (m_VulkanPipeline && m_PipelineLayout)
+		{
+			Renderer::SubmitReseourceFree([pipeline = m_VulkanPipeline, layout = m_PipelineLayout]()
+			{
+				VkDevice device = RendererContext::GetCurrentDevice()->GetVulkanDevice();
+				vkDestroyPipeline(device, pipeline, nullptr);
+				vkDestroyPipelineLayout(device, layout, nullptr);
+			});
+		}
 	}
 
 }

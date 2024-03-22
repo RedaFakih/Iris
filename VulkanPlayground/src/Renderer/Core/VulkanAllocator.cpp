@@ -66,7 +66,7 @@ namespace vkPlayground {
 		s_Data = nullptr;
 	}
 
-	VmaAllocation VulkanAllocator::AllocateBuffer(const VkBufferCreateInfo* bufferCreateInfo, VmaMemoryUsage usage, VkBuffer* buffer)
+	VmaAllocation VulkanAllocator::AllocateBuffer(const VkBufferCreateInfo* bufferCreateInfo, VmaMemoryUsage usage, VkBuffer* buffer, VmaAllocationInfo* allocationInfo)
 	{
 		PG_ASSERT(bufferCreateInfo->size > 0, "");
 
@@ -99,6 +99,9 @@ namespace vkPlayground {
 			.Type = AllocationType::Buffer
 		};
 		s_Data->MemoryUsage += allocInfo.size;
+
+		if (allocationInfo != nullptr)
+			*allocationInfo = allocInfo;
 
 		return allocation;
 	}
@@ -183,6 +186,14 @@ namespace vkPlayground {
 	void VulkanAllocator::UnmapMemory(VmaAllocation allocation)
 	{
 		vmaUnmapMemory(s_Data->Allocator, allocation);
+	}
+
+	VmaAllocationInfo VulkanAllocator::GetAllocationInfo(VmaAllocation allocation) const
+	{
+		VmaAllocationInfo result;
+		vmaGetAllocationInfo(s_Data->Allocator, allocation, &result);
+
+		return result;
 	}
 
 	VmaAllocator& VulkanAllocator::GetVmaAllocator()

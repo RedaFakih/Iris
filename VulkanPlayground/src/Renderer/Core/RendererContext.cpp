@@ -73,42 +73,63 @@ namespace vkPlayground {
         {
             (void)pUserData;
 
+            //if (messageSeverity == VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT)
+            //    return VK_FALSE;
+
             std::string labels, objects;
             if (pCallbackData->cmdBufLabelCount)
             {
-                labels = fmt::format("\tLabels ({0}): \n", pCallbackData->cmdBufLabelCount);
+                labels = fmt::format("Labels ({0}): \n", pCallbackData->cmdBufLabelCount);
                 for (uint32_t i = 0; i < pCallbackData->cmdBufLabelCount; i++)
                 {
                     const VkDebugUtilsLabelEXT& label = pCallbackData->pCmdBufLabels[i];
                     const std::string colorStr = fmt::format("[{}, {}, {}, {}]", label.color[0], label.color[1], label.color[2], label.color[3]);
-                    labels.append(fmt::format("\t\t- Command buffer label[{0}]: Name: {1} Color: {2}\n", i, label.pLabelName ? label.pLabelName : "NULL", colorStr));
+                    labels.append(fmt::format("\t- Command buffer label[{0}]: Name: {1} Color: {2}\n", i, label.pLabelName ? label.pLabelName : "NULL", colorStr));
                 }
             }
 
             if (pCallbackData->objectCount)
             {
-                objects = fmt::format("\tObjects ({0}): \n", pCallbackData->objectCount);
+                objects = fmt::format("Objects ({0}): \n", pCallbackData->objectCount);
                 for (uint32_t i = 0; i < pCallbackData->objectCount; i++)
                 {
                     const VkDebugUtilsObjectNameInfoEXT& object = pCallbackData->pObjects[i];
-                    objects.append(fmt::format("\t\t- Object[{0}]: Name: {1} Type: {2} Handle: {3:#x}\n", i, object.pObjectName ? object.pObjectName : "NULL", Utils::VkObjectTypeToString(object.objectType), object.objectHandle));
+                    objects.append(fmt::format("\t- Object[{0}]: Name: {1} Type: {2} Handle: {3:#x}\n", i, object.pObjectName ? object.pObjectName : "NULL", Utils::VkObjectTypeToString(object.objectType), object.objectHandle));
                 }
             }
 
-            if (messageType & VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT)
-                PG_CORE_WARN_TAG("ValidationLayers", "Type: {0}, Severity: {1}\nMessage: \n\t{2}\n {3}, {4}",
-                    VkDebugUtilsMessageType(messageType), 
-                    VkDebugUtilsMessageSeverity(messageSeverity), 
-                    pCallbackData->pMessage, 
-                    labels, 
-                    objects);
+            if (labels.size())
+            {
+                if (messageType & VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT)
+                    PG_CORE_WARN_TAG("ValidationLayers", "Type: {0}, Severity: {1}\nMessage: \n{2}\n{3}, {4}",
+                        VkDebugUtilsMessageType(messageType),
+                        VkDebugUtilsMessageSeverity(messageSeverity),
+                        pCallbackData->pMessage,
+                        labels,
+                        objects);
+                else
+                    PG_CORE_ERROR_TAG("ValidationLayers", "Type: {0}, Severity: {1}\nMessage: \n{2}\n{3}, {4}",
+                        VkDebugUtilsMessageType(messageType),
+                        VkDebugUtilsMessageSeverity(messageSeverity),
+                        pCallbackData->pMessage,
+                        labels,
+                        objects);
+            }
             else
-                PG_CORE_ERROR_TAG("ValidationLayers", "Type: {0}, Severity: {1}\nMessage: \n\t{2}\n {3}, {4}", 
-                    VkDebugUtilsMessageType(messageType), 
-                    VkDebugUtilsMessageSeverity(messageSeverity), 
-                    pCallbackData->pMessage, 
-                    labels, 
-                    objects);
+            {
+                if (messageType & VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT)
+                    PG_CORE_WARN_TAG("ValidationLayers", "Type: {0}, Severity: {1}\nMessage: \n{2}\n{3}",
+                        VkDebugUtilsMessageType(messageType),
+                        VkDebugUtilsMessageSeverity(messageSeverity),
+                        pCallbackData->pMessage,
+                        objects);
+                else
+                    PG_CORE_ERROR_TAG("ValidationLayers", "Type: {0}, Severity: {1}\nMessage: \n{2}\n{3}",
+                        VkDebugUtilsMessageType(messageType),
+                        VkDebugUtilsMessageSeverity(messageSeverity),
+                        pCallbackData->pMessage,
+                        objects);
+            }
 
             return VK_FALSE;
         }
@@ -189,7 +210,7 @@ namespace vkPlayground {
         // this feature enables the output of warnings related to common misuse of the API, but which are not explicitly prohibited by the specification
         VkValidationFeaturesEXT features = {
             .sType = VK_STRUCTURE_TYPE_VALIDATION_FEATURES_EXT,
-            .enabledValidationFeatureCount = 2,
+            .enabledValidationFeatureCount = static_cast<uint32_t>(std::size(enables)),
             .pEnabledValidationFeatures = enables
         };
 

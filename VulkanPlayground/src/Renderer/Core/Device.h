@@ -120,8 +120,6 @@ namespace vkPlayground {
 		void FlushCommandBuffer(VkCommandBuffer commandBuffer); // Defaults to the Graphics queue
 		void FlushCommandBuffer(VkCommandBuffer commandBuffer, VkQueue queue);
 
-		VkCommandBuffer CreateSecondaryCommandBuffer(const char* debugName);
-
 		const Ref<VulkanPhysicalDevice> GetPhysicalDevice() const { return m_PhysicalDevice; }
 		VkDevice GetVulkanDevice() const { return m_LogicalDevice; }
 

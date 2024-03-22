@@ -21,11 +21,11 @@
 #include <imgui/imgui.h>
 
 #include <glm/glm.hpp>
+#include <glm/gtc/type_ptr.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
 // TODO: REMOVE
-//////#include <stb/stb_image_writer/stb_image_write.h>
-//#include <stb_image_writer/stb_image_write.h>
+#include <stb/stb_image_writer/stb_image_write.h>
 //#include <fastgltf/glm_element_traits.hpp>
 //#include <fastgltf/parser.hpp>
 //#include <fastgltf/tools.hpp>
@@ -39,10 +39,12 @@ namespace vkPlayground {
 	{
 		glm::mat4 Model;
 		glm::mat4 ViewProjection;
+		glm::vec2 DepthUnpackConsts; // TODO: TEMPORARY ALSO IN SHADERS
 	};
 
 	static std::vector<Vertex> s_Vertices;
 	static std::vector<uint32_t> s_Indices;
+	static Ref<Texture2D> s_BillBoardTexture;
 	//static std::vector<Vertex> s_TestVertices;
 	//static std::vector<uint32_t> s_TestIndices;
 
@@ -131,6 +133,8 @@ namespace vkPlayground {
 
 	EditorLayer::~EditorLayer()
 	{
+		// TODO: REMOVE
+		s_BillBoardTexture = nullptr;
 	}
 
 	void EditorLayer::OnAttach()
@@ -166,20 +170,27 @@ namespace vkPlayground {
 		// TODO: 
 		//m_ViewportRenderer->SetScene(m_EditorScene);
 		//m_ViewportRenderer->SetLineWidth(m_LineWidth);
+		m_Renderer2D = Renderer2D::Create(); // TODO: Temp also for all the stuff inside Renderer2D!
+		m_Renderer2D->SetLineWidth(2.0f);
 
 		EditorResources::Init();
 
 		m_CommandBuffer = RenderCommandBuffer::Create(0, "EditorLayer");
+		m_ScreenCommandBuffer = RenderCommandBuffer::Create(0, "ScreenPass"); // TODO: TEMP
 
 		// TODO: REMOVE!
 		Ref<Shader> renderingShader = Renderer::GetShadersLibrary()->Get("SimpleShader");
 		Ref<Shader> screenShader = Renderer::GetShadersLibrary()->Get("TexturePass");
+		Ref<Shader> compositingShader = Renderer::GetShadersLibrary()->Get("Compositing");
+
 		m_UniformBufferSet = UniformBufferSet::Create(sizeof(UniformBufferData));
+
 		TextureSpecification textureSpec = {
 			.DebugName = "Qiyana",
 			.GenerateMips = true
 		};
-		Ref<Texture2D> texture = Texture2D::Create(textureSpec, "Resources/assets/textures/qiyana.png");
+		s_BillBoardTexture = Texture2D::Create(textureSpec, "Resources/assets/textures/qiyana.png");
+
 		TextureSpecification textureSpec2 = {
 			.DebugName = "BlackTexture",
 			.Width = 1,
@@ -203,23 +214,21 @@ namespace vkPlayground {
 			FramebufferSpecification mainFBspec = {
 				.DebugName = "Rendering FB",
 				.ClearColor = { 0.0f, 0.0f, 0.0f, 1.0f },
-				.DepthClearValue = 1.0f,
-				.Attachments = { ImageFormat::RGBA, ImageFormat::DEPTH32F }
+				.DepthClearValue = 0.0f,
+				.Attachments = { { ImageFormat::RGBA, AttachmentPassThroughUsage::Input }, { ImageFormat::DEPTH32F, AttachmentPassThroughUsage::Input } },
 			};
-
-			Ref<Framebuffer> renderingFB = Framebuffer::Create(mainFBspec);
 
 			PipelineSpecification spec = {
 				.DebugName = "RenderingPassPipeline",
 				.Shader = renderingShader,
-				.TargetFramebuffer = renderingFB,
+				.TargetFramebuffer = Framebuffer::Create(mainFBspec),
 				.VertexLayout = {
 					{ ShaderDataType::Float3, "a_Position" },
 					{ ShaderDataType::Float3, "a_Color"    },
 					{ ShaderDataType::Float2, "a_TexCoord" }
 				},
 				.Topology = PrimitiveTopology::Triangles,
-				.DepthOperator = DepthCompareOperator::Less,
+				.DepthOperator = DepthCompareOperator::GreaterOrEqual,
 				.BackFaceCulling = false,
 				.DepthTest = true,
 				.DepthWrite = true,
@@ -235,30 +244,28 @@ namespace vkPlayground {
 			};
 			m_RenderingPass = RenderPass::Create(renderingPassSpec);
 			m_RenderingPass->SetInput("TransformUniformBuffer", m_UniformBufferSet);
-			m_RenderingPass->SetInput("u_Texture", texture);
+			m_RenderingPass->SetInput("u_Texture", s_BillBoardTexture);
 			m_RenderingPass->Bake();
 		}
 
-		// Screen pass
-		m_ScreenPassMaterial = Material::Create(screenShader, "ScreenPassMaterial");
+		// Screen pass (Currently used to render the depth image)
 		{
 			FramebufferSpecification screenFBSpec = {
 				.DebugName = "Screen FB",
 				.Attachments = { ImageFormat::RGBA },
 			};
 
-			Ref<Framebuffer> renderingFB = Framebuffer::Create(screenFBSpec);
-
 			PipelineSpecification spec = {
 				.DebugName = "ScreenPassPipeline",
 				.Shader = screenShader,
-				.TargetFramebuffer = renderingFB,
+				.TargetFramebuffer = Framebuffer::Create(screenFBSpec),
 				.VertexLayout = {
 					{ ShaderDataType::Float3, "a_Position" },
 					{ ShaderDataType::Float2, "a_TexCoord" }
 				},
 				.Topology = PrimitiveTopology::Triangles,
 				.BackFaceCulling = false,
+				.DepthTest = false,
 				.DepthWrite = false,
 				.WireFrame = false,
 				.LineWidth = 1.0f
@@ -268,10 +275,26 @@ namespace vkPlayground {
 			RenderPassSpecification screenPassSpec = {
 				.DebugName = "ScreenPass",
 				.Pipeline = pipeline,
-				.MarkerColor = glm::vec4(0.0f, 1.0f, 0.0f, 1.0f)
+				.MarkerColor = { 0.0f, 1.0f, 0.0f, 1.0f }
 			};
 			m_ScreenPass = RenderPass::Create(screenPassSpec);
+			m_ScreenPass->SetInput("TransformUniformBuffer", m_UniformBufferSet);
 			m_ScreenPass->Bake();
+
+			m_ScreenPassMaterial = Material::Create(screenShader, "ScreenPassMaterial");
+		}
+
+		// Intermediate Renderer2D framebuffer
+		{
+			FramebufferSpecification intermediateBufferSpec = {
+				.DebugName = "IntermediateFB",
+				.ClearColorOnLoad = false,
+				.ClearDepthOnLoad = false,
+				.Attachments = { { ImageFormat::RGBA, AttachmentPassThroughUsage::Input }, { ImageFormat::DEPTH32F, AttachmentPassThroughUsage::Input } }
+			};
+			intermediateBufferSpec.ExistingImages[0] = m_RenderingPass->GetOutput(0);
+			intermediateBufferSpec.ExistingImages[1] = m_RenderingPass->GetDepthOutput();
+			m_IntermediateBuffer = Framebuffer::Create(intermediateBufferSpec);
 		}
 
 		m_VertexBuffer = VertexBuffer::Create(s_Vertices.data(), (uint32_t)(sizeof(Vertex) * s_Vertices.size()));
@@ -283,6 +306,8 @@ namespace vkPlayground {
 		EditorResources::Shutdown();
 	}
 
+	static glm::vec3 s_Position;
+
 	void EditorLayer::OnUpdate(TimeStep ts)
 	{
 		m_EditorCamera.SetActive(m_AllowViewportCameraEvents);
@@ -291,20 +316,26 @@ namespace vkPlayground {
 		if (Input::IsKeyDown(KeyCode::F))
 			m_EditorCamera.Focus({ 0.0f, 0.0f, 0.0f });
 
+		float depthLinearizeMul = (-m_EditorCamera.GetProjectionMatrix()[3][2]);
+		float depthLinearizeAdd = (m_EditorCamera.GetProjectionMatrix()[2][2]);
+		if (depthLinearizeMul * depthLinearizeAdd < 0)
+			depthLinearizeAdd = -depthLinearizeAdd;
+
 		// Update uniform buffers (Begin Scene stuff)
 		UniformBufferData dataUB = {
-			//.Model = glm::rotate(glm::mat4(1.0f), GetTime() * glm::radians(1.0f), glm::vec3(0.0f, 0.0f, 1.0f)),
-			.Model = glm::translate(glm::mat4(1.0f), glm::vec3{ 0.0f, 0.0f, 0.0f }),
-			.ViewProjection = std::move(m_EditorCamera.GetProjection() * m_EditorCamera.GetViewMatrix())
+			.Model = glm::rotate(glm::mat4(1.0f), Application::Get().GetTime() * glm::radians(45.0f), glm::vec3(0.0f, 0.0f, 1.0f)) * glm::scale(glm::mat4(1.0f), {5.0f, 5.0f, 1.0f}),
+			// .Model = glm::translate(glm::mat4(1.0f), glm::vec3{ 0.0f, 0.0f, 0.0f }),
+			.ViewProjection = std::move(m_EditorCamera.GetProjectionMatrix() * m_EditorCamera.GetViewMatrix()),
+			.DepthUnpackConsts = { depthLinearizeMul, depthLinearizeAdd }
 		};
 
 		m_UniformBufferSet->Get()->SetData(&dataUB, sizeof(UniformBufferData));
 
 		m_CommandBuffer->Begin();
-		VkCommandBuffer commandBuffer = m_CommandBuffer->GetActiveCommandBuffer();
 
 		// First render pass renders to the framebuffer
 		{
+			VkCommandBuffer commandBuffer = m_CommandBuffer->GetActiveCommandBuffer();
 			Renderer::BeginRenderPass(m_CommandBuffer, m_RenderingPass);
 
 			VkBuffer vertexVulkanBuffer = m_VertexBuffer->GetVulkanBuffer();
@@ -316,31 +347,101 @@ namespace vkPlayground {
 			Renderer::EndRenderPass(m_CommandBuffer);
 		}
 
-		// Second render pass renders to the screen
-		Ref<Texture2D> texture = m_RenderingPass->GetOutput(0);
-		if (texture)
-		{
-			m_ScreenPassMaterial->Set("u_Texture", texture);
-			Renderer::BeginRenderPass(m_CommandBuffer, m_ScreenPass);
-			Renderer::SubmitFullScreenQuad(m_CommandBuffer, m_ScreenPass->GetPipeline(), m_ScreenPassMaterial);
-			Renderer::EndRenderPass(m_CommandBuffer);
-		}
-		else
-		{
-			// Clear pass
-			Renderer::BeginRenderPass(m_CommandBuffer, m_ScreenPass);
-			Renderer::EndRenderPass(m_CommandBuffer);
-		}
+		// Second render pass renders to the screen (TODO: This is currently used so that we could render to the screen without imgui)
+		// NOTE: For now disabled since it is useless for the editor layer
+		//Ref<Texture2D> texture = m_RenderingPass->GetOutput(0);
+		//if (texture)
+		//{
+		//	m_ScreenPassMaterial->Set("u_Texture", texture);
+		//	Renderer::BeginRenderPass(m_CommandBuffer, m_ScreenPass);
+		//	Renderer::SubmitFullScreenQuad(m_CommandBuffer, m_ScreenPass->GetPipeline(), m_ScreenPassMaterial);
+		//	Renderer::EndRenderPass(m_CommandBuffer);
+		//}
+		//else
+		//{
+		//	// Clear pass
+		//	Renderer::BeginRenderPass(m_CommandBuffer, m_ScreenPass);
+		//	Renderer::EndRenderPass(m_CommandBuffer);
+		//}
 
 		m_CommandBuffer->End();
 		m_CommandBuffer->Submit();
 
-		//if (Input::IsKeyDown(KeyCode::R))
-		//{
-		//	Buffer textureBuffer;
-		//	texture->CopyToHostBuffer(textureBuffer, true);
-		//	stbi_write_png("Resources/assets/textures/output.png", texture->GetWidth(), texture->GetHeight(), 4, textureBuffer.Data, texture->GetWidth() * 4);
-		//}
+		if (m_RenderingPass->GetOutput(0))
+		{
+			m_Renderer2D->ResetStats();
+			m_Renderer2D->BeginScene(m_EditorCamera.GetViewProjection(), m_EditorCamera.GetViewMatrix());
+			m_Renderer2D->SetTargetFramebuffer(m_IntermediateBuffer);
+			m_Renderer2D->SetLineWidth(5.0f);
+
+			m_Renderer2D->DrawQuadBillboard({ -3.053855f, 4.328760f, 1.0f }, { 2.0f, 2.0f }, { 1.0f, 0.0f, 1.0f, 1.0f });
+
+			for (int x = -15; x < 15; x++)
+			{
+				for (int y = -3; y < 3; y++)
+				{
+					m_Renderer2D->DrawQuad({ x, y, 2.0f }, { 1, 1 }, { glm::sin(x), glm::cos(y), glm::sin(x + y), 1.0f });
+				}
+			}
+
+			m_Renderer2D->DrawAABB({ {5.0f, 5.0f, 1.0f}, {7.0f, 7.0f, -4.0f} }, glm::mat4(1.0f));
+			m_Renderer2D->DrawAABB({ {4.0f, 4.0f, -1.0f}, {5.0f, 5.0f, -4.0f} }, glm::translate(glm::mat4(1.0f), {2.0f, -1.0f, -0.5f}), { 0.0f, 1.0f, 1.0f, 1.0f });
+			m_Renderer2D->DrawCircle({ 5.0f, 5.0f, -2.0f }, glm::vec3(1.0f), 2.0f, { 1.0f, 0.0f, 1.0f, 1.0f });
+			m_Renderer2D->DrawLine(glm::vec3(0.0f), glm::vec3(6.0f), glm::vec4(1.0f, 0.0f, 1.0f, 1.0f));
+			m_Renderer2D->DrawQuadBillboard({ -2.0f, -2.0f, -0.5f }, { 2.0f, 2.0f }, s_BillBoardTexture, 2.0f, {1.0f, 0.7f, 1.0f, 1.0f});
+
+			m_Renderer2D->EndScene();
+			// Here the color attachment is now in VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+			// Depth attachment is now in VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
+			// so we need to pipeline barrier the images to sample from them in the following passes
+		}
+
+		// TODO: This here is kind of temporary since rendering the depth image is not really a main thing to do in the engine LOL
+		// NOTE: This is to visualize the depth image with all the 2D depth just for debugging purposes
+		{
+			m_ScreenCommandBuffer->Begin();
+
+			Renderer::InsertImageMemoryBarrier(
+				m_ScreenCommandBuffer->GetActiveCommandBuffer(),
+				m_IntermediateBuffer->GetDepthImage()->GetVulkanImage(),
+				VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+				VK_ACCESS_SHADER_READ_BIT,
+				VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+				VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL,
+				VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT,
+				VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+				{ .aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = 1 }
+			);
+
+			Renderer::InsertImageMemoryBarrier(
+				m_ScreenCommandBuffer->GetActiveCommandBuffer(),
+				m_IntermediateBuffer->GetImage(0)->GetVulkanImage(),
+				0,
+				0,
+				VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+				VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+				VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+				VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+				{ .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = 1 }
+			);
+
+			m_ScreenPassMaterial->Set("u_Texture", m_IntermediateBuffer->GetDepthImage());
+			Renderer::BeginRenderPass(m_ScreenCommandBuffer, m_ScreenPass);
+			Renderer::SubmitFullScreenQuad(m_ScreenCommandBuffer, m_ScreenPass->GetPipeline(), m_ScreenPassMaterial);
+			Renderer::EndRenderPass(m_ScreenCommandBuffer);
+
+			m_ScreenCommandBuffer->End();
+			m_ScreenCommandBuffer->Submit();
+		}
+
+		// NOTE: This gives the image upside down since that is the output of the SceneRenderer and then we flip it in imgui so...
+		if (Input::IsKeyDown(KeyCode::R))
+		{
+			Buffer textureBuffer;
+			Ref<Texture2D> texture = m_RenderingPass->GetOutput(0);
+			texture->CopyToHostBuffer(textureBuffer, true);
+			stbi_write_png("Resources/assets/textures/output.png", texture->GetWidth(), texture->GetHeight(), 4, textureBuffer.Data, texture->GetWidth() * 4);
+		}
 
 		bool leftAltWithEitherLeftOrMiddleButtonOrJustRight = (Input::IsKeyDown(KeyCode::LeftAlt) && (Input::IsMouseButtonDown(MouseButton::Left) || (Input::IsMouseButtonDown(MouseButton::Middle)))) || Input::IsMouseButtonDown(MouseButton::Right);
 		bool notStartCameraViewportAndViewportHoveredFocused = !m_StartedCameraClickInViewport && m_ViewportPanelFocused && m_ViewportPanelMouseOver;
@@ -357,6 +458,14 @@ namespace vkPlayground {
 		StartDocking();
 
 		ImGui::ShowDemoWindow(); // Testing imgui stuff
+
+		ImGui::Begin("Depth Image");
+
+		UI::Image(m_ScreenPass->GetOutput(0), ImGui::GetContentRegionAvail(), { 0, 1 }, { 1, 0 });
+
+		ImGui::End();
+
+		ShowShadersPanel();
 
 		ShowViewport();
 
@@ -435,6 +544,8 @@ namespace vkPlayground {
 		m_EditorScene->SetViewportSize(static_cast<uint32_t>(viewportSize.x), static_cast<uint32_t>(viewportSize.y));
 		m_EditorCamera.SetViewportSize(static_cast<uint32_t>(viewportSize.x), static_cast<uint32_t>(viewportSize.y));
 
+		// Here we get the output from the rendering pass since the screen pass is there in case there was no imgui in the
+		// application and we have to render directly to the screen...
 		Ref<Texture2D> texture = m_RenderingPass->GetOutput(0);
 		UI::Image(texture, viewportSize, { 0, 1 }, { 1, 0 });
 
@@ -444,6 +555,29 @@ namespace vkPlayground {
 
 		ImGui::End();
 		ImGui::PopStyleVar();
+	}
+
+	void EditorLayer::ShowShadersPanel()
+	{
+		ImGui::Begin("Shaders");
+
+		Ref<ShadersLibrary> shadersLib = Renderer::GetShadersLibrary();
+
+		for (auto& [name, shader] : shadersLib->GetShaders())
+		{
+			ImGui::Columns(2);
+
+			ImGui::Text(name.c_str());
+
+			ImGui::NextColumn();
+
+			if (ImGui::Button(fmt::format("Reload##{0}", name).c_str()))
+				shader->Reload();
+
+			ImGui::Columns(1);
+		}
+
+		ImGui::End();
 	}
 
 	void EditorLayer::OnEvent(Events::Event& e)

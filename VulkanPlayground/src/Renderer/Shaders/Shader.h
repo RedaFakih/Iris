@@ -33,7 +33,6 @@ namespace vkPlayground {
 
 		void Reload();
 
-		// Release the shader modules after the pipelines have been created
 		void Release();
 
 		std::size_t GetHash() const;
@@ -65,7 +64,7 @@ namespace vkPlayground {
 
 	private:
 		void LoadAndCreateShaders(const std::map<VkShaderStageFlagBits, std::vector<uint32_t>>& shaderData);
-		void CreateDescriptors();
+		void BuildWriteDescriptors();
 
 	private:
 		std::string m_Name;

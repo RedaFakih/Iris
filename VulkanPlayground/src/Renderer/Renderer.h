@@ -7,6 +7,8 @@
 #include "RendererConfiguration.h"
 #include "RendererCapabilities.h"
 
+#include <glm/glm.hpp>
+
 namespace vkPlayground {
 
 	// Forward declares
@@ -17,6 +19,8 @@ namespace vkPlayground {
 	class Pipeline;
 	class Material;
 	class RenderCommandBuffer;
+	class VertexBuffer;
+	class IndexBuffer;
 
 	class Renderer
 	{
@@ -64,10 +68,13 @@ namespace vkPlayground {
 
 		static void SubmitFullScreenQuad(Ref<RenderCommandBuffer> renderCommandBuffer, Ref<Pipeline> pipeline, Ref<Material> material);
 
+		static void RenderGeometry(Ref<RenderCommandBuffer> renderCommandBuffer, Ref<Pipeline> pipeline, Ref<Material> material, Ref<VertexBuffer> vertexBuffer, Ref<IndexBuffer> indexBuffer, const glm::mat4& transform, uint32_t indexCount = 0);
+
 		static VkDescriptorSet AllocateDescriptorSet(VkDescriptorSetAllocateInfo& allocInfo);
 
 		static Ref<Texture2D> GetWhiteTexture();
 		static Ref<Texture2D> GetBlackTexture();
+		static Ref<Texture2D> GetErrorTexture();
 
 		static RenderCommandQueue& GetRendererResourceReleaseQueue(uint32_t index);
 
@@ -75,6 +82,13 @@ namespace vkPlayground {
 		static void RegisterShaderDependency(Ref<Shader> shader, Ref<Pipeline> pipeline);
 		static void RegisterShaderDependency(Ref<Shader> shader, Ref<Material> material);
 		static void OnShaderReloaded(std::size_t hash);
+
+		static void InsertMemoryBarrier(VkCommandBuffer commandBuffer,
+			VkAccessFlags srcAccessMask,
+			VkAccessFlags dstAccessMask,
+			VkPipelineStageFlags srcStageMask,
+			VkPipelineStageFlags dstStageMask
+		);
 
 		static void InsertImageMemoryBarrier(
 			VkCommandBuffer commandBuffer,

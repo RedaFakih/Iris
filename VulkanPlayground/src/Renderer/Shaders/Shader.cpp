@@ -62,12 +62,7 @@ namespace vkPlayground {
 
 	void Shader::Reload()
 	{
-		// TODO: READ:
-		// This is actually a bug and needs to be done on a render thread!
-		// This cant be done here on the main thread since we are passing the this pointer, which if this is being called from the constructor
-		// is not fully initialized object yet so it will not work!
 		// This has to be done on the render thread...
-		// To properly initialize shaders at first we will need to use the ShaderCompiler::Compile method
 		// Renderer::Submit([]() {});
 		if (!ShaderCompiler::TryRecompile(this))
 			PG_CORE_CRITICAL_TAG("Shader", "Failed to recompile shader!");
@@ -76,7 +71,8 @@ namespace vkPlayground {
 	void Shader::Release()
 	{
 		auto& pipelineCIs = m_PipelineShaderStageCreateInfos;
-		Renderer::SubmitReseourceFree([pipelineCIs]()
+		auto& descriptorSetLayouts = m_DescriptorSetLayouts;
+		Renderer::SubmitReseourceFree([pipelineCIs, descriptorSetLayouts]()
 		{
 			const VkDevice device = RendererContext::Get()->GetDevice()->GetVulkanDevice();
 
@@ -85,14 +81,20 @@ namespace vkPlayground {
 				if (pipelineShaderStageCI.module)
 					vkDestroyShaderModule(device, pipelineShaderStageCI.module, nullptr);
 			}
+
+			for (const auto& descriptorSetLayout : descriptorSetLayouts)
+			{
+				if (descriptorSetLayout)
+					vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
+			}
 		});
 
 		for (auto& pipelineShaderStageCI : m_PipelineShaderStageCreateInfos)
 			pipelineShaderStageCI.module = nullptr;
 
 		m_PipelineShaderStageCreateInfos.clear();
+		m_DescriptorSetLayouts.clear(); // We could clear the layout since on reload they will be resized and recreated
 		// NOTE: Cant clear those since they are needed for the DescriptorSetManager to create the DescriptorPool and other stuff
-		// m_DescriptorSetLayouts.clear();
 		// m_DescriptorPoolTypeCounts.clear();
 	}
 
@@ -205,7 +207,7 @@ namespace vkPlayground {
 		}
 	}
 
-	void Shader::CreateDescriptors()
+	void Shader::BuildWriteDescriptors()
 	{
 		VkDevice device = RendererContext::GetCurrentDevice()->GetVulkanDevice();
 
@@ -245,7 +247,7 @@ namespace vkPlayground {
 				layoutBinding.stageFlags = uniformBuffer.ShaderStage;
 				layoutBinding.pImmutableSamplers = nullptr;
 
-				// All the other files will be filled inside the DescriptorSetManager class which will be owned by a renderpass
+				// All the other fields will be filled inside the DescriptorSetManager class which will be owned by a renderpass
 				shaderDescriptorSet.WriteDescriptorSets[uniformBuffer.Name] = {
 					.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
 					.dstBinding = layoutBinding.binding,
@@ -265,7 +267,7 @@ namespace vkPlayground {
 
 				PG_ASSERT(shaderDescriptorSet.UniformBuffers.contains(binding) == false, "Binding already present!");
 
-				// All the other files will be filled inside the DescriptorSetManager class which will be owned by a renderpass
+				// All the other fields will be filled inside the DescriptorSetManager class which will be owned by a renderpass
 				shaderDescriptorSet.WriteDescriptorSets[imageSampler.Name] = {
 					.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
 					.dstBinding = layoutBinding.binding,

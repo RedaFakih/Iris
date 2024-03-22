@@ -4,16 +4,17 @@
 
 #include <vulkan/vulkan.h>
 
-// TODO: Timestamps
 
 namespace vkPlayground {
+
+	// TODO: Timestamps
 
 	class RenderCommandBuffer : public RefCountedObject
 	{
 	public:
 		RenderCommandBuffer(uint32_t count = 0, const std::string& debugName = "");
 		// This creates the command buffer from the sawpchain owned draw buffer
-		RenderCommandBuffer(const std::string& debugName, bool swapchain = true);
+		RenderCommandBuffer(const std::string& debugName, [[maybe_unused]] bool swapchain = true);
 		~RenderCommandBuffer();
 
 		[[nodiscard]] static Ref<RenderCommandBuffer> Create(uint32_t count = 0, const std::string& debugName = "");
@@ -31,7 +32,7 @@ namespace vkPlayground {
 	private:
 		std::string m_DebugName;
 
-		// Per-pool command buffer
+		// Per-pool command buffer (So that we can have transient command pools)
 		struct PerPoolCommandBuffer
 		{
 			VkCommandPool CommandPool = nullptr;

@@ -5,6 +5,27 @@
 
 namespace vkPlayground {
 
+    /*
+     * The way this works now is:
+     *      You can specify in the specification if an attachment will be sampled or not later that affects the final layout of the attachment
+     *          - Will be sampled -> finalLayout: VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL / VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL
+     *          - Will NOT be sampled -> finalLayout: VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL / VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
+     * 
+     * The way of usage will be as follows:
+     *   Say you have a render pass that will do multiple passes on the same image or references an existing image then the Sampled flag should NOT be set
+     *   BUT then you decide to sample from the image... It will be your responsibility to set a pipeline ImageMemoryBarrier to make sure the layout is transitioned to
+     *   the correct layout and also make sure there are no synchronization hazards {Ref: 4}
+     * 
+     * 
+     * 
+     * 
+     * References:
+     *  1: <https://github.com/KhronosGroup/Vulkan-Docs/wiki/Synchronization-Examples-(Legacy-synchronization-APIs)>
+     *  2: <https://www.reddit.com/r/vulkan/comments/8arvcj/a_question_about_subpass_dependencies/>
+     *  3: <https://github.com/ARM-software/vulkan-sdk/blob/master/samples/multipass/multipass.cpp> (line: 829)
+     *  4: <https://registry.khronos.org/vulkan/specs/1.3-extensions/man/html/VkAccessFlagBits.html> (Scroll to find table of VK_ACCESS_X -> VK_PIPELINE_STAGE_X)
+     */
+
     namespace Utils {
 
         inline VkAttachmentLoadOp GetVulkanAttachmentLoadOp(const FramebufferSpecification& spec, const FramebufferTextureSpecification& attachmentSpec)
@@ -70,7 +91,7 @@ namespace vkPlayground {
                     .Usage = ImageUsage::Attachment,
                     .Trasnfer = m_Specification.Transfer,
                 };
-                m_DepthAttachmentImage = Texture2D::Create(spec);
+                m_DepthAttachmentImage = Texture2D::CreateNull(spec);
             }
             else
             {
@@ -82,7 +103,7 @@ namespace vkPlayground {
                     .Usage = ImageUsage::Attachment,
                     .Trasnfer = m_Specification.Transfer,
                 };
-                m_ColorAttachmentImages.emplace_back(Texture2D::Create(spec));
+                m_ColorAttachmentImages.emplace_back(Texture2D::CreateNull(spec));
             }
 
             ++attachmentIndex;
@@ -103,7 +124,7 @@ namespace vkPlayground {
 
         Release();
 
-        m_ClearValues.resize(m_Specification.Attachments.Attachments.size());
+        m_ClearValues.reserve(m_Specification.Attachments.Attachments.size());
 
         std::vector<VkAttachmentDescription> attachmentDescriptions;
 
@@ -115,26 +136,36 @@ namespace vkPlayground {
         {
             if (Utils::IsDepthFormat(attachmentSpec.Format))
             {
-                TextureSpecification& spec = m_DepthAttachmentImage->GetTextureSpecification();
-                spec.Width = m_Width;
-                spec.Height = m_Height;
-                m_DepthAttachmentImage->Invalidate();
+                if (m_Specification.ExistingImages.contains(attachmentIndex))
+                {
+                    Ref<Texture2D> existingImage = m_Specification.ExistingImages[attachmentIndex];
+                    PG_ASSERT(Utils::IsDepthFormat(existingImage->GetFormat()), "Trying to attach a non-depth image to a depth attachment");
+                    m_DepthAttachmentImage = existingImage;
+                }
+                else
+                {
+                    TextureSpecification& spec = m_DepthAttachmentImage->GetTextureSpecification();
+                    spec.Width = m_Width;
+                    spec.Height = m_Height;
+                    m_DepthAttachmentImage->Invalidate();
+                }
 
                 VkAttachmentDescription& attachmentDescription = attachmentDescriptions.emplace_back();
                 attachmentDescription.flags = 0;
                 attachmentDescription.format = Utils::GetVulkanImageFormat(attachmentSpec.Format);
                 attachmentDescription.samples = Utils::GetSamplerCount(m_Specification.Samples);
                 attachmentDescription.loadOp = Utils::GetVulkanAttachmentLoadOp(m_Specification, attachmentSpec);
-                // TODO: If we are sampling it need to be store otherwise DONT_CARE
+                // NOTE: If we are sampling it need to be store otherwise DONT_CARE
                 attachmentDescription.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
                 attachmentDescription.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
                 attachmentDescription.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-                attachmentDescription.initialLayout = attachmentDescription.loadOp == VK_ATTACHMENT_LOAD_OP_CLEAR ? VK_IMAGE_LAYOUT_UNDEFINED : VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
+                attachmentDescription.initialLayout = attachmentDescription.loadOp == VK_ATTACHMENT_LOAD_OP_CLEAR ? VK_IMAGE_LAYOUT_UNDEFINED : VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
-                if (attachmentSpec.Format == ImageFormat::DEPTH24STENCIL8 || true)
+                // This is always hit since we can set VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL only if we have separateDepthStencilLayout feature enabled
+                if (true || attachmentSpec.Format == ImageFormat::DEPTH24STENCIL8 || attachmentSpec.Format == ImageFormat::DEPTH32FSTENCIL8UINT)
                 {
-                    // TODO: If we are sampling the image then we put VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
-                    attachmentDescription.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
+                    VkImageLayout finalLayout = attachmentSpec.Sampled == AttachmentPassThroughUsage::Sampled ? VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL : VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+                    attachmentDescription.finalLayout = finalLayout;
                     depthAttachmentReference = {
                         .attachment = attachmentIndex,
                         .layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
@@ -142,45 +173,63 @@ namespace vkPlayground {
                 }
                 else
                 {
-                    // TODO: If we are sampling the image then we put VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL
-                    attachmentDescription.finalLayout = VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL;
+                    VkImageLayout finalLayout = attachmentSpec.Sampled == AttachmentPassThroughUsage::Sampled ? VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL : VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL;
+                    attachmentDescription.finalLayout = finalLayout;
                     depthAttachmentReference = {
                         .attachment = attachmentIndex,
                         .layout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL
                     };
                 }
 
-                m_ClearValues[attachmentIndex].depthStencil = { m_Specification.DepthClearValue, 0 };
+                if (m_Specification.ClearDepthOnLoad)
+                    m_ClearValues.emplace_back(VkClearValue{
+                        .depthStencil = { m_Specification.DepthClearValue, 0 }
+                    });
             }
             else
             {
-                Ref<Texture2D> image = m_ColorAttachmentImages[attachmentIndex];
-                TextureSpecification& spec = image->GetTextureSpecification();
-                spec.Width = m_Width;
-                spec.Height = m_Height;
-                // TODO: Here when we have image layers we should only invalidate if we have one layer
-                image->Invalidate();
+                if (m_Specification.ExistingImages.contains(attachmentIndex))
+                {
+                    Ref<Texture2D> existingImage = m_Specification.ExistingImages[attachmentIndex];
+                    PG_ASSERT(!Utils::IsDepthFormat(existingImage->GetFormat()), "Trying to attach a non-color image to a color attachment");
+                    m_ColorAttachmentImages[attachmentIndex] = existingImage;
+                }
+                else
+                {
+                    Ref<Texture2D> image = m_ColorAttachmentImages[attachmentIndex];
+                    TextureSpecification& spec = image->GetTextureSpecification();
+                    spec.Width = m_Width;
+                    spec.Height = m_Height;
+                    // TODO: Here when we have image layers we should only invalidate if we have one layer
+                    image->Invalidate();
+                }
 
                 VkAttachmentDescription& attachmentDescription = attachmentDescriptions.emplace_back();
                 attachmentDescription.flags = 0;
                 attachmentDescription.format = Utils::GetVulkanImageFormat(attachmentSpec.Format);
                 attachmentDescription.samples = Utils::GetSamplerCount(m_Specification.Samples);
                 attachmentDescription.loadOp = Utils::GetVulkanAttachmentLoadOp(m_Specification, attachmentSpec);
-                // TODO: If we are sampling it need to be store otherwise DONT_CARE
+                // NOTE: If we are sampling it need to be store otherwise DONT_CARE
                 attachmentDescription.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
                 attachmentDescription.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
                 attachmentDescription.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-                attachmentDescription.initialLayout = attachmentDescription.loadOp == VK_ATTACHMENT_LOAD_OP_CLEAR ? VK_IMAGE_LAYOUT_UNDEFINED : VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-                attachmentDescription.finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+                attachmentDescription.initialLayout = attachmentDescription.loadOp == VK_ATTACHMENT_LOAD_OP_CLEAR ? VK_IMAGE_LAYOUT_UNDEFINED : VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
-                m_ClearValues[attachmentIndex].color = {
-                    {
-                        m_Specification.ClearColor.r,
-                        m_Specification.ClearColor.g,
-                        m_Specification.ClearColor.b,
-                        m_Specification.ClearColor.a
-                    }
-                };
+                VkImageLayout finalLayout = attachmentSpec.Sampled == AttachmentPassThroughUsage::Sampled ? VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL : VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+                attachmentDescription.finalLayout = finalLayout;
+
+                if (m_Specification.ClearColorOnLoad)
+                {
+                    m_ClearValues.emplace_back(VkClearValue{
+                        .color = {
+                            m_Specification.ClearColor.r,
+                            m_Specification.ClearColor.g,
+                            m_Specification.ClearColor.b,
+                            m_Specification.ClearColor.a
+                        }
+                    });
+                }
+
                 colorAttachmentReferences.emplace_back(VkAttachmentReference{ attachmentIndex, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL });
             }
 
@@ -190,7 +239,7 @@ namespace vkPlayground {
         VkSubpassDescription subpassDesc = {
             .pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
             .colorAttachmentCount = static_cast<uint32_t>(colorAttachmentReferences.size()),
-            .pColorAttachments = colorAttachmentReferences.data()
+            .pColorAttachments = colorAttachmentReferences.data(),
         };
         if (m_DepthAttachmentImage)
             subpassDesc.pDepthStencilAttachment = &depthAttachmentReference;

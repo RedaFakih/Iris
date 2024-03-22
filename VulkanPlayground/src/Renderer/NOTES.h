@@ -1,14 +1,14 @@
 #pragma once
 
 /*
- * NOTE(Shader - Pipeline):
- * - Fix a bug where when reloading shader some pipeline resources are not destroyed and regenerated (layout, pipeline)
- * 
  * NEXT STEP ON TUTORIAL: Loading Models.
  *
  * NEXT THING TO WORK ON:
- * - SceneRenderer
+ * - Add `Existing Images` to framebuffers so that Renderer2D could finally work (Look at note in EditorLayer.cpp Line:342)
+ * - Add a runtime layer so that we can test without imgui
+ * - Work on Scene and Entity and Components so that we can finally work with the playground nicely
  * - Scene And Entity
+ * - SceneRenderer
  * - Clean Up EditorLayer and manage the scene and scene renderer correctly
  * - Add a Renderer2D
  * - DescriptorSetManager (Constant Expansion with shader reflection)

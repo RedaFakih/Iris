@@ -91,17 +91,19 @@ namespace vkPlayground {
 			.PipelineCache = nullptr,
 			.DescriptorPool = s_ImGuiDescriptorPool,
 			.MinImageCount = 3,
-			.ImageCount = Application::Get().GetWindow().GetSwapChain().GetImageCount(),
+			.ImageCount = app.GetWindow().GetSwapChain().GetImageCount(),
 			.Allocator = nullptr,
 			.CheckVkResultFn = Utils::VulkanCheckResult
 		};
-		ImGui_ImplVulkan_Init(&initInfo, Application::Get().GetWindow().GetSwapChain().GetRenderPass());
+		ImGui_ImplVulkan_Init(&initInfo, app.GetWindow().GetSwapChain().GetRenderPass());
 
 		// Upload fonts
 		{
 			VkCommandBuffer commandBuffer = RendererContext::GetCurrentDevice()->GetCommandBuffer(true);
 			ImGui_ImplVulkan_CreateFontsTexture(commandBuffer);
 			RendererContext::GetCurrentDevice()->FlushCommandBuffer(commandBuffer);
+
+			ImGui_ImplVulkan_DestroyFontUploadObjects();
 		}
     }
 

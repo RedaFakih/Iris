@@ -13,6 +13,7 @@
 
 namespace vkPlayground {
 
+	// TODO: TEMPORARY
 	class UniformBufferSet;
 	class RenderPass;
 	class Material;
@@ -20,32 +21,20 @@ namespace vkPlayground {
 	class IndexBuffer;
 	class RenderCommandBuffer;
 
-	class EditorLayer : public Layer
+	class RuntimeLayer : public Layer
 	{
 	public:
-		EditorLayer();
-		virtual ~EditorLayer() override;
+		RuntimeLayer();
+		virtual ~RuntimeLayer() override;
 
 		virtual void OnAttach() override;
 		virtual void OnDetach() override;
 		virtual void OnUpdate(TimeStep ts) override;
-		virtual void OnImGuiRender() override;
+		virtual void OnImGuiRender() override {}
 		virtual void OnEvent(Events::Event& e) override;
 
 		bool OnKeyPressed(Events::KeyPressedEvent& e);
 		bool OnMouseButtonPressed(Events::MouseButtonPressedEvent& e);
-
-	private:
-		std::pair<float, float> GetMouseInViewportSpace() const;
-
-	// Primary panels for editor
-	private:
-		void StartDocking();
-		void EndDocking();
-		//void ShowMenuBarItems();
-
-		void ShowViewport();
-		void ShowShadersPanel();
 
 	private:
 		Ref<Scene> m_EditorScene;
@@ -53,21 +42,13 @@ namespace vkPlayground {
 
 		EditorCamera m_EditorCamera;
 
-		ImRect m_ViewportRect;
-		ImVec2 m_ViewportSize = { 0.0f, 0.0f };
-
 		float m_LineWidth = 2.0f;
 
-		bool m_StartedCameraClickInViewport = false;
-
-		bool m_ViewportPanelMouseOver = false;
-		bool m_ViewportPanelFocused = false;
-		bool m_AllowViewportCameraEvents = false;
+		bool m_AllowViewportCameraEvents = true;
 
 		// TODO: TEMP
 		Ref<Renderer2D> m_Renderer2D;
 		Ref<RenderCommandBuffer> m_CommandBuffer;
-		Ref<RenderCommandBuffer> m_ScreenCommandBuffer; // TODO: TEMP FOR DEBUGGING FOR VISUALIZING DEPTH TEXT
 		Ref<UniformBufferSet> m_UniformBufferSet;
 		Ref<RenderPass> m_RenderingPass;
 		Ref<RenderPass> m_ScreenPass;

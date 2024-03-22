@@ -163,7 +163,7 @@ namespace vkPlayground {
 
 		shader->LoadAndCreateShaders(compiler->GetSPIRVData());
 		shader->SetReflectionData(compiler->m_ReflectionData);
-		shader->CreateDescriptors();
+		shader->BuildWriteDescriptors();
 
 		Renderer::OnShaderReloaded(shader->GetHash());
 
@@ -181,7 +181,7 @@ namespace vkPlayground {
 
 		shader->LoadAndCreateShaders(compiler->GetSPIRVData());
 		shader->SetReflectionData(compiler->m_ReflectionData);
-		shader->CreateDescriptors();
+		shader->BuildWriteDescriptors();
 
 		Renderer::OnShaderReloaded(shader->GetHash());
 
@@ -505,7 +505,7 @@ namespace vkPlayground {
 			pushConstantRange.Offset = bufferOffset;
 
 			// Skip empty push constant buffers
-			if (bufferName.empty())
+			if (bufferName.empty() || bufferName == "u_Renderer")
 				continue;
 
 			ShaderBuffer& shaderBuffer = m_ReflectionData.ConstantBuffers[bufferName];
@@ -540,7 +540,7 @@ namespace vkPlayground {
 			uint32_t binding = compiler.get_decoration(res.id, spv::DecorationBinding);
 			uint32_t descriptorSet = compiler.get_decoration(res.id, spv::DecorationDescriptorSet);
 			uint32_t dimension = baseType.image.dim;
-			uint32_t arraySize = baseType.array[0];
+			uint32_t arraySize = type.array[0];
 			// Array size in case we have an array of samplers (2D batch rendering texture array) (sampler2D arr[32], NOT A sampler2DArray arr)
 			// in case the array size was 0 meaning there is no array we set it to 1 since there is 1 single image attachment instead of an array
 			if (arraySize == 0)

@@ -254,23 +254,6 @@ namespace vkPlayground {
 		GetThreadLocalCommandPool()->FlushCommandBuffer(commandBuffer, queue);
 	}
 
-	VkCommandBuffer VulkanDevice::CreateSecondaryCommandBuffer(const char* debugName)
-	{
-		VkCommandBuffer cmdBuffer = nullptr;
-
-		VkCommandBufferAllocateInfo allocInfo = {
-			.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
-			.commandPool = GetOrCreateThreadLocalCommandPool()->GetGraphicsCommandPool(Renderer::GetCurrentFrameIndex()),
-			.level = VK_COMMAND_BUFFER_LEVEL_SECONDARY,
-			.commandBufferCount = 1
-		};
-
-		VK_CHECK_RESULT(vkAllocateCommandBuffers(m_LogicalDevice, &allocInfo, &cmdBuffer));
-		VKUtils::SetDebugUtilsObjectName(m_LogicalDevice, VK_OBJECT_TYPE_COMMAND_BUFFER, debugName, cmdBuffer);
-
-		return cmdBuffer;
-	}
-
 	Ref<VulkanCommandPool> VulkanDevice::GetThreadLocalCommandPool()
 	{
 		std::thread::id threadID = std::this_thread::get_id();

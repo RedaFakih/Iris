@@ -23,7 +23,11 @@ namespace vkPlayground {
 	}
 
 	EditorCamera::EditorCamera(float degFov, float width, float height, float nearClip, float farClip)
-		: Camera(glm::perspective(glm::radians(degFov), width / height, nearClip, farClip)), m_FOV(glm::radians(degFov)), m_AspectRatio(width / height), m_NearClip(nearClip), m_FarClip(farClip)
+		: Camera(glm::perspectiveFov(glm::radians(degFov), width, height, farClip, nearClip), glm::perspectiveFov(glm::radians(degFov), width, height, nearClip, farClip)),
+		  m_FOV(glm::radians(degFov)),
+		  m_AspectRatio(width / height), 
+		  m_NearClip(nearClip), 
+		  m_FarClip(farClip)
 	{
 		Init();
 	}

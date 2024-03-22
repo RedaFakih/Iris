@@ -46,7 +46,7 @@ namespace vkPlayground {
 		inline void SetDistance(float distance) { m_Distance = distance; }
 
 		const glm::mat4& GetViewMatrix() const { return m_ViewMatrix; }
-		glm::mat4 GetViewProjection() const { return GetProjection() * m_ViewMatrix; }
+		glm::mat4 GetViewProjection() const { return GetProjectionMatrix() * m_ViewMatrix; }
 
 		float GetPitch() const { return m_Pitch; }
 		float GetYaw() const { return m_Yaw; }

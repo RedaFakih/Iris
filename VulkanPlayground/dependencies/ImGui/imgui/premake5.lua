@@ -30,6 +30,7 @@ project "ImGui"
         "../../../src",
         "%{IncludeDir.GLFW}",
         "%{IncludeDir.VulkanSDK}",
+        "%{IncludeDir.glm}",
         "%{IncludeDir.spdlog}"
     }
 

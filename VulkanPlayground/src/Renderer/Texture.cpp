@@ -64,6 +64,11 @@ namespace vkPlayground {
 
     }
 
+    Ref<Texture2D> Texture2D::CreateNull(const TextureSpecification& spec)
+    {
+        return CreateRef<Texture2D>(spec);
+    }
+
     Ref<Texture2D> Texture2D::Create(const TextureSpecification& spec, const std::string& filePath)
     {
         return CreateRef<Texture2D>(spec, filePath);
@@ -72,6 +77,12 @@ namespace vkPlayground {
     Ref<Texture2D> Texture2D::Create(const TextureSpecification& spec, Buffer imageData)
     {
         return CreateRef<Texture2D>(spec, imageData);
+    }
+
+    Texture2D::Texture2D(const TextureSpecification& spec)
+        : m_Specification(spec)
+    {
+        PG_ASSERT(m_Specification.Width > 0 && m_Specification.Height > 0, "");
     }
 
     Texture2D::Texture2D(const TextureSpecification& spec, const std::string& filePath)
@@ -102,7 +113,8 @@ namespace vkPlayground {
             m_ImageData = Utils::TextureImporter::LoadImageFromMemory(imageData, m_Specification.Format, m_Specification.Width, m_Specification.Height);
             if (!m_ImageData)
             {
-                m_ImageData = Utils::TextureImporter::LoadImageFromFile("assets/textures/cap.jpg", m_Specification.Format, m_Specification.Width, m_Specification.Height);
+                constexpr uint32_t errorTextureData = 0xff0000ff;
+                m_ImageData = Buffer((uint8_t*)&errorTextureData, sizeof(uint32_t));
             }
 
             Utils::ValidateSpecification(m_Specification);
@@ -158,7 +170,8 @@ namespace vkPlayground {
                 usage |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
         }
         // We set it as a transfer src and dst for textures to generate mips
-        if (m_Specification.Trasnfer || m_Specification.Usage == ImageUsage::Texture)
+        // Also for attachments in case we want to blit them or copy to host buffers
+        if (m_Specification.Trasnfer || m_Specification.Usage == ImageUsage::Texture || m_Specification.Usage == ImageUsage::Attachment)
         {
             usage |= VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
         }
