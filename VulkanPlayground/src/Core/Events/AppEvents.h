@@ -20,7 +20,7 @@ namespace vkPlayground::Events {
 			return ss.str();
 		}
 
-		EVENT_CLASS_TYPE(WindowResize)
+		VKPG_EVENT_CLASS_TYPE(WindowResize)
 
 	private:
 		uint32_t m_Width;
@@ -43,7 +43,7 @@ namespace vkPlayground::Events {
 			return ss.str();
 		}
 
-		EVENT_CLASS_TYPE(WindowMinimize)
+		VKPG_EVENT_CLASS_TYPE(WindowMinimize)
 
 	private:
 		bool m_Minimized = false;
@@ -62,7 +62,7 @@ namespace vkPlayground::Events {
 			return ss.str();
 		}
 
-		EVENT_CLASS_TYPE(WindowClose)
+		VKPG_EVENT_CLASS_TYPE(WindowClose)
 
 	};
 

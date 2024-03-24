@@ -4,19 +4,15 @@
 #include "Ref.h"
 
 #include <memory>
-#include <source_location>
 
-#define PG_ASSERT(x, message)\
-{\
-	if(!(x))\
-	{\
-		std::source_location loc = std::source_location::current();\
-		PG_CORE_CRITICAL_TAG("Core", "Assertion Failed in File: {0}, Function: {1}, Line: {2}!\n{3}", loc.file_name(), loc.function_name(), loc.line(), message);\
-		__debugbreak();\
-	}\
-}
+#define VKPG_DEBUG_BREAK() __debugbreak()
 
-#define PG_SET_EVENT_FN(function) [this](auto&&... args) -> decltype(auto) { return this->function(std::forward<decltype(args)>(args)...); }
+#include "Assert.h"
+
+#define VKPG_SET_EVENT_FN(function) [this](auto&&... args) -> decltype(auto) { return this->function(std::forward<decltype(args)>(args)...); }
+
+// For creating enum bit fields
+#define BIT(x) 1 << x
 
 namespace vkPlayground {
 

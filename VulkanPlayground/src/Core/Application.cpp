@@ -11,7 +11,7 @@ namespace vkPlayground {
 	Application::Application(const ApplicationSpecification& spec)
 		: m_Specification(spec)
 	{
-		PG_ASSERT(!s_Instance, "No more than 1 application can be created!");
+		VKPG_VERIFY(!s_Instance, "No more than 1 application can be created!");
 		s_Instance = this;
 
 		if (!spec.WorkingDirectory.empty())

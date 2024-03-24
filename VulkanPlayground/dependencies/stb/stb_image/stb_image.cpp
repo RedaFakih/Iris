@@ -1,6 +1,6 @@
 #ifndef STB_IMAGE_IMPLEMENTATION
 	#define STB_IMAGE_IMPLEMENTATION
-	#ifdef PLAYGROUND_RELEASE
+	#ifdef VKPG_CONFIG_RELEASE
 		#define STBI_ASSERT(x)
 	#endif
 #endif

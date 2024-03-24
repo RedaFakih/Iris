@@ -173,7 +173,7 @@ namespace vkPlayground {
 				case ImageFormat::DEPTH32F:		return 4;
 			}
 
-			PG_ASSERT(false, "");
+			VKPG_ASSERT(false);
 			return -1;
 		}
 
@@ -201,7 +201,7 @@ namespace vkPlayground {
 					return false;
 			}
 
-			PG_ASSERT(false, "");
+			VKPG_ASSERT(false);
 			return false;
 		}
 
@@ -245,7 +245,7 @@ namespace vkPlayground {
 				case ImageFormat::DEPTH24STENCIL8:		return RendererContext::GetCurrentDevice()->GetPhysicalDevice()->GetDepthFormat();
 			}
 
-			PG_ASSERT(false, "");
+			VKPG_ASSERT(false);
 			return VK_FORMAT_UNDEFINED;
 		}
 	}

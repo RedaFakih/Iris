@@ -15,7 +15,7 @@ namespace vkPlayground {
 
 		static void GLFWErrorCallback(int error, const char* description)
 		{
-			PG_CORE_ERROR_TAG("GLFW", "{0} - Description: {1}", error, description);
+			VKPG_CORE_ERROR_TAG("Window", "GLFW: {0} - Description: {1}", error, description);
 		}
 
 	}
@@ -44,7 +44,7 @@ namespace vkPlayground {
 		if (!s_GLFWInitialized)
 		{
 			int succes = glfwInit();
-			PG_ASSERT(succes, "Failed to initialize glfw");
+			VKPG_VERIFY(succes, "Failed to initialize glfw");
 			glfwSetErrorCallback(Utils::GLFWErrorCallback);
 
 			s_GLFWInitialized = true;
@@ -85,7 +85,7 @@ namespace vkPlayground {
 		if (isRawMouseMotionSupported)
 			glfwSetInputMode(m_Window, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);
 		else
-			PG_CORE_WARN_TAG("GLFW", "Raw mouse motion not supported.");
+			VKPG_CORE_WARN_TAG("Window", "Raw mouse motion not supported.");
 
 		// TODO: Typing and clicking events...?
 		glfwSetWindowSizeCallback(m_Window, [](GLFWwindow* window, int width, int height)

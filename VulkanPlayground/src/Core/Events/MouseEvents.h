@@ -21,7 +21,7 @@ namespace vkPlayground::Events {
 			return ss.str();
 		}
 
-		EVENT_CLASS_TYPE(MouseMoved)
+		VKPG_EVENT_CLASS_TYPE(MouseMoved)
 
 	private:
 		float m_Mx, m_My;
@@ -44,7 +44,7 @@ namespace vkPlayground::Events {
 			return ss.str();
 		}
 
-		EVENT_CLASS_TYPE(MouseScrolled)
+		VKPG_EVENT_CLASS_TYPE(MouseScrolled)
 
 	private:
 		float m_Xoffset, m_Yoffset;
@@ -79,7 +79,7 @@ namespace vkPlayground::Events {
 			return ss.str();
 		}
 
-		EVENT_CLASS_TYPE(MouseButtonPressed)
+		VKPG_EVENT_CLASS_TYPE(MouseButtonPressed)
 
 	};
 
@@ -96,7 +96,7 @@ namespace vkPlayground::Events {
 			return ss.str();
 		}
 
-		EVENT_CLASS_TYPE(MouseButtonReleased)
+		VKPG_EVENT_CLASS_TYPE(MouseButtonReleased)
 
 	};
 

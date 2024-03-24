@@ -61,7 +61,7 @@ project "VulkanPlayground"
         systemversion "latest"
 
     filter "configurations:Debug"
-        defines "PLAYGROUND_DEBUG"
+        defines "VKPG_CONFIG_DEBUG"
         runtime "Debug"
         symbols "on"
 
@@ -76,7 +76,7 @@ project "VulkanPlayground"
         }
 
     filter "configurations:Release"
-        defines "PLAYGROUND_RELEASE"
+        defines "VKPG_CONFIG_RELEASE"
         runtime "Release"
         optimize "Speed"
         inlining "Auto"

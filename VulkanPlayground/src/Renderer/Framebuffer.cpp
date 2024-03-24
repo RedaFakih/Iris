@@ -16,9 +16,6 @@ namespace vkPlayground {
      *   BUT then you decide to sample from the image... It will be your responsibility to set a pipeline ImageMemoryBarrier to make sure the layout is transitioned to
      *   the correct layout and also make sure there are no synchronization hazards {Ref: 4}
      * 
-     * 
-     * 
-     * 
      * References:
      *  1: <https://github.com/KhronosGroup/Vulkan-Docs/wiki/Synchronization-Examples-(Legacy-synchronization-APIs)>
      *  2: <https://www.reddit.com/r/vulkan/comments/8arvcj/a_question_about_subpass_dependencies/>
@@ -109,7 +106,7 @@ namespace vkPlayground {
             ++attachmentIndex;
         }
 
-        PG_ASSERT(spec.Attachments.Attachments.size(), "");
+        VKPG_ASSERT(spec.Attachments.Attachments.size());
         Resize(m_Width, m_Height, true);
     }
 
@@ -139,7 +136,7 @@ namespace vkPlayground {
                 if (m_Specification.ExistingImages.contains(attachmentIndex))
                 {
                     Ref<Texture2D> existingImage = m_Specification.ExistingImages[attachmentIndex];
-                    PG_ASSERT(Utils::IsDepthFormat(existingImage->GetFormat()), "Trying to attach a non-depth image to a depth attachment");
+                    VKPG_VERIFY(Utils::IsDepthFormat(existingImage->GetFormat()), "Trying to attach a non-depth image to a depth attachment");
                     m_DepthAttachmentImage = existingImage;
                 }
                 else
@@ -191,7 +188,7 @@ namespace vkPlayground {
                 if (m_Specification.ExistingImages.contains(attachmentIndex))
                 {
                     Ref<Texture2D> existingImage = m_Specification.ExistingImages[attachmentIndex];
-                    PG_ASSERT(!Utils::IsDepthFormat(existingImage->GetFormat()), "Trying to attach a non-color image to a color attachment");
+                    VKPG_ASSERT(!Utils::IsDepthFormat(existingImage->GetFormat()), "Trying to attach a non-color image to a color attachment");
                     m_ColorAttachmentImages[attachmentIndex] = existingImage;
                 }
                 else
@@ -322,13 +319,13 @@ namespace vkPlayground {
         {
             Ref<Texture2D> image = m_ColorAttachmentImages[i];
             attachmentImageViews[i] = image->GetVulkanImageView();
-            PG_ASSERT(attachmentImageViews[i], "");
+            VKPG_ASSERT(attachmentImageViews[i]);
         }
 
         if (m_DepthAttachmentImage)
         {
             attachmentImageViews.emplace_back(m_DepthAttachmentImage->GetVulkanImageView());
-            PG_ASSERT(attachmentImageViews.back(), "");
+            VKPG_ASSERT(attachmentImageViews.back());
         }
 
         VkFramebufferCreateInfo framebufferCI = {

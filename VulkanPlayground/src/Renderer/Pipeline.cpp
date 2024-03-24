@@ -20,7 +20,7 @@ namespace vkPlayground {
 				case PrimitiveTopology::Points:				return VK_PRIMITIVE_TOPOLOGY_POINT_LIST;
 			}
 
-			PG_ASSERT(false, "Unreachable!");
+			VKPG_ASSERT(false);
 			return VK_PRIMITIVE_TOPOLOGY_MAX_ENUM;
 		}
 
@@ -38,7 +38,7 @@ namespace vkPlayground {
 				case DepthCompareOperator::Always:			return VK_COMPARE_OP_ALWAYS;
 			}
 
-			PG_ASSERT(false, "Unreachable!");
+			VKPG_ASSERT(false);
 			return VK_COMPARE_OP_MAX_ENUM;
 		}
 
@@ -60,7 +60,7 @@ namespace vkPlayground {
 				case ShaderDataType::UInt4:		return VK_FORMAT_R32G32B32A32_UINT;
 			}
 
-			PG_ASSERT(false, "Unreachable!");
+			VKPG_ASSERT(false);
 			return VK_FORMAT_UNDEFINED;
 		}
 
@@ -74,8 +74,8 @@ namespace vkPlayground {
 	Pipeline::Pipeline(const PipelineSpecification& spec)
 		: m_Specification(spec)
 	{
-		PG_ASSERT(spec.Shader, "Shader is not provided!");
-		PG_ASSERT(spec.TargetFramebuffer, "Framebuffer is not provided!");
+		VKPG_ASSERT(spec.Shader);
+		VKPG_ASSERT(spec.TargetFramebuffer);
 
 		Invalidate();
 		Renderer::RegisterShaderDependency(spec.Shader, this);
@@ -89,7 +89,7 @@ namespace vkPlayground {
 	void Pipeline::Invalidate()
 	{
 		VkDevice device = RendererContext::GetCurrentDevice()->GetVulkanDevice();
-		PG_ASSERT(m_Specification.Shader, "Shader can not be nullptr!");
+		VKPG_ASSERT(m_Specification.Shader);
 
 		// Make sure past resources are cleared in case we are reloading shaders
 		Release();
@@ -285,7 +285,7 @@ namespace vkPlayground {
 
 						break;
 					}
-					default: PG_ASSERT(false, "Unknown");
+					default: VKPG_ASSERT(false);
 				}
 			}
 		}

@@ -2,6 +2,7 @@
 #include "ImGuiLayer.h"
 
 #include "Core/Application.h"
+#include "ImGuiFonts.h"
 #include "Renderer/Core/RendererContext.h"
 #include "Renderer/Core/Vulkan.h"
 #include "Renderer/Renderer.h"
@@ -37,7 +38,8 @@ namespace vkPlayground {
 		io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;           // Enable Docking
 		io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;         // Enable Multi-Viewport / Platform Windows
 
-		// TODO: Configure Fonts
+		// Configure Fonts
+		LoadFonts();
 
 		// Setup Dear ImGui style
 		ImGui::StyleColorsDark();
@@ -55,26 +57,20 @@ namespace vkPlayground {
 		GLFWwindow* window = app.GetWindow().GetNativeWindow();
 		VkDevice device = RendererContext::GetCurrentDevice()->GetVulkanDevice();
 
-		// Create a descriptor pool in order to allocate all the descriptor sets for the imgui textures
+		// This descriptor pool serves the purpose which is mainly allocating descriptor sets for the font textures of ImGui because other image descriptors
+		// will be handled by the Renderer's descriptor pool
 		// Create Descriptor Pool (vkGuide)
 		VkDescriptorPoolSize poolSizes[] =
 		{
 			{ VK_DESCRIPTOR_TYPE_SAMPLER, 100 },
 			{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 100 },
 			{ VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 100 },
-			{ VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 100 },
-			{ VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 100 },
-			{ VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 100 },
 			{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 100 },
-			{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 100 },
-			{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 100 },
-			{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 100 },
 			{ VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 100 }
 		};
 
 		VkDescriptorPoolCreateInfo descPoolCI = {
 			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
-			.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT, // TODO: WHat about this?
 			.maxSets = 100 * IM_ARRAYSIZE(poolSizes),
 			.poolSizeCount = static_cast<uint32_t>(IM_ARRAYSIZE(poolSizes)),
 			.pPoolSizes = poolSizes
@@ -88,9 +84,9 @@ namespace vkPlayground {
 			.Device = device,
 			.QueueFamily = static_cast<uint32_t>(RendererContext::GetCurrentDevice()->GetPhysicalDevice()->GetQueueFamilyIndices().Graphics),
 			.Queue = RendererContext::GetCurrentDevice()->GetGraphicsQueue(),
-			.PipelineCache = nullptr,
+			.PipelineCache = VK_NULL_HANDLE,
 			.DescriptorPool = s_ImGuiDescriptorPool,
-			.MinImageCount = 3,
+			.MinImageCount = Renderer::GetConfig().FramesInFlight,
 			.ImageCount = app.GetWindow().GetSwapChain().GetImageCount(),
 			.Allocator = nullptr,
 			.CheckVkResultFn = Utils::VulkanCheckResult
@@ -287,5 +283,47 @@ namespace vkPlayground {
 		style.FrameBorderSize = 1.0f;
 		style.IndentSpacing = 11.0f;
     }
+
+	void ImGuiLayer::LoadFonts()
+	{
+		FontSpecification robotoLarge = {
+			.FontName = "RobotoLarge",
+			.Filepath = "Resources/Editor/Fonts/Roboto/Roboto-Regular.ttf",
+			.Size = 24.0f
+		};
+		m_FontsLibrary.Load(robotoLarge);
+
+		FontSpecification robotoBold = {
+			.FontName = "RobotoBold",
+			.Filepath = "Resources/Editor/Fonts/Roboto/Roboto-Bold.ttf",
+			.Size = 18.0f
+		};
+		m_FontsLibrary.Load(robotoBold);
+
+		FontSpecification robotoDefault = {
+			.FontName = "RobotoDefault",
+			.Filepath = "Resources/Editor/Fonts/Roboto/Roboto-SemiMedium.ttf",
+			.Size = 15.0f
+		};
+		m_FontsLibrary.Load(robotoDefault, true);
+
+		// TODO: Here we should replace the hex values with defines for font awesome glyphs
+		const ImWchar s_FontAwesomeGlyphRanges[] = { 0xf000, 0xf307, 0 };
+		FontSpecification fontAwesome = {
+			.FontName = "FontAwesome",
+			.Filepath = "Resources/Editor/Fonts/FontAwesome/fontawesome-webfont.ttf",
+			.Size = 16.0f,
+			.GlyphRanges = s_FontAwesomeGlyphRanges,
+			.MergeWithLast = true
+		};
+		m_FontsLibrary.Load(fontAwesome);
+
+		FontSpecification mochiyPop = {
+			.FontName = "MochiyPopOne",
+			.Filepath = "Resources/Editor/Fonts/MochiyPopOne/MochiyPopOne-Regular.ttf",
+			.Size = 18.0f
+		};
+		m_FontsLibrary.Load(mochiyPop);
+	}
 
 }

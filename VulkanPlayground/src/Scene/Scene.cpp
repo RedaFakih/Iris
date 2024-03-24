@@ -42,7 +42,7 @@ namespace vkPlayground {
 		TagComponent& tag = entity.AddComponent<TagComponent>(name);
 		tag.Tag = name == "" ? "PlaygroundDefault" : name;
 
-		PG_ASSERT(!m_EntityIDMap.contains(id), "");
+		VKPG_ASSERT(!m_EntityIDMap.contains(id));
 		m_EntityIDMap[id] = entity;
 
 		SortEntities();
@@ -76,7 +76,7 @@ namespace vkPlayground {
 
 	Entity Scene::GetEntitiyWithUUID(UUID id) const
 	{
-		PG_ASSERT(m_EntityIDMap.contains(id), "Invalid Entity ID or entity does not exist!");
+		VKPG_ASSERT(m_EntityIDMap.contains(id), "Invalid Entity ID or entity does not exist!");
 		return m_EntityIDMap.at(id);
 	}
 

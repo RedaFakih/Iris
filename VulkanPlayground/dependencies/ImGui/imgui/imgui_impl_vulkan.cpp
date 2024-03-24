@@ -577,7 +577,7 @@ bool ImGui_ImplVulkan_CreateFontsTexture(VkCommandBuffer command_buffer)
         check_vk_result(err);
     }
 
-    // Create the Descriptor Set:
+    // Create the Descriptor Set for the fonts texture:
     bd->FontDescriptorSet = (VkDescriptorSet)ImGui_ImplVulkan_AddTexture_Internal(bd->FontSampler, bd->FontView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
     // Create the Upload Buffer:
@@ -959,7 +959,7 @@ bool    ImGui_ImplVulkan_Init(ImGui_ImplVulkan_InitInfo* info, VkRenderPass rend
     IM_ASSERT(info->Device != VK_NULL_HANDLE);
     IM_ASSERT(info->Queue != VK_NULL_HANDLE);
     IM_ASSERT(info->DescriptorPool != VK_NULL_HANDLE);
-    IM_ASSERT(info->MinImageCount >= 3);
+    IM_ASSERT(info->MinImageCount >= 1);
     IM_ASSERT(info->ImageCount >= info->MinImageCount);
     IM_ASSERT(render_pass != VK_NULL_HANDLE);
 

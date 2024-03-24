@@ -435,13 +435,13 @@ namespace vkPlayground {
 		}
 
 		// NOTE: This gives the image upside down since that is the output of the SceneRenderer and then we flip it in imgui so...
-		if (Input::IsKeyDown(KeyCode::R))
-		{
-			Buffer textureBuffer;
-			Ref<Texture2D> texture = m_RenderingPass->GetOutput(0);
-			texture->CopyToHostBuffer(textureBuffer, true);
-			stbi_write_png("Resources/assets/textures/output.png", texture->GetWidth(), texture->GetHeight(), 4, textureBuffer.Data, texture->GetWidth() * 4);
-		}
+		// if (Input::IsKeyDown(KeyCode::R))
+		// {
+		// 	Buffer textureBuffer;
+		// 	Ref<Texture2D> texture = m_RenderingPass->GetOutput(0);
+		// 	texture->CopyToHostBuffer(textureBuffer, true);
+		// 	stbi_write_png("Resources/assets/textures/output.png", texture->GetWidth(), texture->GetHeight(), 4, textureBuffer.Data, texture->GetWidth() * 4);
+		// }
 
 		bool leftAltWithEitherLeftOrMiddleButtonOrJustRight = (Input::IsKeyDown(KeyCode::LeftAlt) && (Input::IsMouseButtonDown(MouseButton::Left) || (Input::IsMouseButtonDown(MouseButton::Middle)))) || Input::IsMouseButtonDown(MouseButton::Right);
 		bool notStartCameraViewportAndViewportHoveredFocused = !m_StartedCameraClickInViewport && m_ViewportPanelFocused && m_ViewportPanelMouseOver;
@@ -466,6 +466,8 @@ namespace vkPlayground {
 		ImGui::End();
 
 		ShowShadersPanel();
+
+		ShowFontsPanel();
 
 		ShowViewport();
 
@@ -573,6 +575,29 @@ namespace vkPlayground {
 
 			if (ImGui::Button(fmt::format("Reload##{0}", name).c_str()))
 				shader->Reload();
+
+			ImGui::Columns(1);
+		}
+
+		ImGui::End();
+	}
+
+	void EditorLayer::ShowFontsPanel()
+	{
+		ImGui::Begin("Fonts");
+
+		ImGuiFontsLibrary& fontsLib = Application::Get().GetImGuiLayer()->GetFontsLibrary();
+
+		for (auto& [name, font] : fontsLib.GetFonts())
+		{
+			ImGui::Columns(2);
+
+			ImGui::Text(name.c_str());
+
+			ImGui::NextColumn();
+
+			if (ImGui::Button(fmt::format("Set Default##{0}", name).c_str()))
+				fontsLib.SetDefaultFont(name);
 
 			ImGui::Columns(1);
 		}

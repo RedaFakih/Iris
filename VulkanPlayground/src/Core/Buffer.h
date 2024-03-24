@@ -69,7 +69,7 @@ namespace vkPlayground {
 
 		uint8_t* ReadBytes(std::size_t size, std::size_t offset) const
 		{
-			PG_ASSERT(size + offset <= Size, "Overflow");
+			VKPG_ASSERT(size + offset <= Size);
 			uint8_t* data = new uint8_t[size];
 			std::memcpy(data, Data + offset, size);
 			return data;
@@ -77,7 +77,7 @@ namespace vkPlayground {
 
 		void Write(const uint8_t* data, std::size_t size, std::size_t offset = 0)
 		{
-			PG_ASSERT(size + offset <= Size, "");
+			VKPG_ASSERT(size + offset <= Size);
 			std::memcpy(Data + offset, data, size);
 		}
 

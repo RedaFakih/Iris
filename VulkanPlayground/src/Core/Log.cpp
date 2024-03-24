@@ -7,6 +7,8 @@
 namespace vkPlayground::Logging {
 
 	std::shared_ptr<spdlog::logger> Log::s_CoreLogger;
+	std::shared_ptr<spdlog::logger> Log::s_ClientLogger;
+	std::map<std::string, Log::TagDetails> Log::s_EnabledTags;
 
 	void Log::Init()
 	{

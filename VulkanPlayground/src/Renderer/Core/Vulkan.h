@@ -60,7 +60,7 @@ namespace vkPlayground::Utils {
 			case VK_PIPELINE_COMPILE_REQUIRED_EXT: return "VK_PIPELINE_COMPILE_REQUIRED_EXT";
 		}
 
-		PG_ASSERT(false, "Unknown error type!");
+		VKPG_ASSERT(false);
 		return nullptr;
 	}
 
@@ -112,7 +112,7 @@ namespace vkPlayground::Utils {
 			case VK_OBJECT_TYPE_MAX_ENUM: return "VK_OBJECT_TYPE_MAX_ENUM";
 		}
 
-		PG_ASSERT(false, "Unknown object type!");
+		VKPG_ASSERT(false);
 		return "";
 	}
 
@@ -120,14 +120,14 @@ namespace vkPlayground::Utils {
 	{
 		if (res != VK_SUCCESS)
 		{
-			PG_CORE_ERROR_TAG("Vulkan", "VkResult is `{0}`", VKResultToString(res));
+			VKPG_CORE_ERROR_TAG("Vulkan", "VkResult is `{0}`", VKResultToString(res));
 			if (res == VK_ERROR_DEVICE_LOST)
 			{
 				using namespace std::chrono_literals;
 				std::this_thread::sleep_for(3s);
 			}
 	
-			PG_ASSERT(res == VK_SUCCESS, "Device lost!");
+			VKPG_ASSERT(res == VK_SUCCESS, "Device lost!");
 		}
 	}
 
@@ -135,14 +135,14 @@ namespace vkPlayground::Utils {
 	{
 		if (res != VK_SUCCESS)
 		{
-			PG_CORE_ERROR_TAG("Vulkan", "VkResult is `{0}` in file: `{1}` at line: `{2}`", VKResultToString(res), file, line);
+			VKPG_CORE_ERROR_TAG("Vulkan", "VkResult is `{0}` in file: `{1}` at line: `{2}`", VKResultToString(res), file, line);
 			if (res == VK_ERROR_DEVICE_LOST)
 			{
 				using namespace std::chrono_literals;
 				std::this_thread::sleep_for(3s);
 			}
 
-			PG_ASSERT(res == VK_SUCCESS, "Device lost!");
+			VKPG_ASSERT(res == VK_SUCCESS, "Device lost!");
 		}
 	}
 

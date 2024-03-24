@@ -59,8 +59,8 @@ namespace vkPlayground {
 	IndexBuffer::IndexBuffer(uint32_t size)
 		: m_Size(size)
 	{
-		PG_ASSERT(false, "Do you really wan't to do this? Index buffers are usually created once with their data...");
-		PG_CORE_CRITICAL_TAG("Renderer", "Creating an IndexBuffer with just a `size`. Are you sure...??? IndexBuffers are usualy created only once!");
+		VKPG_VERIFY(false, "Do you really wan't to do this? Index buffers are usually created once with their data...");
+		VKPG_CORE_FATAL_TAG("Renderer", "Creating an IndexBuffer with just a `size`. Are you sure...??? IndexBuffers are usualy created only once!");
 
 		VulkanAllocator allocator("IndexBuffer");
 
@@ -95,9 +95,9 @@ namespace vkPlayground {
 
 	void IndexBuffer::SetData(const void* data, uint32_t size, uint32_t offset)
 	{
-		PG_ASSERT(false, "Do you really wan't to do this? Index buffers are usually created once with their data...");
-		PG_ASSERT(size <= m_Size, "Can't set more data than the buffer can hold!");
-		PG_CORE_CRITICAL_TAG("Renderer", "Creating an IndexBuffer with just a `size`. Are you sure...??? IndexBuffers are usualy created only once!");
+		VKPG_VERIFY(false, "Do you really wan't to do this? Index buffers are usually created once with their data...");
+		VKPG_VERIFY(size <= m_Size, "Can't set more data than the buffer can hold!");
+		VKPG_CORE_FATAL_TAG("Renderer", "Creating an IndexBuffer with just a `size`. Are you sure...??? IndexBuffers are usualy created only once!");
 
 		VulkanAllocator allocator("IndexBuffer");
 

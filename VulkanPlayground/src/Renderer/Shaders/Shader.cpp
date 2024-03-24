@@ -65,7 +65,7 @@ namespace vkPlayground {
 		// This has to be done on the render thread...
 		// Renderer::Submit([]() {});
 		if (!ShaderCompiler::TryRecompile(this))
-			PG_CORE_CRITICAL_TAG("Shader", "Failed to recompile shader!");
+			VKPG_CORE_FATAL_TAG("Shader", "Failed to recompile shader!");
 	}
 
 	void Shader::Release()
@@ -149,7 +149,7 @@ namespace vkPlayground {
 
 	ShaderResources::UniformBuffer& Shader::GetUniformBuffer(const uint32_t set, const uint32_t binding)
 	{
-		PG_ASSERT(m_ReflectionData.ShaderDescriptorSets.at(set).UniformBuffers.size() > binding, "");
+		VKPG_ASSERT(m_ReflectionData.ShaderDescriptorSets.at(set).UniformBuffers.size() > binding);
 		return m_ReflectionData.ShaderDescriptorSets.at(set).UniformBuffers.at(binding);
 	}
 
@@ -164,8 +164,8 @@ namespace vkPlayground {
 
 	const VkWriteDescriptorSet* Shader::GetDescriptorSet(const std::string& name, uint32_t set) const
 	{
-		PG_ASSERT(m_ReflectionData.ShaderDescriptorSets.size() > set, "");
-		PG_ASSERT(m_ReflectionData.ShaderDescriptorSets[set], "");
+		VKPG_ASSERT(m_ReflectionData.ShaderDescriptorSets.size() > set);
+		VKPG_ASSERT(m_ReflectionData.ShaderDescriptorSets[set]);
 
 		if (m_ReflectionData.ShaderDescriptorSets.at(set).WriteDescriptorSets.contains(name))
 		{
@@ -173,7 +173,7 @@ namespace vkPlayground {
 		}
 		else
 		{
-			PG_CORE_ERROR_TAG("Shader", "Shader {} does not contain the requested descriptor set {}", m_Name, name);
+			VKPG_CORE_ERROR_TAG("Shader", "Shader {} does not contain the requested descriptor set {}", m_Name, name);
 			return nullptr;
 		}
 	}
@@ -186,7 +186,7 @@ namespace vkPlayground {
 
 		for (const auto& [stage, spirvBin] : m_VulkanSPIRV)
 		{
-			PG_ASSERT(spirvBin.size(), "");
+			VKPG_ASSERT(spirvBin.size());
 
 			VkShaderModuleCreateInfo shaderModuleCreateInfo = {
 				.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
@@ -265,7 +265,7 @@ namespace vkPlayground {
 				layoutBinding.stageFlags = imageSampler.ShaderStage;
 				layoutBinding.pImmutableSamplers = nullptr;
 
-				PG_ASSERT(shaderDescriptorSet.UniformBuffers.contains(binding) == false, "Binding already present!");
+				VKPG_VERIFY(shaderDescriptorSet.UniformBuffers.contains(binding) == false, "Binding already present!");
 
 				// All the other fields will be filled inside the DescriptorSetManager class which will be owned by a renderpass
 				shaderDescriptorSet.WriteDescriptorSets[imageSampler.Name] = {
@@ -283,7 +283,7 @@ namespace vkPlayground {
 				.pBindings = layoutBindings.data()
 			};
 
-			PG_CORE_INFO_TAG("Shader", "Creating descriptor set {} with {} ubo's, {} samplers", set, 
+			VKPG_CORE_INFO_TAG("Shader", "Creating descriptor set {} with {} ubo's, {} samplers", set, 
 				shaderDescriptorSet.UniformBuffers.size(),
 				shaderDescriptorSet.ImageSamplers.size()
 			);
@@ -302,7 +302,7 @@ namespace vkPlayground {
 	void ShadersLibrary::Add(Ref<Shader> shader)
 	{
 		const std::string name(shader->GetName());
-		PG_ASSERT(!m_Library.contains(name), "Shader already loaded!");
+		VKPG_ASSERT(!m_Library.contains(name), "Shader already loaded!");
 		m_Library[name] = shader;
 	}
 
@@ -312,19 +312,19 @@ namespace vkPlayground {
 		shader = ShaderCompiler::Compile(std::string(filePath), forceCompile, disableOptimizations);
 
 		const std::string name(shader->GetName());
-		PG_ASSERT(!m_Library.contains(name), "Shader already loaded!");
+		VKPG_ASSERT(!m_Library.contains(name), "Shader already loaded!");
 		m_Library[name] = shader;
 	}
 
 	void ShadersLibrary::Load(std::string_view name, std::string_view filePath)
 	{
-		PG_ASSERT(!m_Library.contains(std::string(name)), "Shader already loaded!");
+		VKPG_ASSERT(!m_Library.contains(std::string(name)), "Shader already loaded!");
 		m_Library[std::string(name)] = Shader::Create(filePath);
 	}
 
 	const Ref<Shader> ShadersLibrary::Get(const std::string& name) const
 	{
-		PG_ASSERT(m_Library.contains(name), fmt::format("Cant find shader with name: {}", name));
+		VKPG_ASSERT(m_Library.contains(name), fmt::format("Cant find shader with name: {}", name));
 		return m_Library.at(name);
 	}
 

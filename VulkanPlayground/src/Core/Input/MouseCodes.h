@@ -29,15 +29,15 @@ namespace vkPlayground {
 
 }
 
-#define AR_MOUSE_BUTTON_0        ::vkPlayground::MouseButton::Button0
-#define AR_MOUSE_BUTTON_1        ::vkPlayground::MouseButton::Button1
-#define AR_MOUSE_BUTTON_2        ::vkPlayground::MouseButton::Button2
-#define AR_MOUSE_BUTTON_3        ::vkPlayground::MouseButton::Button3
-#define AR_MOUSE_BUTTON_4        ::vkPlayground::MouseButton::Button4
-#define AR_MOUSE_BUTTON_5        ::vkPlayground::MouseButton::Button5
-#define AR_MOUSE_BUTTON_6        ::vkPlayground::MouseButton::Button6
-#define AR_MOUSE_BUTTON_7        ::vkPlayground::MouseButton::Button7
+#define VKAR_MOUSE_BUTTON_0        ::vkPlayground::MouseButton::Button0
+#define VKAR_MOUSE_BUTTON_1        ::vkPlayground::MouseButton::Button1
+#define VKAR_MOUSE_BUTTON_2        ::vkPlayground::MouseButton::Button2
+#define VKAR_MOUSE_BUTTON_3        ::vkPlayground::MouseButton::Button3
+#define VKAR_MOUSE_BUTTON_4        ::vkPlayground::MouseButton::Button4
+#define VKAR_MOUSE_BUTTON_5        ::vkPlayground::MouseButton::Button5
+#define VKAR_MOUSE_BUTTON_6        ::vkPlayground::MouseButton::Button6
+#define VKAR_MOUSE_BUTTON_7        ::vkPlayground::MouseButton::Button7
 
-#define AR_MOUSE_BUTTON_LEFT     ::vkPlayground::MouseButton::Left
-#define AR_MOUSE_BUTTON_RIGHT    ::vkPlayground::MouseButton::Right
-#define AR_MOUSE_BUTTON_MIDDLE   ::vkPlayground::MouseButton::Middle#pragma once
+#define VKAR_MOUSE_BUTTON_LEFT     ::vkPlayground::MouseButton::Left
+#define VKAR_MOUSE_BUTTON_RIGHT    ::vkPlayground::MouseButton::Right
+#define VKAR_MOUSE_BUTTON_MIDDLE   ::vkPlayground::MouseButton::Middle#pragma once

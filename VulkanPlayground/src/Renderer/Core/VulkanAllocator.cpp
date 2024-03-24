@@ -68,7 +68,7 @@ namespace vkPlayground {
 
 	VmaAllocation VulkanAllocator::AllocateBuffer(const VkBufferCreateInfo* bufferCreateInfo, VmaMemoryUsage usage, VkBuffer* buffer, VmaAllocationInfo* allocationInfo)
 	{
-		PG_ASSERT(bufferCreateInfo->size > 0, "");
+		VKPG_ASSERT(bufferCreateInfo->size > 0);
 
 		VmaAllocationCreateInfo allocationCreateInfo = { .usage = usage };
 
@@ -77,20 +77,20 @@ namespace vkPlayground {
 		vmaCreateBuffer(s_Data->Allocator, bufferCreateInfo, &allocationCreateInfo, buffer, &allocation, &allocInfo);
 		if (allocation == nullptr)
 		{
-			PG_CORE_ERROR_TAG("VulkanAllocator", "Failed to allocate GPU buffer!");
-			PG_CORE_ERROR_TAG("VulkanAllocator", "\tRequested Size: {}", Utils::BytesToString(bufferCreateInfo->size));
+			VKPG_CORE_ERROR_TAG("VulkanAllocator", "Failed to allocate GPU buffer!");
+			VKPG_CORE_ERROR_TAG("VulkanAllocator", "\tRequested Size: {}", Utils::BytesToString(bufferCreateInfo->size));
 			GPUMemoryStats stats = GetStats();
-			PG_CORE_ERROR_TAG("VulkanAllocator", "\tGPU memory usage: {} / {}", Utils::BytesToString(stats.Used), Utils::BytesToString(stats.TotalAvailable));
+			VKPG_CORE_ERROR_TAG("VulkanAllocator", "\tGPU memory usage: {} / {}", Utils::BytesToString(stats.Used), Utils::BytesToString(stats.TotalAvailable));
 		}
 
 #if LOG_MEMORY_USAGE_MESSAGES
-		PG_CORE_TRACE_TAG("VulkanAllocator", "{}: Allocating buffer with size: {}", m_Name, Utils::BytesToString(allocInfo.size));
+		VKPG_CORE_TRACE_TAG("VulkanAllocator", "{}: Allocating buffer with size: {}", m_Name, Utils::BytesToString(allocInfo.size));
 #endif
 
 		s_Data->TotalAllocatedBytes += allocInfo.size;
 
 #if LOG_MEMORY_USAGE_MESSAGES
-		PG_CORE_INFO_TAG("VulkanAllocator", "{}: Total allocated since start: {}", m_Name, Utils::BytesToString(s_Data->TotalAllocatedBytes));
+		VKPG_CORE_INFO_TAG("VulkanAllocator", "{}: Total allocated since start: {}", m_Name, Utils::BytesToString(s_Data->TotalAllocatedBytes));
 		// PG_CORE_INFO_TAG("VulkanAllocator", "{}: Memory Usage: {}", m_Name, Utils::BytesToString(s_Data->MemoryUsage));
 #endif
 
@@ -108,8 +108,8 @@ namespace vkPlayground {
 
 	void VulkanAllocator::DestroyBuffer(VmaAllocation allocation, VkBuffer buffer)
 	{
-		PG_ASSERT(buffer, "");
-		PG_ASSERT(allocation, "");
+		VKPG_ASSERT(buffer);
+		VKPG_ASSERT(allocation);
 
 		vmaDestroyBuffer(s_Data->Allocator, buffer, allocation);
 
@@ -121,7 +121,7 @@ namespace vkPlayground {
 		}
 		else
 		{
-			PG_CORE_ERROR_TAG("VulkanAllocator", "{}: Could not find memory allocation: {}", m_Name, (void*)allocation);
+			VKPG_CORE_ERROR_TAG("VulkanAllocator", "{}: Could not find memory allocation: {}", m_Name, (void*)allocation);
 		}
 	}
 
@@ -134,25 +134,25 @@ namespace vkPlayground {
 		vmaCreateImage(s_Data->Allocator, imageCreateInfo, &allocationCreateInfo, image, &allocation, &allocInfo);
 		if (allocation == nullptr)
 		{
-			PG_CORE_ERROR_TAG("VulkanAllocator", "Failed to allocate GPU image!");
-			PG_CORE_ERROR_TAG("VulkanAllocator", "\tRequested Size: {}x{}x{}", imageCreateInfo->extent.width, imageCreateInfo->extent.height, imageCreateInfo->extent.depth);
-			PG_CORE_ERROR_TAG("VulkanAllocator", "\tMips: {}", imageCreateInfo->mipLevels);
-			PG_CORE_ERROR_TAG("VulkanAllocator", "\tLayers: {}", imageCreateInfo->arrayLayers);
+			VKPG_CORE_ERROR_TAG("VulkanAllocator", "Failed to allocate GPU image!");
+			VKPG_CORE_ERROR_TAG("VulkanAllocator", "\tRequested Size: {}x{}x{}", imageCreateInfo->extent.width, imageCreateInfo->extent.height, imageCreateInfo->extent.depth);
+			VKPG_CORE_ERROR_TAG("VulkanAllocator", "\tMips: {}", imageCreateInfo->mipLevels);
+			VKPG_CORE_ERROR_TAG("VulkanAllocator", "\tLayers: {}", imageCreateInfo->arrayLayers);
 			GPUMemoryStats stats = GetStats();
-			PG_CORE_ERROR_TAG("VulkanAllocator", "\tGPU memory usage: {} / {}", Utils::BytesToString(stats.Used), Utils::BytesToString(stats.TotalAvailable));
+			VKPG_CORE_ERROR_TAG("VulkanAllocator", "\tGPU memory usage: {} / {}", Utils::BytesToString(stats.Used), Utils::BytesToString(stats.TotalAvailable));
 		}
 
 		if (allocatedSize)
 			*allocatedSize = allocInfo.size;
 #if LOG_MEMORY_USAGE_MESSAGES
-		PG_CORE_TRACE_TAG("VulkanAllocator", "{}: Allocating image with size: {}", m_Name, Utils::BytesToString(allocInfo.size));
+		VKPG_CORE_TRACE_TAG("VulkanAllocator", "{}: Allocating image with size: {}", m_Name, Utils::BytesToString(allocInfo.size));
 #endif
 
 		s_Data->TotalAllocatedBytes += allocInfo.size;
 
 #if LOG_MEMORY_USAGE_MESSAGES
-		PG_CORE_INFO_TAG("VulkanAllocator", "{}: Total allocated since start: {}", m_Name, Utils::BytesToString(s_Data->TotalAllocatedBytes));
-		// PG_CORE_INFO_TAG("VulkanAllocator", "{}: Memory Usage: {}", m_Name, Utils::BytesToString(s_Data->MemoryUsage));
+		VKPG_CORE_INFO_TAG("VulkanAllocator", "{}: Total allocated since start: {}", m_Name, Utils::BytesToString(s_Data->TotalAllocatedBytes));
+		// VKPG_CORE_INFO_TAG("VulkanAllocator", "{}: Memory Usage: {}", m_Name, Utils::BytesToString(s_Data->MemoryUsage));
 #endif
 
 		s_AllocationMap[allocation] = {
@@ -166,8 +166,8 @@ namespace vkPlayground {
 
 	void VulkanAllocator::DestroyImage(VmaAllocation allocation, VkImage image)
 	{
-		PG_ASSERT(image, "");
-		PG_ASSERT(allocation, "");
+		VKPG_ASSERT(image);
+		VKPG_ASSERT(allocation);
 
 		vmaDestroyImage(s_Data->Allocator, image, allocation);
 
@@ -179,7 +179,7 @@ namespace vkPlayground {
 		}
 		else
 		{
-			PG_CORE_ERROR_TAG("VulkanAllocator", "{}: Could not find memory allocation: {}", m_Name, (void*)allocation);
+			VKPG_CORE_ERROR_TAG("VulkanAllocator", "{}: Could not find memory allocation: {}", m_Name, (void*)allocation);
 		}
 	}
 
@@ -232,15 +232,15 @@ namespace vkPlayground {
 		std::vector<VmaBudget> budgets(memoryProps.memoryHeapCount);
 		vmaGetHeapBudgets(s_Data->Allocator, budgets.data());
 
-		PG_CORE_WARN_TAG("Allocator", "-----------------------------------");
+		VKPG_CORE_WARN_TAG("VulkanAllocator", "-----------------------------------");
 		for (VmaBudget& b : budgets)
 		{
-			PG_CORE_WARN_TAG("Allocator", "VmaBudget.statistics.allocationBytes = {0}", Utils::BytesToString(b.statistics.allocationBytes));
-			PG_CORE_WARN_TAG("Allocator", "VmaBudget.statistics.blockBytes = {0}", Utils::BytesToString(b.statistics.blockBytes));
-			PG_CORE_WARN_TAG("Allocator", "VmaBudget.usage = {0}", Utils::BytesToString(b.usage));
-			PG_CORE_WARN_TAG("Allocator", "VmaBudget.budget = {0}", Utils::BytesToString(b.budget));
+			VKPG_CORE_WARN_TAG("VulkanAllocator", "VmaBudget.statistics.allocationBytes = {0}", Utils::BytesToString(b.statistics.allocationBytes));
+			VKPG_CORE_WARN_TAG("VulkanAllocator", "VmaBudget.statistics.blockBytes = {0}", Utils::BytesToString(b.statistics.blockBytes));
+			VKPG_CORE_WARN_TAG("VulkanAllocator", "VmaBudget.usage = {0}", Utils::BytesToString(b.usage));
+			VKPG_CORE_WARN_TAG("VulkanAllocator", "VmaBudget.budget = {0}", Utils::BytesToString(b.budget));
 		}
-		PG_CORE_WARN_TAG("Allocator", "-----------------------------------");
+		VKPG_CORE_WARN_TAG("VulkanAllocator", "-----------------------------------");
 	}
 
 }

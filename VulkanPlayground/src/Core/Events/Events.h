@@ -6,7 +6,7 @@
 #include <sstream>
 #include <string>
 
-#define PG_STRINGIFY_MACRO(x) #x
+#define VKPG_STRINGIFY_MACRO(x) #x
 
 namespace vkPlayground::Events {
 
@@ -19,9 +19,9 @@ namespace vkPlayground::Events {
 		MouseButtonPressed, MouseButtonReleased, MouseMoved, MouseScrolled
 	};
 
-	#define EVENT_CLASS_TYPE(type) static EventType getStaticType() { return EventType::type; }\
-								virtual EventType GetEventType() const override { return getStaticType(); }\
-								virtual const char* GetName() const override { return PG_STRINGIFY_MACRO(type); }
+	#define VKPG_EVENT_CLASS_TYPE(type) static EventType GetStaticType() { return EventType::type; }\
+								        virtual EventType GetEventType() const override { return GetStaticType(); }\
+								        virtual const char* GetName() const override { return VKPG_STRINGIFY_MACRO(type); }
 
 	class Event
 	{
@@ -49,11 +49,12 @@ namespace vkPlayground::Events {
 			: m_Event(e) {}
 
 		template<typename T, typename Func> // Func is to be deduced by compiler, and it will be a function
-		bool Dispatch(const Func& func)
+			requires requires { { T::GetStaticType() } -> std::same_as<EventType>; }
+		bool Dispatch(Func&& func)
 		{
-			if (m_Event.GetEventType() == T::getStaticType() && !m_Event.Handled)
+			if (m_Event.GetEventType() == T::GetStaticType() && !m_Event.Handled)
 			{
-				m_Event.Handled = func(*(T*)&m_Event);
+				m_Event.Handled = std::forward<Func>(func)(*(T*)&m_Event);
 
 				return true;
 			}

@@ -43,13 +43,13 @@ namespace vkPlayground {
 
 		Layer* operator[](std::size_t index)
 		{
-			PG_ASSERT(index >= 0 && index < m_Layers.size(), "");
+			VKPG_ASSERT(index >= 0 && index < m_Layers.size());
 			return m_Layers[index];
 		}
 
 		const Layer* operator[](std::size_t index) const
 		{
-			PG_ASSERT(index >= 0 && index < m_Layers.size(), "");
+			VKPG_ASSERT(index >= 0 && index < m_Layers.size());
 			return m_Layers[index];
 		}
 

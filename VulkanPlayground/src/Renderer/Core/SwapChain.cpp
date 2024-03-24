@@ -25,12 +25,12 @@ namespace vkPlayground {
 		// Better is to find a queue that supports both graphics and presentation.
 		uint32_t queueCount;
 		vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueCount, nullptr);
-		PG_ASSERT(queueCount >= 1, "");
+		VKPG_VERIFY(queueCount >= 1);
 
 		std::vector<VkQueueFamilyProperties> queueProps(queueCount);
 		vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueCount, queueProps.data());
 
-		// Iterate over each queue to learn whether it supports presenting:
+		// Iterate over each queue to know whether it supports presenting:
 		// Find a queue with present support
 		// Will be used to present the swap chain images to the windowing system
 		std::vector<VkBool32> supportPresent(queueCount);
@@ -76,8 +76,8 @@ namespace vkPlayground {
 		}
 
 		// At this point we should have definetly found a queue that supports presenting to it
-		PG_ASSERT(graphicsQueueNodeIndex != UINT32_MAX, "");
-		PG_ASSERT(presentQueueNodeIndex != UINT32_MAX, "");
+		VKPG_VERIFY(graphicsQueueNodeIndex != UINT32_MAX, "");
+		VKPG_VERIFY(presentQueueNodeIndex != UINT32_MAX, "");
 
 		m_QueueNodeIndex = graphicsQueueNodeIndex;
 
@@ -100,7 +100,7 @@ namespace vkPlayground {
 		// Get available present modes...
 		uint32_t presentModeCount;
 		VK_CHECK_RESULT(vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, m_Surface, &presentModeCount, nullptr));
-		PG_ASSERT(presentModeCount > 0, "");
+		VKPG_VERIFY(presentModeCount > 0);
 		std::vector<VkPresentModeKHR> presentModes(presentModeCount);
 		VK_CHECK_RESULT(vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, m_Surface, &presentModeCount, presentModes.data()));
 
@@ -236,7 +236,7 @@ namespace vkPlayground {
 
 		// Get the swap chain images
 		VK_CHECK_RESULT(vkGetSwapchainImagesKHR(device, m_SwapChain, &m_ImageCount, nullptr));
-		PG_ASSERT(m_ImageCount, "");
+		VKPG_VERIFY(m_ImageCount, "");
 		// NOTE: We could here set the Frame in Flight equal to the max number of swapchain images, but some platforms may have > 8 swapchain images which
 		// is not really ideal to have 8 frames in flight so we just run whatever the user sets in the ApplicationSpecification::RendererConfig.FramesInFlight
 		// Preferebly 2-3 frames in flight NO MORE.
@@ -587,7 +587,7 @@ namespace vkPlayground {
 		// Get the list of supported surface formats...
 		uint32_t formatCount;
 		VK_CHECK_RESULT(vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, m_Surface, &formatCount, nullptr));
-		PG_ASSERT(formatCount > 0, "");
+		VKPG_VERIFY(formatCount > 0);
 
 		std::vector<VkSurfaceFormatKHR> formats(formatCount);
 		VK_CHECK_RESULT(vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, m_Surface, &formatCount, formats.data()));

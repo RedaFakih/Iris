@@ -88,7 +88,7 @@ namespace vkPlayground {
 					break;
 				}
 
-			PG_ASSERT(false, "Unknown type!");
+			VKPG_ASSERT(false);
 			return ShaderUniformType::None;
 		}
 	}
@@ -114,9 +114,9 @@ namespace vkPlayground {
 
 		Utils::CreateCacheDirIfNeeded();
 		const std::string source = Utils::ReadTextFileWithoutBOM(m_FilePath);
-		PG_ASSERT(source.size(), "Failed to load shader source text file!");
+		VKPG_ASSERT(source.size(), "Failed to load shader source text file!");
 
-		PG_CORE_DEBUG_TAG("ShaderCompiler", "Compiling shader: {}", m_FilePath);
+		VKPG_CORE_DEBUG_TAG("ShaderCompiler", "Compiling shader: {}", m_FilePath);
 		m_ShaderSource = PreProcess(source);
 		// Compare shadersource hashes to see if the shader has changed
 		const VkShaderStageFlagBits stagesChanged = ShaderRegistry::HasChanged(this);
@@ -125,7 +125,7 @@ namespace vkPlayground {
 		bool compileSucceeded = CompileOrGetVulkanBinaries(spirvDebugData, m_SPIRVData, stagesChanged, forceCompile);
 		if (!compileSucceeded)
 		{
-			PG_ASSERT(false, "");
+			VKPG_ASSERT(false);
 			return false;
 		}
 
@@ -202,7 +202,7 @@ namespace vkPlayground {
 			const shaderc::PreprocessedSourceCompilationResult res = compiler.PreprocessGlsl(shaderSource, ShaderUtils::VkShaderStageToShaderc(stage), m_FilePath.c_str(), options);
 			if (res.GetCompilationStatus() != shaderc_compilation_status_success)
 			{
-				PG_CORE_ERROR_TAG("ShaderCompiler", "Failed to preprocess `{}`s {} shader.\nError: {}", m_FilePath, ShaderUtils::VkShaderStageToString(stage), res.GetErrorMessage());
+				VKPG_CORE_ERROR_TAG("ShaderCompiler", "Failed to preprocess `{}`s {} shader.\nError: {}", m_FilePath, ShaderUtils::VkShaderStageToString(stage), res.GetErrorMessage());
 			}
 
 			m_StagesMetadata[stage].Hash = Hash::GenerateFNVHash(shaderSource);
@@ -266,7 +266,7 @@ namespace vkPlayground {
 		// Couldnt get it from cache now we compile
 		if (outputBin.empty())
 		{
-			// PG_CORE_DEBUG_TAG("ShaderCompiler", "Shader cache not found! Compiling: {}, stage {}", m_FilePath.string(), ShaderUtils::VkShaderStageToString(stage));
+			// VKPG_CORE_DEBUG_TAG("ShaderCompiler", "Shader cache not found! Compiling: {}, stage {}", m_FilePath.string(), ShaderUtils::VkShaderStageToString(stage));
 			CompilationOptions options;
 			if (debug)
 			{
@@ -283,16 +283,16 @@ namespace vkPlayground {
 			std::string error = Compile(outputBin, stage, options);
 			if (error.size())
 			{
-				PG_CORE_ERROR_TAG("ShaderCompiler", "Error compiling shader: {} stage: {}.\nError: {}", m_FilePath, ShaderUtils::VkShaderStageToString(stage), error);
+				VKPG_CORE_ERROR_TAG("ShaderCompiler", "Error compiling shader: {} stage: {}.\nError: {}", m_FilePath, ShaderUtils::VkShaderStageToString(stage), error);
 				// Fallback to still run on the old shader
 				TryGetVulkanCachedBinary(cacheDirectory, extension, outputBin);
 				if (outputBin.empty())
 				{
-					PG_CORE_CRITICAL_TAG("ShaderCompiler", "Couldnt compile shader and did not find a cached version!");
+					VKPG_CORE_FATAL_TAG("ShaderCompiler", "Couldnt compile shader and did not find a cached version!");
 				}
 				else
 				{
-					PG_CORE_CRITICAL_TAG("ShaderCompiler", "Failed to compile shader: {}, stage: {} so a cached version was loaded instead!", m_FilePath, ShaderUtils::VkShaderStageToString(stage));
+					VKPG_CORE_FATAL_TAG("ShaderCompiler", "Failed to compile shader: {}, stage: {} so a cached version was loaded instead!", m_FilePath, ShaderUtils::VkShaderStageToString(stage));
 				}
 
 				return false;
@@ -311,7 +311,7 @@ namespace vkPlayground {
 				}
 				else
 				{
-					PG_CORE_ERROR_TAG("ShaderCompiler", "Failed to cache shader: {}, stage: {} binary", m_FilePath, ShaderUtils::VkShaderStageToString(stage));
+					VKPG_CORE_ERROR_TAG("ShaderCompiler", "Failed to cache shader: {}, stage: {} binary", m_FilePath, ShaderUtils::VkShaderStageToString(stage));
 					return false;
 				}
 			}
@@ -360,7 +360,7 @@ namespace vkPlayground {
 		reader.ReadRaw(header);
 
 		bool validHeader = memcmp(header, "VKPGSR", 6) == 0;
-		PG_ASSERT(validHeader, "Header is not valid!");
+		VKPG_VERIFY(validHeader, "Header is not valid!");
 		if (!validHeader)
 			return false;
 
@@ -421,9 +421,9 @@ namespace vkPlayground {
 
 	void ShaderCompiler::Reflect(VkShaderStageFlagBits stage, const std::vector<uint32_t>& shaderData)
 	{
-		PG_CORE_WARN_TAG("ShaderCompiler", "============================");
-		PG_CORE_WARN_TAG("ShaderCompiler", "  Vulkan Shader Reflection  ");
-		PG_CORE_WARN_TAG("ShaderCompiler", "============================");
+		VKPG_CORE_WARN_TAG("ShaderCompiler", "============================");
+		VKPG_CORE_WARN_TAG("ShaderCompiler", "  Vulkan Shader Reflection  ");
+		VKPG_CORE_WARN_TAG("ShaderCompiler", "============================");
 
 		VkDevice device = RendererContext::GetCurrentDevice()->GetVulkanDevice();
 
@@ -431,15 +431,15 @@ namespace vkPlayground {
 		spirv_cross::ShaderResources resources = compiler.get_shader_resources();
 
 		// General Info
-		PG_CORE_TRACE_TAG("ShaderCompiler", "{0} - {1}", m_FilePath, ShaderUtils::VkShaderStageToString(stage));
-		PG_CORE_TRACE_TAG("ShaderCompiler", "\t{0} Uniform Buffers", resources.uniform_buffers.size());
-		PG_CORE_TRACE_TAG("ShaderCompiler", "\t{0} Push Constant Buffers", resources.push_constant_buffers.size());
-		// PG_CORE_TRACE_TAG("Renderer", "\t{0} Storage Buffers", resources.storage_buffers.size());
-		PG_CORE_TRACE_TAG("ShaderCompiler", "\t{0} Sampled Images", resources.sampled_images.size());
-		// PG_CORE_TRACE_TAG("Renderer", "\t{0} Storage Images", resources.storage_images.size());
+		VKPG_CORE_TRACE_TAG("ShaderCompiler", "{0} - {1}", m_FilePath, ShaderUtils::VkShaderStageToString(stage));
+		VKPG_CORE_TRACE_TAG("ShaderCompiler", "\t{0} Uniform Buffers", resources.uniform_buffers.size());
+		VKPG_CORE_TRACE_TAG("ShaderCompiler", "\t{0} Push Constant Buffers", resources.push_constant_buffers.size());
+		// VKPG_CORE_TRACE_TAG("Renderer", "\t{0} Storage Buffers", resources.storage_buffers.size());
+		VKPG_CORE_TRACE_TAG("ShaderCompiler", "\t{0} Sampled Images", resources.sampled_images.size());
+		// VKPG_CORE_TRACE_TAG("Renderer", "\t{0} Storage Images", resources.storage_images.size());
 
-		PG_CORE_TRACE_TAG("ShaderCompiler", "============================");
-		PG_CORE_WARN_TAG("ShaderCompiler", "Uniform Buffers:");
+		VKPG_CORE_TRACE_TAG("ShaderCompiler", "============================");
+		VKPG_CORE_WARN_TAG("ShaderCompiler", "Uniform Buffers:");
 		for (const spirv_cross::Resource& res : resources.uniform_buffers)
 		{
 			spirv_cross::SmallVector activeBuffer = compiler.get_active_buffer_ranges(res.id);
@@ -479,15 +479,15 @@ namespace vkPlayground {
 
 				shaderDescriptorSet.UniformBuffers[binding] = s_UniformBuffers.at(descriptorSet).at(binding);
 
-				PG_CORE_TRACE_TAG("ShaderCompiler", " \tName: {0} (Set: {1}, Binding: {2})", name, descriptorSet, binding);
-				PG_CORE_TRACE_TAG("ShaderCompiler", " \tMember Count: {0}", memberCount);
-				PG_CORE_TRACE_TAG("ShaderCompiler", " \tSize: {0}", bufferSize);
-				PG_CORE_TRACE_TAG("ShaderCompiler", "-------------------");
+				VKPG_CORE_TRACE_TAG("ShaderCompiler", " \tName: {0} (Set: {1}, Binding: {2})", name, descriptorSet, binding);
+				VKPG_CORE_TRACE_TAG("ShaderCompiler", " \tMember Count: {0}", memberCount);
+				VKPG_CORE_TRACE_TAG("ShaderCompiler", " \tSize: {0}", bufferSize);
+				VKPG_CORE_TRACE_TAG("ShaderCompiler", "-------------------");
 			}
 		}
 
-		PG_CORE_TRACE_TAG("ShaderCompiler", "============================");
-		PG_CORE_WARN_TAG("ShaderCompiler", "Push Constant Buffers:");
+		VKPG_CORE_TRACE_TAG("ShaderCompiler", "============================");
+		VKPG_CORE_WARN_TAG("ShaderCompiler", "Push Constant Buffers:");
 		for (const spirv_cross::Resource& res : resources.push_constant_buffers)
 		{
 			const std::string& bufferName = res.name;
@@ -512,10 +512,10 @@ namespace vkPlayground {
 			shaderBuffer.Name = bufferName;
 			shaderBuffer.Size = static_cast<uint32_t>(bufferSize - bufferOffset);
 
-			PG_CORE_TRACE_TAG("ShaderCompiler", " \tName: {0}", bufferName);
-			PG_CORE_TRACE_TAG("ShaderCompiler", " \tMember Count: {0}", memberCount);
-			PG_CORE_TRACE_TAG("ShaderCompiler", " \tSize: {0}", bufferSize);
-			PG_CORE_TRACE_TAG("ShaderCompiler", "-------------------");
+			VKPG_CORE_TRACE_TAG("ShaderCompiler", " \tName: {0}", bufferName);
+			VKPG_CORE_TRACE_TAG("ShaderCompiler", " \tMember Count: {0}", memberCount);
+			VKPG_CORE_TRACE_TAG("ShaderCompiler", " \tSize: {0}", bufferSize);
+			VKPG_CORE_TRACE_TAG("ShaderCompiler", "-------------------");
 
 			for (uint32_t i = 0; i < memberCount; i++)
 			{
@@ -529,8 +529,8 @@ namespace vkPlayground {
 			}
 		}
 
-		PG_CORE_TRACE_TAG("ShaderCompiler", "============================");
-		PG_CORE_WARN_TAG("ShaderCompiler", "Sampled Images:");
+		VKPG_CORE_TRACE_TAG("ShaderCompiler", "============================");
+		VKPG_CORE_WARN_TAG("ShaderCompiler", "Sampled Images:");
 		for (const spirv_cross::Resource& res : resources.sampled_images)
 		{
 			const std::string& name = res.name;
@@ -558,7 +558,7 @@ namespace vkPlayground {
 				.ShaderStage = stage
 			};
 
-			PG_CORE_TRACE_TAG("ShaderCompiler", " \tName: {0} (Set: {1}, Binding: {2})", name, descriptorSet, binding);
+			VKPG_CORE_TRACE_TAG("ShaderCompiler", " \tName: {0} (Set: {1}, Binding: {2})", name, descriptorSet, binding);
 		}
 	}
 

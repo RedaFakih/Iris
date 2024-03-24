@@ -27,7 +27,7 @@ namespace vkPlayground::ShaderUtils {
 		case VK_SHADER_STAGE_COMPUTE_BIT:   return "__COMPUTE__";
 		}
 
-		PG_ASSERT(false, "");
+		VKPG_ASSERT(false);
 		return "INVALID";
 	}
 
@@ -40,7 +40,7 @@ namespace vkPlayground::ShaderUtils {
 			case VK_SHADER_STAGE_COMPUTE_BIT:   return "Compute";
 		}
 
-		PG_ASSERT(false, "");
+		VKPG_ASSERT(false);
 		return "INVALID";
 	}
 
@@ -53,7 +53,7 @@ namespace vkPlayground::ShaderUtils {
 			case shaderc_compute_shader:  return "Compute";
 		}
 
-		PG_ASSERT(false, "");
+		VKPG_ASSERT(false);
 		return "INVALID";
 	}
 
@@ -72,7 +72,7 @@ namespace vkPlayground::ShaderUtils {
 		if (type == "fragment")  return shaderc_fragment_shader;
 		if (type == "compute")   return shaderc_compute_shader;
 
-		PG_ASSERT(false, "");
+		VKPG_ASSERT(false);
 		return {};
 	}
 
@@ -85,7 +85,7 @@ namespace vkPlayground::ShaderUtils {
 			case VK_SHADER_STAGE_COMPUTE_BIT:   return shaderc_compute_shader;
 		}
 
-		PG_ASSERT(false, "");
+		VKPG_ASSERT(false);
 		return {};
 	}
 
@@ -98,7 +98,7 @@ namespace vkPlayground::ShaderUtils {
 			case shaderc_fragment_shader:   return VK_SHADER_STAGE_FRAGMENT_BIT;
 		}
 
-		PG_ASSERT(false, "");
+		VKPG_ASSERT(false);
 		return {};
 	}
 
@@ -123,7 +123,7 @@ namespace vkPlayground::ShaderUtils {
 			}
 		}
 
-		PG_ASSERT(false, "");
+		VKPG_ASSERT(false);
 		return "";
 	}
 

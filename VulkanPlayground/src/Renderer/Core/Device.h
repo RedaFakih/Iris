@@ -78,6 +78,8 @@ namespace vkPlayground {
 	 * 
 	 *   As for deleting the Staging Buffer we could just do a `Renderer::SubmitReseourceFree` and it will delete the staging buffer at the
 	 *   beginning of the next frame that way nothing is using that buffer.
+	 * 
+	 *   Potential Obstacles: Copying attachments to host buffers...? We will have to queue the copying to host buffer to the next frame so that the data is available
 	 */
 	class VulkanCommandPool : public RefCountedObject
 	{
@@ -93,8 +95,8 @@ namespace vkPlayground {
 		void FlushCommandBuffer(VkCommandBuffer commandBuffer);
 		void FlushCommandBuffer(VkCommandBuffer commandBuffer, VkQueue queue);
 
-		VkCommandPool GetGraphicsCommandPool(uint32_t frameIndex) const { PG_ASSERT(frameIndex < m_GraphicsCommandPools.size(), ""); return m_GraphicsCommandPools[frameIndex]; }
-		// TODO: VkCommandPool GetComputeCommandPool(uint32_t frameIndex) const { PG_ASSERT(frameIndex < m_GraphicsCommandPools.size(), ""); return m_ComputeCommandPools[frameIndex]; }
+		VkCommandPool GetGraphicsCommandPool(uint32_t frameIndex) const { VKPG_ASSERT(frameIndex < m_GraphicsCommandPools.size()); return m_GraphicsCommandPools[frameIndex]; }
+		// TODO: VkCommandPool GetComputeCommandPool(uint32_t frameIndex) const { VKPG_ASSERT(frameIndex < m_GraphicsCommandPools.size(), ""); return m_ComputeCommandPools[frameIndex]; }
 
 	private:
 		// Per-frame command pools to get better perf

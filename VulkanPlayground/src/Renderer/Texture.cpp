@@ -16,7 +16,7 @@ namespace vkPlayground {
 
         static constexpr void ValidateSpecification(const TextureSpecification& spec)
         {
-            PG_ASSERT(spec.Width > 0 && spec.Height > 0 && spec.Width < 65536 && spec.Height < 65536, "");
+            VKPG_ASSERT(spec.Width > 0 && spec.Height > 0 && spec.Width < 65536 && spec.Height < 65536);
         }
 
         static constexpr VkSamplerAddressMode GetVulkanSamplerWrap(TextureWrap wrap)
@@ -27,7 +27,7 @@ namespace vkPlayground {
                 case TextureWrap::Repeat:  return VK_SAMPLER_ADDRESS_MODE_REPEAT;
             }
 
-            PG_ASSERT(false, "Unknown wrap mode");
+            VKPG_ASSERT(false);
             return (VkSamplerAddressMode)0;
         }
 
@@ -39,7 +39,7 @@ namespace vkPlayground {
                 case TextureFilter::Nearest:  return VK_FILTER_NEAREST;
             }
 
-            PG_ASSERT(false, "Unknown filter");
+            VKPG_ASSERT(false);
             return (VkFilter)0;
         }
 
@@ -58,7 +58,7 @@ namespace vkPlayground {
                 case ImageFormat::B10R11G11UF:              return width * height * sizeof(float);
             }
 
-            PG_ASSERT(false, "");
+            VKPG_ASSERT(false);
             return 0;
         }
 
@@ -82,7 +82,7 @@ namespace vkPlayground {
     Texture2D::Texture2D(const TextureSpecification& spec)
         : m_Specification(spec)
     {
-        PG_ASSERT(m_Specification.Width > 0 && m_Specification.Height > 0, "");
+        VKPG_VERIFY(m_Specification.Width > 0 && m_Specification.Height > 0);
     }
 
     Texture2D::Texture2D(const TextureSpecification& spec, const std::string& filePath)
@@ -99,7 +99,7 @@ namespace vkPlayground {
 
         m_Specification.Mips = m_Specification.GenerateMips ? GetMipLevelCount() : 1;
 
-        PG_ASSERT(m_Specification.Format != ImageFormat::None, "");
+        VKPG_VERIFY(m_Specification.Format != ImageFormat::None);
 
         Invalidate();
     }
@@ -138,7 +138,7 @@ namespace vkPlayground {
         
         m_Specification.Mips = m_Specification.GenerateMips ? GetMipLevelCount() : 1;
 
-        PG_ASSERT(m_Specification.Format != ImageFormat::None, "");
+        VKPG_VERIFY(m_Specification.Format != ImageFormat::None);
 
         Invalidate();
     }
@@ -150,7 +150,7 @@ namespace vkPlayground {
 
     void Texture2D::Invalidate()
     {
-        PG_ASSERT(m_Specification.Width > 0 && m_Specification.Height > 0, "");
+        VKPG_ASSERT(m_Specification.Width > 0 && m_Specification.Height > 0);
 
         // Try to release all the resources before starting to create since Invalidate could be called from `Texture2D::Resize`
         Release();

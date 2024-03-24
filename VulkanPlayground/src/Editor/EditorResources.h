@@ -41,8 +41,8 @@ namespace vkPlayground {
 
 			if (!std::filesystem::exists(path))
 			{
-				PG_CORE_CRITICAL_TAG("EditorResources", "Failed to load icon {0}! The file doesn't exist.", path.string());
-				PG_ASSERT(false, "");
+				VKPG_ERROR_TAG("Editor", "Failed to load editor resource icon {0}! The file doesn't exist.", path.string());
+				VKPG_ASSERT(false);
 				return nullptr;
 			}
 

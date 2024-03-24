@@ -25,7 +25,7 @@ namespace vkPlayground {
 		void Submit();
 
 		VkCommandBuffer GetActiveCommandBuffer() const { return m_ActiveCommandBuffer; }
-		VkCommandBuffer GetCommandBuffer(uint32_t frameIndex) const { PG_ASSERT(frameIndex < m_CommandBuffers.size(), ""); return m_CommandBuffers[frameIndex].CommandBuffer; }
+		VkCommandBuffer GetCommandBuffer(uint32_t frameIndex) const { VKPG_ASSERT(frameIndex < m_CommandBuffers.size()); return m_CommandBuffers[frameIndex].CommandBuffer; }
 
 		const PipelineStatistics& GetPipelineStatistics(uint32_t frameIndex) const { return m_PipelineStatisticsQueryResults[frameIndex]; }
 

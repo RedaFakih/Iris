@@ -95,7 +95,7 @@ namespace vkPlayground {
 
 	void VertexBuffer::SetData(const void* data, uint32_t size, uint32_t offset)
 	{
-		PG_ASSERT(size <= m_Size, "Can't set more data than the buffer can hold!");
+		VKPG_ASSERT(size <= m_Size, "Can't set more data than the buffer can hold!");
 
 		VulkanAllocator allocator("VertexBuffer");
 

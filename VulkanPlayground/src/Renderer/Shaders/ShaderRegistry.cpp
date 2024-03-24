@@ -87,7 +87,7 @@ namespace vkPlayground {
 		YAML::Node handles = data["ShaderRegistry"];
 		if (handles.IsNull())
 		{
-			PG_CORE_ERROR_TAG("ShaderCompiler", "ShaderRegistry is invalid!");
+			VKPG_CORE_ERROR_TAG("ShaderCompiler", "ShaderRegistry is invalid!");
 			return;
 		}
 

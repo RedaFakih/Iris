@@ -4,13 +4,13 @@
  * NEXT STEP ON TUTORIAL: Loading Models.
  *
  * NEXT THING TO WORK ON:
- * - Add `Existing Images` to framebuffers so that Renderer2D could finally work (Look at note in EditorLayer.cpp Line:342)
- * - Add a runtime layer so that we can test without imgui
+ * - Handle renderer descriptor pool situation and come up with some solutions for it...
+ * - start working on gltf importing
+ * - Add a runtime layer so that we can test without imgui (Needs fixing)
  * - Work on Scene and Entity and Components so that we can finally work with the playground nicely
  * - Scene And Entity
  * - SceneRenderer
  * - Clean Up EditorLayer and manage the scene and scene renderer correctly
- * - Add a Renderer2D
  * - DescriptorSetManager (Constant Expansion with shader reflection)
  * 
  * TO BE EXPANDED: (constant expansion)
@@ -34,11 +34,5 @@
  * 
  * Future Plans:
  *	- Add meshoptimizer? (https://github.com/zeux/meshoptimizer/tree/master)
- * 
- * Brief Overview:
- *
- * - When we in the future we want to have a scene renderer and all that there will be one main command buffer that has its own abstraction
- * - Descriptor sets should be abstracted into a manager that manages them and manages their allocation via the command pool and all that
- *
  *
  */

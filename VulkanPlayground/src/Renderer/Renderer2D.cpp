@@ -204,7 +204,7 @@ namespace vkPlayground {
 
 		m_UBSCamera->Get()->SetData(&viewProj, sizeof(UBCamera));
 
-		// PG_CORE_TRACE_TAG("Renderer", "Renderer2D::BeginScene frame {}", frameIndex);
+		// VKPG_CORE_TRACE_TAG("Renderer", "Renderer2D::BeginScene frame {}", frameIndex);
 
 		m_QuadIndexCount = 0;
 		for (uint32_t i = 0; i < m_QuadVertexBufferPtr.size(); i++)
@@ -227,7 +227,7 @@ namespace vkPlayground {
 
 		m_RenderCommandBuffer->Begin();
 
-		// PG_CORE_TRACE_TAG("Renderer", "Renderer2D::EndScene frame {}", frameIndex);
+		// VKPG_CORE_TRACE_TAG("Renderer", "Renderer2D::EndScene frame {}", frameIndex);
 		uint32_t dataSize = 0;
 
 		// Quads

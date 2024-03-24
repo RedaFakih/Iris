@@ -23,7 +23,7 @@ namespace vkPlayground {
 		uint32_t gpuCount;
 		// Get number of available gpus
 		vkEnumeratePhysicalDevices(instance, &gpuCount, nullptr);
-		PG_ASSERT(gpuCount > 0, "No gpus are found on the current device!");
+		VKPG_VERIFY(gpuCount > 0, "No gpus are found on the current device!");
 
 		std::vector<VkPhysicalDevice> physicalDevices(gpuCount);
 		// Enumerate devices
@@ -44,11 +44,11 @@ namespace vkPlayground {
 		// If no discrete gpu found fallback to whatever physical device is found
 		if (!selectedDevice)
 		{
-			PG_CORE_ERROR_TAG("Renderer", "Could not find a discrete GPU!");
+			VKPG_CORE_ERROR_TAG("Renderer", "Could not find a discrete GPU!");
 			selectedDevice = physicalDevices.back();
 		}
 
-		PG_ASSERT(selectedDevice, "Could find any physical devices!");
+		VKPG_VERIFY(selectedDevice, "Could find any physical devices!");
 		m_PhysicalDevice = selectedDevice;
 
 		vkGetPhysicalDeviceFeatures(m_PhysicalDevice, &m_Features);
@@ -56,7 +56,7 @@ namespace vkPlayground {
 
 		uint32_t queueFamilyCount;
 		vkGetPhysicalDeviceQueueFamilyProperties(m_PhysicalDevice, &queueFamilyCount, nullptr);
-		PG_ASSERT(queueFamilyCount > 0, "");
+		VKPG_ASSERT(queueFamilyCount > 0);
 		m_QueueFamilyProperties.resize(queueFamilyCount);
 		vkGetPhysicalDeviceQueueFamilyProperties(m_PhysicalDevice, &queueFamilyCount, m_QueueFamilyProperties.data());
 
@@ -67,11 +67,11 @@ namespace vkPlayground {
 			std::vector<VkExtensionProperties> props(extensionCount);
 			if (vkEnumerateDeviceExtensionProperties(m_PhysicalDevice, nullptr, &extensionCount, &props.front()) == VK_SUCCESS)
 			{
-				PG_CORE_WARN_TAG("Renderer", "Selected Physical Device has: {0} extensions...", extensionCount);
+				VKPG_CORE_WARN_TAG("Renderer", "Selected Physical Device has: {0} extensions...", extensionCount);
 				for (const auto& ext : props)
 				{
 					m_SupportedExtensions.emplace(ext.extensionName);
-					PG_CORE_TRACE_TAG("Renderer", "\t{0}", ext.extensionName);
+					VKPG_CORE_TRACE_TAG("Renderer", "\t{0}", ext.extensionName);
 				}
 			}
 
@@ -112,7 +112,7 @@ namespace vkPlayground {
 		}
 
 		m_DepthFormat = FindDepthFormat();
-		PG_ASSERT(m_DepthFormat, "Need to have a default depth format!");
+		VKPG_ASSERT(m_DepthFormat, "Need to have a default depth format!");
 	}
 
 	VulkanPhysicalDevice::~VulkanPhysicalDevice()
@@ -180,7 +180,7 @@ namespace vkPlayground {
 				return i;
 		}
 
-		PG_ASSERT(false, "Could not find a suitable memory type!");
+		VKPG_ASSERT(false, "Could not find a suitable memory type!");
 		return UINT32_MAX;
 	}
 
@@ -198,7 +198,7 @@ namespace vkPlayground {
 	{
 		std::vector<const char*> deviceExtensions;
 		// If the device will be used for presenting to a display via a swapchain we need to request the swapchain extension
-		PG_ASSERT(physicalDevice->IsExtensionSupported(VK_KHR_SWAPCHAIN_EXTENSION_NAME), "");
+		VKPG_VERIFY(physicalDevice->IsExtensionSupported(VK_KHR_SWAPCHAIN_EXTENSION_NAME));
 		deviceExtensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
 
 		// TODO: Some more extensions to check and add Aftermath maybe..??
@@ -257,7 +257,7 @@ namespace vkPlayground {
 	Ref<VulkanCommandPool> VulkanDevice::GetThreadLocalCommandPool()
 	{
 		std::thread::id threadID = std::this_thread::get_id();
-		PG_ASSERT(m_CommandPools.contains(threadID), "Not found!");
+		VKPG_ASSERT(m_CommandPools.contains(threadID), "Not found!");
 
 		return m_CommandPools.at(threadID);
 	}
@@ -361,7 +361,7 @@ namespace vkPlayground {
 		VkDevice device = RendererContext::GetCurrentDevice()->GetVulkanDevice();
 		uint32_t frameIndex = Renderer::GetCurrentFrameIndex();
 
-		PG_ASSERT(commandBuffer != VK_NULL_HANDLE, "Can't flush a null buffer");
+		VKPG_ASSERT(commandBuffer != VK_NULL_HANDLE, "Can't flush a null buffer");
 
 		VK_CHECK_RESULT(vkEndCommandBuffer(commandBuffer));
 

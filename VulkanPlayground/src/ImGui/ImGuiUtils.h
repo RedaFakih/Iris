@@ -49,10 +49,13 @@ namespace vkPlayground::UI {
 		ImGuiScopedID& operator=(const ImGuiScopedID&) = delete;
 	};
 
+	// Generates an ID using a simple incrementing counter
 	const char* GenerateID();
 
+	// Generates an ID using a provided string
 	const char* GenerateLabelID(std::string_view label);
 
+	// Pushes an ImGui ID and reset the incrementing counter
 	void PushID();
 
 	void PopID();
@@ -83,12 +86,16 @@ namespace vkPlayground::UI {
 
 	void ShiftCursorX(float distance);
 
+	// Returns whether it was navigated to the previous ID/item
 	bool NavigatedTo();
 
 	bool IsWindowFocused(const char* windowName, bool checkRootWindow = true);
 
+	//////////////////////////////////////////////////////////////////////////
 	// Colors...
-	inline ImColor ColourWithValue(const ImColor& color, float value)
+	//////////////////////////////////////////////////////////////////////////
+
+	inline ImColor ColorWithValue(const ImColor& color, float value)
 	{
 		const ImVec4& colRaw = color.Value;
 		float hue, sat, val;
@@ -96,7 +103,7 @@ namespace vkPlayground::UI {
 		return ImColor::HSV(hue, sat, std::min(value, 1.0f));
 	}
 
-	inline ImColor ColourWithSaturation(const ImColor& color, float saturation)
+	inline ImColor ColorWithSaturation(const ImColor& color, float saturation)
 	{
 		const ImVec4& colRaw = color.Value;
 		float hue, sat, val;
@@ -104,7 +111,7 @@ namespace vkPlayground::UI {
 		return ImColor::HSV(hue, std::min(saturation, 1.0f), val);
 	}
 
-	inline ImColor ColourWithHue(const ImColor& color, float hue)
+	inline ImColor ColorWithHue(const ImColor& color, float hue)
 	{
 		const ImVec4& colRaw = color.Value;
 		float h, s, v;
@@ -112,14 +119,14 @@ namespace vkPlayground::UI {
 		return ImColor::HSV(std::min(hue, 1.0f), s, v);
 	}
 
-	inline ImColor ColourWithAlpha(const ImColor& color, float multiplier)
+	inline ImColor ColorWithAlpha(const ImColor& color, float multiplier)
 	{
 		ImVec4 colRaw = color.Value;
 		colRaw.w = multiplier;
 		return colRaw;
 	}
 
-	inline ImColor ColourWithMultipliedValue(const ImColor& color, float multiplier)
+	inline ImColor ColorWithMultipliedValue(const ImColor& color, float multiplier)
 	{
 		const ImVec4& colRaw = color.Value;
 		float hue, sat, val;
@@ -127,7 +134,7 @@ namespace vkPlayground::UI {
 		return ImColor::HSV(hue, sat, std::min(val * multiplier, 1.0f));
 	}
 
-	inline ImColor ColourWithMultipliedSaturation(const ImColor& color, float multiplier)
+	inline ImColor ColorWithMultipliedSaturation(const ImColor& color, float multiplier)
 	{
 		const ImVec4& colRaw = color.Value;
 		float hue, sat, val;
@@ -135,7 +142,7 @@ namespace vkPlayground::UI {
 		return ImColor::HSV(hue, std::min(sat * multiplier, 1.0f), val);
 	}
 
-	inline ImColor ColourWithMultipliedHue(const ImColor& color, float multiplier)
+	inline ImColor ColorWithMultipliedHue(const ImColor& color, float multiplier)
 	{
 		const ImVec4& colRaw = color.Value;
 		float hue, sat, val;
@@ -143,7 +150,7 @@ namespace vkPlayground::UI {
 		return ImColor::HSV(std::min(hue * multiplier, 1.0f), sat, val);
 	}
 
-	inline ImColor ColourWithMultipliedAlpha(const ImColor& color, float multiplier)
+	inline ImColor ColorWithMultipliedAlpha(const ImColor& color, float multiplier)
 	{
 		ImVec4 colRaw = color.Value;
 		colRaw.w *= multiplier;
@@ -154,7 +161,10 @@ namespace vkPlayground::UI {
 
 	bool ColorEdit4Control(const char* label, glm::vec4& color, bool showAsWheel = true);
 
+	//////////////////////////////////////////////////////////////////////////
 	//////// DrawList Utils /////////
+	//////////////////////////////////////////////////////////////////////////
+	 
 	// This gets the last items rect!
 	ImRect GetItemRect();
 
@@ -169,13 +179,20 @@ namespace vkPlayground::UI {
 
 	ImRect RectOffset(const ImRect& input, float x, float y);
 
+	// Returns whether the last items is disabled
 	bool IsItemDisabled();
 
+	// Draw an outline for the last item
 	void DrawItemActivityOutline(float rounding = GImGui->Style.FrameRounding, bool drawWhenNotActive = false, ImColor colorWhenActive = Colors::Theme::Accent);
-	void UnderLine(bool fullWidth = false, float offsetX = 0.0f, float offsetY = -1.0f);
-	void RenderWindowOuterBorders(ImGuiWindow* currentWindow);
 
+	void UnderLine(bool fullWidth = false, float offsetX = 0.0f, float offsetY = -1.0f);
+
+	void RenderWindowOuterBorders(ImGuiWindow* currentWindow);
+	
+	/////////////////////////////////////////////////////////
 	// UI...
+	/////////////////////////////////////////////////////////
+
 	bool PropertyGridHeader(const std::string& name, bool openByDefault = true);
 
 	void BeginPropertyGrid(uint32_t columns = 2, bool defaultWidth = true);
@@ -192,11 +209,11 @@ namespace vkPlayground::UI {
 
 	bool PropertyBool(const char* label, bool& value, const char* helpText = "");
 
-	template<typename TEnum, typename TType = int32_t>
-	inline bool PropertyDropdown(const char* label, const char** options, int optionCount, TEnum& selected, const char* helpText = "")
+	template<typename Enum, typename Type = int32_t>
+	inline bool PropertyDropdown(const char* label, const char** options, int optionCount, Enum& selected, const char* helpText = "")
 	{
 		bool modified = false;
-		TType selectedIndex = (TType)selected;
+		Type selectedIndex = (Type)selected;
 		const char* current = options[selectedIndex];
 
 		ShiftCursor(10.0f, 9.0f);
@@ -221,7 +238,7 @@ namespace vkPlayground::UI {
 				if (ImGui::Selectable(options[i], isSelected))
 				{
 					current = options[i];
-					*selected = (TType)i;
+					*selected = (Type)i;
 					modified = true;
 				}
 
@@ -301,6 +318,7 @@ namespace vkPlayground::UI {
 		DrawButtonImage(image, image, image, tintNormal, tintHovered, tintPressed, ImGui::GetItemRectMin(), ImGui::GetItemRectMax());
 	};
 
+	// Normal image
 	void Image(const Ref<Texture2D>& image, const ImVec2& size, const ImVec2& uv0 = ImVec2(0, 0), const ImVec2& uv1 = ImVec2(1, 1), const ImVec4& tint_col = ImVec4(1, 1, 1, 1), const ImVec4& border_col = ImVec4(0, 0, 0, 0));
 
 }

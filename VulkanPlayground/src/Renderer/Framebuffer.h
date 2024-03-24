@@ -118,7 +118,7 @@ namespace vkPlayground {
 		uint32_t GetWidth() const { return m_Width; }
 		uint32_t GetHeight() const { return m_Height; }
 
-		Ref<Texture2D> GetImage(uint32_t attachmentIndex = 0) const { PG_ASSERT(attachmentIndex < m_ColorAttachmentImages.size(), ""); return m_ColorAttachmentImages[attachmentIndex]; }
+		Ref<Texture2D> GetImage(uint32_t attachmentIndex = 0) const { VKPG_ASSERT(attachmentIndex < m_ColorAttachmentImages.size()); return m_ColorAttachmentImages[attachmentIndex]; }
 		Ref<Texture2D> GetDepthImage() const { return m_DepthAttachmentImage; }
 		std::size_t GetColorAttachmentCount() const { return m_Specification.SwapchainTarget ? 1 : m_ColorAttachmentImages.size(); }
 		bool HasDepthAttachment() const { return m_DepthAttachmentImage != nullptr; }

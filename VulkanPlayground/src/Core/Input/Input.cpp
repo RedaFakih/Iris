@@ -13,13 +13,11 @@ namespace vkPlayground {
 		bool enableImGui = Application::Get().GetSpecification().EnableImGui;
 		if (!enableImGui)
 		{
-			auto& window = static_cast<Window&>(Application::Get().GetWindow());
-			auto state = glfwGetKey(static_cast<GLFWwindow*>(window.GetNativeWindow()), static_cast<int32_t>(keyCode));
+			Window& window = Application::Get().GetWindow();
+			auto state = glfwGetKey(window.GetNativeWindow(), static_cast<int32_t>(keyCode));
 			return state == GLFW_PRESS || state == GLFW_REPEAT;
 		}
 
-		auto& window = static_cast<Window&>(Application::Get().GetWindow());
-		GLFWwindow* win = static_cast<GLFWwindow*>(window.GetNativeWindow());
 		ImGuiContext* context = ImGui::GetCurrentContext();
 		bool pressed = false;
 		for (ImGuiViewport* viewport : context->Viewports)
@@ -71,8 +69,8 @@ namespace vkPlayground {
 		bool enableImGui = Application::Get().GetSpecification().EnableImGui;
 		if (!enableImGui)
 		{
-			auto& window = static_cast<Window&>(Application::Get().GetWindow());
-			auto state = glfwGetMouseButton(static_cast<GLFWwindow*>(window.GetNativeWindow()), static_cast<int32_t>(button));
+			Window& window = Application::Get().GetWindow();
+			auto state = glfwGetMouseButton(window.GetNativeWindow(), static_cast<int32_t>(button));
 			return state == GLFW_PRESS;
 		}
 
@@ -105,7 +103,7 @@ namespace vkPlayground {
 
 	std::pair<float, float> Input::GetMousePosition()
 	{
-		GLFWwindow* window = (GLFWwindow*)Application::Get().GetWindow().GetNativeWindow();
+		GLFWwindow* window = Application::Get().GetWindow().GetNativeWindow();
 		double x, y;
 		glfwGetCursorPos(window, &x, &y);
 

@@ -14,7 +14,7 @@ namespace vkPlayground {
 			CopyWithoutComments(source.begin(), source.end(), std::ostream_iterator<char>(ss));
 			shaderSource = ss.str();
 		}
-		PG_ASSERT(shaderSource.size(), "Shader has no code...");
+		VKPG_VERIFY(shaderSource.size(), "Shader has no code...");
 
 		std::map<VkShaderStageFlagBits, std::string> shaderSources;
 		std::vector<std::pair<VkShaderStageFlagBits, std::size_t>> stagePositions;
@@ -25,7 +25,7 @@ namespace vkPlayground {
 		// Check the version statement
 		std::size_t eol = shaderSource.find_first_of("\r\n", pos) + 1; // Add 1 since we would want to keep the new lines in the preprocessed string
 		std::vector<std::string> tokens = TokenizeString(shaderSource.substr(pos, eol - pos));
-		PG_ASSERT(tokens.size() >= 3 && tokens[1] == "version", "Invalid `#version` expression or not found!");
+		VKPG_VERIFY(tokens.size() >= 3 && tokens[1] == "version", "Invalid `#version` expression or not found!");
 		pos = shaderSource.find('#', pos + 1);
 
 		while (pos != std::string::npos)
@@ -40,12 +40,13 @@ namespace vkPlayground {
 			{
 				++index;
 				const std::string_view stage = tokens[index];
-				PG_ASSERT(stage == "vertex" || stage == "fragment" || stage == "compute", "Invalid shader type/stage specified!");
+				VKPG_VERIFY(stage == "vertex" || stage == "fragment" || stage == "compute", "Invalid shader type/stage specified!");
 				VkShaderStageFlagBits vkStage = ShaderUtils::VkShaderStageFromString(stage);
 
 				stagePositions.emplace_back(std::pair{ vkStage, startOfStage });
 				shaderSource.erase(pos, eol - pos);
 			}
+
 			// NOTE: If we want to add more stuff to handle such as #if defined() we can do that here:
 			// else if (tokens[index] == "if")
 			// {
@@ -53,11 +54,11 @@ namespace vkPlayground {
 			// 	if (tokens[index] == "defined")
 			// 	{
 			// 		++index;
-			// 		PG_ASSERT(tokens[index] == "(", "");
+			// 		VKPG_VERIFY(tokens[index] == "(", "whatever");
 			// 		++index;
 			// 		// do stuff with your expression while increasing the index after each token
 			// 		++index;
-			// 		PG_ASSERT(tokens[index] == ")", "");
+			// 		VKPG_VERIFY(tokens[index] == ")", "whatever");
 			// 	}
 			// }
 
@@ -69,7 +70,7 @@ namespace vkPlayground {
 			pos = shaderSource.find('#', pos + 1);
 		}
 
-		PG_ASSERT(stagePositions.size(), "Could not preprocess the shader since there are no recognized stages in the file!");
+		VKPG_VERIFY(stagePositions.size(), "Could not preprocess the shader since there are no recognized stages in the file!");
 		auto& [firstStage, firstStagePos] = stagePositions[0];
 		if (stagePositions.size() > 1)
 		{

@@ -7,7 +7,7 @@ int main(int argc, char** argv)
 {
     vkPlayground::Initializers::InitializeCore();
     vkPlayground::Application* app = vkPlayground::CreateApplication(argc, argv);
-    PG_ASSERT(app, "App is Null!");
+    VKPG_VERIFY(app, "App is Null!");
     app->Run();
     delete app;
     vkPlayground::Initializers::ShutdownCore();

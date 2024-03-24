@@ -15,7 +15,7 @@
 
 namespace vkPlayground {
 
-#ifdef PLAYGROUND_DEBUG
+#ifdef VKPG_CONFIG_DEBUG
    static  bool s_Validation = true;
 #else
     static bool s_Validation = false;
@@ -30,9 +30,9 @@ namespace vkPlayground {
 
             if (instanceVersion < minimumSupportedVersion)
             {
-                PG_CORE_CRITICAL_TAG("Renderer", "Incompatible driver version!");
-                PG_CORE_CRITICAL_TAG("Renderer", "\tYou have: {0}.{1}.{2}", VK_API_VERSION_MAJOR(instanceVersion), VK_API_VERSION_MINOR(instanceVersion), VK_API_VERSION_PATCH(instanceVersion));
-                PG_CORE_CRITICAL_TAG("Renderer", "\tYou need at least: {0}.{1}.{2}", VK_API_VERSION_MAJOR(minimumSupportedVersion), VK_API_VERSION_MINOR(minimumSupportedVersion), VK_API_VERSION_PATCH(minimumSupportedVersion));
+                VKPG_CORE_FATAL_TAG("Renderer", "Incompatible driver version!");
+                VKPG_CORE_FATAL_TAG("Renderer", "\tYou have: {0}.{1}.{2}", VK_API_VERSION_MAJOR(instanceVersion), VK_API_VERSION_MINOR(instanceVersion), VK_API_VERSION_PATCH(instanceVersion));
+                VKPG_CORE_FATAL_TAG("Renderer", "\tYou need at least: {0}.{1}.{2}", VK_API_VERSION_MAJOR(minimumSupportedVersion), VK_API_VERSION_MINOR(minimumSupportedVersion), VK_API_VERSION_PATCH(minimumSupportedVersion));
 
                 return false;
             }
@@ -49,6 +49,7 @@ namespace vkPlayground {
                 case VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT:	return "Performance";
             }
 
+            VKPG_ASSERT(false);
             return "Unknown";
         }
 
@@ -62,6 +63,7 @@ namespace vkPlayground {
                 case VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT:	return "Verbose";
             }
 
+            VKPG_ASSERT(false);
             return "Unknown";
         }
 
@@ -101,14 +103,14 @@ namespace vkPlayground {
             if (labels.size())
             {
                 if (messageType & VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT)
-                    PG_CORE_WARN_TAG("ValidationLayers", "Type: {0}, Severity: {1}\nMessage: \n{2}\n{3}, {4}",
+                    VKPG_CORE_WARN_TAG("Renderer", "VulkanValidation: Type: {0}, Severity: {1}\nMessage: \n{2}\n{3}, {4}",
                         VkDebugUtilsMessageType(messageType),
                         VkDebugUtilsMessageSeverity(messageSeverity),
                         pCallbackData->pMessage,
                         labels,
                         objects);
                 else
-                    PG_CORE_ERROR_TAG("ValidationLayers", "Type: {0}, Severity: {1}\nMessage: \n{2}\n{3}, {4}",
+                    VKPG_CORE_ERROR_TAG("Renderer", "VulkanValidation: Type: {0}, Severity: {1}\nMessage: \n{2}\n{3}, {4}",
                         VkDebugUtilsMessageType(messageType),
                         VkDebugUtilsMessageSeverity(messageSeverity),
                         pCallbackData->pMessage,
@@ -118,13 +120,13 @@ namespace vkPlayground {
             else
             {
                 if (messageType & VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT)
-                    PG_CORE_WARN_TAG("ValidationLayers", "Type: {0}, Severity: {1}\nMessage: \n{2}\n{3}",
+                    VKPG_CORE_WARN_TAG("Renderer", "VulkanValidation: Type: {0}, Severity: {1}\nMessage: \n{2}\n{3}",
                         VkDebugUtilsMessageType(messageType),
                         VkDebugUtilsMessageSeverity(messageSeverity),
                         pCallbackData->pMessage,
                         objects);
                 else
-                    PG_CORE_ERROR_TAG("ValidationLayers", "Type: {0}, Severity: {1}\nMessage: \n{2}\n{3}",
+                    VKPG_CORE_ERROR_TAG("Renderer", "VulkanValidation: Type: {0}, Severity: {1}\nMessage: \n{2}\n{3}",
                         VkDebugUtilsMessageType(messageType),
                         VkDebugUtilsMessageSeverity(messageSeverity),
                         pCallbackData->pMessage,
@@ -152,7 +154,7 @@ namespace vkPlayground {
         if (s_Validation)
         {
             auto vkDestroyDebugUtilsMessengerEXT = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(s_VulkanInstance, "vkDestroyDebugUtilsMessengerEXT");
-            PG_ASSERT(vkDestroyDebugUtilsMessengerEXT != nullptr, "vkGetInstanceProcAddr returned null!");
+            VKPG_VERIFY(vkDestroyDebugUtilsMessengerEXT != nullptr, "vkGetInstanceProcAddr returned null!");
             vkDestroyDebugUtilsMessengerEXT(s_VulkanInstance, m_DebugUtilsMessenger, nullptr);
         }
 
@@ -170,11 +172,11 @@ namespace vkPlayground {
 
     void RendererContext::Init()
     {
-        PG_ASSERT(glfwVulkanSupported(), "Vulkan is not supported with this GLFW!");
+        VKPG_VERIFY(glfwVulkanSupported(), "Vulkan is not supported with this GLFW!");
 
         if (!Utils::CheckDriverAPIVersionSupport(VK_API_VERSION_1_2))
         {
-            PG_ASSERT(false, "Incompatible vulkan driver!");
+            VKPG_VERIFY(false, "Incompatible vulkan driver!");
         }
 
         ////////////////////////////////////////////////////////
@@ -237,10 +239,10 @@ namespace vkPlayground {
             vkEnumerateInstanceLayerProperties(&instanceLayerCount, instanceLayerProperties.data());
 
             bool validationLayerSupported = false;
-            PG_CORE_INFO_TAG("Renderer", "Vulkan instance layers:");
+            VKPG_CORE_INFO_TAG("Renderer", "Vulkan instance layers:");
             for (const VkLayerProperties& layer : instanceLayerProperties)
             {
-                PG_CORE_INFO_TAG("Renderer", "\t{0}", layer.layerName);
+                VKPG_CORE_INFO_TAG("Renderer", "\t{0}", layer.layerName);
                 if (strcmp(layer.layerName, validationLayerName) == 0)
                 {
                     validationLayerSupported = true;
@@ -255,7 +257,7 @@ namespace vkPlayground {
             }
             else
             {
-                PG_CORE_ERROR_TAG("Renderer", "Validation layer VK_LAYER_KHRONOS_validation not present, validation is disabled!");
+                VKPG_CORE_ERROR_TAG("Renderer", "Validation layer VK_LAYER_KHRONOS_validation not present, validation is disabled!");
             }
         }
 
@@ -269,7 +271,7 @@ namespace vkPlayground {
         if (s_Validation)
         {
             auto vkCreateDebugUtilsMessengerEXT = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(s_VulkanInstance, "vkCreateDebugUtilsMessengerEXT");
-            PG_ASSERT(vkCreateDebugUtilsMessengerEXT != nullptr, "vkGetInstanceProcAddr returned null!");
+            VKPG_ASSERT(vkCreateDebugUtilsMessengerEXT != nullptr, "vkGetInstanceProcAddr returned null!");
 
             VkDebugUtilsMessengerCreateInfoEXT debugMessengerCreateInfo = {
                 .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,

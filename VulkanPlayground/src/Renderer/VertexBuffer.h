@@ -42,7 +42,7 @@ namespace vkPlayground {
 			case ShaderDataType::Bool:     return 1;
 		}
 
-		PG_ASSERT(false, "Unknown ShaderDataType!");
+		VKPG_ASSERT(false);
 		return 0;
 	}
 
@@ -82,7 +82,7 @@ namespace vkPlayground {
 				case ShaderDataType::Bool:		return 1;
 			}
 
-			PG_ASSERT(false, "Unknown ShaderDataType!");
+			VKPG_ASSERT(false);
 			return 0;
 		}
 	};

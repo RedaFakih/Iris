@@ -87,9 +87,9 @@ namespace vkPlayground {
 			caps.MaxTextureUnits = properties.limits.maxPerStageDescriptorSampledImages + properties.limits.maxPerStageDescriptorStorageImages;
 		}
 
-		PG_CORE_INFO_TAG("Renderer", "Vendor: {}", s_Data->RendererCaps.Vendor);
-		PG_CORE_INFO_TAG("Renderer", "Device: {}", s_Data->RendererCaps.Device);
-		PG_CORE_INFO_TAG("Renderer", "Driver Version: {}", s_Data->RendererCaps.Version);
+		VKPG_CORE_INFO_TAG("Renderer", "Vendor: {}", s_Data->RendererCaps.Vendor);
+		VKPG_CORE_INFO_TAG("Renderer", "Device: {}", s_Data->RendererCaps.Device);
+		VKPG_CORE_INFO_TAG("Renderer", "Driver Version: {}", s_Data->RendererCaps.Version);
 
 		s_Data->ShaderLibrary = ShadersLibrary::Create();
 
@@ -114,7 +114,6 @@ namespace vkPlayground {
 
 		VkDescriptorPoolCreateInfo poolInfo = {
 			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
-			.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT, // TODO: WHat about this?
 			.maxSets = 100000,
 			.poolSizeCount = (uint32_t)std::size(poolSizes),
 			.pPoolSizes = poolSizes
@@ -243,11 +242,12 @@ namespace vkPlayground {
 
 	void Renderer::EndFrame()
 	{
+		// VKPG_CORE_DEBUG("DescriptorPoolAllocationCount: {0}", s_Data->DescriptorPoolAllocationCount[Renderer::GetCurrentFrameIndex()]);
 	}
 
 	void Renderer::BeginRenderPass(Ref<RenderCommandBuffer> renderCommandBuffer, Ref<RenderPass> renderPass, bool explicitClear)
 	{
-		// PG_CORE_TRACE_TAG("Renderer", "BeginRenderPass - {}", renderPass->GetSpecification().DebugName);
+		// VKPG_CORE_TRACE_TAG("Renderer", "BeginRenderPass - {}", renderPass->GetSpecification().DebugName);
 
 		VkCommandBuffer commandBuffer = renderCommandBuffer->GetActiveCommandBuffer();
 		uint32_t frameIndex = Renderer::GetCurrentFrameIndex();
@@ -321,7 +321,7 @@ namespace vkPlayground {
 		{
 			const uint32_t colorAttachmentCount = static_cast<uint32_t>(framebuffer->GetColorAttachmentCount());
 			const uint32_t totalAttachmentCount = colorAttachmentCount + (framebuffer->HasDepthAttachment() ? 1 : 0);
-			PG_ASSERT(clearValues.size() == totalAttachmentCount, "");
+			VKPG_ASSERT(clearValues.size() == totalAttachmentCount, "");
 
 			std::vector<VkClearAttachment> attachments(totalAttachmentCount);
 			std::vector<VkClearRect> clearRects(totalAttachmentCount);
@@ -516,13 +516,13 @@ namespace vkPlayground {
 			ShaderDependencies& deps = s_ShaderDependencies.at(hash);
 			for (Ref<Pipeline>& pipeline : deps.Pipelines)
 			{
-				PG_CORE_TRACE_TAG("Renderer", "Invalidating pipeline ({0}) for shader ({1}) reload request", pipeline->GetSpecification().DebugName, pipeline->GetSpecification().Shader->GetName());
+				VKPG_CORE_TRACE_TAG("Renderer", "Invalidating pipeline ({0}) for shader ({1}) reload request", pipeline->GetSpecification().DebugName, pipeline->GetSpecification().Shader->GetName());
 				pipeline->Invalidate();
 			}
 
 			for (Ref<Material>& material : deps.Meterials)
 			{
-				PG_CORE_TRACE_TAG("Renderer", "Reloading material ({0}) for shader ({1}) reload request", material->GetName(), material->GetShader()->GetName());
+				VKPG_CORE_TRACE_TAG("Renderer", "Reloading material ({0}) for shader ({1}) reload request", material->GetName(), material->GetShader()->GetName());
 				material->OnShaderReloaded();
 			}
 		}

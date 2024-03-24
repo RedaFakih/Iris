@@ -30,11 +30,11 @@ namespace vkPlayground {
 
 		VkRenderPass GetRenderPass() { return m_RenderPass; }
 		VkFramebuffer GetCurrentFramebuffer() { return GetFramebuffer(m_CurrentImageIndex); }
-		VkFramebuffer GetFramebuffer(uint32_t index) { PG_ASSERT(index < m_Framebuffers.size(), "Index should be less than amount of framebuffers"); return m_Framebuffers[index]; }
+		VkFramebuffer GetFramebuffer(uint32_t index) { VKPG_ASSERT(index < m_Framebuffers.size(), "Index should be less than amount of framebuffers"); return m_Framebuffers[index]; }
 
 		uint32_t GetCurrentBufferIndex() const { return m_CurrentBufferIndex; }
 		VkCommandBuffer GetCurrentDrawCommandBuffer() { return GetDrawCommandBuffer(m_CurrentBufferIndex); }
-		VkCommandBuffer GetDrawCommandBuffer(uint32_t index) { PG_ASSERT(index < m_CommandBuffers.size(), "Index should be less then amount of commandbuffers"); return m_CommandBuffers[index].CommandBuffer; }
+		VkCommandBuffer GetDrawCommandBuffer(uint32_t index) { VKPG_ASSERT(index < m_CommandBuffers.size(), "Index should be less then amount of commandbuffers"); return m_CommandBuffers[index].CommandBuffer; }
 
 		VkFormat GetColorFormat() const { return m_ColorFormat; }
 

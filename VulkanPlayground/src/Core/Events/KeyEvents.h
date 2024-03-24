@@ -34,7 +34,7 @@ namespace vkPlayground::Events {
 			return ss.str();
 		}
 
-		EVENT_CLASS_TYPE(KeyPressed)
+		VKPG_EVENT_CLASS_TYPE(KeyPressed)
 
 	private:
 		uint32_t m_RepeatCount;
@@ -54,7 +54,7 @@ namespace vkPlayground::Events {
 			return ss.str();
 		}
 
-		EVENT_CLASS_TYPE(KeyReleased)
+		VKPG_EVENT_CLASS_TYPE(KeyReleased)
 
 	};
 
@@ -71,7 +71,7 @@ namespace vkPlayground::Events {
 			return ss.str();
 		}
 
-		EVENT_CLASS_TYPE(KeyTyped)
+		VKPG_EVENT_CLASS_TYPE(KeyTyped)
 
 	};
 

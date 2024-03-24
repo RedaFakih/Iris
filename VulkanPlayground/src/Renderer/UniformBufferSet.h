@@ -26,7 +26,7 @@ namespace vkPlayground {
 
 		inline Ref<UniformBuffer> Get(uint32_t frame)
 		{
-			PG_ASSERT(m_UniformBuffers.find(frame) != m_UniformBuffers.end(), "");
+			VKPG_ASSERT(m_UniformBuffers.find(frame) != m_UniformBuffers.end());
 			return m_UniformBuffers.at(frame);
 		}
 

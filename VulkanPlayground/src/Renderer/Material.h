@@ -8,10 +8,10 @@ namespace vkPlayground {
 
 	enum class MaterialFlag
 	{
-		None      = 0b0001,
-		DepthTest = 0b0010,
-		Blend     = 0b0100,
-		TwoSided  = 0b1000,
+		None      = BIT(0), // 0b0001
+		DepthTest = BIT(1), // 0b0010
+		Blend     = BIT(2), // 0b0100
+		TwoSided  = BIT(3), // 0b1000
 	};
 
 	class Material : public RefCountedObject
@@ -47,7 +47,7 @@ namespace vkPlayground {
 		void Set(std::string_view name, const T& value)
 		{
 			const ShaderUniform* decl = FindUniformDeclaration(name);
-			PG_ASSERT(decl, "Could not find uniform!");
+			VKPG_ASSERT(decl, "Could not find uniform!");
 			if (!decl)
 				return;
 
@@ -74,7 +74,7 @@ namespace vkPlayground {
 		T& Get(std::string_view name)
 		{
 			const ShaderUniform* decl = FindUniformDeclaration(name);
-			PG_ASSERT(decl, "Could not find uniform!");
+			VKPG_ASSERT(decl, "Could not find uniform!");
 			return m_UniformStorageBuffer.Read<T>(decl->GetOffset());
 		}
 

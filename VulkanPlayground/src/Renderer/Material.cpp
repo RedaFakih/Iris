@@ -218,7 +218,7 @@ namespace vkPlayground {
 					for (uint32_t i = 0; i < decl.Count; i++)
 						m_DescriptorSetManager.SetInput(name, Renderer::GetWhiteTexture(), i);
 
-					PG_CORE_WARN_TAG("Renderer", "Setting {} to white 2D texture", name);
+					VKPG_CORE_WARN_TAG("Renderer", "Setting {} to white 2D texture", name);
 					break;
 				}
 			}
@@ -255,7 +255,7 @@ namespace vkPlayground {
 	const ShaderUniform* Material::FindUniformDeclaration(std::string_view name) const
 	{
 		const std::unordered_map<std::string, ShaderBuffer>& shaderBuffers = m_Shader->GetShaderBuffers();
-		PG_ASSERT(shaderBuffers.size() <= 1, "Currently only ONE material buffer");
+		VKPG_ASSERT(shaderBuffers.size() <= 1, "Currently only ONE material buffer");
 
 		if (shaderBuffers.size() > 0)
 		{

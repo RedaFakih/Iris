@@ -46,6 +46,7 @@ namespace vkPlayground {
 
 		void ShowViewport();
 		void ShowShadersPanel();
+		void ShowFontsPanel();
 
 	private:
 		Ref<Scene> m_EditorScene;

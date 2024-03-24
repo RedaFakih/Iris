@@ -117,7 +117,7 @@ namespace vkPlayground {
 			// Check for set availablity
 			if (!m_InputResources.contains(set))
 			{
-				PG_CORE_ERROR_TAG("Renderer", "[RenderPass: {}] No input resources for set: {}", m_Specification.DebugName, set);
+				VKPG_CORE_ERROR_TAG("Renderer", "[RenderPass: {}] No input resources for set: {}", m_Specification.DebugName, set);
 				return false;
 			}
 
@@ -129,21 +129,21 @@ namespace vkPlayground {
 				uint32_t binding = writeDescriptor.dstBinding;
 				if (!setInputResources.contains(binding))
 				{
-					PG_CORE_ERROR_TAG("Renderer", "[RenderPass: {}] No input resources for set: {} at binding: {}", m_Specification.DebugName, set, binding);
-					PG_CORE_ERROR_TAG("Renderer", "[RenderPass: {}] Required input resource is: {} ({})", m_Specification.DebugName, name, Utils::VkDescriptorTypeToString(writeDescriptor.descriptorType));
+					VKPG_CORE_ERROR_TAG("Renderer", "[RenderPass: {}] No input resources for set: {} at binding: {}", m_Specification.DebugName, set, binding);
+					VKPG_CORE_ERROR_TAG("Renderer", "[RenderPass: {}] Required input resource is: {} ({})", m_Specification.DebugName, name, Utils::VkDescriptorTypeToString(writeDescriptor.descriptorType));
 					return false;
 				}
 
 				const RenderPassInput& resource = setInputResources.at(binding);
 				if (!Utils::IsCompatibleInput(resource.Type, writeDescriptor.descriptorType))
 				{
-					PG_CORE_ERROR_TAG("Renderer", "[RenderPass: {}] Incompatible input resource type (Provided: {}, Needed: {})", m_Specification.DebugName, Utils::DescriptorResourceTypeToString(resource.Type), Utils::VkDescriptorTypeToString(writeDescriptor.descriptorType));
+					VKPG_CORE_ERROR_TAG("Renderer", "[RenderPass: {}] Incompatible input resource type (Provided: {}, Needed: {})", m_Specification.DebugName, Utils::DescriptorResourceTypeToString(resource.Type), Utils::VkDescriptorTypeToString(writeDescriptor.descriptorType));
 					return false;
 				}
 
 				if (resource.Input[0] == nullptr)
 				{
-					PG_CORE_ERROR_TAG("Renderer", "[RenderPass: {}] Input resource is null! (name: {} set: {} binding: {})", m_Specification.DebugName, name, set, binding);
+					VKPG_CORE_ERROR_TAG("Renderer", "[RenderPass: {}] Input resource is null! (name: {} set: {} binding: {})", m_Specification.DebugName, name, set, binding);
 					return false;
 				}
 			}
@@ -157,7 +157,7 @@ namespace vkPlayground {
 	{
 		if (!Validate())
 		{
-			PG_CORE_ERROR_TAG("Renderer", "[RenderPass: {}] Validation failed!", m_Specification.DebugName);
+			VKPG_CORE_ERROR_TAG("Renderer", "[RenderPass: {}] Validation failed!", m_Specification.DebugName);
 			return;
 		}
 
@@ -184,7 +184,7 @@ namespace vkPlayground {
 				// .flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT,
 				.maxSets = 10 * descriptorSetCount, // frames in flight should contribute to this variable since we have 4 descriptor sets in total
 				// however the Manager will be split between renderpass(manages 3 sets) and material(manages 1 set) and so ten is number higher than
-				// the min required number of sets to be allocated by the renderpass(3 * 3) and the material(1 * 3).
+				// the min required number of sets to be allocated by the renderpass(3 * 3) or the material(1 * 3).
 				.poolSizeCount = static_cast<uint32_t>(sizes.size()),
 				.pPoolSizes = sizes.data()
 			};
@@ -304,7 +304,7 @@ namespace vkPlayground {
 
 				if (!writeDescriptors.empty())
 				{
-					PG_CORE_INFO_TAG("Renderer", "[RenderPass ({})] update {} descriptors in set {}", m_Specification.DebugName, writeDescriptors.size(), set);
+					VKPG_CORE_INFO_TAG("Renderer", "[RenderPass ({})] update {} descriptors in set {}", m_Specification.DebugName, writeDescriptors.size(), set);
 					vkUpdateDescriptorSets(device, (uint32_t)writeDescriptors.size(), writeDescriptors.data(), 0, nullptr);
 				}
 			}
@@ -432,7 +432,7 @@ namespace vkPlayground {
 				writeDescriptorSetsToUpdate.emplace_back(writeDescriptor);
 			}
 			
-			PG_CORE_INFO_TAG("Renderer", "DescriptorSetManager::InvalidateAndUpdate ({}) - updating {} descriptors in set {} (frameIndex = {})", m_Specification.DebugName, writeDescriptorSetsToUpdate.size(), set, currentFrameIndex);
+			VKPG_CORE_INFO_TAG("Renderer", "DescriptorSetManager::InvalidateAndUpdate ({}) - updating {} descriptors in set {} (frameIndex = {})", m_Specification.DebugName, writeDescriptorSetsToUpdate.size(), set, currentFrameIndex);
 			vkUpdateDescriptorSets(
 				device, 
 				static_cast<uint32_t>(writeDescriptorSetsToUpdate.size()),
@@ -450,7 +450,7 @@ namespace vkPlayground {
 		if (decl)
 			m_InputResources.at(decl->Set).at(decl->Binding).Set(uniformBuffer);
 		else
-			PG_CORE_ERROR_TAG("Renderer", "[RenderPass: {}] Input {} not found!", m_Specification.DebugName, name);
+			VKPG_CORE_ERROR_TAG("Renderer", "[RenderPass: {}] Input {} not found!", m_Specification.DebugName, name);
 	}
 
 	void DescriptorSetManager::SetInput(std::string_view name, Ref<UniformBufferSet> uniformBufferSet)
@@ -459,19 +459,19 @@ namespace vkPlayground {
 		if (decl)
 			m_InputResources.at(decl->Set).at(decl->Binding).Set(uniformBufferSet);
 		else
-			PG_CORE_ERROR_TAG("Renderer", "[RenderPass: {}] Input {} not found!", m_Specification.DebugName, name);
+			VKPG_CORE_ERROR_TAG("Renderer", "[RenderPass: {}] Input {} not found!", m_Specification.DebugName, name);
 	}
 
 	void DescriptorSetManager::SetInput(std::string_view name, Ref<Texture2D> texture, uint32_t index)
 	{
 		const RenderPassInputDeclaration* decl = GetInputDeclaration(name);
 
-		PG_ASSERT(index < decl->Count, "");
+		VKPG_ASSERT(index < decl->Count);
 
 		if (decl)
 			m_InputResources.at(decl->Set).at(decl->Binding).Set(texture, index);
 		else
-			PG_CORE_ERROR_TAG("Renderer", "[RenderPass: {}] Input {} not found!", m_Specification.DebugName, name);
+			VKPG_CORE_ERROR_TAG("Renderer", "[RenderPass: {}] Input {} not found!", m_Specification.DebugName, name);
 	}
 
 	bool DescriptorSetManager::IsInvalidated(uint32_t set, uint32_t binding) const
@@ -519,7 +519,7 @@ namespace vkPlayground {
 
 	const std::vector<VkDescriptorSet>& DescriptorSetManager::GetDescriptorSets(uint32_t frameIndex) const
 	{
-		PG_ASSERT(!m_DescriptorSets.empty(), "");
+		VKPG_ASSERT(!m_DescriptorSets.empty());
 
 		if (frameIndex > 0 && m_DescriptorSets.size() == 1)
 			return m_DescriptorSets[0]; // Frame index is irrelevant for this type of render pass since it has only one descriptor set
