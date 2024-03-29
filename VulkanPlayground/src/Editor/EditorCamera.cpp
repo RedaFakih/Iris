@@ -123,10 +123,11 @@ namespace vkPlayground {
 		}
 
 		m_InitialMousePosition = mouse;
-		m_Position += m_PositionDelta;
-		m_Yaw += m_YawDelta;
-		m_Pitch += m_PitchDelta;
-		m_FocalPoint += m_FocalPointDelta;
+		constexpr float multiplier = 1.2f;
+		m_Position += m_PositionDelta * multiplier;
+		m_Yaw += m_YawDelta * multiplier;
+		m_Pitch += m_PitchDelta * multiplier;
+		m_FocalPoint += m_FocalPointDelta * multiplier;
 
 		if (m_CameraType == CameraType::BlenderCam)
 			m_Position = CalculatePosition();

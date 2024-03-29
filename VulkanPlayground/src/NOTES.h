@@ -4,11 +4,10 @@
  * TODO LATER:
  *  - Fix assimp copying the dll to the exe dir for the runtime if we need to do that... because the runtime should not be using assimp it should be using an assetpack
  * 
- * NEXT STEP ON TUTORIAL: Loading Models.
+ * NEXT STEP ON TUTORIAL: Compute Shaders
  *
  * NEXT THING TO WORK ON:
  * - Handle renderer descriptor pool situation and come up with some solutions for it... Read note written in Renderer.cpp (line: 101)
- * - start working on gltf importing
  * - Add a runtime layer so that we can test without imgui (Needs fixing)
  * - Work on Scene and Entity and Components so that we can finally work with the playground nicely
  * - Scene And Entity

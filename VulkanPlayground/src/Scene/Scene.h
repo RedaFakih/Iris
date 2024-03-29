@@ -12,6 +12,7 @@ namespace vkPlayground {
 
 	using EntityMap = std::unordered_map<UUID, Entity>;
 
+	// TODO: This is an asset
 	class Scene : public RefCountedObject
 	{
 	public:
@@ -22,11 +23,11 @@ namespace vkPlayground {
 
 		// TODO:
 		//void OnUpdateRuntime(TimeStep ts);
-		//void OnUpdateEditor(TimeStep ts);
+		//void OnRenderRuntime(/* TODO: SceneRenderer */, TimeStep ts);
 
 		// TODO:
-		//void OnRenderRuntime(/* TODO: SceneRenderer */, TimeStep ts);
-		//void OnRenderEditor(/* TODO: SceneRenderer */, TimeStep ts);
+		//void OnUpdateEditor(TimeStep ts);
+		//void OnRenderEditor(/* TODO: SceneRenderer */, TimeStep ts, const EditorCamera& camera);
 
 		void SetViewportSize(uint32_t width, uint32_t height);
 

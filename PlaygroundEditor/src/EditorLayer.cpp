@@ -25,7 +25,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 
 // TODO: REMOVE
-//#include <stb/stb_image_writer/stb_image_write.h>
+#include <stb/stb_image_writer/stb_image_write.h>
 
 namespace vkPlayground {
 
@@ -79,7 +79,7 @@ namespace vkPlayground {
 		m_UniformBufferSet = UniformBufferSet::Create(sizeof(UniformBufferData));
 
 		AssimpMeshImporter importer("Resources/assets/meshes/Sponza/Sponza.gltf");
-		// AssimpMeshImporter importer("Resources/assets/meshes/Galio/scene.gltf");
+		// AssimpMeshImporter importer("Resources/assets/meshes/glTF/DragonAttenuation.gltf");
 		s_MeshSource = importer.ImportToMeshSource();
 		s_Mesh = StaticMesh::Create(s_MeshSource);
 		s_SubMeshRange.y = static_cast<int>(s_Mesh->GetSubMeshes().size());
@@ -131,7 +131,7 @@ namespace vkPlayground {
 		{
 			FramebufferSpecification screenFBSpec = {
 				.DebugName = "Screen FB",
-				.Attachments = { ImageFormat::RGBA },
+				.Attachments = { ImageFormat::RGBA }
 			};
 
 			PipelineSpecification spec = {
@@ -214,7 +214,6 @@ namespace vkPlayground {
 			Renderer::BeginRenderPass(m_CommandBuffer, m_RenderingPass);
 			for (int i = s_SubMeshRange.y - 1; i >= s_SubMeshRange.x; i--)
 				Renderer::RenderStaticMesh(m_CommandBuffer, m_RenderingPipeline, s_Mesh, s_MeshSource, i, s_Mesh->GetMaterials());
-			// Renderer::RenderStaticMesh(m_CommandBuffer, m_RenderingPipeline, s_Mesh, s_MeshSource, 1, s_Mesh->GetMaterials());
 			Renderer::EndRenderPass(m_CommandBuffer);
 		}
 
@@ -246,7 +245,7 @@ namespace vkPlayground {
 			m_Renderer2D->SetLineWidth(5.0f);
 		
 			m_Renderer2D->DrawQuadBillboard({ -3.053855f, 4.328760f, 1.0f }, { 2.0f, 2.0f }, { 1.0f, 0.0f, 1.0f, 1.0f });
-		
+			
 			for (int x = -15; x < 15; x++)
 			{
 				for (int y = -3; y < 3; y++)
@@ -254,14 +253,15 @@ namespace vkPlayground {
 					m_Renderer2D->DrawQuad({ x, y, 2.0f }, { 1, 1 }, { glm::sin(x), glm::cos(y), glm::sin(x + y), 1.0f });
 				}
 			}
-		
+			
 			m_Renderer2D->DrawAABB({ {5.0f, 5.0f, 1.0f}, {7.0f, 7.0f, -4.0f} }, glm::mat4(1.0f));
 			m_Renderer2D->DrawAABB({ {4.0f, 4.0f, -1.0f}, {5.0f, 5.0f, -4.0f} }, glm::translate(glm::mat4(1.0f), {2.0f, -1.0f, -0.5f}), { 0.0f, 1.0f, 1.0f, 1.0f });
 			m_Renderer2D->DrawCircle({ 5.0f, 5.0f, -2.0f }, glm::vec3(1.0f), 2.0f, { 1.0f, 0.0f, 1.0f, 1.0f });
 			m_Renderer2D->DrawLine(glm::vec3(0.0f), glm::vec3(6.0f), glm::vec4(1.0f, 0.0f, 1.0f, 1.0f));
 			m_Renderer2D->DrawLine(glm::vec3(0.0f), glm::vec3(1.2f, 1.0f, 2.0f), glm::vec4(0.2f, 0.3f, 0.8f, 1.0f));
 			m_Renderer2D->DrawQuadBillboard({ -2.0f, -2.0f, -0.5f }, { 2.0f, 2.0f }, s_BillBoardTexture, 2.0f, { 1.0f, 0.7f, 1.0f, 0.5f });
-			// m_Renderer2D->DrawAABB(s_MeshSource->GetBoundingBox(), glm::mat4(1.0f));
+			m_Renderer2D->DrawAABB(s_MeshSource->GetBoundingBox(), glm::mat4(1.0f));
+			m_Renderer2D->DrawLine(glm::vec3(0.0f, -2.0f, 0.0f), glm::vec3(0.0f, -5.0f, 0.0f), glm::vec4(1.0f, 0.0f, 0.0f, 1.0f));
 		
 			m_Renderer2D->EndScene();
 			// Here the color attachment is now in VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
@@ -308,13 +308,15 @@ namespace vkPlayground {
 		}
 
 		// NOTE: This gives the image upside down since that is the output of the SceneRenderer and then we flip it in imgui so...
-		// if (Input::IsKeyDown(KeyCode::R))
-		// {
-		// 	Buffer textureBuffer;
-		// 	Ref<Texture2D> texture = m_RenderingPass->GetOutput(0);
-		// 	texture->CopyToHostBuffer(textureBuffer, true);
-		// 	stbi_write_png("Resources/assets/textures/output.png", texture->GetWidth(), texture->GetHeight(), 4, textureBuffer.Data, texture->GetWidth() * 4);
-		// }
+		if (Input::IsKeyDown(KeyCode::R))
+		{
+			Buffer textureBuffer;
+			Ref<Texture2D> texture = m_RenderingPass->GetOutput(0);
+			texture->CopyToHostBuffer(textureBuffer, true);
+			stbi_flip_vertically_on_write(true);
+			stbi_write_jpg("Resources/assets/textures/output.jpg", texture->GetWidth(), texture->GetHeight(), 4, textureBuffer.Data, 100);
+			stbi_flip_vertically_on_write(false);
+		}
 
 		bool leftAltWithEitherLeftOrMiddleButtonOrJustRight = (Input::IsKeyDown(KeyCode::LeftAlt) && (Input::IsMouseButtonDown(MouseButton::Left) || (Input::IsMouseButtonDown(MouseButton::Middle)))) || Input::IsMouseButtonDown(MouseButton::Right);
 		bool notStartCameraViewportAndViewportHoveredFocused = !m_StartedCameraClickInViewport && m_ViewportPanelFocused && m_ViewportPanelMouseOver;

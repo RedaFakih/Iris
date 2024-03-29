@@ -79,7 +79,7 @@ layout(push_constant) uniform Materials
 } u_MaterialUniforms;
 
 vec3 s_LightColor = vec3(1.0f);
-vec3 s_LightPos = vec3(1.2f, 5.0f, 2.0f);
+vec3 s_LightPos = vec3(-20.2f, 3.0f, -5.0f);
 
 void main()
 {
@@ -94,7 +94,7 @@ void main()
     vec4 diffuse = vec4(diff * s_LightColor, 1.0f);
 
     // o_Color = vec4(texture(u_NormalTexture, Input.TexCoord).rgb, 1.0f);
-    // o_Color = vec4(vec3(texture(u_MetalnessTexture, Input.TexCoord).b), 1.0f);
     // o_Color = vec4(vec3(texture(u_RoughnessTexture, Input.TexCoord).g), 1.0f);
+    // o_Color = vec4(vec3(texture(u_MetalnessTexture, Input.TexCoord).b), 1.0f);
     o_Color = (ambient + diffuse) * (texture(u_AlbedoTexture, Input.TexCoord) * vec4(u_MaterialUniforms.AlbedoColor, 1.0f));
 }
