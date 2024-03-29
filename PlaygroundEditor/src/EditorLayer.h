@@ -70,11 +70,10 @@ namespace vkPlayground {
 		Ref<RenderCommandBuffer> m_CommandBuffer;
 		Ref<RenderCommandBuffer> m_ScreenCommandBuffer; // TODO: TEMP FOR DEBUGGING FOR VISUALIZING DEPTH TEXT
 		Ref<UniformBufferSet> m_UniformBufferSet;
+		Ref<Pipeline> m_RenderingPipeline;
 		Ref<RenderPass> m_RenderingPass;
 		Ref<RenderPass> m_ScreenPass;
 		Ref<Material> m_ScreenPassMaterial;
-		Ref<VertexBuffer> m_VertexBuffer;
-		Ref<IndexBuffer> m_IndexBuffer;
 		Ref<Framebuffer> m_IntermediateBuffer;
 
 	};

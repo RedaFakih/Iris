@@ -1,11 +1,12 @@
 #pragma once
 
 #include "Core/AABB.h"
-#include "Mesh.h"
-#include "RenderPass.h"
+#include "IndexBuffer.h"
+#include "Mesh/Material.h"
 #include "Renderer/Core/RenderCommandBuffer.h"
+#include "RenderPass.h"
 #include "UniformBufferSet.h"
-#include "Material.h"
+#include "VertexBuffer.h"
 
 #include <glm/glm.hpp>
 

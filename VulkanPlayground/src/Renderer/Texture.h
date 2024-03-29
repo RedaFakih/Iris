@@ -31,6 +31,9 @@ namespace vkPlayground {
 
 		B10R11G11UF, // UFLOAT
 
+		SRGB,
+		SRGBA,
+
 		DEPTH32FSTENCIL8UINT, // UINT
 		DEPTH32F, // FLOAT
 		DEPTH24STENCIL8, // Default device depth format
@@ -56,7 +59,7 @@ namespace vkPlayground {
 		None = 0,
 		Texture, // Defualt: Loaded via a filepath or image data
 		Attachment, // For Framebuffers
-		// NOTE: HostRead // Usefull for read-back images (Mousepicking using IDs texture for example)
+		// HostRead // NOTE: Usefull for read-back images (Mousepicking using IDs texture for example)
 	};
 
 	struct TextureSpecification
@@ -94,6 +97,7 @@ namespace vkPlayground {
 		uint32_t Layers = 1;
 	};
 
+	// TODO: This is an asset
 	class Texture2D : public RefCountedObject
 	{
 	public:
@@ -170,6 +174,8 @@ namespace vkPlayground {
 				case ImageFormat::RGBA16F:		return 2 * 4;
 				case ImageFormat::RGBA32F:		return 4 * 4;
 				case ImageFormat::B10R11G11UF:	return 4;
+				case ImageFormat::SRGB:			return 3;
+				case ImageFormat::SRGBA:		return 4;
 				case ImageFormat::DEPTH32F:		return 4;
 			}
 
@@ -196,6 +202,8 @@ namespace vkPlayground {
 				case ImageFormat::RGBA16F:
 				case ImageFormat::RGBA32F:
 				case ImageFormat::B10R11G11UF:
+				case ImageFormat::SRGB:
+				case ImageFormat::SRGBA:
 				case ImageFormat::DEPTH32F:
 				case ImageFormat::DEPTH24STENCIL8:
 					return false;
@@ -240,6 +248,8 @@ namespace vkPlayground {
 				case ImageFormat::RGBA16F:				return VK_FORMAT_R16G16B16A16_SFLOAT;
 				case ImageFormat::RGBA32F:				return VK_FORMAT_R32G32B32A32_SFLOAT;
 				case ImageFormat::B10R11G11UF:			return VK_FORMAT_B10G11R11_UFLOAT_PACK32;
+				case ImageFormat::SRGB:					return VK_FORMAT_R8G8B8_SRGB;
+				case ImageFormat::SRGBA:				return VK_FORMAT_R8G8B8A8_SRGB;
 				case ImageFormat::DEPTH32FSTENCIL8UINT: return VK_FORMAT_D32_SFLOAT_S8_UINT;
 				case ImageFormat::DEPTH32F:				return VK_FORMAT_D32_SFLOAT;
 				case ImageFormat::DEPTH24STENCIL8:		return RendererContext::GetCurrentDevice()->GetPhysicalDevice()->GetDepthFormat();

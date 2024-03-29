@@ -56,6 +56,8 @@ namespace vkPlayground {
                 case ImageFormat::RGBA:                     return width * height * 4;
                 case ImageFormat::RGBA32F:                  return width * height * 4 * sizeof(float);
                 case ImageFormat::B10R11G11UF:              return width * height * sizeof(float);
+                case ImageFormat::SRGB:                     return width * height * 3;
+                case ImageFormat::SRGBA:                    return width * height * 4;
             }
 
             VKPG_ASSERT(false);

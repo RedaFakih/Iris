@@ -46,6 +46,5 @@ layout(push_constant) uniform Material
 
 void main()
 {
-    o_Color = vec4(v_Color, 1.0f);
     o_Color = texture(u_Texture, v_TexCoord);
 }

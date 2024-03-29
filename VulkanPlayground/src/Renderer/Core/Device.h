@@ -23,7 +23,7 @@ namespace vkPlayground {
 		VulkanPhysicalDevice();
 		~VulkanPhysicalDevice();
 
-		static Ref<VulkanPhysicalDevice> Create();
+		[[nodiscard]] static Ref<VulkanPhysicalDevice> Create();
 
 		VkPhysicalDevice GetVulkanPhysicalDevice() const { return m_PhysicalDevice; }
 		const QueueFamilyIndices& GetQueueFamilyIndices() const { return m_QueueFamilyIndices; }
@@ -87,7 +87,7 @@ namespace vkPlayground {
 		VulkanCommandPool();
 		~VulkanCommandPool();
 
-		static Ref<VulkanCommandPool> Create();
+		[[nodiscard]] static Ref<VulkanCommandPool> Create();
 
 		void Reset();
 
@@ -111,7 +111,7 @@ namespace vkPlayground {
 		VulkanDevice(const Ref<VulkanPhysicalDevice>& physicalDevice, const VkPhysicalDeviceFeatures& enabledFeatures);
 		~VulkanDevice();
 
-		static Ref<VulkanDevice> Create(const Ref<VulkanPhysicalDevice>& physicalDevice, const VkPhysicalDeviceFeatures& enabledFeatures);
+		[[nodiscard]] static Ref<VulkanDevice> Create(const Ref<VulkanPhysicalDevice>& physicalDevice, const VkPhysicalDeviceFeatures& enabledFeatures);
 
 		void Destroy();
 

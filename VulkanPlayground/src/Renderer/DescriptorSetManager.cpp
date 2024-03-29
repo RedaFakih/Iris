@@ -13,14 +13,10 @@ namespace vkPlayground {
 		: m_Specification(spec)
 	{
 		Init();
-	}
-
-	DescriptorSetManager::DescriptorSetManager(const DescriptorSetManager& other)
-		: m_Specification(other.m_Specification)
-	{
-		Init();
-		m_InputResources = other.m_InputResources;
-		Bake();
+		if (m_Specification.TriggerCopy)
+		{
+			m_InputResources = m_Specification.ExistingInputResources;
+		}
 	}
 
 	DescriptorSetManager::~DescriptorSetManager()
@@ -58,7 +54,7 @@ namespace vkPlayground {
 				// The number of elements in the array or 1 if no array exists in the shader for this descriptor
 				inputDeclaration.Count = writeDescriptor.descriptorCount;
 
-				if(m_Specification.DefaultResources)
+				if (m_Specification.DefaultResources)
 				{
 					RenderPassInput& input = m_InputResources[set][binding];
 					input.Type = Utils::GetDefaultResourceType(writeDescriptor.descriptorType);
@@ -194,7 +190,6 @@ namespace vkPlayground {
 
 		// - Allocate DescriptorSets
 		// - Complete the write descriptors that were partially created in the shader and then call vkUpdateDescriptorSets
-		// - TODO: Add a map for the invalidated resources so that we can invalidate resources that are not yet existing
 
 		// Returns the sets that contain a UniformBufferSet/StorageBufferSet resource
 		std::set<uint32_t> bufferSets = HasBufferSets();
@@ -304,7 +299,7 @@ namespace vkPlayground {
 
 				if (!writeDescriptors.empty())
 				{
-					VKPG_CORE_INFO_TAG("Renderer", "[RenderPass ({})] update {} descriptors in set {}", m_Specification.DebugName, writeDescriptors.size(), set);
+					VKPG_CORE_INFO_TAG("Renderer", "[RenderPass ({})::Bake] update {} descriptors in set {}", m_Specification.DebugName, writeDescriptors.size(), set);
 					vkUpdateDescriptorSets(device, (uint32_t)writeDescriptors.size(), writeDescriptors.data(), 0, nullptr);
 				}
 			}
@@ -319,17 +314,17 @@ namespace vkPlayground {
 		// Check for invalidated resources...
 		for (const auto& [set, inputs] : m_InputResources)
 		{
-			for (const auto& [binding, input] : inputs)
+			for (const auto& [binding, renderPassInput] : inputs)
 			{
-				switch (input.Type)
+				switch (renderPassInput.Type)
 				{
 					case DescriptorResourceType::UniformBuffer:
 					{
-						Ref<UniformBuffer> uniformBuffer = input.Input[0];
+						Ref<UniformBuffer> uniformBuffer = renderPassInput.Input[0];
 						const VkDescriptorBufferInfo& bufferInfo = uniformBuffer->GetDescriptorBufferInfo();
 						if (bufferInfo.buffer != m_WriteDescriptorMap[currentFrameIndex].at(set).at(binding).ResourceHandles[0])
 						{
-							m_InvalidatedInputResources[set][binding] = input;
+							m_InvalidatedInputResources[set][binding] = renderPassInput;
 							break;
 						}
 
@@ -337,11 +332,11 @@ namespace vkPlayground {
 					}
 					case DescriptorResourceType::UniformBufferSet:
 					{
-						Ref<UniformBufferSet> uniformBufferSet = input.Input[0];
+						Ref<UniformBufferSet> uniformBufferSet = renderPassInput.Input[0];
 						const VkDescriptorBufferInfo& bufferInfo = uniformBufferSet->Get(currentFrameIndex)->GetDescriptorBufferInfo();
 						if (bufferInfo.buffer != m_WriteDescriptorMap[currentFrameIndex].at(set).at(binding).ResourceHandles[0])
 						{
-							m_InvalidatedInputResources[set][binding] = input;
+							m_InvalidatedInputResources[set][binding] = renderPassInput;
 							break;
 						}
 
@@ -349,13 +344,13 @@ namespace vkPlayground {
 					}
 					case DescriptorResourceType::Texture2D:
 					{
-						for (std::size_t i = 0; i < input.Input.size(); i++)
+						for (std::size_t i = 0; i < renderPassInput.Input.size(); i++)
 						{
-							Ref<Texture2D> texture = input.Input[i];
+							Ref<Texture2D> texture = renderPassInput.Input[i];
 							const VkDescriptorImageInfo& imageInfo = texture->GetDescriptorImageInfo();
 							if (imageInfo.imageView != m_WriteDescriptorMap[currentFrameIndex].at(set).at(binding).ResourceHandles[i])
 							{
-								m_InvalidatedInputResources[set][binding] = input;
+								m_InvalidatedInputResources[set][binding] = renderPassInput;
 								break;
 							}
 						}

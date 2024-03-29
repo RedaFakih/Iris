@@ -48,6 +48,7 @@ namespace vkPlayground {
 				case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER: return RenderPassInputType::ImageSampler2D;
 			}
 
+			VKPG_ASSERT(false);
 			return RenderPassInputType::None;
 		}
 
@@ -60,6 +61,7 @@ namespace vkPlayground {
 				case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER: return DescriptorResourceType::Texture2D;
 			}
 
+			VKPG_ASSERT(false);
 			return DescriptorResourceType::None;
 		}
 
@@ -72,6 +74,7 @@ namespace vkPlayground {
 				case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER: return "CombindImageSampler";
 			}
 
+			VKPG_ASSERT(false);
 			return "UNKNOWN";
 		}
 
@@ -84,6 +87,7 @@ namespace vkPlayground {
 				case DescriptorResourceType::Texture2D:			return "Texture2D";
 			}
 
+			VKPG_ASSERT(false);
 			return "UNKNOWN";
 		}
 
@@ -102,6 +106,7 @@ namespace vkPlayground {
 				}
 			}
 
+			VKPG_ASSERT(false);
 			return false;
 		}
 
@@ -178,6 +183,12 @@ namespace vkPlayground {
 		// Sets to be managed by the Manager instance
 		uint32_t StartingSet = 0;
 		uint32_t EndingSet = 3;
+
+		// TriggerCopy determines whether we copy the ExistingInputResources when creating the DescriptorSetManager
+		// We can not use whether the ExistingInputResources map is empty or not as a flag since an empty map is a valid state where the shader does not have any 
+		// input resources
+		bool TriggerCopy = false;
+		std::map<uint32_t, std::map<uint32_t, RenderPassInput>> ExistingInputResources;
 	};
 
 	class DescriptorSetManager
@@ -193,7 +204,6 @@ namespace vkPlayground {
 	public:
 		DescriptorSetManager() = default;
 		DescriptorSetManager(const DescriptorSetManagerSpecification& spec);
-		DescriptorSetManager(const DescriptorSetManager& other);
 		~DescriptorSetManager();
 
 		bool Validate();
@@ -232,6 +242,8 @@ namespace vkPlayground {
 		const std::map<std::string, RenderPassInputDeclaration>& GetInputDeclarations() const { return m_InputDeclarations; }
 
 		VkDescriptorPool GetDescriptorPool() const { return m_DescriptorPool; }
+
+		const std::map<uint32_t, std::map<uint32_t, RenderPassInput>>& GetInputResources() const { return m_InputResources; }
 
 	private:
 		void Init();

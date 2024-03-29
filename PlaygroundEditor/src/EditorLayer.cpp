@@ -3,16 +3,16 @@
 #include "Core/Input/Input.h"
 #include "Editor/EditorResources.h"
 #include "Renderer/Core/RenderCommandBuffer.h"
-#include "Renderer/Core/Vulkan.h" // TODO: TEMP! No vulkan calls should be here
 #include "Renderer/Framebuffer.h"
 #include "Renderer/IndexBuffer.h"
-#include "Renderer/Material.h"
-#include "Renderer/Mesh.h"
+#include "Renderer/Mesh/Material.h"
+#include "Renderer/Mesh/Mesh.h"
 #include "Renderer/Pipeline.h"
 #include "Renderer/Renderer.h"
 #include "Renderer/RenderPass.h"
 #include "Renderer/UniformBufferSet.h"
 #include "Renderer/VertexBuffer.h"
+#include "Asset/MeshImporter.h"
 
 #include "ImGui/ImGuiUtils.h"
 
@@ -25,11 +25,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 
 // TODO: REMOVE
-#include <stb/stb_image_writer/stb_image_write.h>
-//#include <fastgltf/glm_element_traits.hpp>
-//#include <fastgltf/parser.hpp>
-//#include <fastgltf/tools.hpp>
-//#include <fastgltf/types.hpp>
+//#include <stb/stb_image_writer/stb_image_write.h>
 
 namespace vkPlayground {
 
@@ -41,90 +37,10 @@ namespace vkPlayground {
 		glm::mat4 ViewProjection;
 		glm::vec2 DepthUnpackConsts; // TODO: TEMPORARY ALSO IN SHADERS
 	};
-
-	static std::vector<Vertex> s_Vertices;
-	static std::vector<uint32_t> s_Indices;
 	static Ref<Texture2D> s_BillBoardTexture;
-	//static std::vector<Vertex> s_TestVertices;
-	//static std::vector<uint32_t> s_TestIndices;
-
-	//void LoadModelFromFileBase(std::filesystem::path path, glm::mat4 rootTransform, bool binary)
-	//{
-	//	using fastgltf::Extensions;
-	//	auto parser = fastgltf::Parser(Extensions::KHR_texture_basisu | Extensions::KHR_mesh_quantization |
-	//		Extensions::EXT_meshopt_compression | Extensions::KHR_lights_punctual);
-	//
-	//	auto data = fastgltf::GltfDataBuffer();
-	//	data.loadFromFile(path);
-	//
-	//	constexpr auto options = fastgltf::Options::LoadExternalBuffers | //fastgltf::Options::LoadExternalImages |
-	//		fastgltf::Options::LoadGLBBuffers;
-	//	auto asset = binary ? parser.loadBinaryGLTF(&data, path.parent_path(), options) : parser.loadGLTF(&data, path.parent_path(), options);
-	//
-	//	if (auto err = asset.error(); err != fastgltf::Error::None)
-	//	{
-	//		// TODO: Log error
-	//	}
-	//
-	//	fastgltf::Primitive& primitive = asset->meshes[0].primitives[0];
-	//	fastgltf::Texture& texture = asset->textures[0];
-	//
-	//	if (asset->images.size())
-	//	{
-	//		fastgltf::Image& image = asset->images[texture.imageIndex.value()];
-	//		TextureSpecification spec = {
-	//			.DebugName = std::string(image.name),
-	//		};
-	//		auto uri = std::get_if<fastgltf::sources::URI>(&image.data)->uri;
-	//		auto uriString = std::string(uri.path());
-	//		auto parentPath = path.parent_path();
-	//		auto filePath = parentPath / uriString;
-	//		// TODO: Load the textures...
-	//	}
-	//
-	//	if (primitive.indicesAccessor.has_value()) 
-	//	{
-	//		auto& accessor = asset->accessors[primitive.indicesAccessor.value()];
-	//		s_TestIndices.resize(accessor.count);
-	//
-	//		fastgltf::iterateAccessorWithIndex<std::uint32_t>(
-	//		asset.get(), accessor, [&](std::uint32_t index, std::size_t idx) {
-	//			s_TestIndices[idx] = index;
-	//		});
-	//	}
-	//
-	//	if (auto it = primitive.findAttribute("POSITION"); it)
-	//	{
-	//		auto& accessor = asset->accessors[it->second];
-	//		s_TestVertices.resize(accessor.count);
-	//
-	//		fastgltf::iterateAccessorWithIndex<glm::vec3>(
-	//		asset.get(), accessor, [&](glm::vec3 position, std::size_t idx) {
-	//			s_TestVertices[idx].Position = position;
-	//		});
-	//	}
-	//
-	//	glm::vec3 color = { 1.0f, 0.0f, 1.0f };
-	//	if (primitive.materialIndex.has_value())
-	//	{
-	//		auto& material = asset->materials[primitive.materialIndex.value()];
-	//		color.r = material.pbrData.baseColorFactor[0];
-	//		color.g = material.pbrData.baseColorFactor[1];
-	//		color.b = material.pbrData.baseColorFactor[2];
-	//	}
-	//
-	//	if (auto it = primitive.findAttribute("TEXCOORD_0"); it)
-	//	{
-	//		auto& accessor = asset->accessors[it->second];
-	//		s_TestVertices.resize(accessor.count);
-	//
-	//		fastgltf::iterateAccessorWithIndex<glm::vec2>(
-	//			asset.get(), accessor, [&](glm::vec2 texCoord, std::size_t idx) {
-	//				s_TestVertices[idx].TexCoord = texCoord;
-	//				s_TestVertices[idx].Color = color;
-	//			});
-	//	}
-	//}
+	static Ref<MeshSource> s_MeshSource;
+	static Ref<StaticMesh> s_Mesh;
+	static glm::ivec2 s_SubMeshRange{ 0 };
 
 	EditorLayer::EditorLayer()
 		: Layer("EditorLayer"), m_EditorCamera(45.0f, 1280.0f, 720.0f, 0.1f, 10000.0f)
@@ -135,35 +51,13 @@ namespace vkPlayground {
 	{
 		// TODO: REMOVE
 		s_BillBoardTexture = nullptr;
+		s_MeshSource = nullptr;
+		s_Mesh = nullptr;
 	}
 
 	void EditorLayer::OnAttach()
 	{
 		// TODO: REMOVE
-		// Interleaved vertex attributes
-		s_Vertices = {
-#if 0
-			{ {-0.5f, -0.5f, 0.0f }, { 1.0f, 0.0f, 0.0f }, { 1.0f, 0.0f } },
-			{ { 0.5f, -0.5f, 0.0f }, { 0.0f, 1.0f, 0.0f }, { 0.0f, 0.0f } },
-			{ { 0.5f,  0.5f, 0.0f }, { 0.0f, 0.0f, 1.0f }, { 0.0f, 1.0f } },
-			{ {-0.5f,  0.5f, 0.0f }, { 1.0f, 1.0f, 1.0f }, { 1.0f, 1.0f } }
-#else
-			{ {-0.5f, -0.5f, 0.0f }, { 1.0f, 0.0f, 0.0f }, { 1.0f, 0.0f } },
-			{ { 0.5f, -0.5f, 0.0f }, { 0.0f, 1.0f, 0.0f }, { 0.0f, 0.0f } },
-			{ { 0.5f,  0.5f, 0.0f }, { 0.0f, 0.0f, 1.0f }, { 0.0f, 1.0f } },
-			{ {-0.5f,  0.5f, 0.0f }, { 1.0f, 1.0f, 1.0f }, { 1.0f, 1.0f } },
-
-			{ {-0.5f, -0.5, -0.5f }, { 1.0f, 0.0f, 0.0f }, { 1.0f, 0.0f } },
-			{ { 0.5f, -0.5, -0.5f }, { 0.0f, 1.0f, 0.0f }, { 0.0f, 0.0f } },
-			{ { 0.5f,  0.5, -0.5f }, { 0.0f, 0.0f, 1.0f }, { 0.0f, 1.0f } },
-			{ {-0.5f,  0.5, -0.5f }, { 1.0f, 1.0f, 1.0f }, { 1.0f, 1.0f } }
-#endif
-		};
-
-		s_Indices = {
-			0, 1, 2, 2, 3, 0,
-			4, 5, 6, 6, 7, 4
-		};
 
 		m_EditorScene = Scene::Create("Editor Scene");
 		m_ViewportRenderer = SceneRenderer::Create(m_EditorScene);
@@ -179,11 +73,16 @@ namespace vkPlayground {
 		m_ScreenCommandBuffer = RenderCommandBuffer::Create(0, "ScreenPass"); // TODO: TEMP
 
 		// TODO: REMOVE!
-		Ref<Shader> renderingShader = Renderer::GetShadersLibrary()->Get("SimpleShader");
+		Ref<Shader> meshShader = Renderer::GetShadersLibrary()->Get("PlaygroundStatic");
 		Ref<Shader> screenShader = Renderer::GetShadersLibrary()->Get("TexturePass");
-		Ref<Shader> compositingShader = Renderer::GetShadersLibrary()->Get("Compositing");
 
 		m_UniformBufferSet = UniformBufferSet::Create(sizeof(UniformBufferData));
+
+		AssimpMeshImporter importer("Resources/assets/meshes/Sponza/Sponza.gltf");
+		// AssimpMeshImporter importer("Resources/assets/meshes/Galio/scene.gltf");
+		s_MeshSource = importer.ImportToMeshSource();
+		s_Mesh = StaticMesh::Create(s_MeshSource);
+		s_SubMeshRange.y = static_cast<int>(s_Mesh->GetSubMeshes().size());
 
 		TextureSpecification textureSpec = {
 			.DebugName = "Qiyana",
@@ -191,60 +90,40 @@ namespace vkPlayground {
 		};
 		s_BillBoardTexture = Texture2D::Create(textureSpec, "Resources/assets/textures/qiyana.png");
 
-		TextureSpecification textureSpec2 = {
-			.DebugName = "BlackTexture",
-			.Width = 1,
-			.Height = 1,
-			.Format = ImageFormat::RGBA,
-			.WrapMode = TextureWrap::Repeat,
-			.FilterMode = TextureFilter::Linear,
-		};
-		// Currently its red but whatever
-		constexpr uint32_t blackTextureData = 0xff0000ff;
-		Ref<Texture2D> texture2 = Texture2D::Create(textureSpec2, Buffer((uint8_t*)&blackTextureData, sizeof(uint32_t)));
-
-		//glm::mat4 transform = glm::rotate(glm::mat4(1.0f), glm::radians(180.0f), { 1.0f, 0.0f, 0.0f })
-		//	* glm::scale(glm::mat4(1.0f), glm::vec3(0.2f));
-		//LoadModelFromFileBase("assets/meshes/stormtrooper/stormtrooper.gltf", transform, false);
-		//Ref<VertexBuffer> vertexBuffer = VertexBuffer::Create(s_TestVertices.data(), (uint32_t)(sizeof(Vertex) * s_TestVertices.size()));
-		//Ref<IndexBuffer> indexBuffer = IndexBuffer::Create(s_TestIndices.data(), (uint32_t)(sizeof(uint32_t) * s_TestIndices.size()));
-
 		// Rendering pass
 		{
-			FramebufferSpecification mainFBspec = {
-				.DebugName = "Rendering FB",
+			FramebufferSpecification renderingFBSpec = {
+				.DebugName = "StaticRenderingFB",
 				.ClearColor = { 0.0f, 0.0f, 0.0f, 1.0f },
 				.DepthClearValue = 0.0f,
-				.Attachments = { { ImageFormat::RGBA, AttachmentPassThroughUsage::Input }, { ImageFormat::DEPTH32F, AttachmentPassThroughUsage::Input } },
+				.Attachments = { { ImageFormat::RGBA, AttachmentPassThroughUsage::Input }, { ImageFormat::DEPTH32F, AttachmentPassThroughUsage::Input } }
 			};
 
 			PipelineSpecification spec = {
-				.DebugName = "RenderingPassPipeline",
-				.Shader = renderingShader,
-				.TargetFramebuffer = Framebuffer::Create(mainFBspec),
+				.DebugName = "StaticRenderingPipeline",
+				.Shader = Renderer::GetShadersLibrary()->Get("PlaygroundStatic"),
+				.TargetFramebuffer = Framebuffer::Create(renderingFBSpec),
 				.VertexLayout = {
 					{ ShaderDataType::Float3, "a_Position" },
-					{ ShaderDataType::Float3, "a_Color"    },
+					{ ShaderDataType::Float3, "a_Normal" },
+					{ ShaderDataType::Float3, "a_Tangent" },
+					{ ShaderDataType::Float3, "a_Binormal" },
 					{ ShaderDataType::Float2, "a_TexCoord" }
 				},
 				.Topology = PrimitiveTopology::Triangles,
-				.DepthOperator = DepthCompareOperator::GreaterOrEqual,
-				.BackFaceCulling = false,
-				.DepthTest = true,
-				.DepthWrite = true,
-				.WireFrame = false,
 				.LineWidth = 1.0f
 			};
-			Ref<Pipeline> pipeline = Pipeline::Create(spec);
+			m_RenderingPipeline = Pipeline::Create(spec);
 
-			RenderPassSpecification renderingPassSpec = {
-				.DebugName = "RenderingPass",
-				.Pipeline = pipeline,
-				.MarkerColor = glm::vec4(1.0f, 0.0f, 0.0f, 1.0f)
+			RenderPassSpecification staticRenderingPassSpec = {
+				.DebugName = "StaticRenderingPass",
+				.Pipeline = m_RenderingPipeline,
+				.MarkerColor = { 1.0f, 0.0f, 0.0f, 1.0f }
 			};
-			m_RenderingPass = RenderPass::Create(renderingPassSpec);
+			m_RenderingPass = RenderPass::Create(staticRenderingPassSpec);
+
 			m_RenderingPass->SetInput("TransformUniformBuffer", m_UniformBufferSet);
-			m_RenderingPass->SetInput("u_Texture", s_BillBoardTexture);
+
 			m_RenderingPass->Bake();
 		}
 
@@ -282,6 +161,7 @@ namespace vkPlayground {
 			m_ScreenPass->Bake();
 
 			m_ScreenPassMaterial = Material::Create(screenShader, "ScreenPassMaterial");
+			// Ref<Material> testMat = Material::Create(m_ScreenPassMaterial);
 		}
 
 		// Intermediate Renderer2D framebuffer
@@ -296,17 +176,12 @@ namespace vkPlayground {
 			intermediateBufferSpec.ExistingImages[1] = m_RenderingPass->GetDepthOutput();
 			m_IntermediateBuffer = Framebuffer::Create(intermediateBufferSpec);
 		}
-
-		m_VertexBuffer = VertexBuffer::Create(s_Vertices.data(), (uint32_t)(sizeof(Vertex) * s_Vertices.size()));
-		m_IndexBuffer = IndexBuffer::Create(s_Indices.data(), (uint32_t)(sizeof(uint32_t) * s_Indices.size()));
 	}
 
 	void EditorLayer::OnDetach()
 	{
 		EditorResources::Shutdown();
 	}
-
-	static glm::vec3 s_Position;
 
 	void EditorLayer::OnUpdate(TimeStep ts)
 	{
@@ -323,7 +198,8 @@ namespace vkPlayground {
 
 		// Update uniform buffers (Begin Scene stuff)
 		UniformBufferData dataUB = {
-			.Model = glm::rotate(glm::mat4(1.0f), Application::Get().GetTime() * glm::radians(45.0f), glm::vec3(0.0f, 0.0f, 1.0f)) * glm::scale(glm::mat4(1.0f), {5.0f, 5.0f, 1.0f}),
+			// .Model = glm::rotate(glm::mat4(1.0f), Application::Get().GetTime() * glm::radians(45.0f), glm::vec3(0.0f, 1.0f, 0.0f)) * glm::scale(glm::mat4(1.0f), glm::vec3(1.0f)) ,
+			.Model = glm::translate(glm::mat4(1.0f), glm::vec3{ 0.0f, 0.0f, 0.0f }) * glm::scale(glm::mat4(1.0f), glm::vec3{0.05f, 0.05f, 0.05f}),
 			// .Model = glm::translate(glm::mat4(1.0f), glm::vec3{ 0.0f, 0.0f, 0.0f }),
 			.ViewProjection = std::move(m_EditorCamera.GetProjectionMatrix() * m_EditorCamera.GetViewMatrix()),
 			.DepthUnpackConsts = { depthLinearizeMul, depthLinearizeAdd }
@@ -335,15 +211,10 @@ namespace vkPlayground {
 
 		// First render pass renders to the framebuffer
 		{
-			VkCommandBuffer commandBuffer = m_CommandBuffer->GetActiveCommandBuffer();
 			Renderer::BeginRenderPass(m_CommandBuffer, m_RenderingPass);
-
-			VkBuffer vertexVulkanBuffer = m_VertexBuffer->GetVulkanBuffer();
-			vkCmdBindVertexBuffers(commandBuffer, 0, 1, &vertexVulkanBuffer, [](VkDeviceSize&& s) { return &s; }(0));
-			vkCmdBindIndexBuffer(commandBuffer, m_IndexBuffer->GetVulkanBuffer(), 0, VK_INDEX_TYPE_UINT32);
-
-			vkCmdDrawIndexed(commandBuffer, (uint32_t)m_IndexBuffer->GetCount(), 1, 0, 0, 0);
-
+			for (int i = s_SubMeshRange.y - 1; i >= s_SubMeshRange.x; i--)
+				Renderer::RenderStaticMesh(m_CommandBuffer, m_RenderingPipeline, s_Mesh, s_MeshSource, i, s_Mesh->GetMaterials());
+			// Renderer::RenderStaticMesh(m_CommandBuffer, m_RenderingPipeline, s_Mesh, s_MeshSource, 1, s_Mesh->GetMaterials());
 			Renderer::EndRenderPass(m_CommandBuffer);
 		}
 
@@ -373,9 +244,9 @@ namespace vkPlayground {
 			m_Renderer2D->BeginScene(m_EditorCamera.GetViewProjection(), m_EditorCamera.GetViewMatrix());
 			m_Renderer2D->SetTargetFramebuffer(m_IntermediateBuffer);
 			m_Renderer2D->SetLineWidth(5.0f);
-
+		
 			m_Renderer2D->DrawQuadBillboard({ -3.053855f, 4.328760f, 1.0f }, { 2.0f, 2.0f }, { 1.0f, 0.0f, 1.0f, 1.0f });
-
+		
 			for (int x = -15; x < 15; x++)
 			{
 				for (int y = -3; y < 3; y++)
@@ -383,13 +254,15 @@ namespace vkPlayground {
 					m_Renderer2D->DrawQuad({ x, y, 2.0f }, { 1, 1 }, { glm::sin(x), glm::cos(y), glm::sin(x + y), 1.0f });
 				}
 			}
-
+		
 			m_Renderer2D->DrawAABB({ {5.0f, 5.0f, 1.0f}, {7.0f, 7.0f, -4.0f} }, glm::mat4(1.0f));
 			m_Renderer2D->DrawAABB({ {4.0f, 4.0f, -1.0f}, {5.0f, 5.0f, -4.0f} }, glm::translate(glm::mat4(1.0f), {2.0f, -1.0f, -0.5f}), { 0.0f, 1.0f, 1.0f, 1.0f });
 			m_Renderer2D->DrawCircle({ 5.0f, 5.0f, -2.0f }, glm::vec3(1.0f), 2.0f, { 1.0f, 0.0f, 1.0f, 1.0f });
 			m_Renderer2D->DrawLine(glm::vec3(0.0f), glm::vec3(6.0f), glm::vec4(1.0f, 0.0f, 1.0f, 1.0f));
-			m_Renderer2D->DrawQuadBillboard({ -2.0f, -2.0f, -0.5f }, { 2.0f, 2.0f }, s_BillBoardTexture, 2.0f, {1.0f, 0.7f, 1.0f, 1.0f});
-
+			m_Renderer2D->DrawLine(glm::vec3(0.0f), glm::vec3(1.2f, 1.0f, 2.0f), glm::vec4(0.2f, 0.3f, 0.8f, 1.0f));
+			m_Renderer2D->DrawQuadBillboard({ -2.0f, -2.0f, -0.5f }, { 2.0f, 2.0f }, s_BillBoardTexture, 2.0f, { 1.0f, 0.7f, 1.0f, 0.5f });
+			// m_Renderer2D->DrawAABB(s_MeshSource->GetBoundingBox(), glm::mat4(1.0f));
+		
 			m_Renderer2D->EndScene();
 			// Here the color attachment is now in VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
 			// Depth attachment is now in VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
@@ -578,6 +451,9 @@ namespace vkPlayground {
 
 			ImGui::Columns(1);
 		}
+
+		ImGui::SliderInt("SubMesh Start Index", &s_SubMeshRange.x, 0, s_SubMeshRange.y - 1);
+		ImGui::SliderInt("SubMesh End Index", &s_SubMeshRange.y, s_SubMeshRange.x + 1, static_cast<int>(s_Mesh->GetSubMeshes().size()));
 
 		ImGui::End();
 	}

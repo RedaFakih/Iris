@@ -28,9 +28,6 @@ layout(std140, set = 0, binding = 1) uniform TransformUniformBuffer
 
 layout(set = 3, binding = 0) uniform sampler2D u_Texture;
 
-float near = 0.1f;
-float far = 10000.0f;
-
 // From XeGTAO
 float ScreenSpaceToViewSpaceDepth(const float screenDepth)
 {
@@ -74,6 +71,6 @@ void main()
     // vec4 FragColor = vec4(sum, 1.0);
     // o_Color = FragColor;
 
-    float linearDepth = near / ScreenSpaceToViewSpaceDepth(texture(u_Texture, v_TexCoord).r);
+    float linearDepth = depthLinearizeMul / ScreenSpaceToViewSpaceDepth(texture(u_Texture, v_TexCoord).r);
     o_Color = vec4(vec3(linearDepth), 1.0f);
 }

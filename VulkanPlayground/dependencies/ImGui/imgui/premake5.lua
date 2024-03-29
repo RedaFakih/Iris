@@ -1,14 +1,10 @@
 project "ImGui"
     kind "StaticLib"
-    language "C++"
-    cppdialect "C++20"
-    staticruntime "off"
 
     targetdir ("bin/" .. outputdir .. "/%{prj.name}")
     objdir ("bin/Intermediates/" .. outputdir .. "/%{prj.name}")
 
-    files
-    {
+    files {
         "imconfig.h",
         "imgui.h",
         "imgui.cpp",
@@ -25,8 +21,7 @@ project "ImGui"
         "imgui_impl_glfw.cpp"
     }
 
-    includedirs
-    {
+    includedirs {
         "../../../src",
         "%{IncludeDir.GLFW}",
         "%{IncludeDir.VulkanSDK}",
@@ -43,5 +38,9 @@ project "ImGui"
 
     filter "configurations:Release"
         runtime "Release"
-        optimize "Speed"
+        optimize "Full"
+        vectorextensions "AVX2"
+        isaextensions {
+            "BMI", "POPCNT", "LZCNT", "F16C"
+        }
         inlining "Auto"

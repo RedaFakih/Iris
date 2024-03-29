@@ -8,17 +8,20 @@ IncludeDir["ImGui"]               = "%{wks.location}/VulkanPlayground/dependenci
 IncludeDir["stb"]                 = "%{wks.location}/VulkanPlayground/dependencies/stb"
 IncludeDir["glm"]                 = "%{wks.location}/VulkanPlayground/dependencies/glm"
 IncludeDir["spdlog"]              = "%{wks.location}/VulkanPlayground/dependencies/spdlog/include"
-IncludeDir["fastgltf"]            = "%{wks.location}/VulkanPlayground/dependencies/fastgltf/include"
 IncludeDir["EnTT"]                = "%{wks.location}/VulkanPlayground/dependencies/entt/include"
 IncludeDir["VulkanSDK"]           = "%{VULKAN_SDK}/Include"
 IncludeDir["Yaml"]                = "%{wks.location}/VulkanPlayground/dependencies/yaml-cpp/include"
 IncludeDir["choc"]                = "%{wks.location}/VulkanPlayground/dependencies/Choc"
+IncludeDir["assimp"]              = "%{wks.location}/VulkanPlayground/dependencies/assimp/include"
 
 LibraryDir = {}
 
 LibraryDir["VulkanSDK"]           = "%{VULKAN_SDK}/Lib"
 
 Library = {}
+
+Library["AssimpDebug"]			  = "%{wks.location}/VulkanPlayground/dependencies/assimp/bin/Debug/assimp-vc143-mtd.lib"
+Library["AssimpRelease"]	      = "%{wks.location}/VulkanPlayground/dependencies/assimp/bin/Release/assimp-vc143-mt.lib"
 
 Library["Vulkan"]                 = "%{LibraryDir.VulkanSDK}/vulkan-1.lib"
 Library["dxc"]                    = "%{LibraryDir.VulkanSDK}/dxcompiler.lib"

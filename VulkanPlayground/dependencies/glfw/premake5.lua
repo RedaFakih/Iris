@@ -1,13 +1,10 @@
 project "GLFW"
     kind "StaticLib"
-    language "C"
-    staticruntime "off"
 
     targetdir ("bin/" .. outputdir .. "/%{prj.name}")
     objdir ("bin/Intermediates/" .. outputdir .. "/%{prj.name}")
 
-    files 
-    {
+    files  {
         "include/GLFW/glfw3.h",
         "include/GLFW/glfw3native.h",
         "src/context.c",
@@ -27,14 +24,9 @@ project "GLFW"
         "src/null_monitor.c",
         "src/null_window.c",
         "src/null_joystick.c"
-
     }
 
-    filter "system:windows"
-        systemversion "latest"
-
-    files
-    {
+    files {
         "src/win32_init.c",
         "src/win32_joystick.c",
         "src/win32_monitor.c",
@@ -47,18 +39,23 @@ project "GLFW"
         "src/win32_module.c"
     }
 
-    defines
-    {
-        "_GLFW_WIN32",
-        "_CRT_SECURE_NO_WARNINGS"
+    defines {
+        "_GLFW_WIN32"
     }
+
+    filter "system:windows"
+        systemversion "latest"
 
     filter "configurations:Debug"
         runtime "Debug"
         symbols "on"
 
     filter "configurations:Release"
-        defines "NDEBUG"
         runtime "Release"
-        optimize "Speed"
+        optimize "Full"
+        vectorextensions "AVX2"
+        isaextensions {
+            "BMI", "POPCNT", "LZCNT", "F16C"
+        }
         inlining "Auto"
+        defines { "NDEBUG" }

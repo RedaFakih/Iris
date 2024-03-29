@@ -2,7 +2,10 @@
 #include "Renderer.h"
 
 #include "IndexBuffer.h"
-#include "Material.h"
+#include "IndexBuffer.h"
+#include "Mesh/Material.h"
+#include "Mesh/MaterialAsset.h"
+#include "Mesh/Mesh.h"
 #include "Renderer/Core/RenderCommandBuffer.h"
 #include "RenderPass.h"
 #include "Shaders/Compiler/ShaderCompiler.h"
@@ -10,7 +13,6 @@
 #include "Texture.h"
 #include "UniformBufferSet.h"
 #include "VertexBuffer.h"
-#include "IndexBuffer.h"
 
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -64,7 +66,7 @@ namespace vkPlayground {
 	static RendererConfiguration s_RendererConfig;
 	static RendererData* s_Data = nullptr;
 	
-	// We create 3 which is corresponding with how many frames in flight we have
+	// We create 3 which is corresponding with the max number of frames in flight we might run... (3)
 	static RenderCommandQueue s_RendererResourceFreeQueue[3];
 
 	void Renderer::Init()
@@ -97,6 +99,11 @@ namespace vkPlayground {
 		s_Data->DescriptorPoolAllocationCount.resize(s_RendererConfig.FramesInFlight);
 
 		// Create Descriptor Pool
+		// TODO: What is the situation here? Do we want to keep this? most probably yes since it allocates discriptors for imgui textures and also will allocate descriptors
+		// for stuff like environment maps...
+		// If for environment maps it does not really work then we should create two descriptor pools in the renderer... One that is global that allocates
+		// sets that are persistant across frames and another one that resets at the beginning of every frame kind of like the one we have right now
+		// And in case we switch to the 2 descriptor pool setup mentioned above we might want to just cancel the imgui descriptor pool and use the global renderer pool
 		VkDescriptorPoolSize poolSizes[] =
 		{
 			{ VK_DESCRIPTOR_TYPE_SAMPLER, 1000 },
@@ -151,11 +158,12 @@ namespace vkPlayground {
 		uint32_t indices[6] = { 0, 1, 2, 2, 3, 0 };
 		s_Data->QuadIndexBuffer = IndexBuffer::Create(indices, 6 * sizeof(uint32_t));
 
+		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/PlaygroundStatic.glsl");
+		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/Renderer2D_Quad.glsl");
+		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/Renderer2D_Line.glsl");
 		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/SimpleShader.glsl");
 		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/TexturePass.glsl");
 		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/Compositing.glsl");
-		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/Renderer2D_Quad.glsl");
-		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/Renderer2D_Line.glsl");
 
 		constexpr uint32_t whiteTextureData = 0xffffffff;
 		TextureSpecification spec = {
@@ -439,6 +447,46 @@ namespace vkPlayground {
 		s_Data->DrawCallCount++;
 	}
 
+	void Renderer::RenderStaticMesh(Ref<RenderCommandBuffer> renderCommandBuffer, Ref<Pipeline> pipeline, Ref<StaticMesh> staticMesh, Ref<MeshSource> meshSource, uint32_t subMeshIndex, Ref<MaterialTable> materialTable)
+	{
+		VKPG_VERIFY(staticMesh);
+		VKPG_VERIFY(meshSource);
+		VKPG_VERIFY(materialTable);
+
+		uint32_t frameIndex = Renderer::GetCurrentFrameIndex();
+		VkCommandBuffer commandBuffer = renderCommandBuffer->GetActiveCommandBuffer();
+
+		Ref<VertexBuffer> meshVB = meshSource->GetVertexBuffer();
+		VkBuffer vulkanMeshVB = meshVB->GetVulkanBuffer();
+		VkDeviceSize offsets[1] = {0};
+		vkCmdBindVertexBuffers(commandBuffer, 0, 1, &vulkanMeshVB, offsets);
+
+		Ref<IndexBuffer> meshIB = meshSource->GetIndexBuffer();
+		VkBuffer vulkanMeshIB = meshIB->GetVulkanBuffer();
+		vkCmdBindIndexBuffer(commandBuffer, vulkanMeshIB, 0, VK_INDEX_TYPE_UINT32);
+
+		const auto& subMeshes = meshSource->GetSubMeshes();
+		const MeshUtils::SubMesh& subMesh = subMeshes[subMeshIndex];
+		Ref<MaterialTable> meshMaterialTable = staticMesh->GetMaterials();
+		Ref<MaterialAsset> materialAsset = materialTable->HasMaterial(subMesh.MaterialIndex) ?
+										   materialTable->GetMaterial(subMesh.MaterialIndex) : 
+										   meshMaterialTable->GetMaterial(subMesh.MaterialIndex);
+
+		Ref<Material> vulkanMaterial = materialAsset->GetMaterial();
+
+		VkPipelineLayout layout = pipeline->GetVulkanPipelineLayout();
+
+		VkDescriptorSet descriptorSet = vulkanMaterial->GetDescriptorSet(frameIndex);
+		if (descriptorSet)
+			vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, layout, vulkanMaterial->GetFirstSetIndex(), 1, &descriptorSet, 0, nullptr);
+
+		Buffer uniformStorageBuffer = vulkanMaterial->GetUniformStorageBuffer();
+		vkCmdPushConstants(commandBuffer, layout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, static_cast<uint32_t>(uniformStorageBuffer.Size), uniformStorageBuffer.Data);
+
+		vkCmdDrawIndexed(commandBuffer, subMesh.IndexCount, 1, subMesh.BaseIndex, subMesh.BaseVertex, 0);
+		s_Data->DrawCallCount++;
+	}
+
 	void Renderer::RenderGeometry(Ref<RenderCommandBuffer> renderCommandBuffer, Ref<Pipeline> pipeline, Ref<Material> material, Ref<VertexBuffer> vertexBuffer, Ref<IndexBuffer> indexBuffer, const glm::mat4& transform, uint32_t indexCount)
 	{
 		if (indexCount == 0)
@@ -465,6 +513,7 @@ namespace vkPlayground {
 			vkCmdPushConstants(commandbuffer, layout, VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(glm::mat4), static_cast<uint32_t>(uniformStorageBuffer.Size), uniformStorageBuffer.Data);
 
 		vkCmdDrawIndexed(commandbuffer, indexCount, 1, 0, 0, 0);
+		// NOTE: Here we do not increase the DrawCallCount since this is only called in the Renderer2D for now and that has its own draw call counter
 	}
 
 	VkDescriptorSet Renderer::AllocateDescriptorSet(VkDescriptorSetAllocateInfo& allocInfo)

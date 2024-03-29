@@ -133,7 +133,7 @@ namespace vkPlayground {
 	public:
 		// Create a buffer in DEVICE_LOCAL memory
 		VertexBuffer(void* data, uint32_t size, VertexBufferUsage usage = VertexBufferUsage::Static);
-		// Create a buffer in HOST_VISIBLE memory
+		// Create a buffer in HOST_VISIBLE memory, usualy prefer to use the one on top
 		VertexBuffer(uint32_t size, VertexBufferUsage usage = VertexBufferUsage::Dynamic);
 		~VertexBuffer();
 

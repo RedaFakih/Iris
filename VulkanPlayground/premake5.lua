@@ -1,8 +1,5 @@
 project "VulkanPlayground"
     kind "StaticLib"
-    language "C++"
-    cppdialect "C++20"
-    staticruntime "off"
 
     targetdir ("%{wks.location}/bin/" .. outputdir .. "/%{prj.name}")
     objdir ("%{wks.location}/bin/Intermediates/" .. outputdir .. "/%{prj.name}")
@@ -10,8 +7,7 @@ project "VulkanPlayground"
     pchheader "vkPch.h"
     pchsource "src/vkPch.cpp"
 
-    files
-    {
+    files {
         "src/**.h",
         "src/**.cpp",
         "src/**.inl",
@@ -27,33 +23,28 @@ project "VulkanPlayground"
         "dependencies/yaml-cpp/src/**.cpp"
     }
 
-    defines
-    {
-        "_CRT_SECURE_NO_WARNINGS",
-        "GLFW_INCLUDE_NONE",
+    defines {
         "GLM_FORCE_DEPTH_ZERO_TO_ONE"
     }
 
-    includedirs
-    {
+    includedirs {
         "src",
+        "%{IncludeDir.assimp}",
         "%{IncludeDir.GLFW}",
         "%{IncludeDir.ImGui}",
         "%{IncludeDir.glm}",
         "%{IncludeDir.VulkanSDK}",
         "%{IncludeDir.choc}",
         "%{IncludeDir.stb}",
-        "%{IncludeDir.fastgltf}",
         "%{IncludeDir.spdlog}",
         "%{IncludeDir.EnTT}",
         "%{IncludeDir.Yaml}"
     }
 
-    links
-    {
+    links {
         "GLFW",
         "ImGui",
-        "FastGLTF",
+        "%{Library.dxc}",
         "%{Library.Vulkan}"
     }
 
@@ -61,13 +52,13 @@ project "VulkanPlayground"
         systemversion "latest"
 
     filter "configurations:Debug"
-        defines "VKPG_CONFIG_DEBUG"
         runtime "Debug"
         symbols "on"
+        defines { "VKPG_CONFIG_DEBUG" }
 
         links
         {
-            "%{Library.dxc}",
+            "%{Library.AssimpDebug}",
             "%{Library.ShadercDebug}",
             "%{Library.ShadercUtilsDebug}",
             "%{Library.SPIRV_CrossDebug}",
@@ -76,14 +67,17 @@ project "VulkanPlayground"
         }
 
     filter "configurations:Release"
-        defines "VKPG_CONFIG_RELEASE"
         runtime "Release"
-        optimize "Speed"
+        optimize "Full"
+        vectorextensions "AVX2"
+        isaextensions {
+            "BMI", "POPCNT", "LZCNT", "F16C"
+        }
         inlining "Auto"
+        defines { "VKPG_CONFIG_RELEASE" }
 
-        links
-        {
-            "%{Library.dxc}",
+        links {
+            "%{Library.AssimpRelease}",
             "%{Library.ShadercRelease}",
             "%{Library.ShadercUtilsRelease}",
             "%{Library.SPIRV_CrossRelease}",

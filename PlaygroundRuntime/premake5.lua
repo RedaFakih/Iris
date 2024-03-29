@@ -16,9 +16,9 @@ project "PlaygroundRuntime"
     includedirs
     {
         "%{wks.location}/VulkanPlayground/src",
-        "%{wks.location}/VulkanPlayground/dependencies/spdlog/include",
         "%{wks.location}/VulkanPlayground/dependencies",
         "%{IncludeDir.ImGui}",
+        "%{IncludeDir.spdlog}",
         "%{IncludeDir.glm}",
         "%{IncludeDir.choc}",
         "%{IncludeDir.EnTT}",

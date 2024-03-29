@@ -18,6 +18,9 @@ namespace vkPlayground {
 	class RenderPass;
 	class Pipeline;
 	class Material;
+	class MaterialTable;
+	class StaticMesh;
+	class MeshSource;
 	class RenderCommandBuffer;
 	class VertexBuffer;
 	class IndexBuffer;
@@ -68,6 +71,7 @@ namespace vkPlayground {
 
 		static void SubmitFullScreenQuad(Ref<RenderCommandBuffer> renderCommandBuffer, Ref<Pipeline> pipeline, Ref<Material> material);
 
+		static void RenderStaticMesh(Ref<RenderCommandBuffer> renderCommandBuffer, Ref<Pipeline> pipeline, Ref<StaticMesh> staticMesh, Ref<MeshSource> meshSource, uint32_t subMeshIndex, Ref<MaterialTable> materialTable);
 		static void RenderGeometry(Ref<RenderCommandBuffer> renderCommandBuffer, Ref<Pipeline> pipeline, Ref<Material> material, Ref<VertexBuffer> vertexBuffer, Ref<IndexBuffer> indexBuffer, const glm::mat4& transform, uint32_t indexCount = 0);
 
 		static VkDescriptorSet AllocateDescriptorSet(VkDescriptorSetAllocateInfo& allocInfo);
