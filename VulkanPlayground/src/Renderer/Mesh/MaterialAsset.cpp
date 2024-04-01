@@ -19,9 +19,26 @@ namespace vkPlayground {
 	static const std::string s_RoughnessMapUniform = "u_RoughnessTexture";
 	static const std::string s_MetalnessMapUniform = "u_MetalnessTexture";
 
+	Ref<MaterialAsset> MaterialAsset::Create(bool isTransparent)
+	{
+		return CreateRef<MaterialAsset>(isTransparent);
+	}
+
 	Ref<MaterialAsset> MaterialAsset::Create(Ref<Material> material)
 	{
 		return CreateRef<MaterialAsset>(material);
+	}
+
+	MaterialAsset::MaterialAsset(bool isTransparent)
+		: m_Transparent(isTransparent)
+	{
+		// TODO:
+		//if (isTransparent)
+		//	m_Material = Material::Create(Renderer::GetShadersLibrary()->Get("PlaygroundStaticTransparent"));
+		//else
+			m_Material = Material::Create(Renderer::GetShadersLibrary()->Get("PlaygroundStatic"));
+
+		SetDefaults();
 	}
 
 	MaterialAsset::MaterialAsset(Ref<Material> material)

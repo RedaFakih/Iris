@@ -58,7 +58,6 @@ namespace vkPlayground {
 	void EditorLayer::OnAttach()
 	{
 		// TODO: REMOVE
-
 		m_EditorScene = Scene::Create("Editor Scene");
 		m_ViewportRenderer = SceneRenderer::Create(m_EditorScene);
 		// TODO: 
@@ -79,7 +78,7 @@ namespace vkPlayground {
 		m_UniformBufferSet = UniformBufferSet::Create(sizeof(UniformBufferData));
 
 		AssimpMeshImporter importer("Resources/assets/meshes/Sponza/Sponza.gltf");
-		// AssimpMeshImporter importer("Resources/assets/meshes/glTF/DragonAttenuation.gltf");
+		// AssimpMeshImporter importer("Resources/assets/meshes/Cube.gltf");
 		s_MeshSource = importer.ImportToMeshSource();
 		s_Mesh = StaticMesh::Create(s_MeshSource);
 		s_SubMeshRange.y = static_cast<int>(s_Mesh->GetSubMeshes().size());
@@ -90,13 +89,17 @@ namespace vkPlayground {
 		};
 		s_BillBoardTexture = Texture2D::Create(textureSpec, "Resources/assets/textures/qiyana.png");
 
+		constexpr float RenderingScale = 0.1f;
 		// Rendering pass
 		{
+
 			FramebufferSpecification renderingFBSpec = {
 				.DebugName = "StaticRenderingFB",
+				.Scale = RenderingScale,
 				.ClearColor = { 0.0f, 0.0f, 0.0f, 1.0f },
 				.DepthClearValue = 0.0f,
-				.Attachments = { { ImageFormat::RGBA, AttachmentPassThroughUsage::Input }, { ImageFormat::DEPTH32F, AttachmentPassThroughUsage::Input } }
+				.Attachments = { { ImageFormat::RGBA, AttachmentPassThroughUsage::Input }, { ImageFormat::DEPTH32F, AttachmentPassThroughUsage::Input } },
+				.Samples = 2
 			};
 
 			PipelineSpecification spec = {
@@ -131,6 +134,7 @@ namespace vkPlayground {
 		{
 			FramebufferSpecification screenFBSpec = {
 				.DebugName = "Screen FB",
+				.Scale = RenderingScale,
 				.Attachments = { ImageFormat::RGBA }
 			};
 
@@ -168,9 +172,11 @@ namespace vkPlayground {
 		{
 			FramebufferSpecification intermediateBufferSpec = {
 				.DebugName = "IntermediateFB",
+				.Scale = RenderingScale,
 				.ClearColorOnLoad = false,
 				.ClearDepthOnLoad = false,
-				.Attachments = { { ImageFormat::RGBA, AttachmentPassThroughUsage::Input }, { ImageFormat::DEPTH32F, AttachmentPassThroughUsage::Input } }
+				.Attachments = { { ImageFormat::RGBA, AttachmentPassThroughUsage::Input }, { ImageFormat::DEPTH32F, AttachmentPassThroughUsage::Input } },
+				.Samples = 1
 			};
 			intermediateBufferSpec.ExistingImages[0] = m_RenderingPass->GetOutput(0);
 			intermediateBufferSpec.ExistingImages[1] = m_RenderingPass->GetDepthOutput();
@@ -199,7 +205,7 @@ namespace vkPlayground {
 		// Update uniform buffers (Begin Scene stuff)
 		UniformBufferData dataUB = {
 			// .Model = glm::rotate(glm::mat4(1.0f), Application::Get().GetTime() * glm::radians(45.0f), glm::vec3(0.0f, 1.0f, 0.0f)) * glm::scale(glm::mat4(1.0f), glm::vec3(1.0f)) ,
-			.Model = glm::translate(glm::mat4(1.0f), glm::vec3{ 0.0f, 0.0f, 0.0f }) * glm::scale(glm::mat4(1.0f), glm::vec3{0.05f, 0.05f, 0.05f}),
+			.Model = glm::translate(glm::mat4(1.0f), glm::vec3{ 0.0f, 0.0f, -2.0f }) * glm::scale(glm::mat4(1.0f), glm::vec3{0.05f, 0.05f, 0.05f}),
 			// .Model = glm::translate(glm::mat4(1.0f), glm::vec3{ 0.0f, 0.0f, 0.0f }),
 			.ViewProjection = std::move(m_EditorCamera.GetProjectionMatrix() * m_EditorCamera.GetViewMatrix()),
 			.DepthUnpackConsts = { depthLinearizeMul, depthLinearizeAdd }
@@ -212,8 +218,13 @@ namespace vkPlayground {
 		// First render pass renders to the framebuffer
 		{
 			Renderer::BeginRenderPass(m_CommandBuffer, m_RenderingPass);
+#if 1
 			for (int i = s_SubMeshRange.y - 1; i >= s_SubMeshRange.x; i--)
 				Renderer::RenderStaticMesh(m_CommandBuffer, m_RenderingPipeline, s_Mesh, s_MeshSource, i, s_Mesh->GetMaterials());
+#else
+			for (int i = s_SubMeshRange.x; i < s_SubMeshRange.y; i++)
+				Renderer::RenderStaticMesh(m_CommandBuffer, m_RenderingPipeline, s_Mesh, s_MeshSource, i, s_Mesh->GetMaterials());
+#endif
 			Renderer::EndRenderPass(m_CommandBuffer);
 		}
 
@@ -257,11 +268,16 @@ namespace vkPlayground {
 			m_Renderer2D->DrawAABB({ {5.0f, 5.0f, 1.0f}, {7.0f, 7.0f, -4.0f} }, glm::mat4(1.0f));
 			m_Renderer2D->DrawAABB({ {4.0f, 4.0f, -1.0f}, {5.0f, 5.0f, -4.0f} }, glm::translate(glm::mat4(1.0f), {2.0f, -1.0f, -0.5f}), { 0.0f, 1.0f, 1.0f, 1.0f });
 			m_Renderer2D->DrawCircle({ 5.0f, 5.0f, -2.0f }, glm::vec3(1.0f), 2.0f, { 1.0f, 0.0f, 1.0f, 1.0f });
-			m_Renderer2D->DrawLine(glm::vec3(0.0f), glm::vec3(6.0f), glm::vec4(1.0f, 0.0f, 1.0f, 1.0f));
-			m_Renderer2D->DrawLine(glm::vec3(0.0f), glm::vec3(1.2f, 1.0f, 2.0f), glm::vec4(0.2f, 0.3f, 0.8f, 1.0f));
+			// m_Renderer2D->DrawLine(glm::vec3(0.0f), glm::vec3(6.0f), glm::vec4(1.0f, 0.0f, 1.0f, 1.0f));
+			// m_Renderer2D->DrawLine(glm::vec3(0.0f), glm::vec3(-20.2f, 3.0f, -5.0f), glm::vec4(0.2f, 0.3f, 0.8f, 1.0f));
+			// m_Renderer2D->DrawLine(glm::vec3(0.0f, -2.0f, 0.0f), glm::vec3(0.0f, -5.0f, 0.0f), glm::vec4(1.0f, 0.0f, 0.0f, 1.0f));
 			m_Renderer2D->DrawQuadBillboard({ -2.0f, -2.0f, -0.5f }, { 2.0f, 2.0f }, s_BillBoardTexture, 2.0f, { 1.0f, 0.7f, 1.0f, 0.5f });
-			m_Renderer2D->DrawAABB(s_MeshSource->GetBoundingBox(), glm::mat4(1.0f));
-			m_Renderer2D->DrawLine(glm::vec3(0.0f, -2.0f, 0.0f), glm::vec3(0.0f, -5.0f, 0.0f), glm::vec4(1.0f, 0.0f, 0.0f, 1.0f));
+			// m_Renderer2D->DrawAABB(s_MeshSource->GetBoundingBox(), glm::mat4(1.0f));
+
+			// Draw the Axes of my system
+			m_Renderer2D->DrawLine(glm::vec3(0.0f), glm::vec3(1.0f, 0.0f, 0.0f) * 10.0f, glm::vec4(1.0f, 0.0f, 0.0f, 1.0f));
+			m_Renderer2D->DrawLine(glm::vec3(0.0f), glm::vec3(0.0f, 1.0f, 0.0f) * 10.0f, glm::vec4(0.0f, 1.0f, 0.0f, 1.0f));
+			m_Renderer2D->DrawLine(glm::vec3(0.0f), glm::vec3(0.0f, 0.0f, 1.0f) * 10.0f, glm::vec4(0.0f, 0.0f, 1.0f, 1.0f));
 		
 			m_Renderer2D->EndScene();
 			// Here the color attachment is now in VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
@@ -289,16 +305,16 @@ namespace vkPlayground {
 			Renderer::InsertImageMemoryBarrier(
 				m_ScreenCommandBuffer->GetActiveCommandBuffer(),
 				m_IntermediateBuffer->GetImage(0)->GetVulkanImage(),
-				0,
-				0,
+				VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+				VK_ACCESS_SHADER_READ_BIT,
 				VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
 				VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-				VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+				VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
 				VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
 				{ .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = 1 }
 			);
 
-			m_ScreenPassMaterial->Set("u_Texture", m_IntermediateBuffer->GetDepthImage());
+			m_ScreenPassMaterial->Set("u_Texture", m_RenderingPass->GetDepthOutput());
 			Renderer::BeginRenderPass(m_ScreenCommandBuffer, m_ScreenPass);
 			Renderer::SubmitFullScreenQuad(m_ScreenCommandBuffer, m_ScreenPass->GetPipeline(), m_ScreenPassMaterial);
 			Renderer::EndRenderPass(m_ScreenCommandBuffer);

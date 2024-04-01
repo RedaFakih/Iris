@@ -61,13 +61,26 @@ namespace vkPlayground {
 					input.Input.resize(writeDescriptor.descriptorCount);
 
 					// Set default textures
-					if (inputDeclaration.Type == RenderPassInputType::ImageSampler2D)
+					if (inputDeclaration.Type == RenderPassInputType::ImageSampler1D)
 					{
-						for (size_t i = 0; i < input.Input.size(); i++)
+						for (std::size_t i = 0; i < input.Input.size(); i++)
 						{
 							input.Input[i] = Renderer::GetWhiteTexture();
 						}
+
+						VKPG_CORE_WARN_TAG("Renderer", "[RenderPass ({})::Init] Setting {} to white 2D texture.", m_Specification.DebugName, name);
 					}
+
+					if (inputDeclaration.Type == RenderPassInputType::ImageSampler2D)
+					{
+						for (std::size_t i = 0; i < input.Input.size(); i++)
+						{
+							input.Input[i] = Renderer::GetWhiteTexture();
+						}
+
+						VKPG_CORE_WARN_TAG("Renderer", "[RenderPass ({})::Init] Setting {} to white 2D texture.", m_Specification.DebugName, name);
+					}
+
 					// TODO: Cube textures
 				}
 
@@ -113,7 +126,7 @@ namespace vkPlayground {
 			// Check for set availablity
 			if (!m_InputResources.contains(set))
 			{
-				VKPG_CORE_ERROR_TAG("Renderer", "[RenderPass: {}] No input resources for set: {}", m_Specification.DebugName, set);
+				VKPG_CORE_ERROR_TAG("Renderer", "[RenderPass: ({})::Validate] No input resources for set: {}", m_Specification.DebugName, set);
 				return false;
 			}
 
@@ -125,21 +138,21 @@ namespace vkPlayground {
 				uint32_t binding = writeDescriptor.dstBinding;
 				if (!setInputResources.contains(binding))
 				{
-					VKPG_CORE_ERROR_TAG("Renderer", "[RenderPass: {}] No input resources for set: {} at binding: {}", m_Specification.DebugName, set, binding);
-					VKPG_CORE_ERROR_TAG("Renderer", "[RenderPass: {}] Required input resource is: {} ({})", m_Specification.DebugName, name, Utils::VkDescriptorTypeToString(writeDescriptor.descriptorType));
+					VKPG_CORE_ERROR_TAG("Renderer", "[RenderPass: ({})::Validate] No input resources for set: {} at binding: {}", m_Specification.DebugName, set, binding);
+					VKPG_CORE_ERROR_TAG("Renderer", "[RenderPass: ({})::Validate] Required input resource is: {} ({})", m_Specification.DebugName, name, Utils::VkDescriptorTypeToString(writeDescriptor.descriptorType));
 					return false;
 				}
 
 				const RenderPassInput& resource = setInputResources.at(binding);
 				if (!Utils::IsCompatibleInput(resource.Type, writeDescriptor.descriptorType))
 				{
-					VKPG_CORE_ERROR_TAG("Renderer", "[RenderPass: {}] Incompatible input resource type (Provided: {}, Needed: {})", m_Specification.DebugName, Utils::DescriptorResourceTypeToString(resource.Type), Utils::VkDescriptorTypeToString(writeDescriptor.descriptorType));
+					VKPG_CORE_ERROR_TAG("Renderer", "[RenderPass: ({})::Validate] Incompatible input resource type (Provided: {}, Needed: {})", m_Specification.DebugName, Utils::DescriptorResourceTypeToString(resource.Type), Utils::VkDescriptorTypeToString(writeDescriptor.descriptorType));
 					return false;
 				}
 
 				if (resource.Input[0] == nullptr)
 				{
-					VKPG_CORE_ERROR_TAG("Renderer", "[RenderPass: {}] Input resource is null! (name: {} set: {} binding: {})", m_Specification.DebugName, name, set, binding);
+					VKPG_CORE_ERROR_TAG("Renderer", "[RenderPass: ({})::Validate] Input resource is null! (name: {} set: {} binding: {})", m_Specification.DebugName, name, set, binding);
 					return false;
 				}
 			}
@@ -153,7 +166,7 @@ namespace vkPlayground {
 	{
 		if (!Validate())
 		{
-			VKPG_CORE_ERROR_TAG("Renderer", "[RenderPass: {}] Validation failed!", m_Specification.DebugName);
+			VKPG_CORE_ERROR_TAG("Renderer", "[RenderPass ({})::Bake] Validation failed!", m_Specification.DebugName);
 			return;
 		}
 
@@ -427,7 +440,7 @@ namespace vkPlayground {
 				writeDescriptorSetsToUpdate.emplace_back(writeDescriptor);
 			}
 			
-			VKPG_CORE_INFO_TAG("Renderer", "DescriptorSetManager::InvalidateAndUpdate ({}) - updating {} descriptors in set {} (frameIndex = {})", m_Specification.DebugName, writeDescriptorSetsToUpdate.size(), set, currentFrameIndex);
+			VKPG_CORE_INFO_TAG("Renderer", "[RenderPass ({})::InvalidateAndUpdate] updating {} descriptors in set {} (frameIndex = {})", m_Specification.DebugName, writeDescriptorSetsToUpdate.size(), set, currentFrameIndex);
 			vkUpdateDescriptorSets(
 				device, 
 				static_cast<uint32_t>(writeDescriptorSetsToUpdate.size()),
@@ -445,7 +458,7 @@ namespace vkPlayground {
 		if (decl)
 			m_InputResources.at(decl->Set).at(decl->Binding).Set(uniformBuffer);
 		else
-			VKPG_CORE_ERROR_TAG("Renderer", "[RenderPass: {}] Input {} not found!", m_Specification.DebugName, name);
+			VKPG_CORE_ERROR_TAG("Renderer", "[RenderPass ({})::SetInput] Input {} not found!", m_Specification.DebugName, name);
 	}
 
 	void DescriptorSetManager::SetInput(std::string_view name, Ref<UniformBufferSet> uniformBufferSet)
@@ -454,7 +467,7 @@ namespace vkPlayground {
 		if (decl)
 			m_InputResources.at(decl->Set).at(decl->Binding).Set(uniformBufferSet);
 		else
-			VKPG_CORE_ERROR_TAG("Renderer", "[RenderPass: {}] Input {} not found!", m_Specification.DebugName, name);
+			VKPG_CORE_ERROR_TAG("Renderer", "[RenderPass ({})::SetInput] Input {} not found!", m_Specification.DebugName, name);
 	}
 
 	void DescriptorSetManager::SetInput(std::string_view name, Ref<Texture2D> texture, uint32_t index)
@@ -466,7 +479,7 @@ namespace vkPlayground {
 		if (decl)
 			m_InputResources.at(decl->Set).at(decl->Binding).Set(texture, index);
 		else
-			VKPG_CORE_ERROR_TAG("Renderer", "[RenderPass: {}] Input {} not found!", m_Specification.DebugName, name);
+			VKPG_CORE_ERROR_TAG("Renderer", "[RenderPass ({})::SetInput] Input {} not found!", m_Specification.DebugName, name);
 	}
 
 	bool DescriptorSetManager::IsInvalidated(uint32_t set, uint32_t binding) const

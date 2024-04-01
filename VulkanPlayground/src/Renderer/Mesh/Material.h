@@ -3,6 +3,7 @@
 #include "Core/Buffer.h"
 #include "Renderer/Shaders/ShaderUniform.h"
 #include "Renderer/DescriptorSetManager.h"
+#include "Renderer/Shaders/Shader.h"
 
 namespace vkPlayground {
 

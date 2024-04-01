@@ -75,8 +75,8 @@ namespace vkPlayground {
         {
             (void)pUserData;
 
-            //if (messageSeverity == VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT)
-            //    return VK_FALSE;
+            // if (messageSeverity == VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT)
+            //     return VK_FALSE;
 
             std::string labels, objects;
             if (pCallbackData->cmdBufLabelCount)

@@ -195,7 +195,7 @@ namespace vkPlayground {
             .extent = { .width = m_Specification.Width, .height = m_Specification.Height, .depth = 1u },
             .mipLevels = mipCount,
             .arrayLayers = 1, // TODO (whether the texture is an array)
-            .samples = VK_SAMPLE_COUNT_1_BIT, // Not a multisamlped image
+            .samples = Utils::GetSamplerCount(m_Specification.Samples),
             .tiling = VK_IMAGE_TILING_OPTIMAL, // NOTE: This should be decided on a boolean whether the image usage is HostRead or not when we have that
             // .tiling = m_Specification.Usage == ImageUsage::HostRead ? VK_IMAGE_TILING_LINEAR : VK_IMAGE_TILING_OPTIMAL,
             .usage = usage,

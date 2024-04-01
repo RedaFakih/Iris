@@ -8,6 +8,29 @@
 
 namespace vkPlayground {
 
+	 /*
+	  * IMPORTANT:
+	  * In case of using Multi Sampled attachments:
+	  *	 - You will not be able to use the framebuffer images directly instead you will have to use the resolve images...
+	  *	 - In case of Samples = 1 (Not multi sampled images) the resolve images will not be created or allocated so you can use the framebuffer images directly.
+	  * 
+	  * The way this works now is:
+	  *      You can specify in the specification if an attachment will be sampled or not later that affects the final layout of the attachment
+	  *          - Will be sampled -> finalLayout: VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL / VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL
+	  *          - Will NOT be sampled -> finalLayout: VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL / VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
+	  *
+	  * The way of usage will be as follows:
+	  *   Say you have a render pass that will do multiple passes on the same image or references an existing image then the Sampled flag should NOT be set
+	  *   BUT then you decide to sample from the image... It will be your responsibility to set a pipeline ImageMemoryBarrier to make sure the layout is transitioned to
+	  *   the correct layout and also make sure there are no synchronization hazards {Ref: 1}
+	  *
+	  * References:
+	  *  1: <https://registry.khronos.org/vulkan/specs/1.3-extensions/man/html/VkAccessFlagBits.html> (Scroll to find table of VK_ACCESS_X -> VK_PIPELINE_STAGE_X to solve any hazard issue)
+	  *  2: <https://github.com/KhronosGroup/Vulkan-Docs/wiki/Synchronization-Examples-(Legacy-synchronization-APIs)>
+	  *  3: <https://www.reddit.com/r/vulkan/comments/8arvcj/a_question_about_subpass_dependencies/>
+	  *  4: <https://github.com/ARM-software/vulkan-sdk/blob/master/samples/multipass/multipass.cpp> (line: 829)
+	  */
+
 	enum class FramebufferBlendMode
 	{
 		None = 0,
@@ -51,7 +74,7 @@ namespace vkPlayground {
 		AttachmentPassThroughUsage Sampled = AttachmentPassThroughUsage::Sampled; // Put to Input in order to set final layout to be ATTACHMENT_OPTIMAL if you want to use as input attachment later
 		bool Blend = true;
 		FramebufferBlendMode BlendMode = FramebufferBlendMode::SrcAlphaOneMinusSrcAlpha;
-		AttachmentLoadOp LoadOp = AttachmentLoadOp::Inherit;
+		AttachmentLoadOp LoadOp = AttachmentLoadOp::Inherit; // Deduces load operation from framebuffer specification parameters
 		TextureFilter FilterMode = TextureFilter::Linear;
 		TextureWrap WrapMode = TextureWrap::Repeat;
 	};
@@ -73,8 +96,8 @@ namespace vkPlayground {
 		uint32_t Width = 0;
 		uint32_t Height = 0;
 
-		// Framebuffer scale
-		// TODO: float Scale = 1.0f; // rendering scale of the framebuffer
+		// Framebuffer scale (Rendering scale of the framebuffer)
+		float Scale = 1.0f;
 
 		// Clear settings...
 		bool ClearColorOnLoad = true;
@@ -84,7 +107,7 @@ namespace vkPlayground {
 
 		FramebufferAttachmentSpecification Attachments;
 
-		// Multisampling framebuffer...
+		// Multisampling framebuffer... (1, 2, 4, 8, 16, 32, 64). DO NOT SET THE RESOLVE ATTACHMENT IF Samples == 1.
 		uint32_t Samples = 1;
 
 		// Global blending mode for framebuffer (individual attachments could be disabled in FramebufferTextureSpecification)
@@ -101,8 +124,7 @@ namespace vkPlayground {
 		std::map<uint32_t, Ref<Texture2D>> ExistingImages;
 	};
 
-	// This will hold the actual VkRenderPass Object however it will be in the PipelineSpecification and will have a custom images
-	// and maybe in the future `existing images` in its specification... kind of like in Aurora with openGL
+	// This will hold the actual VkRenderPass Object however it will be in the PipelineSpecification
 	class Framebuffer : public RefCountedObject
 	{
 	public:
@@ -118,10 +140,14 @@ namespace vkPlayground {
 		uint32_t GetWidth() const { return m_Width; }
 		uint32_t GetHeight() const { return m_Height; }
 
-		Ref<Texture2D> GetImage(uint32_t attachmentIndex = 0) const { VKPG_ASSERT(attachmentIndex < m_ColorAttachmentImages.size()); return m_ColorAttachmentImages[attachmentIndex]; }
-		Ref<Texture2D> GetDepthImage() const { return m_DepthAttachmentImage; }
 		std::size_t GetColorAttachmentCount() const { return m_Specification.SwapchainTarget ? 1 : m_ColorAttachmentImages.size(); }
 		bool HasDepthAttachment() const { return m_DepthAttachmentImage != nullptr; }
+
+		Ref<Texture2D> GetImage(uint32_t attachmentIndex = 0) const { VKPG_ASSERT(attachmentIndex < m_ColorAttachmentImages.size()); return m_ColorAttachmentImages[attachmentIndex]; }
+		Ref<Texture2D> GetDepthImage() const { return m_DepthAttachmentImage; }
+
+		Ref<Texture2D> GetResolveImage(uint32_t attachmentIndex = 0) const { VKPG_ASSERT(attachmentIndex < m_ColorResolveImages.size()); return m_ColorResolveImages[attachmentIndex]; }
+		Ref<Texture2D> GetDepthResolveImage() const { return m_DepthResolveImage; }
 
 		VkRenderPass GetVulkanRenderPass() const { return m_VulkanRenderPass; }
 		VkFramebuffer GetVulkanFramebuffer() const { return m_VulkanFramebuffer; }
@@ -137,7 +163,10 @@ namespace vkPlayground {
 		uint32_t m_Height = 0;
 
 		std::vector<Ref<Texture2D>> m_ColorAttachmentImages;
-		Ref<Texture2D> m_DepthAttachmentImage;
+		Ref<Texture2D> m_DepthAttachmentImage = nullptr;
+
+		std::vector<Ref<Texture2D>> m_ColorResolveImages;
+		Ref<Texture2D> m_DepthResolveImage = nullptr;
 		
 		std::vector<VkClearValue> m_ClearValues;
 

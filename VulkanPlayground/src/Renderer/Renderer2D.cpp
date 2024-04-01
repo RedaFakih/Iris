@@ -116,8 +116,8 @@ namespace vkPlayground {
 
 		m_WhiteTexture = Renderer::GetWhiteTexture();
 
-		// Set all texture slots to 0
-		std::ranges::fill(m_TextureSlots, m_WhiteTexture);
+		// First Texture slot is always the white texture...
+		m_TextureSlots[0] = m_WhiteTexture;
 
 		m_QuadVertexPositions[0] = { -0.5f, -0.5f, 0.0f, 1.0f };
 		m_QuadVertexPositions[1] = { -0.5f,  0.5f, 0.0f, 1.0f };

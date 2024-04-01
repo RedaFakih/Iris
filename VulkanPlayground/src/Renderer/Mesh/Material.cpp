@@ -212,25 +212,6 @@ namespace vkPlayground {
 		};
 		m_DescriptorSetManager = DescriptorSetManager(spec);
 
-		if (!triggerCopy)
-		{
-			for (const auto& [name, decl] : m_DescriptorSetManager.GetInputDeclarations())
-			{
-				switch (decl.Type)
-				{
-				case RenderPassInputType::ImageSampler1D:
-				case RenderPassInputType::ImageSampler2D:
-				{
-					for (uint32_t i = 0; i < decl.Count; i++)
-						m_DescriptorSetManager.SetInput(name, Renderer::GetWhiteTexture(), i);
-
-					VKPG_CORE_WARN_TAG("Renderer", "Setting {} to white 2D texture", name);
-					break;
-				}
-				}
-			}
-		}
-
 		m_DescriptorSetManager.Bake();
 	}
 

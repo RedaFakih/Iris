@@ -83,6 +83,9 @@ namespace vkPlayground {
 		// Set by user
 		TextureFilter FilterMode = TextureFilter::Linear;
 
+		// Multisampled Image... (1, 2, 4, 8, 16, 32, 64)
+		uint32_t Samples = 1;
+
 		// Used for Transfer operations? (Affects the usage of the image)
 		bool Trasnfer = false;
 
@@ -257,6 +260,23 @@ namespace vkPlayground {
 
 			VKPG_ASSERT(false);
 			return VK_FORMAT_UNDEFINED;
+		}
+
+		inline constexpr VkSampleCountFlagBits GetSamplerCount(uint32_t samples)
+		{
+			switch (samples)
+			{
+				case 1:     return VK_SAMPLE_COUNT_1_BIT;
+				case 2:     return VK_SAMPLE_COUNT_2_BIT;
+				case 4:     return VK_SAMPLE_COUNT_4_BIT;
+				case 8:     return VK_SAMPLE_COUNT_8_BIT;
+				case 16:    return VK_SAMPLE_COUNT_16_BIT;
+				case 32:    return VK_SAMPLE_COUNT_32_BIT;
+				case 64:    return VK_SAMPLE_COUNT_64_BIT;
+			}
+
+			VKPG_ASSERT(false);
+			return VK_SAMPLE_COUNT_FLAG_BITS_MAX_ENUM;
 		}
 	}
 

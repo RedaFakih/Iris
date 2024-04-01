@@ -33,8 +33,18 @@ namespace vkPlayground {
 		VkPhysicalDevice selectedDevice = nullptr;
 		for (VkPhysicalDevice device : physicalDevices)
 		{
-			vkGetPhysicalDeviceProperties(device, &m_Properties);
-			if (m_Properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
+			m_DepthStencilResolveProperties = {
+				.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DEPTH_STENCIL_RESOLVE_PROPERTIES
+			};
+
+			// Pass the depthstencil resolve properties in the pNext chain to fill it
+			m_Properties = {
+				.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2,
+				.pNext = &m_DepthStencilResolveProperties
+			};
+
+			vkGetPhysicalDeviceProperties2(device, &m_Properties);
+			if (m_Properties.properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
 			{
 				selectedDevice = device;
 				break;
@@ -51,8 +61,17 @@ namespace vkPlayground {
 		VKPG_VERIFY(selectedDevice, "Could find any physical devices!");
 		m_PhysicalDevice = selectedDevice;
 
-		vkGetPhysicalDeviceFeatures(m_PhysicalDevice, &m_Features);
-		vkGetPhysicalDeviceMemoryProperties(m_PhysicalDevice, &m_MemoryProperties);
+		m_Features = {
+			.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2,
+			.pNext = nullptr
+		};
+		vkGetPhysicalDeviceFeatures2(m_PhysicalDevice, &m_Features);
+
+		m_MemoryProperties = {
+			.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MEMORY_PROPERTIES_2,
+			.pNext = nullptr
+		};
+		vkGetPhysicalDeviceMemoryProperties2(m_PhysicalDevice, &m_MemoryProperties);
 
 		uint32_t queueFamilyCount;
 		vkGetPhysicalDeviceQueueFamilyProperties(m_PhysicalDevice, &queueFamilyCount, nullptr);
@@ -112,7 +131,7 @@ namespace vkPlayground {
 		}
 
 		m_DepthFormat = FindDepthFormat();
-		VKPG_ASSERT(m_DepthFormat, "Need to have a default depth format!");
+		VKPG_VERIFY(m_DepthFormat, "Need to have a default depth format!");
 	}
 
 	VulkanPhysicalDevice::~VulkanPhysicalDevice()
@@ -174,9 +193,9 @@ namespace vkPlayground {
 	// Used when we want to get the memory properties of a buffer and find memory type for `VkMemoryAllocateInfo`
 	uint32_t VulkanPhysicalDevice::FindMemoryTypeIndex(uint32_t typeFilter, VkMemoryPropertyFlags props) const
 	{
-		for (uint32_t i = 0; i < m_MemoryProperties.memoryTypeCount; i++)
+		for (uint32_t i = 0; i < m_MemoryProperties.memoryProperties.memoryTypeCount; i++)
 		{
-			if ((typeFilter & (1 << i)) && (m_MemoryProperties.memoryTypes[i].propertyFlags & props) == props)
+			if ((typeFilter & (1 << i)) && (m_MemoryProperties.memoryProperties.memoryTypes[i].propertyFlags & props) == props)
 				return i;
 		}
 

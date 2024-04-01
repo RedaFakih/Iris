@@ -28,10 +28,11 @@ namespace vkPlayground {
 		VkPhysicalDevice GetVulkanPhysicalDevice() const { return m_PhysicalDevice; }
 		const QueueFamilyIndices& GetQueueFamilyIndices() const { return m_QueueFamilyIndices; }
 
-		const VkPhysicalDeviceProperties& GetPhysicalDeviceProperties() const { return m_Properties; }
-		const VkPhysicalDeviceMemoryProperties& GetPhysicalDeviceMemoryProps() const { return m_MemoryProperties; }
-		const VkPhysicalDeviceLimits& GetPhysicalDeviceLimits() const { return m_Properties.limits; }
-		const VkPhysicalDeviceFeatures& GetPhysicalDeviceFeatures() const { return m_Features; }
+		const VkPhysicalDeviceProperties& GetPhysicalDeviceProperties() const { return m_Properties.properties; }
+		const VkPhysicalDeviceMemoryProperties& GetPhysicalDeviceMemoryProps() const { return m_MemoryProperties.memoryProperties; }
+		const VkPhysicalDeviceLimits& GetPhysicalDeviceLimits() const { return m_Properties.properties.limits; }
+		const VkPhysicalDeviceFeatures& GetPhysicalDeviceFeatures() const { return m_Features.features; }
+		const VkPhysicalDeviceDepthStencilResolveProperties& GetDepthStencilResolveProperties() const { return m_DepthStencilResolveProperties; }
 
 		bool IsExtensionSupported(const std::string& extensionName) const;
 		uint32_t FindMemoryTypeIndex(uint32_t typeFilter, VkMemoryPropertyFlags props) const;
@@ -45,9 +46,10 @@ namespace vkPlayground {
 	private:
 		// This will be implicitely destroyed when the VkInstance gets destroyed
 		VkPhysicalDevice m_PhysicalDevice = nullptr;
-		VkPhysicalDeviceProperties m_Properties;
-		VkPhysicalDeviceFeatures m_Features;
-		VkPhysicalDeviceMemoryProperties m_MemoryProperties;
+		VkPhysicalDeviceProperties2 m_Properties;
+		VkPhysicalDeviceFeatures2 m_Features;
+		VkPhysicalDeviceMemoryProperties2 m_MemoryProperties;
+		VkPhysicalDeviceDepthStencilResolveProperties m_DepthStencilResolveProperties;
 
 		QueueFamilyIndices m_QueueFamilyIndices;
 

@@ -7,12 +7,14 @@
  * NEXT STEP ON TUTORIAL: Compute Shaders
  *
  * NEXT THING TO WORK ON:
+ * - BUG FIX: Not able to view depth texture in Release mode with multi sampling
  * - Handle renderer descriptor pool situation and come up with some solutions for it... Read note written in Renderer.cpp (line: 101)
  * - Add a runtime layer so that we can test without imgui (Needs fixing)
  * - Work on Scene and Entity and Components so that we can finally work with the playground nicely
  * - Scene And Entity
  * - SceneRenderer
  * - Clean Up EditorLayer and manage the scene and scene renderer correctly
+ * - OIT? With Weighted Blended technique using info provided from learnopengl.com <https://learnopengl.com/Guest-Articles/2020/OIT/Weighted-Blended> <https://github.com/nvpro-samples/vk_order_independent_transparency>
  * - DescriptorSetManager (Constant Expansion with shader reflection)
  * 
  * TO BE EXPANDED: (constant expansion)
@@ -35,6 +37,7 @@
  * 
  * 
  * Future Plans:
- *	- Add meshoptimizer? (https://github.com/zeux/meshoptimizer/tree/master)
+ *	- Add meshoptimizer? <https://github.com/zeux/meshoptimizer/tree/master>
+ *  - Maybe add something in some mini editor window that can edit submesh indices and split them into transparent and non transparent submeshes so that we get OIT when implemented
  *
  */

@@ -36,8 +36,9 @@ namespace vkPlayground {
 		void SetInput(std::string_view name, Ref<UniformBufferSet> uniformBufferSet);
 		void SetInput(std::string_view name, Ref<Texture2D> texture);
 
-		Ref<Texture2D> GetOutput(uint32_t index) const;
-		Ref<Texture2D> GetDepthOutput() const;
+		// NOTE: ignoreMultisampled ignores whether the framebuffer is multisampled or not and return the original images even if resolve ones exist...
+		Ref<Texture2D> GetOutput(uint32_t index, bool ignoreMultiSampled = false) const;
+		Ref<Texture2D> GetDepthOutput(bool ignoreMultiSampled = false) const;
 
 		uint32_t GetFirstSetIndex() const;
 

@@ -11,6 +11,9 @@
  * The way that the descriptor sets will work is by their increasing update frequency
  * so:
  *	- Set 0 - 2: Global renderer stuff -> Least updated set (Global as in global for the current frame)
+ *		- Set 0: Least updated set, should have the BRDF Texture
+ *		- Set 1: UniformBuffers for general renderer data (Camera, Screen, Renderer and others...)
+ *		- Set 2: Shadow data and lighting data (Point lights, spotlights, skylights, environment maps, shawdow maps, and others...)
  *  - Set 3: Per draw stuff -> Most updated set (materials...)
  * 
  * In between sets will also contain Global/per draw renderer stuff however that are updated a bit more than set 0 and a bit less than set 3

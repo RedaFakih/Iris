@@ -87,18 +87,17 @@ namespace vkPlayground {
 		VKPG_CORE_TRACE_TAG("VulkanAllocator", "{}: Allocating buffer with size: {}", m_Name, Utils::BytesToString(allocInfo.size));
 #endif
 
-		s_Data->TotalAllocatedBytes += allocInfo.size;
-
-#if LOG_MEMORY_USAGE_MESSAGES
-		VKPG_CORE_INFO_TAG("VulkanAllocator", "{}: Total allocated since start: {}", m_Name, Utils::BytesToString(s_Data->TotalAllocatedBytes));
-		// PG_CORE_INFO_TAG("VulkanAllocator", "{}: Memory Usage: {}", m_Name, Utils::BytesToString(s_Data->MemoryUsage));
-#endif
-
 		s_AllocationMap[allocation] = {
 			.AllocatedSize = allocInfo.size,
 			.Type = AllocationType::Buffer
 		};
+
+		s_Data->TotalAllocatedBytes += allocInfo.size;
 		s_Data->MemoryUsage += allocInfo.size;
+
+#if LOG_MEMORY_USAGE_MESSAGES
+		VKPG_CORE_INFO_TAG("VulkanAllocator", "{}: Total allocated: {}, Current Memory Usage: {}", m_Name, Utils::BytesToString(s_Data->TotalAllocatedBytes), Utils::BytesToString(s_Data->MemoryUsage));
+#endif
 
 		if (allocationInfo != nullptr)
 			*allocationInfo = allocInfo;
@@ -148,18 +147,17 @@ namespace vkPlayground {
 		VKPG_CORE_TRACE_TAG("VulkanAllocator", "{}: Allocating image with size: {}", m_Name, Utils::BytesToString(allocInfo.size));
 #endif
 
-		s_Data->TotalAllocatedBytes += allocInfo.size;
-
-#if LOG_MEMORY_USAGE_MESSAGES
-		VKPG_CORE_INFO_TAG("VulkanAllocator", "{}: Total allocated since start: {}", m_Name, Utils::BytesToString(s_Data->TotalAllocatedBytes));
-		// VKPG_CORE_INFO_TAG("VulkanAllocator", "{}: Memory Usage: {}", m_Name, Utils::BytesToString(s_Data->MemoryUsage));
-#endif
-
 		s_AllocationMap[allocation] = {
 			.AllocatedSize = allocInfo.size,
 			.Type = AllocationType::Image
 		};
+
+		s_Data->TotalAllocatedBytes += allocInfo.size;
 		s_Data->MemoryUsage += allocInfo.size;
+
+#if LOG_MEMORY_USAGE_MESSAGES
+		VKPG_CORE_INFO_TAG("VulkanAllocator", "{}: Total allocated: {}, Current Memory Usage: {}", m_Name, Utils::BytesToString(s_Data->TotalAllocatedBytes), Utils::BytesToString(s_Data->MemoryUsage));
+#endif
 
 		return allocation;
 	}

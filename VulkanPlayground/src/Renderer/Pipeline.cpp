@@ -8,7 +8,7 @@ namespace vkPlayground {
 
 	namespace Utils {
 
-		static VkPrimitiveTopology GetVulkanTopologyFromTopology(PrimitiveTopology topology)
+		inline constexpr VkPrimitiveTopology GetVulkanTopologyFromTopology(PrimitiveTopology topology)
 		{
 			switch (topology)
 			{
@@ -24,7 +24,7 @@ namespace vkPlayground {
 			return VK_PRIMITIVE_TOPOLOGY_MAX_ENUM;
 		}
 
-		static VkCompareOp GetVulkanCompareOpFromDepthComarator(DepthCompareOperator comparator)
+		inline constexpr VkCompareOp GetVulkanCompareOpFromDepthComarator(DepthCompareOperator comparator)
 		{
 			switch (comparator)
 			{
@@ -42,7 +42,7 @@ namespace vkPlayground {
 			return VK_COMPARE_OP_MAX_ENUM;
 		}
 
-		static VkFormat GetVulkanFormatFromShaderDataType(ShaderDataType type)
+		inline constexpr VkFormat GetVulkanFormatFromShaderDataType(ShaderDataType type)
 		{
 			switch (type)
 			{
@@ -97,8 +97,9 @@ namespace vkPlayground {
 		// Setting up the pipeline with the VkPipelineVertexInputStateCreateInfo struct to accept the vertex data that will be 
 		// passed to the vertex buffer
 
-		// NOTE: This is a vector since we will want in the future to support Instancing and that will require an instance laytou to be submitted
 		std::vector<VkVertexInputBindingDescription> vertexInputBindingDescriptions;
+
+		// Vertex attributes
 		VkVertexInputBindingDescription vertexInputBinding = {
 			.binding = 0,
 			.stride = m_Specification.VertexLayout.GetStride(),
@@ -106,16 +107,26 @@ namespace vkPlayground {
 		};
 		vertexInputBindingDescriptions.push_back(vertexInputBinding);
 
+		// Instance attributes
+		if (m_Specification.InstanceLayout.GetElementCount())
+		{
+			VkVertexInputBindingDescription instanceInputBinding = {
+				.binding = 1,
+				.stride = m_Specification.InstanceLayout.GetStride(),
+				.inputRate = VK_VERTEX_INPUT_RATE_INSTANCE
+			};
+			vertexInputBindingDescriptions.push_back(instanceInputBinding);
+		}
+
 		// Description for shader input attributes and their memory layouts
-		std::vector<VkVertexInputAttributeDescription> vertexInputAttributesDescriptions(m_Specification.VertexLayout.GetElementCount());
+		std::vector<VkVertexInputAttributeDescription> vertexInputAttributesDescriptions(m_Specification.VertexLayout.GetElementCount() + m_Specification.InstanceLayout.GetElementCount());
 
 		// Binding for outerloop and location for inner loop
 		// Binding here is for each layout... For example we could have another layout for instance data and its attributes would
 		// be at binding 1 location 0, 1, 2... and so on.
 		uint32_t binding = 0;
 		uint32_t location = 0;
-		// NOTE: 1 since we for now only have one layout (No instancing...)
-		std::array<VertexInputLayout, 1> pipelineLayouts = { m_Specification.VertexLayout };
+		std::array<VertexInputLayout, 2> pipelineLayouts = { m_Specification.VertexLayout, m_Specification.InstanceLayout };
 		for (const auto& layout : pipelineLayouts)
 		{
 			for (const auto& element : layout)
@@ -196,7 +207,7 @@ namespace vkPlayground {
 
 		VkPipelineMultisampleStateCreateInfo multiSampleState = {
 			.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
-			.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT,
+			.rasterizationSamples = Utils::GetSamplerCount(m_Specification.TargetFramebuffer->GetSpecification().Samples), // Adding support for Multi sampled framebuffers
 			.pSampleMask = nullptr,
 		};
 

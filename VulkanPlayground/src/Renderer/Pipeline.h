@@ -40,6 +40,7 @@ namespace vkPlayground {
 		Ref<Shader> Shader;
 		Ref<Framebuffer> TargetFramebuffer;
 		VertexInputLayout VertexLayout;
+		VertexInputLayout InstanceLayout;
 		PrimitiveTopology Topology = PrimitiveTopology::Triangles;
 		DepthCompareOperator DepthOperator = DepthCompareOperator::GreaterOrEqual;
 		bool BackFaceCulling = true;

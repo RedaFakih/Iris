@@ -71,6 +71,6 @@ void main()
     // vec4 FragColor = vec4(sum, 1.0);
     // o_Color = FragColor;
 
-    float linearDepth = depthLinearizeMul / ScreenSpaceToViewSpaceDepth(texture(u_Texture, v_TexCoord).r);
+    float linearDepth = 1.0f / ScreenSpaceToViewSpaceDepth(texture(u_Texture, v_TexCoord).r);
     o_Color = vec4(vec3(linearDepth), 1.0f);
 }

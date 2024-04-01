@@ -12,6 +12,10 @@
 
 namespace vkPlayground {
 
+	/*
+	 * TODO: Ass support to rendering filled circles and also TEXT RENDERING
+	 */
+
 	struct Renderer2DSpecification
 	{
 		bool SwapChainTarget = false;
@@ -21,6 +25,26 @@ namespace vkPlayground {
 
 	class Renderer2D : public RefCountedObject
 	{
+	public:
+		// Stats
+		struct DrawStatistics
+		{
+			uint32_t DrawCalls = 0;
+			uint32_t QuadCount = 0;
+			uint32_t LineCount = 0;
+
+			uint32_t GetTotalVertexCount() { return QuadCount * 4 + LineCount * 2; }
+			uint32_t GetTotalIndexCount() { return QuadCount * 6 + LineCount * 2; }
+		};
+
+		struct MemoryStatistics
+		{
+			uint64_t Used = 0;
+			uint64_t TotalAllocated = 0;
+
+			uint64_t GetAllocatedPerFrame() const;
+		};
+
 	public:
 		Renderer2D(const Renderer2DSpecification& specification = Renderer2DSpecification());
 		virtual ~Renderer2D();
@@ -68,35 +92,17 @@ namespace vkPlayground {
 		float GetLineWidth();
 		void SetLineWidth(float lineWidth);
 
-		// Stats
-		struct DrawStatistics
-		{
-			uint32_t DrawCalls = 0;
-			uint32_t QuadCount = 0;
-			uint32_t LineCount = 0;
-
-			uint32_t GetTotalVertexCount() { return QuadCount * 4 + LineCount * 2; }
-			uint32_t GetTotalIndexCount() { return QuadCount * 6 + LineCount * 2; }
-		};
-
-		struct MemoryStatistics
-		{
-			uint64_t Used = 0;
-			uint64_t TotalAllocated = 0;
-
-			uint64_t GetAllocatedPerFrame() const;
-		};
 		void ResetStats();
 		DrawStatistics GetDrawStats();
 		MemoryStatistics GetMemoryStats();
 
 		const Renderer2DSpecification& GetSpecification() const { return m_Specification; }
 
+
 	private:
 		void AddQuadBuffer();
 		void AddLineBuffer();
 
-	private:
 		struct QuadVertex
 		{
 			glm::vec3 Position;
@@ -115,6 +121,10 @@ namespace vkPlayground {
 		QuadVertex*& GetWriteableQuadBuffer();
 		LineVertex*& GetWriteableLineBuffer();
 
+	private:
+		Renderer2DSpecification m_Specification;
+		Ref<RenderCommandBuffer> m_RenderCommandBuffer;
+
 		static const uint32_t MaxTextureSlots = 32; // TODO: RenderCaps
 
 		const uint32_t c_MaxVertices;
@@ -122,9 +132,6 @@ namespace vkPlayground {
 
 		const uint32_t c_MaxLineVertices;
 		const uint32_t c_MaxLineIndices;
-
-		Renderer2DSpecification m_Specification;
-		Ref<RenderCommandBuffer> m_RenderCommandBuffer;
 
 		Ref<Texture2D> m_WhiteTexture;
 
@@ -164,17 +171,17 @@ namespace vkPlayground {
 		glm::mat4 m_CameraView;
 		bool m_DepthTest = true;
 
-		float m_LineWidth = 1.0f;
+		float m_LineWidth = 2.0f;
 
 		DrawStatistics m_DrawStats;
 		MemoryStatistics m_MemoryStats;
-
-		Ref<UniformBufferSet> m_UBSCamera;
 
 		struct UBCamera
 		{
 			glm::mat4 ViewProjection;
 		};
+
+		Ref<UniformBufferSet> m_UBSCamera;
 	};
 
 }

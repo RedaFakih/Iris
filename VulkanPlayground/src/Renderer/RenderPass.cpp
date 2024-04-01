@@ -57,25 +57,33 @@ namespace vkPlayground {
 		m_DescriptorSetManager.SetInput(name, texture);
 	}
 
-	Ref<Texture2D> RenderPass::GetOutput(uint32_t index) const
+	Ref<Texture2D> RenderPass::GetOutput(uint32_t index, bool ignoreMultiSampled) const
 	{
 		Ref<Framebuffer> framebuffer = m_Specification.Pipeline->GetSpecification().TargetFramebuffer;
 		if (index > framebuffer->GetColorAttachmentCount() + 1)
 			return nullptr;
 
-		if (index < framebuffer->GetColorAttachmentCount())
-			return framebuffer->GetImage(index);
+		bool isMultiSampled = framebuffer->GetSpecification().Samples > 1;
+		if (ignoreMultiSampled)
+			isMultiSampled = false;
 
-		return framebuffer->GetDepthImage();
+		if (index < framebuffer->GetColorAttachmentCount())
+			return isMultiSampled ? framebuffer->GetResolveImage(index) : framebuffer->GetImage(index);
+
+		return isMultiSampled ? framebuffer->GetDepthResolveImage() : framebuffer->GetDepthImage();
 	}
 
-	Ref<Texture2D> RenderPass::GetDepthOutput() const
+	Ref<Texture2D> RenderPass::GetDepthOutput(bool ignoreMultiSampled) const
 	{
 		Ref<Framebuffer> framebuffer = m_Specification.Pipeline->GetSpecification().TargetFramebuffer;
 		if (!framebuffer->HasDepthAttachment())
 			return nullptr;
 
-		return framebuffer->GetDepthImage();
+		bool isMultiSampled = framebuffer->GetSpecification().Samples > 1;
+		if (ignoreMultiSampled)
+			isMultiSampled = false;
+
+		return isMultiSampled ? framebuffer->GetDepthResolveImage() : framebuffer->GetDepthImage();
 	}
 
 	uint32_t RenderPass::GetFirstSetIndex() const

@@ -1,0 +1,28 @@
+Descriptor sets are ascending to their frequency of being bound (meaning higher sets are boudn the most {every frame})
+
+ *	- Set 0 - 2: Global renderer stuff -> Least updated set (Global as in global for the current frame)
+ *		- Set 0: Least updated set, should have the BRDF Texture
+ *		- Set 1: UniformBuffers for general renderer data (Camera, Screen, Renderer and others...)
+ *		- Set 2: Shadow data and lighting data (Point lights, spotlights, skylights, environment maps, shawdow maps, and others...)
+ *  - Set 3: Per draw stuff -> Most updated set (materials...)
+
+ The following are the buffers and images that will be bound to those sets...
+
+ layout(std140, set = 1, binding = 0) uniform Camera
+{
+	mat4 ViewProjectionMatrix;
+	mat4 InverseViewProjectionMatrix;
+	mat4 ProjectionMatrix;
+	mat4 InverseProjectionMatrix;
+	mat4 ViewMatrix;
+	mat4 InverseViewMatrix;
+	vec2 DepthUnpackConsts;
+} u_Camera;
+
+layout(std140, set = 1, binding = 1) uniform ScreenData
+{
+    vec2 FullResolution;
+    vec2 InverseFullResolution;
+    vec2 HalfResolution;
+	vec2 InverseHalfResolution;
+} u_ScreenData;

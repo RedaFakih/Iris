@@ -158,9 +158,12 @@ namespace vkPlayground {
 		uint32_t indices[6] = { 0, 1, 2, 2, 3, 0 };
 		s_Data->QuadIndexBuffer = IndexBuffer::Create(indices, 6 * sizeof(uint32_t));
 
+		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/PreDepth.glsl");
 		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/PlaygroundStatic.glsl");
+
 		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/Renderer2D_Quad.glsl");
 		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/Renderer2D_Line.glsl");
+
 		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/SimpleShader.glsl");
 		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/TexturePass.glsl");
 		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/Compositing.glsl");
@@ -282,7 +285,7 @@ namespace vkPlayground {
 			.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
 			.pNext = nullptr
 		};
-		if (fbSpec.SwapchainTarget)
+		if (fbSpec.SwapchainTarget == true)
 		{
 			SwapChain& swapChain = Application::Get().GetWindow().GetSwapChain();
 			width = swapChain.GetWidth();

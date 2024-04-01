@@ -1,7 +1,6 @@
 #pragma once
 
 #include "Core/AABB.h"
-#include "Material.h"
 #include "MaterialAsset.h"
 #include "Renderer/IndexBuffer.h"
 #include "Renderer/VertexBuffer.h"

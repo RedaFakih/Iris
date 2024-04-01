@@ -15,9 +15,11 @@ namespace vkPlayground {
 	class MaterialAsset : public RefCountedObject
 	{
 	public:
+		MaterialAsset(bool isTransparent = false);
 		MaterialAsset(Ref<Material> material);
 		virtual ~MaterialAsset();
 
+		[[nodiscard]] static Ref<MaterialAsset> Create(bool isTransparent = false);
 		[[nodiscard]] static Ref<MaterialAsset> Create(Ref<Material> material);
 
 		glm::vec3& GetAlbedoColor();
@@ -54,11 +56,14 @@ namespace vkPlayground {
 		Ref<Material> GetMaterial() const { return m_Material; }
 		void SetMaterial(Ref<Material> material) { m_Material = material; }
 
+		bool IsTransparent() const { return m_Transparent; }
+
 	private:
 		void SetDefaults();
 
 	private:
 		Ref<Material> m_Material;
+		bool m_Transparent = false;
 
 	};
 
