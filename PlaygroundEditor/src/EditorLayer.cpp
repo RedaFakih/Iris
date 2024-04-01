@@ -98,7 +98,7 @@ namespace vkPlayground {
 				.Scale = RenderingScale,
 				.ClearColor = { 0.0f, 0.0f, 0.0f, 1.0f },
 				.DepthClearValue = 0.0f,
-				.Attachments = { { ImageFormat::RGBA, AttachmentPassThroughUsage::Input }, { ImageFormat::DEPTH32F, AttachmentPassThroughUsage::Input } },
+				.Attachments = { { ImageFormat::RGBA, AttachmentPassThroughUsage::Input }, { ImageFormat::RGBA },  { ImageFormat::DEPTH32F, AttachmentPassThroughUsage::Input } },
 				.Samples = 2
 			};
 
@@ -353,6 +353,12 @@ namespace vkPlayground {
 		ImGui::Begin("Depth Image");
 
 		UI::Image(m_ScreenPass->GetOutput(0), ImGui::GetContentRegionAvail(), { 0, 1 }, { 1, 0 });
+
+		ImGui::End();
+
+		ImGui::Begin("Normals Image");
+
+		UI::Image(m_RenderingPass->GetOutput(1), ImGui::GetContentRegionAvail(), {0, 1}, {1, 0});
 
 		ImGui::End();
 
