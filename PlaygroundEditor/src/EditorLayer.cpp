@@ -89,7 +89,7 @@ namespace vkPlayground {
 		};
 		s_BillBoardTexture = Texture2D::Create(textureSpec, "Resources/assets/textures/qiyana.png");
 
-		constexpr float RenderingScale = 0.1f;
+		constexpr float RenderingScale = 0.2f;
 		// Rendering pass
 		{
 
@@ -99,7 +99,7 @@ namespace vkPlayground {
 				.ClearColor = { 0.0f, 0.0f, 0.0f, 1.0f },
 				.DepthClearValue = 0.0f,
 				.Attachments = { { ImageFormat::RGBA, AttachmentPassThroughUsage::Input }, { ImageFormat::RGBA },  { ImageFormat::DEPTH32F, AttachmentPassThroughUsage::Input } },
-				.Samples = 2
+				.Samples = 4
 			};
 
 			PipelineSpecification spec = {
@@ -478,6 +478,12 @@ namespace vkPlayground {
 
 		ImGui::SliderInt("SubMesh Start Index", &s_SubMeshRange.x, 0, s_SubMeshRange.y - 1);
 		ImGui::SliderInt("SubMesh End Index", &s_SubMeshRange.y, s_SubMeshRange.x + 1, static_cast<int>(s_Mesh->GetSubMeshes().size()));
+
+		ImGui::Text("Average Framerate: %i", static_cast<uint32_t>(1.0f / Application::Get().GetFrameTime().GetSeconds()));
+
+		bool isVSync = Application::Get().GetWindow().IsVSync();
+		if (ImGui::Checkbox("VSync", &isVSync))
+			Application::Get().GetWindow().SetVSync(isVSync);
 
 		ImGui::End();
 	}

@@ -271,6 +271,7 @@ namespace vkPlayground {
         }
 
         // In case of multisampling we need a resolve image
+        VkAttachmentReference2 depthStencilResolveAttachment;
         VkSubpassDescriptionDepthStencilResolve depthStencilResolve;
         if (m_Specification.Samples > 1)
         {
@@ -338,17 +339,19 @@ namespace vkPlayground {
                                                 attachmentDescriptions[attachmentDescriptionIndex].finalLayout
                 };
 
+                depthStencilResolveAttachment = {
+                    .sType = VK_STRUCTURE_TYPE_ATTACHMENT_REFERENCE_2,
+                    .pNext = nullptr,
+                    .attachment = attachmentIndex,
+                    .layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
+                };
+
                 depthStencilResolve = {
                     .sType = VK_STRUCTURE_TYPE_SUBPASS_DESCRIPTION_DEPTH_STENCIL_RESOLVE,
                     .pNext = nullptr,
                     .depthResolveMode = VK_RESOLVE_MODE_AVERAGE_BIT,
                     .stencilResolveMode = VK_RESOLVE_MODE_NONE,
-                    .pDepthStencilResolveAttachment = [](VkAttachmentReference2&& temp) -> VkAttachmentReference2* { return &temp; }(VkAttachmentReference2{
-                        .sType = VK_STRUCTURE_TYPE_ATTACHMENT_REFERENCE_2,
-                        .pNext = nullptr,
-                        .attachment = attachmentIndex,
-                        .layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
-                    })
+                    .pDepthStencilResolveAttachment = &depthStencilResolveAttachment
                 };
             }
         }

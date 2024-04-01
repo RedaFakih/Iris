@@ -31,7 +31,7 @@ namespace vkPlayground {
 			.WindowWidth = 1280,
 			.WindowHeight = 720,
 			.FullScreen = false,
-			.VSync = false,
+			.VSync = true,
 			.StartMaximized = true,
 			.Resizable = true,
 			.EnableImGui = true,
