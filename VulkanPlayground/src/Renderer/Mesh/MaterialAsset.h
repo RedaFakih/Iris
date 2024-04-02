@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Asset/Asset.h"
 #include "Core/Base.h"
 #include "Material.h"
 
@@ -12,7 +13,7 @@ namespace vkPlayground {
 	 */
 
 	// TODO: This is an asset
-	class MaterialAsset : public RefCountedObject
+	class MaterialAsset : public Asset
 	{
 	public:
 		MaterialAsset(bool isTransparent = false);

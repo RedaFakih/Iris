@@ -164,6 +164,12 @@ namespace vkPlayground {
 		SetPerspectiveProjectionMatrix(glm::degrees(m_FOV), (float)width, (float)height, m_NearClip, m_FarClip);
 	}
 
+	void EditorCamera::SetFOV(float degFov)
+	{
+		m_FOV = glm::radians(degFov);
+		SetPerspectiveProjectionMatrix(degFov, (float)m_ViewportWidth, (float)m_ViewportHeight, m_NearClip, m_FarClip);
+	}
+
 	void EditorCamera::UpdateView()
 	{
 		const float yawSign = GetUpDirection().y < 0.0f ? -1.0f : 1.0f;

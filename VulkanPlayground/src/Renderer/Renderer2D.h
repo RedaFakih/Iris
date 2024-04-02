@@ -89,7 +89,7 @@ namespace vkPlayground {
 
 		void DrawAABB(const AABB& aabb, const glm::mat4& transform, const glm::vec4& color = glm::vec4(1.0f));
 
-		float GetLineWidth();
+		float GetLineWidth() const { return m_LineWidth; }
 		void SetLineWidth(float lineWidth);
 
 		void ResetStats();

@@ -139,6 +139,7 @@ namespace vkPlayground {
 
         Release();
 
+        m_ClearValues.clear();
         m_ClearValues.reserve(m_Specification.Attachments.Attachments.size());
 
         std::vector<VkAttachmentDescription2> attachmentDescriptions;

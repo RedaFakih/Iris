@@ -268,7 +268,6 @@ namespace vkPlayground {
 				m_LineVertexBuffers[i][frameIndex]->SetData(m_LineVertexBufferBases[i][frameIndex], dataSize);
 
 				Renderer::BeginRenderPass(m_RenderCommandBuffer, m_LinePass);
-				vkCmdSetLineWidth(commandBuffer, m_LineWidth);
 				Renderer::RenderGeometry(m_RenderCommandBuffer, m_LinePass->GetPipeline(), m_LineMaterial, m_LineVertexBuffers[i][frameIndex], m_LineIndexBuffer, glm::mat4(1.0f), indexCount);
 				Renderer::EndRenderPass(m_RenderCommandBuffer);
 
@@ -874,14 +873,12 @@ namespace vkPlayground {
 			DrawLine(corners[i], corners[i + 4], color);
 	}
 
-	float Renderer2D::GetLineWidth()
-	{
-		return m_LineWidth;
-	}
-
 	void Renderer2D::SetLineWidth(float lineWidth)
 	{
 		m_LineWidth = lineWidth;
+
+		if (m_LinePass)
+			m_LinePass->GetPipeline()->GetSpecification().LineWidth = m_LineWidth;
 	}
 
 	void Renderer2D::ResetStats()

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Asset/Asset.h"
 #include "Core/AABB.h"
 #include "MaterialAsset.h"
 #include "Renderer/IndexBuffer.h"
@@ -139,7 +140,7 @@ namespace vkPlayground {
 	};
 
 	// TODO: This is an asset
-	class StaticMesh : public RefCountedObject
+	class StaticMesh : public Asset
 	{
 	public:
 		explicit StaticMesh(Ref<MeshSource> meshSource);

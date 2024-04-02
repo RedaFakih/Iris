@@ -42,8 +42,8 @@ namespace vkPlayground {
 		VertexInputLayout VertexLayout;
 		VertexInputLayout InstanceLayout;
 		PrimitiveTopology Topology = PrimitiveTopology::Triangles;
-		DepthCompareOperator DepthOperator = DepthCompareOperator::GreaterOrEqual;
 		bool BackFaceCulling = true;
+		DepthCompareOperator DepthOperator = DepthCompareOperator::GreaterOrEqual;
 		bool DepthTest = true;
 		bool DepthWrite = true;
 		bool WireFrame = false;

@@ -27,6 +27,7 @@ namespace vkPlayground {
 		void Focus(const glm::vec3& focusPoint);
 
 		void SetViewportSize(uint32_t width, uint32_t height);
+		void SetFOV(float degFov);
 
 		float GetFOV() const { return m_FOV; }
 		float GetAspectRatio() const { return m_AspectRatio; }

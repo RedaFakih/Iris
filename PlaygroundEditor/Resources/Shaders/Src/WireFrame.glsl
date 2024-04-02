@@ -24,9 +24,6 @@ layout(std140, set = 1, binding = 0) uniform Camera
 	vec2 DepthUnpackConsts;
 } u_Camera;
 
-// Make sure both the PreDepth shader and the PBR shader compute the exact same result
-precise invariant gl_Position;
-
 void main()
 {
 	mat4 transform = mat4(
@@ -47,7 +44,14 @@ void main()
 #version 450 core
 #stage fragment
 
+layout(location = 0) out vec4 o_Color;
+
+layout(push_constant) uniform Material
+{
+	vec4 Color;
+} u_Uniforms;
+
 void main()
 {
-    // Only write to depth.
+	o_Color = u_Uniforms.Color;
 }

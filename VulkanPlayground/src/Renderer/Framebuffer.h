@@ -59,14 +59,24 @@ namespace vkPlayground {
 	struct FramebufferTextureSpecification
 	{
 		FramebufferTextureSpecification() = default;
+
 		FramebufferTextureSpecification(ImageFormat format) : Format(format) {}
+
+		FramebufferTextureSpecification(ImageFormat format, bool blend) : Format(format), Blend(blend) {}
+
+		FramebufferTextureSpecification(ImageFormat format, AttachmentLoadOp loadOp) : Format(format), LoadOp(loadOp) {}
+
 		FramebufferTextureSpecification(ImageFormat format, AttachmentPassThroughUsage sampled) : Format(format), Sampled(sampled) {}
+
 		FramebufferTextureSpecification(ImageFormat format, bool blend, FramebufferBlendMode mode) 
 			: Format(format), Blend(blend), BlendMode(mode) {}
+
 		FramebufferTextureSpecification(ImageFormat format, bool blend, FramebufferBlendMode mode, AttachmentLoadOp loadop)
 			: Format(format), Blend(blend), BlendMode(mode), LoadOp(loadop) {}
+
 		FramebufferTextureSpecification(ImageFormat format, bool blend, FramebufferBlendMode mode, AttachmentLoadOp loadop, TextureFilter filter)
 			: Format(format), Blend(blend), BlendMode(mode), LoadOp(loadop), FilterMode(filter) {}
+
 		FramebufferTextureSpecification(ImageFormat format, bool blend, FramebufferBlendMode mode, AttachmentLoadOp loadop, TextureFilter filter, TextureWrap wrap)
 			: Format(format), Blend(blend), BlendMode(mode), LoadOp(loadop), FilterMode(filter), WrapMode(wrap) {}
 

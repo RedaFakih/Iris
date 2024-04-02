@@ -7,6 +7,10 @@
 
 namespace vkPlayground {
 
+	/*
+	 * This material object handles objects and any resource found in set = 3
+	 */
+
 	enum class MaterialFlag
 	{
 		None      = BIT(0), // 0b0001

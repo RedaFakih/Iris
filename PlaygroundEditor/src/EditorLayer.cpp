@@ -59,7 +59,7 @@ namespace vkPlayground {
 	{
 		// TODO: REMOVE
 		m_EditorScene = Scene::Create("Editor Scene");
-		m_ViewportRenderer = SceneRenderer::Create(m_EditorScene);
+		m_ViewportRenderer = SceneRenderer::Create(m_EditorScene, { .RendererScale = 0.8f });
 		// TODO: 
 		//m_ViewportRenderer->SetScene(m_EditorScene);
 		//m_ViewportRenderer->SetLineWidth(m_LineWidth);
@@ -69,16 +69,14 @@ namespace vkPlayground {
 		EditorResources::Init();
 
 		m_CommandBuffer = RenderCommandBuffer::Create(0, "EditorLayer");
-		m_ScreenCommandBuffer = RenderCommandBuffer::Create(0, "ScreenPass"); // TODO: TEMP
 
 		// TODO: REMOVE!
 		Ref<Shader> meshShader = Renderer::GetShadersLibrary()->Get("PlaygroundStatic");
-		Ref<Shader> screenShader = Renderer::GetShadersLibrary()->Get("TexturePass");
 
 		m_UniformBufferSet = UniformBufferSet::Create(sizeof(UniformBufferData));
 
 		AssimpMeshImporter importer("Resources/assets/meshes/Sponza/Sponza.gltf");
-		// AssimpMeshImporter importer("Resources/assets/meshes/Cube.gltf");
+		// AssimpMeshImporter importer("Resources/assets/meshes/Galio/scene.gltf");
 		s_MeshSource = importer.ImportToMeshSource();
 		s_Mesh = StaticMesh::Create(s_MeshSource);
 		s_SubMeshRange.y = static_cast<int>(s_Mesh->GetSubMeshes().size());
@@ -89,7 +87,8 @@ namespace vkPlayground {
 		};
 		s_BillBoardTexture = Texture2D::Create(textureSpec, "Resources/assets/textures/qiyana.png");
 
-		constexpr float RenderingScale = 0.2f;
+		constexpr float RenderingScale = 0.1f;
+		constexpr uint32_t Samples = RenderingScale < 0.7f ? 1 : 4;
 		// Rendering pass
 		{
 
@@ -98,13 +97,13 @@ namespace vkPlayground {
 				.Scale = RenderingScale,
 				.ClearColor = { 0.0f, 0.0f, 0.0f, 1.0f },
 				.DepthClearValue = 0.0f,
-				.Attachments = { { ImageFormat::RGBA, AttachmentPassThroughUsage::Input }, { ImageFormat::RGBA },  { ImageFormat::DEPTH32F, AttachmentPassThroughUsage::Input } },
-				.Samples = 4
+				.Attachments = { { ImageFormat::RGBA, AttachmentPassThroughUsage::Input }, { ImageFormat::RGBA }, { ImageFormat::RGBA }, { ImageFormat::DEPTH32F, AttachmentPassThroughUsage::Input } },
+				.Samples = Samples
 			};
 
 			PipelineSpecification spec = {
 				.DebugName = "StaticRenderingPipeline",
-				.Shader = Renderer::GetShadersLibrary()->Get("PlaygroundStatic"),
+				.Shader = Renderer::GetShadersLibrary()->Get("PlaygroundStatic1"),
 				.TargetFramebuffer = Framebuffer::Create(renderingFBSpec),
 				.VertexLayout = {
 					{ ShaderDataType::Float3, "a_Position" },
@@ -128,59 +127,6 @@ namespace vkPlayground {
 			m_RenderingPass->SetInput("TransformUniformBuffer", m_UniformBufferSet);
 
 			m_RenderingPass->Bake();
-		}
-
-		// Screen pass (Currently used to render the depth image)
-		{
-			FramebufferSpecification screenFBSpec = {
-				.DebugName = "Screen FB",
-				.Scale = RenderingScale,
-				.Attachments = { ImageFormat::RGBA }
-			};
-
-			PipelineSpecification spec = {
-				.DebugName = "ScreenPassPipeline",
-				.Shader = screenShader,
-				.TargetFramebuffer = Framebuffer::Create(screenFBSpec),
-				.VertexLayout = {
-					{ ShaderDataType::Float3, "a_Position" },
-					{ ShaderDataType::Float2, "a_TexCoord" }
-				},
-				.Topology = PrimitiveTopology::Triangles,
-				.BackFaceCulling = false,
-				.DepthTest = false,
-				.DepthWrite = false,
-				.WireFrame = false,
-				.LineWidth = 1.0f
-			};
-			Ref<Pipeline> pipeline = Pipeline::Create(spec);
-
-			RenderPassSpecification screenPassSpec = {
-				.DebugName = "ScreenPass",
-				.Pipeline = pipeline,
-				.MarkerColor = { 0.0f, 1.0f, 0.0f, 1.0f }
-			};
-			m_ScreenPass = RenderPass::Create(screenPassSpec);
-			m_ScreenPass->SetInput("TransformUniformBuffer", m_UniformBufferSet);
-			m_ScreenPass->Bake();
-
-			m_ScreenPassMaterial = Material::Create(screenShader, "ScreenPassMaterial");
-			// Ref<Material> testMat = Material::Create(m_ScreenPassMaterial);
-		}
-
-		// Intermediate Renderer2D framebuffer
-		{
-			FramebufferSpecification intermediateBufferSpec = {
-				.DebugName = "IntermediateFB",
-				.Scale = RenderingScale,
-				.ClearColorOnLoad = false,
-				.ClearDepthOnLoad = false,
-				.Attachments = { { ImageFormat::RGBA, AttachmentPassThroughUsage::Input }, { ImageFormat::DEPTH32F, AttachmentPassThroughUsage::Input } },
-				.Samples = 1
-			};
-			intermediateBufferSpec.ExistingImages[0] = m_RenderingPass->GetOutput(0);
-			intermediateBufferSpec.ExistingImages[1] = m_RenderingPass->GetDepthOutput();
-			m_IntermediateBuffer = Framebuffer::Create(intermediateBufferSpec);
 		}
 	}
 
@@ -213,6 +159,13 @@ namespace vkPlayground {
 
 		m_UniformBufferSet->Get()->SetData(&dataUB, sizeof(UniformBufferData));
 
+		m_ViewportRenderer->SetScene(m_EditorScene);
+		m_ViewportRenderer->BeginScene({ m_EditorCamera, m_EditorCamera.GetViewMatrix(), m_EditorCamera.GetNearClip(), m_EditorCamera.GetFarClip(), m_EditorCamera.GetFOV() });
+		
+		m_ViewportRenderer->SubmitStaticMesh(s_Mesh, s_MeshSource, s_Mesh->GetMaterials(), glm::mat4(1.0f));
+		
+		m_ViewportRenderer->EndScene();
+
 		m_CommandBuffer->Begin();
 
 		// First render pass renders to the framebuffer
@@ -228,100 +181,44 @@ namespace vkPlayground {
 			Renderer::EndRenderPass(m_CommandBuffer);
 		}
 
-		// Second render pass renders to the screen (TODO: This is currently used so that we could render to the screen without imgui)
-		// NOTE: For now disabled since it is useless for the editor layer
-		//Ref<Texture2D> texture = m_RenderingPass->GetOutput(0);
-		//if (texture)
-		//{
-		//	m_ScreenPassMaterial->Set("u_Texture", texture);
-		//	Renderer::BeginRenderPass(m_CommandBuffer, m_ScreenPass);
-		//	Renderer::SubmitFullScreenQuad(m_CommandBuffer, m_ScreenPass->GetPipeline(), m_ScreenPassMaterial);
-		//	Renderer::EndRenderPass(m_CommandBuffer);
-		//}
-		//else
-		//{
-		//	// Clear pass
-		//	Renderer::BeginRenderPass(m_CommandBuffer, m_ScreenPass);
-		//	Renderer::EndRenderPass(m_CommandBuffer);
-		//}
-
 		m_CommandBuffer->End();
 		m_CommandBuffer->Submit();
 
-		if (m_RenderingPass->GetOutput(0))
-		{
-			m_Renderer2D->ResetStats();
-			m_Renderer2D->BeginScene(m_EditorCamera.GetViewProjection(), m_EditorCamera.GetViewMatrix());
-			m_Renderer2D->SetTargetFramebuffer(m_IntermediateBuffer);
-			m_Renderer2D->SetLineWidth(5.0f);
-		
-			m_Renderer2D->DrawQuadBillboard({ -3.053855f, 4.328760f, 1.0f }, { 2.0f, 2.0f }, { 1.0f, 0.0f, 1.0f, 1.0f });
-			
-			for (int x = -15; x < 15; x++)
-			{
-				for (int y = -3; y < 3; y++)
-				{
-					m_Renderer2D->DrawQuad({ x, y, 2.0f }, { 1, 1 }, { glm::sin(x), glm::cos(y), glm::sin(x + y), 1.0f });
-				}
-			}
-			
-			m_Renderer2D->DrawAABB({ {5.0f, 5.0f, 1.0f}, {7.0f, 7.0f, -4.0f} }, glm::mat4(1.0f));
-			m_Renderer2D->DrawAABB({ {4.0f, 4.0f, -1.0f}, {5.0f, 5.0f, -4.0f} }, glm::translate(glm::mat4(1.0f), {2.0f, -1.0f, -0.5f}), { 0.0f, 1.0f, 1.0f, 1.0f });
-			m_Renderer2D->DrawCircle({ 5.0f, 5.0f, -2.0f }, glm::vec3(1.0f), 2.0f, { 1.0f, 0.0f, 1.0f, 1.0f });
-			// m_Renderer2D->DrawLine(glm::vec3(0.0f), glm::vec3(6.0f), glm::vec4(1.0f, 0.0f, 1.0f, 1.0f));
-			// m_Renderer2D->DrawLine(glm::vec3(0.0f), glm::vec3(-20.2f, 3.0f, -5.0f), glm::vec4(0.2f, 0.3f, 0.8f, 1.0f));
-			// m_Renderer2D->DrawLine(glm::vec3(0.0f, -2.0f, 0.0f), glm::vec3(0.0f, -5.0f, 0.0f), glm::vec4(1.0f, 0.0f, 0.0f, 1.0f));
-			m_Renderer2D->DrawQuadBillboard({ -2.0f, -2.0f, -0.5f }, { 2.0f, 2.0f }, s_BillBoardTexture, 2.0f, { 1.0f, 0.7f, 1.0f, 0.5f });
-			// m_Renderer2D->DrawAABB(s_MeshSource->GetBoundingBox(), glm::mat4(1.0f));
-
-			// Draw the Axes of my system
-			m_Renderer2D->DrawLine(glm::vec3(0.0f), glm::vec3(1.0f, 0.0f, 0.0f) * 10.0f, glm::vec4(1.0f, 0.0f, 0.0f, 1.0f));
-			m_Renderer2D->DrawLine(glm::vec3(0.0f), glm::vec3(0.0f, 1.0f, 0.0f) * 10.0f, glm::vec4(0.0f, 1.0f, 0.0f, 1.0f));
-			m_Renderer2D->DrawLine(glm::vec3(0.0f), glm::vec3(0.0f, 0.0f, 1.0f) * 10.0f, glm::vec4(0.0f, 0.0f, 1.0f, 1.0f));
-		
-			m_Renderer2D->EndScene();
-			// Here the color attachment is now in VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
-			// Depth attachment is now in VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
-			// so we need to pipeline barrier the images to sample from them in the following passes
-		}
-
-		// TODO: This here is kind of temporary since rendering the depth image is not really a main thing to do in the engine LOL
-		// NOTE: This is to visualize the depth image with all the 2D depth just for debugging purposes
-		{
-			m_ScreenCommandBuffer->Begin();
-
-			Renderer::InsertImageMemoryBarrier(
-				m_ScreenCommandBuffer->GetActiveCommandBuffer(),
-				m_IntermediateBuffer->GetDepthImage()->GetVulkanImage(),
-				VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
-				VK_ACCESS_SHADER_READ_BIT,
-				VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-				VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL,
-				VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT,
-				VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-				{ .aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = 1 }
-			);
-
-			Renderer::InsertImageMemoryBarrier(
-				m_ScreenCommandBuffer->GetActiveCommandBuffer(),
-				m_IntermediateBuffer->GetImage(0)->GetVulkanImage(),
-				VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
-				VK_ACCESS_SHADER_READ_BIT,
-				VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-				VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-				VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-				VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-				{ .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = 1 }
-			);
-
-			m_ScreenPassMaterial->Set("u_Texture", m_RenderingPass->GetDepthOutput());
-			Renderer::BeginRenderPass(m_ScreenCommandBuffer, m_ScreenPass);
-			Renderer::SubmitFullScreenQuad(m_ScreenCommandBuffer, m_ScreenPass->GetPipeline(), m_ScreenPassMaterial);
-			Renderer::EndRenderPass(m_ScreenCommandBuffer);
-
-			m_ScreenCommandBuffer->End();
-			m_ScreenCommandBuffer->Submit();
-		}
+		// if (m_ViewportRenderer->GetFinalPassImage())
+		// {
+		// 	m_Renderer2D->ResetStats();
+		// 	m_Renderer2D->BeginScene(m_EditorCamera.GetViewProjection(), m_EditorCamera.GetViewMatrix());
+		// 	m_Renderer2D->SetTargetFramebuffer(m_ViewportRenderer->GetExternalCompositeFramebuffer());
+		// 
+		// 	m_Renderer2D->DrawQuadBillboard({ -3.053855f, 4.328760f, 1.0f }, { 2.0f, 2.0f }, { 1.0f, 0.0f, 1.0f, 1.0f });
+		// 	
+		// 	for (int x = -15; x < 15; x++)
+		// 	{
+		// 		for (int y = -3; y < 3; y++)
+		// 		{
+		// 			m_Renderer2D->DrawQuad({ x, y, 2.0f }, { 1, 1 }, { glm::sin(x), glm::cos(y), glm::sin(x + y), 1.0f });
+		// 		}
+		// 	}
+		// 	
+		// 	m_Renderer2D->DrawAABB({ {5.0f, 5.0f, 1.0f}, {7.0f, 7.0f, -4.0f} }, glm::mat4(1.0f));
+		// 	m_Renderer2D->DrawAABB({ {4.0f, 4.0f, -1.0f}, {5.0f, 5.0f, -4.0f} }, glm::translate(glm::mat4(1.0f), {2.0f, -1.0f, -0.5f}), { 0.0f, 1.0f, 1.0f, 1.0f });
+		// 	m_Renderer2D->DrawCircle({ 5.0f, 5.0f, -2.0f }, glm::vec3(1.0f), 2.0f, { 1.0f, 0.0f, 1.0f, 1.0f });
+		// 	// m_Renderer2D->DrawLine(glm::vec3(0.0f), glm::vec3(6.0f), glm::vec4(1.0f, 0.0f, 1.0f, 1.0f));
+		// 	// m_Renderer2D->DrawLine(glm::vec3(0.0f), glm::vec3(-20.2f, 3.0f, -5.0f), glm::vec4(0.2f, 0.3f, 0.8f, 1.0f));
+		// 	// m_Renderer2D->DrawLine(glm::vec3(0.0f, -2.0f, 0.0f), glm::vec3(0.0f, -5.0f, 0.0f), glm::vec4(1.0f, 0.0f, 0.0f, 1.0f));
+		// 	m_Renderer2D->DrawQuadBillboard({ -2.0f, -2.0f, -0.5f }, { 2.0f, 2.0f }, s_BillBoardTexture, 2.0f, { 1.0f, 0.7f, 1.0f, 0.5f });
+		// 	// m_Renderer2D->DrawAABB(s_MeshSource->GetBoundingBox(), glm::mat4(1.0f));
+		// 
+		// 	// Draw the Axes of my system
+		// 	m_Renderer2D->DrawLine(glm::vec3(0.0f), glm::vec3(1.0f, 0.0f, 0.0f) * 10.0f, glm::vec4(1.0f, 0.0f, 0.0f, 1.0f));
+		// 	m_Renderer2D->DrawLine(glm::vec3(0.0f), glm::vec3(0.0f, 1.0f, 0.0f) * 10.0f, glm::vec4(0.0f, 1.0f, 0.0f, 1.0f));
+		// 	m_Renderer2D->DrawLine(glm::vec3(0.0f), glm::vec3(0.0f, 0.0f, 1.0f) * 10.0f, glm::vec4(0.0f, 0.0f, 1.0f, 1.0f));
+		// 
+		// 	m_Renderer2D->EndScene();
+		// 	// Here the color attachment is now in VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+		// 	// Depth attachment is now in VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
+		// 	// so we need to pipeline barrier the images to sample from them in the following passes
+		// }
 
 		// NOTE: This gives the image upside down since that is the output of the SceneRenderer and then we flip it in imgui so...
 		if (Input::IsKeyDown(KeyCode::R))
@@ -350,17 +247,17 @@ namespace vkPlayground {
 
 		ImGui::ShowDemoWindow(); // Testing imgui stuff
 
-		ImGui::Begin("Depth Image");
+		//ImGui::Begin("Depth Image");
 
-		UI::Image(m_ScreenPass->GetOutput(0), ImGui::GetContentRegionAvail(), { 0, 1 }, { 1, 0 });
+		//UI::Image(m_ScreenPass->GetOutput(0), ImGui::GetContentRegionAvail(), { 0, 1 }, { 1, 0 });
 
-		ImGui::End();
+		//ImGui::End();
 
-		ImGui::Begin("Normals Image");
+		//ImGui::Begin("Normals Image");
 
-		UI::Image(m_RenderingPass->GetOutput(1), ImGui::GetContentRegionAvail(), {0, 1}, {1, 0});
+		//UI::Image(m_RenderingPass->GetOutput(1), ImGui::GetContentRegionAvail(), {0, 1}, {1, 0});
 
-		ImGui::End();
+		//ImGui::End();
 
 		ShowShadersPanel();
 
@@ -438,14 +335,14 @@ namespace vkPlayground {
 
 		ImVec2 viewportOffset = ImGui::GetCursorPos(); // Includes tab bar
 		ImVec2 viewportSize = ImGui::GetContentRegionAvail();
-		// TODO: 
-		//m_ViewportRenderer->SetViewportSize(static_cast<uint32_t>(viewportSize.x), static_cast<uint32_t>(viewportSize.y));
+		m_ViewportRenderer->SetViewportSize(static_cast<uint32_t>(viewportSize.x), static_cast<uint32_t>(viewportSize.y));
 		m_EditorScene->SetViewportSize(static_cast<uint32_t>(viewportSize.x), static_cast<uint32_t>(viewportSize.y));
 		m_EditorCamera.SetViewportSize(static_cast<uint32_t>(viewportSize.x), static_cast<uint32_t>(viewportSize.y));
 
 		// Here we get the output from the rendering pass since the screen pass is there in case there was no imgui in the
 		// application and we have to render directly to the screen...
-		Ref<Texture2D> texture = m_RenderingPass->GetOutput(0);
+		// Ref<Texture2D> texture = m_RenderingPass->GetOutput(0);
+		Ref<Texture2D> texture = m_ViewportRenderer->GetFinalPassImage();
 		UI::Image(texture, viewportSize, { 0, 1 }, { 1, 0 });
 
 		m_ViewportRect = UI::GetWindowRect();
@@ -478,6 +375,20 @@ namespace vkPlayground {
 
 		ImGui::SliderInt("SubMesh Start Index", &s_SubMeshRange.x, 0, s_SubMeshRange.y - 1);
 		ImGui::SliderInt("SubMesh End Index", &s_SubMeshRange.y, s_SubMeshRange.x + 1, static_cast<int>(s_Mesh->GetSubMeshes().size()));
+		float fov = glm::degrees(m_EditorCamera.GetFOV());
+		if (ImGui::SliderFloat("FOV", &fov, 30, 120))
+			m_EditorCamera.SetFOV(fov);
+
+		float& exposure = m_EditorCamera.GetExposure();
+		ImGui::SliderFloat("Exposure", &exposure, 0.0f, 5.0f);
+
+		float opacity = m_ViewportRenderer->GetOpacity();
+		if (ImGui::SliderFloat("Opacity", &opacity, 0.0f, 5.0f))
+			m_ViewportRenderer->SetOpacity(opacity);
+
+		float lineWidth = m_Renderer2D->GetLineWidth();
+		if (ImGui::SliderFloat("LineWidth", &lineWidth, 0.1f, 6.0f))
+			m_Renderer2D->SetLineWidth(lineWidth);
 
 		ImGui::Text("Average Framerate: %i", static_cast<uint32_t>(1.0f / Application::Get().GetFrameTime().GetSeconds()));
 

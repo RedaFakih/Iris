@@ -7,21 +7,12 @@ layout(location = 2) in vec3 a_Tangent;
 layout(location = 3) in vec3 a_Binormal;
 layout(location = 4) in vec2 a_TexCoord;
 
-// Transforms Buffer
-layout(location = 5) in vec4 a_MatrixRow0;
-layout(location = 6) in vec4 a_MatrixRow1;
-layout(location = 7) in vec4 a_MatrixRow2;
-
-layout(std140, set = 1, binding = 0) uniform Camera
+layout(std140, set = 0, binding = 1) uniform TransformUniformBuffer
 {
-	mat4 ViewProjectionMatrix;
-	mat4 InverseViewProjectionMatrix;
-	mat4 ProjectionMatrix;
-	mat4 InverseProjectionMatrix;
-	mat4 ViewMatrix;
-	mat4 InverseViewMatrix;
-	vec2 DepthUnpackConsts;
-} u_Camera;
+    mat4 Model;
+    mat4 ViewProjection;
+    vec2 DepthUnpackConsts;
+} u_TransformData;
 
 struct VertexOutput
 {
@@ -43,12 +34,7 @@ invariant gl_Position;
 
 void main()
 {
-	mat4 transform = mat4(
-		vec4(a_MatrixRow0.x, a_MatrixRow1.x, a_MatrixRow2.x, 0.0),
-		vec4(a_MatrixRow0.y, a_MatrixRow1.y, a_MatrixRow2.y, 0.0),
-		vec4(a_MatrixRow0.z, a_MatrixRow1.z, a_MatrixRow2.z, 0.0),
-		vec4(a_MatrixRow0.w, a_MatrixRow1.w, a_MatrixRow2.w, 1.0)
-	);
+	mat4 transform = u_TransformData.Model;
 
     vec4 worldPosition = transform * vec4(a_Position, 1.0f);
 
@@ -59,10 +45,10 @@ void main()
     Output.WorldTransform = mat3(transform);
 	Output.Binormal = a_Binormal;
     
-    Output.CameraView = mat3(u_Camera.ViewMatrix);
-    Output.ViewPosition = vec3(u_Camera.ViewMatrix * vec4(Output.WorldPosition, 1.0f));
+    Output.CameraView = mat3(1.0f);
+    Output.ViewPosition = vec3(1.0f);
 
-    gl_Position = u_Camera.ViewProjectionMatrix * worldPosition;
+    gl_Position = u_TransformData.ViewProjection * worldPosition;
 }
 
 #version 450 core

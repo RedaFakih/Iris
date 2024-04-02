@@ -68,13 +68,9 @@ namespace vkPlayground {
 		// TODO: TEMP
 		Ref<Renderer2D> m_Renderer2D;
 		Ref<RenderCommandBuffer> m_CommandBuffer;
-		Ref<RenderCommandBuffer> m_ScreenCommandBuffer; // TODO: TEMP FOR DEBUGGING FOR VISUALIZING DEPTH TEXT
 		Ref<UniformBufferSet> m_UniformBufferSet;
 		Ref<Pipeline> m_RenderingPipeline;
 		Ref<RenderPass> m_RenderingPass;
-		Ref<RenderPass> m_ScreenPass;
-		Ref<Material> m_ScreenPassMaterial;
-		Ref<Framebuffer> m_IntermediateBuffer;
 
 	};
 

@@ -158,15 +158,14 @@ namespace vkPlayground {
 		uint32_t indices[6] = { 0, 1, 2, 2, 3, 0 };
 		s_Data->QuadIndexBuffer = IndexBuffer::Create(indices, 6 * sizeof(uint32_t));
 
-		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/PreDepth.glsl");
+		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/Compositing.glsl");
 		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/PlaygroundStatic.glsl");
-
+		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/PreDepth.glsl");
 		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/Renderer2D_Quad.glsl");
 		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/Renderer2D_Line.glsl");
+		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/WireFrame.glsl");
 
-		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/SimpleShader.glsl");
-		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/TexturePass.glsl");
-		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/Compositing.glsl");
+		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/PlaygroundStatic1.glsl"); // TODO: REMOVE
 
 		constexpr uint32_t whiteTextureData = 0xffffffff;
 		TextureSpecification spec = {
@@ -357,7 +356,8 @@ namespace vkPlayground {
 			if (framebuffer->HasDepthAttachment())
 			{
 				attachments[colorAttachmentCount] = VkClearAttachment{
-					.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT,
+					// We do not need the stencil aspect since we are not using stencil buffers in our renderer
+					.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT /* | VK_IMAGE_ASPECT_STENCIL_BIT */,
 					.clearValue = clearValues[colorAttachmentCount]
 				};
 
@@ -450,7 +450,7 @@ namespace vkPlayground {
 		s_Data->DrawCallCount++;
 	}
 
-	void Renderer::RenderStaticMesh(Ref<RenderCommandBuffer> renderCommandBuffer, Ref<Pipeline> pipeline, Ref<StaticMesh> staticMesh, Ref<MeshSource> meshSource, uint32_t subMeshIndex, Ref<MaterialTable> materialTable)
+	void Renderer::RenderStaticMesh(Ref<RenderCommandBuffer> renderCommandBuffer, Ref<Pipeline> pipeline, Ref<StaticMesh> staticMesh, Ref<MeshSource> meshSource, uint32_t subMeshIndex, Ref<MaterialTable> materialTable, Ref<VertexBuffer> transformBuffer, uint32_t transformOffset, uint32_t instanceCount)
 	{
 		VKPG_VERIFY(staticMesh);
 		VKPG_VERIFY(meshSource);
@@ -461,8 +461,12 @@ namespace vkPlayground {
 
 		Ref<VertexBuffer> meshVB = meshSource->GetVertexBuffer();
 		VkBuffer vulkanMeshVB = meshVB->GetVulkanBuffer();
-		VkDeviceSize offsets[1] = {0};
+		VkDeviceSize offsets[1] = { 0 };
 		vkCmdBindVertexBuffers(commandBuffer, 0, 1, &vulkanMeshVB, offsets);
+
+		VkBuffer vulkanTransformVB = transformBuffer->GetVulkanBuffer();
+		VkDeviceSize instanceOffset[1] = { transformOffset };
+		vkCmdBindVertexBuffers(commandBuffer, 1, 1, &vulkanTransformVB, instanceOffset);
 
 		Ref<IndexBuffer> meshIB = meshSource->GetIndexBuffer();
 		VkBuffer vulkanMeshIB = meshIB->GetVulkanBuffer();
@@ -486,7 +490,90 @@ namespace vkPlayground {
 		Buffer uniformStorageBuffer = vulkanMaterial->GetUniformStorageBuffer();
 		vkCmdPushConstants(commandBuffer, layout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, static_cast<uint32_t>(uniformStorageBuffer.Size), uniformStorageBuffer.Data);
 
+		vkCmdDrawIndexed(commandBuffer, subMesh.IndexCount, instanceCount, subMesh.BaseIndex, subMesh.BaseVertex, 0);
+		s_Data->DrawCallCount++;
+	}
+
+	void Renderer::RenderStaticMesh(Ref<RenderCommandBuffer> renderCommandBuffer, Ref<Pipeline> pipeline, Ref<StaticMesh> staticMesh, Ref<MeshSource> meshSource, uint32_t subMeshIndex, Ref<MaterialTable> materialTable)
+	{
+		VKPG_VERIFY(staticMesh);
+		VKPG_VERIFY(meshSource);
+		VKPG_VERIFY(materialTable);
+
+		uint32_t frameIndex = Renderer::GetCurrentFrameIndex();
+		VkCommandBuffer commandBuffer = renderCommandBuffer->GetActiveCommandBuffer();
+
+		Ref<VertexBuffer> meshVB = meshSource->GetVertexBuffer();
+		VkBuffer vulkanMeshVB = meshVB->GetVulkanBuffer();
+		VkDeviceSize offsets[1] = { 0 };
+		vkCmdBindVertexBuffers(commandBuffer, 0, 1, &vulkanMeshVB, offsets);
+
+		Ref<IndexBuffer> meshIB = meshSource->GetIndexBuffer();
+		VkBuffer vulkanMeshIB = meshIB->GetVulkanBuffer();
+		vkCmdBindIndexBuffer(commandBuffer, vulkanMeshIB, 0, VK_INDEX_TYPE_UINT32);
+
+		const auto& subMeshes = meshSource->GetSubMeshes();
+		const MeshUtils::SubMesh& subMesh = subMeshes[subMeshIndex];
+		Ref<MaterialTable> meshMaterialTable = staticMesh->GetMaterials();
+		Ref<MaterialAsset> materialAsset = materialTable->HasMaterial(subMesh.MaterialIndex) ?
+			materialTable->GetMaterial(subMesh.MaterialIndex) :
+			meshMaterialTable->GetMaterial(subMesh.MaterialIndex);
+
+		Ref<Material> vulkanMaterial = materialAsset->GetMaterial();
+
+		VkPipelineLayout layout = pipeline->GetVulkanPipelineLayout();
+
+		VkDescriptorSet descriptorSet = vulkanMaterial->GetDescriptorSet(frameIndex);
+		if (descriptorSet)
+			vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, layout, vulkanMaterial->GetFirstSetIndex(), 1, &descriptorSet, 0, nullptr);
+
+		Buffer uniformStorageBuffer = vulkanMaterial->GetUniformStorageBuffer();
+		vkCmdPushConstants(commandBuffer, layout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, static_cast<uint32_t>(uniformStorageBuffer.Size), uniformStorageBuffer.Data);
+
 		vkCmdDrawIndexed(commandBuffer, subMesh.IndexCount, 1, subMesh.BaseIndex, subMesh.BaseVertex, 0);
+		s_Data->DrawCallCount++;
+	}
+
+	void Renderer::RenderStaticMeshWithMaterial(Ref<RenderCommandBuffer> renderCommandBuffer, Ref<Pipeline> pipeline, Ref<StaticMesh> staticMesh, Ref<MeshSource> meshSource, uint32_t subMeshIndex, Ref<Material> material, Ref<VertexBuffer> transformBuffer, uint32_t transformOffset, uint32_t instanceCount)
+	{
+		VKPG_VERIFY(staticMesh);
+		VKPG_VERIFY(meshSource);
+		VKPG_VERIFY(material);
+
+		uint32_t frameIndex = Renderer::GetCurrentFrameIndex();
+		VkCommandBuffer commandBuffer = renderCommandBuffer->GetActiveCommandBuffer();
+
+		Ref<VertexBuffer> meshVB = meshSource->GetVertexBuffer();
+		VkBuffer vulkanMeshVB = meshVB->GetVulkanBuffer();
+		VkDeviceSize offsets[1] = { 0 };
+		vkCmdBindVertexBuffers(commandBuffer, 0, 1, &vulkanMeshVB, offsets);
+
+		VkBuffer vulkanTrasformVB = transformBuffer->GetVulkanBuffer();
+		VkDeviceSize instanceOffset[1] = { transformOffset };
+		vkCmdBindVertexBuffers(commandBuffer, 1, 1, &vulkanTrasformVB, instanceOffset);
+
+		Ref<IndexBuffer> meshIB = meshSource->GetIndexBuffer();
+		VkBuffer vulkanMeshIB = meshIB->GetVulkanBuffer();
+		vkCmdBindIndexBuffer(commandBuffer, vulkanMeshIB, 0, VK_INDEX_TYPE_UINT32);
+
+		VkPipelineLayout layout = pipeline->GetVulkanPipelineLayout();
+
+		// We do not do this since the passes that use this method do not have descriptor sets.. only push constants
+		// VkDescriptorSet descriptorSet = material->GetDescriptorSet(frameIndex);
+		// if (descriptorSet)
+		// 	vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, layout, material->GetFirstSetIndex(), 1, &descriptorSet, 0, nullptr);
+
+		uint32_t pushConstantOffset = 0;
+		Buffer uniformStorageBuffer = material->GetUniformStorageBuffer();
+		if (uniformStorageBuffer)
+		{
+			vkCmdPushConstants(commandBuffer, layout, VK_SHADER_STAGE_FRAGMENT_BIT, pushConstantOffset, static_cast<uint32_t>(uniformStorageBuffer.Size), uniformStorageBuffer.Data);
+		}
+
+		const auto& subMeshes = meshSource->GetSubMeshes();
+		const auto& subMesh = subMeshes[subMeshIndex];
+
+		vkCmdDrawIndexed(commandBuffer, subMesh.IndexCount, instanceCount, subMesh.BaseIndex, subMesh.BaseVertex, 0);
 		s_Data->DrawCallCount++;
 	}
 
