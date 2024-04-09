@@ -7,12 +7,12 @@
  * NEXT STEP ON TUTORIAL: Compute Shaders
  *
  * NEXT THING TO WORK ON:
- * - BUG FIX: Not able to view depth texture in Release mode with multi sampling
+ * - Add compute passes to the engine so we can have environment maps and some IBL
+ * - SceneRenderer continue building all the passes
  * - Handle renderer descriptor pool situation and come up with some solutions for it... Read note written in Renderer.cpp (line: 101)
  * - Add a runtime layer so that we can test without imgui (Needs fixing)
  * - Work on Scene and Entity and Components so that we can finally work with the playground nicely
  * - Scene And Entity
- * - SceneRenderer
  * - Clean Up EditorLayer and manage the scene and scene renderer correctly
  * - OIT? With Weighted Blended technique using info provided from learnopengl.com <https://learnopengl.com/Guest-Articles/2020/OIT/Weighted-Blended> <https://github.com/nvpro-samples/vk_order_independent_transparency>
  * - DescriptorSetManager (Constant Expansion with shader reflection)
@@ -22,6 +22,11 @@
  * - DecriptorSetManager expansion to other types
  * - Remember to clear stuff that need to be cleared most importantly renderer related stuff
  * - RenderPassInputTypes...
+ * 
+ * NOTE (SceneRenderer):
+ *	- Currently the scene renderer all transparent and opaque meshes in one single geometry pass
+ *	- We will want to split that into to separate draw lists that get submitted separatly
+ *	- Since we want to add OIT in the future with weighted blended so we need to render opaque first then transparent...
  * 
  * NOTE (DescriptorSetManager):
  *	- By calling `vkResetDescriptorPool` we essentially return all allocated descriptor sets to the pool instead of individually calling
