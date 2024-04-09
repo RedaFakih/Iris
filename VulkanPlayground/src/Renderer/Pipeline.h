@@ -48,6 +48,10 @@ namespace vkPlayground {
 		bool DepthWrite = true;
 		bool WireFrame = false;
 		float LineWidth = 1.0f;
+
+		// NOTE: This determines whether the renderer keeps track of this dependecy. You may NOT want that since you are creating just some placeholder pipeline that
+		// you do not want the renderer to keep track of.
+		bool RegisterAsShaderDependency = true;
 	};
 
 	struct PipelineStatistics

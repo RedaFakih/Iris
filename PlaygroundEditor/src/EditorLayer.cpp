@@ -29,18 +29,10 @@
 
 namespace vkPlayground {
 
-	// TODO: This should NOT BE HERE
 	// TODO: REMOVE
-	struct UniformBufferData
-	{
-		glm::mat4 Model;
-		glm::mat4 ViewProjection;
-		glm::vec2 DepthUnpackConsts; // TODO: TEMPORARY ALSO IN SHADERS
-	};
 	static Ref<Texture2D> s_BillBoardTexture;
 	static Ref<MeshSource> s_MeshSource;
 	static Ref<StaticMesh> s_Mesh;
-	static glm::ivec2 s_SubMeshRange{ 0 };
 
 	EditorLayer::EditorLayer()
 		: Layer("EditorLayer"), m_EditorCamera(45.0f, 1280.0f, 720.0f, 0.1f, 10000.0f)
@@ -59,75 +51,26 @@ namespace vkPlayground {
 	{
 		// TODO: REMOVE
 		m_EditorScene = Scene::Create("Editor Scene");
-		m_ViewportRenderer = SceneRenderer::Create(m_EditorScene, { .RendererScale = 0.8f });
-		// TODO: 
-		//m_ViewportRenderer->SetScene(m_EditorScene);
-		//m_ViewportRenderer->SetLineWidth(m_LineWidth);
-		m_Renderer2D = Renderer2D::Create(); // TODO: Temp also for all the stuff inside Renderer2D!
+
+		m_ViewportRenderer = SceneRenderer::Create(m_EditorScene, { .RendererScale = 1.0f });
+		m_ViewportRenderer->SetScene(m_EditorScene);
+		m_ViewportRenderer->SetLineWidth(m_LineWidth);
+
+		m_Renderer2D = Renderer2D::Create();
 		m_Renderer2D->SetLineWidth(2.0f);
 
 		EditorResources::Init();
 
-		m_CommandBuffer = RenderCommandBuffer::Create(0, "EditorLayer");
-
-		// TODO: REMOVE!
-		Ref<Shader> meshShader = Renderer::GetShadersLibrary()->Get("PlaygroundStatic");
-
-		m_UniformBufferSet = UniformBufferSet::Create(sizeof(UniformBufferData));
-
-		AssimpMeshImporter importer("Resources/assets/meshes/Sponza/Sponza.gltf");
-		// AssimpMeshImporter importer("Resources/assets/meshes/Galio/scene.gltf");
+		// AssimpMeshImporter importer("Resources/assets/meshes/Sponza/Sponza.gltf");
+		AssimpMeshImporter importer("Resources/assets/meshes/stormtrooper/stormtrooper.gltf");
 		s_MeshSource = importer.ImportToMeshSource();
 		s_Mesh = StaticMesh::Create(s_MeshSource);
-		s_SubMeshRange.y = static_cast<int>(s_Mesh->GetSubMeshes().size());
 
 		TextureSpecification textureSpec = {
 			.DebugName = "Qiyana",
 			.GenerateMips = true
 		};
 		s_BillBoardTexture = Texture2D::Create(textureSpec, "Resources/assets/textures/qiyana.png");
-
-		constexpr float RenderingScale = 0.1f;
-		constexpr uint32_t Samples = RenderingScale < 0.7f ? 1 : 4;
-		// Rendering pass
-		{
-
-			FramebufferSpecification renderingFBSpec = {
-				.DebugName = "StaticRenderingFB",
-				.Scale = RenderingScale,
-				.ClearColor = { 0.0f, 0.0f, 0.0f, 1.0f },
-				.DepthClearValue = 0.0f,
-				.Attachments = { { ImageFormat::RGBA, AttachmentPassThroughUsage::Input }, { ImageFormat::RGBA }, { ImageFormat::RGBA }, { ImageFormat::DEPTH32F, AttachmentPassThroughUsage::Input } },
-				.Samples = Samples
-			};
-
-			PipelineSpecification spec = {
-				.DebugName = "StaticRenderingPipeline",
-				.Shader = Renderer::GetShadersLibrary()->Get("PlaygroundStatic1"),
-				.TargetFramebuffer = Framebuffer::Create(renderingFBSpec),
-				.VertexLayout = {
-					{ ShaderDataType::Float3, "a_Position" },
-					{ ShaderDataType::Float3, "a_Normal" },
-					{ ShaderDataType::Float3, "a_Tangent" },
-					{ ShaderDataType::Float3, "a_Binormal" },
-					{ ShaderDataType::Float2, "a_TexCoord" }
-				},
-				.Topology = PrimitiveTopology::Triangles,
-				.LineWidth = 1.0f
-			};
-			m_RenderingPipeline = Pipeline::Create(spec);
-
-			RenderPassSpecification staticRenderingPassSpec = {
-				.DebugName = "StaticRenderingPass",
-				.Pipeline = m_RenderingPipeline,
-				.MarkerColor = { 1.0f, 0.0f, 0.0f, 1.0f }
-			};
-			m_RenderingPass = RenderPass::Create(staticRenderingPassSpec);
-
-			m_RenderingPass->SetInput("TransformUniformBuffer", m_UniformBufferSet);
-
-			m_RenderingPass->Bake();
-		}
 	}
 
 	void EditorLayer::OnDetach()
@@ -148,41 +91,12 @@ namespace vkPlayground {
 		if (depthLinearizeMul * depthLinearizeAdd < 0)
 			depthLinearizeAdd = -depthLinearizeAdd;
 
-		// Update uniform buffers (Begin Scene stuff)
-		UniformBufferData dataUB = {
-			// .Model = glm::rotate(glm::mat4(1.0f), Application::Get().GetTime() * glm::radians(45.0f), glm::vec3(0.0f, 1.0f, 0.0f)) * glm::scale(glm::mat4(1.0f), glm::vec3(1.0f)) ,
-			.Model = glm::translate(glm::mat4(1.0f), glm::vec3{ 0.0f, 0.0f, -2.0f }) * glm::scale(glm::mat4(1.0f), glm::vec3{0.05f, 0.05f, 0.05f}),
-			// .Model = glm::translate(glm::mat4(1.0f), glm::vec3{ 0.0f, 0.0f, 0.0f }),
-			.ViewProjection = std::move(m_EditorCamera.GetProjectionMatrix() * m_EditorCamera.GetViewMatrix()),
-			.DepthUnpackConsts = { depthLinearizeMul, depthLinearizeAdd }
-		};
-
-		m_UniformBufferSet->Get()->SetData(&dataUB, sizeof(UniformBufferData));
-
 		m_ViewportRenderer->SetScene(m_EditorScene);
 		m_ViewportRenderer->BeginScene({ m_EditorCamera, m_EditorCamera.GetViewMatrix(), m_EditorCamera.GetNearClip(), m_EditorCamera.GetFarClip(), m_EditorCamera.GetFOV() });
 		
 		m_ViewportRenderer->SubmitStaticMesh(s_Mesh, s_MeshSource, s_Mesh->GetMaterials(), glm::mat4(1.0f));
 		
 		m_ViewportRenderer->EndScene();
-
-		m_CommandBuffer->Begin();
-
-		// First render pass renders to the framebuffer
-		{
-			Renderer::BeginRenderPass(m_CommandBuffer, m_RenderingPass);
-#if 1
-			for (int i = s_SubMeshRange.y - 1; i >= s_SubMeshRange.x; i--)
-				Renderer::RenderStaticMesh(m_CommandBuffer, m_RenderingPipeline, s_Mesh, s_MeshSource, i, s_Mesh->GetMaterials());
-#else
-			for (int i = s_SubMeshRange.x; i < s_SubMeshRange.y; i++)
-				Renderer::RenderStaticMesh(m_CommandBuffer, m_RenderingPipeline, s_Mesh, s_MeshSource, i, s_Mesh->GetMaterials());
-#endif
-			Renderer::EndRenderPass(m_CommandBuffer);
-		}
-
-		m_CommandBuffer->End();
-		m_CommandBuffer->Submit();
 
 		// if (m_ViewportRenderer->GetFinalPassImage())
 		// {
@@ -220,11 +134,12 @@ namespace vkPlayground {
 		// 	// so we need to pipeline barrier the images to sample from them in the following passes
 		// }
 
-		// NOTE: This gives the image upside down since that is the output of the SceneRenderer and then we flip it in imgui so...
 		if (Input::IsKeyDown(KeyCode::R))
 		{
+			// TODO: This currently does not work since the final image that is returned is a floating point image
 			Buffer textureBuffer;
-			Ref<Texture2D> texture = m_RenderingPass->GetOutput(0);
+			// Ref<Texture2D> texture = m_RenderingPass->GetOutput(0);
+			Ref<Texture2D> texture = m_ViewportRenderer->GetFinalPassImage();
 			texture->CopyToHostBuffer(textureBuffer, true);
 			stbi_flip_vertically_on_write(true);
 			stbi_write_jpg("Resources/assets/textures/output.jpg", texture->GetWidth(), texture->GetHeight(), 4, textureBuffer.Data, 100);
@@ -246,18 +161,6 @@ namespace vkPlayground {
 		StartDocking();
 
 		ImGui::ShowDemoWindow(); // Testing imgui stuff
-
-		//ImGui::Begin("Depth Image");
-
-		//UI::Image(m_ScreenPass->GetOutput(0), ImGui::GetContentRegionAvail(), { 0, 1 }, { 1, 0 });
-
-		//ImGui::End();
-
-		//ImGui::Begin("Normals Image");
-
-		//UI::Image(m_RenderingPass->GetOutput(1), ImGui::GetContentRegionAvail(), {0, 1}, {1, 0});
-
-		//ImGui::End();
 
 		ShowShadersPanel();
 
@@ -373,8 +276,6 @@ namespace vkPlayground {
 			ImGui::Columns(1);
 		}
 
-		ImGui::SliderInt("SubMesh Start Index", &s_SubMeshRange.x, 0, s_SubMeshRange.y - 1);
-		ImGui::SliderInt("SubMesh End Index", &s_SubMeshRange.y, s_SubMeshRange.x + 1, static_cast<int>(s_Mesh->GetSubMeshes().size()));
 		float fov = glm::degrees(m_EditorCamera.GetFOV());
 		if (ImGui::SliderFloat("FOV", &fov, 30, 120))
 			m_EditorCamera.SetFOV(fov);

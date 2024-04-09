@@ -67,10 +67,6 @@ namespace vkPlayground {
 
 		// TODO: TEMP
 		Ref<Renderer2D> m_Renderer2D;
-		Ref<RenderCommandBuffer> m_CommandBuffer;
-		Ref<UniformBufferSet> m_UniformBufferSet;
-		Ref<Pipeline> m_RenderingPipeline;
-		Ref<RenderPass> m_RenderingPass;
 
 	};
 

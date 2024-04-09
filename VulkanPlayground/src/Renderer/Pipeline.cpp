@@ -78,7 +78,9 @@ namespace vkPlayground {
 		VKPG_ASSERT(spec.TargetFramebuffer);
 
 		Invalidate();
-		Renderer::RegisterShaderDependency(spec.Shader, this);
+
+		if (spec.RegisterAsShaderDependency)
+			Renderer::RegisterShaderDependency(spec.Shader, this);
 	}
 
 	Pipeline::~Pipeline()

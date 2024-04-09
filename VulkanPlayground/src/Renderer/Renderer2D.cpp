@@ -5,10 +5,6 @@
 
 namespace vkPlayground {
 
-	// NOTE(TODO): The framebuffer that is created in the init function with all its pipelines and everything is persistant throughout the lifetime of the application
-	// since it stays alive by the pipeline being a shader dependency which the Renderer stores in a global map
-	// Maybe that is usefull for the runtime? But for the editor it is actually useless and just waste of memory
-
 	Ref<Renderer2D> Renderer2D::Create(const Renderer2DSpecification& specification)
 	{
 		return CreateRef<Renderer2D>(specification);
@@ -42,11 +38,12 @@ namespace vkPlayground {
 
 		uint32_t framesInFlight = Renderer::GetConfig().FramesInFlight;
 
+		// NOTE: This is just a place holder framebuffer and is not used... Waste of memory to be fixed.
 		FramebufferSpecification framebufferSpec = {
-			.DebugName = "Renderer2D Framebuffer",
+			.DebugName = "PlaceholderFramebuffer",
 			.ClearColorOnLoad = false,
 			.ClearColor = { 0.1f, 0.5f, 0.5f, 1.0f },
-			.Attachments = { ImageFormat::RGBA32F, ImageFormat::DEPTH24STENCIL8 },
+			.Attachments = { ImageFormat::RGBA },
 			.Samples = 1,
 			.SwapchainTarget = m_Specification.SwapChainTarget
 		};
@@ -64,7 +61,9 @@ namespace vkPlayground {
 					{ ShaderDataType::Float, "a_TexIndex" },
 					{ ShaderDataType::Float, "a_TilingFactor" }
 				},
-				.BackFaceCulling = false
+				.BackFaceCulling = false,
+				// Do not register as shader dependency on creation...
+				.RegisterAsShaderDependency = false
 			};
 
 			RenderPassSpecification quadSpec = {
@@ -136,6 +135,8 @@ namespace vkPlayground {
 				},
 				.Topology = PrimitiveTopology::Lines,
 				.LineWidth = 2.0f,
+				// Do not register as shader dependency on creation...
+				.RegisterAsShaderDependency = false
 			};
 
 			{
@@ -289,14 +290,18 @@ namespace vkPlayground {
 		{
 			{
 				PipelineSpecification pipelineSpec = m_QuadPass->GetSpecification().Pipeline->GetSpecification();
+				pipelineSpec.TargetFramebuffer = nullptr; // Release whatever framebuffer was before
 				pipelineSpec.TargetFramebuffer = framebuffer;
+				pipelineSpec.RegisterAsShaderDependency = true; // Start tracking the pipeline as a shader dependency in the renderer
 				RenderPassSpecification& renderpassSpec = m_QuadPass->GetSpecification();
 				renderpassSpec.Pipeline = Pipeline::Create(pipelineSpec);
 			}
 
 			{
 				PipelineSpecification pipelineSpec = m_LinePass->GetSpecification().Pipeline->GetSpecification();
+				pipelineSpec.TargetFramebuffer = nullptr; // Release whatever framebuffer was before
 				pipelineSpec.TargetFramebuffer = framebuffer;
+				pipelineSpec.RegisterAsShaderDependency = true; // Start tracking the pipeline as a shader dependency in the renderer
 				RenderPassSpecification& renderpassSpec = m_LinePass->GetSpecification();
 				renderpassSpec.Pipeline = Pipeline::Create(pipelineSpec);
 			}

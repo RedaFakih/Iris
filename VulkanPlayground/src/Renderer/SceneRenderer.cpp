@@ -79,7 +79,7 @@ namespace vkPlayground {
 			RenderPassSpecification preDepthRenderPassSpec = {
 				.DebugName = "OpaquePreDepthRenderPass",
 				.Pipeline = m_PreDepthPipeline,
-				.MarkerColor = { 1.0f, 0.0f, 0.0f, 1.0f }
+				.MarkerColor = { 1.0f, 0.0f, 1.0f, 1.0f }
 			};
 			m_PreDepthPass = RenderPass::Create(preDepthRenderPassSpec);
 			m_PreDepthMaterial = Material::Create(preDepthPipelineSpec.Shader, "PreDepthMaterial");
@@ -151,12 +151,12 @@ namespace vkPlayground {
 			RenderPassSpecification compositePassSpec = {
 				.DebugName = "CompositePass",
 				.Pipeline = Pipeline::Create(compPipelineSpec),
-				.MarkerColor = { 1.0f, 0.0f, 1.0f, 1.0f }
+				.MarkerColor = { 0.0f, 1.0f, 0.0f, 1.0f }
 			};
 			m_CompositePass = RenderPass::Create(compositePassSpec);
 			m_CompositeMaterial = Material::Create(Renderer::GetShadersLibrary()->Get("Compositing"));
 
-			m_CompositePass->SetInput("Camera", m_UBSCamera);
+			// m_CompositePass->SetInput("Camera", m_UBSCamera);
 			m_CompositePass->SetInput("u_Texture", m_GeometryPass->GetOutput(0));
 			m_CompositePass->SetInput("u_DepthTexture", m_PreDepthPass->GetDepthOutput());
 			m_CompositePass->Bake();
