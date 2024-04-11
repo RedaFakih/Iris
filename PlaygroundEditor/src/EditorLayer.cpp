@@ -27,6 +27,8 @@
 // TODO: REMOVE
 #include <stb/stb_image_writer/stb_image_write.h>
 
+bool g_WireFrame = false;
+
 namespace vkPlayground {
 
 	// TODO: REMOVE
@@ -56,13 +58,10 @@ namespace vkPlayground {
 		m_ViewportRenderer->SetScene(m_EditorScene);
 		m_ViewportRenderer->SetLineWidth(m_LineWidth);
 
-		m_Renderer2D = Renderer2D::Create();
-		m_Renderer2D->SetLineWidth(2.0f);
-
 		EditorResources::Init();
 
-		// AssimpMeshImporter importer("Resources/assets/meshes/Sponza/Sponza.gltf");
-		AssimpMeshImporter importer("Resources/assets/meshes/stormtrooper/stormtrooper.gltf");
+		AssimpMeshImporter importer("Resources/assets/meshes/Sponza/Sponza.gltf");
+		// AssimpMeshImporter importer("Resources/assets/meshes/stormtrooper/stormtrooper.gltf");
 		s_MeshSource = importer.ImportToMeshSource();
 		s_Mesh = StaticMesh::Create(s_MeshSource);
 
@@ -98,41 +97,40 @@ namespace vkPlayground {
 		
 		m_ViewportRenderer->EndScene();
 
-		// if (m_ViewportRenderer->GetFinalPassImage())
-		// {
-		// 	m_Renderer2D->ResetStats();
-		// 	m_Renderer2D->BeginScene(m_EditorCamera.GetViewProjection(), m_EditorCamera.GetViewMatrix());
-		// 	m_Renderer2D->SetTargetFramebuffer(m_ViewportRenderer->GetExternalCompositeFramebuffer());
-		// 
-		// 	m_Renderer2D->DrawQuadBillboard({ -3.053855f, 4.328760f, 1.0f }, { 2.0f, 2.0f }, { 1.0f, 0.0f, 1.0f, 1.0f });
-		// 	
-		// 	for (int x = -15; x < 15; x++)
-		// 	{
-		// 		for (int y = -3; y < 3; y++)
-		// 		{
-		// 			m_Renderer2D->DrawQuad({ x, y, 2.0f }, { 1, 1 }, { glm::sin(x), glm::cos(y), glm::sin(x + y), 1.0f });
-		// 		}
-		// 	}
-		// 	
-		// 	m_Renderer2D->DrawAABB({ {5.0f, 5.0f, 1.0f}, {7.0f, 7.0f, -4.0f} }, glm::mat4(1.0f));
-		// 	m_Renderer2D->DrawAABB({ {4.0f, 4.0f, -1.0f}, {5.0f, 5.0f, -4.0f} }, glm::translate(glm::mat4(1.0f), {2.0f, -1.0f, -0.5f}), { 0.0f, 1.0f, 1.0f, 1.0f });
-		// 	m_Renderer2D->DrawCircle({ 5.0f, 5.0f, -2.0f }, glm::vec3(1.0f), 2.0f, { 1.0f, 0.0f, 1.0f, 1.0f });
-		// 	// m_Renderer2D->DrawLine(glm::vec3(0.0f), glm::vec3(6.0f), glm::vec4(1.0f, 0.0f, 1.0f, 1.0f));
-		// 	// m_Renderer2D->DrawLine(glm::vec3(0.0f), glm::vec3(-20.2f, 3.0f, -5.0f), glm::vec4(0.2f, 0.3f, 0.8f, 1.0f));
-		// 	// m_Renderer2D->DrawLine(glm::vec3(0.0f, -2.0f, 0.0f), glm::vec3(0.0f, -5.0f, 0.0f), glm::vec4(1.0f, 0.0f, 0.0f, 1.0f));
-		// 	m_Renderer2D->DrawQuadBillboard({ -2.0f, -2.0f, -0.5f }, { 2.0f, 2.0f }, s_BillBoardTexture, 2.0f, { 1.0f, 0.7f, 1.0f, 0.5f });
-		// 	// m_Renderer2D->DrawAABB(s_MeshSource->GetBoundingBox(), glm::mat4(1.0f));
-		// 
-		// 	// Draw the Axes of my system
-		// 	m_Renderer2D->DrawLine(glm::vec3(0.0f), glm::vec3(1.0f, 0.0f, 0.0f) * 10.0f, glm::vec4(1.0f, 0.0f, 0.0f, 1.0f));
-		// 	m_Renderer2D->DrawLine(glm::vec3(0.0f), glm::vec3(0.0f, 1.0f, 0.0f) * 10.0f, glm::vec4(0.0f, 1.0f, 0.0f, 1.0f));
-		// 	m_Renderer2D->DrawLine(glm::vec3(0.0f), glm::vec3(0.0f, 0.0f, 1.0f) * 10.0f, glm::vec4(0.0f, 0.0f, 1.0f, 1.0f));
-		// 
-		// 	m_Renderer2D->EndScene();
-		// 	// Here the color attachment is now in VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
-		// 	// Depth attachment is now in VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
-		// 	// so we need to pipeline barrier the images to sample from them in the following passes
-		// }
+		if (m_ViewportRenderer->GetFinalPassImage())
+		{
+			Ref<Renderer2D> renderer2D = m_ViewportRenderer->GetRenderer2D();
+
+			renderer2D->ResetStats();
+			renderer2D->BeginScene(m_EditorCamera.GetViewProjection(), m_EditorCamera.GetViewMatrix());
+			renderer2D->SetTargetFramebuffer(m_ViewportRenderer->GetExternalCompositeFramebuffer());
+		
+			renderer2D->DrawQuadBillboard({ -3.053855f, 4.328760f, 1.0f }, { 2.0f, 2.0f }, { 1.0f, 0.0f, 1.0f, 1.0f });
+			
+			for (int x = -15; x < 15; x++)
+			{
+				for (int y = -3; y < 3; y++)
+				{
+					renderer2D->DrawQuad({ x, y, 2.0f }, { 1, 1 }, { glm::sin(x), glm::cos(y), glm::sin(x + y), 1.0f });
+				}
+			}
+			
+			renderer2D->DrawAABB({ {5.0f, 5.0f, 1.0f}, {7.0f, 7.0f, -4.0f} }, glm::mat4(1.0f));
+			renderer2D->DrawAABB({ {4.0f, 4.0f, -1.0f}, {5.0f, 5.0f, -4.0f} }, glm::translate(glm::mat4(1.0f), {2.0f, -1.0f, -0.5f}), { 0.0f, 1.0f, 1.0f, 1.0f });
+			renderer2D->DrawCircle({ 5.0f, 5.0f, -2.0f }, glm::vec3(1.0f), 2.0f, { 1.0f, 0.0f, 1.0f, 1.0f });
+			// renderer2D->DrawLine(glm::vec3(0.0f), glm::vec3(6.0f), glm::vec4(1.0f, 0.0f, 1.0f, 1.0f));
+			// renderer2D->DrawLine(glm::vec3(0.0f), glm::vec3(-20.2f, 3.0f, -5.0f), glm::vec4(0.2f, 0.3f, 0.8f, 1.0f));
+			// renderer2D->DrawLine(glm::vec3(0.0f, -2.0f, 0.0f), glm::vec3(0.0f, -5.0f, 0.0f), glm::vec4(1.0f, 0.0f, 0.0f, 1.0f));
+			renderer2D->DrawQuadBillboard({ -2.0f, -2.0f, -0.5f }, { 2.0f, 2.0f }, s_BillBoardTexture, 2.0f, { 1.0f, 0.7f, 1.0f, 0.5f });
+			// renderer2D->DrawAABB(s_MeshSource->GetBoundingBox(), glm::mat4(1.0f));
+		
+			// Draw the Axes of my system
+			renderer2D->DrawLine(glm::vec3(0.0f), glm::vec3(1.0f, 0.0f, 0.0f) * 10.0f, glm::vec4(1.0f, 0.0f, 0.0f, 1.0f));
+			renderer2D->DrawLine(glm::vec3(0.0f), glm::vec3(0.0f, 1.0f, 0.0f) * 10.0f, glm::vec4(0.0f, 1.0f, 0.0f, 1.0f));
+			renderer2D->DrawLine(glm::vec3(0.0f), glm::vec3(0.0f, 0.0f, 1.0f) * 10.0f, glm::vec4(0.0f, 0.0f, 1.0f, 1.0f));
+
+			renderer2D->EndScene();
+		}
 
 		if (Input::IsKeyDown(KeyCode::R))
 		{
@@ -287,15 +285,17 @@ namespace vkPlayground {
 		if (ImGui::SliderFloat("Opacity", &opacity, 0.0f, 5.0f))
 			m_ViewportRenderer->SetOpacity(opacity);
 
-		float lineWidth = m_Renderer2D->GetLineWidth();
+		float lineWidth = m_ViewportRenderer->GetLineWidth();
 		if (ImGui::SliderFloat("LineWidth", &lineWidth, 0.1f, 6.0f))
-			m_Renderer2D->SetLineWidth(lineWidth);
+			m_ViewportRenderer->SetLineWidth(lineWidth);
 
 		ImGui::Text("Average Framerate: %i", static_cast<uint32_t>(1.0f / Application::Get().GetFrameTime().GetSeconds()));
 
 		bool isVSync = Application::Get().GetWindow().IsVSync();
 		if (ImGui::Checkbox("VSync", &isVSync))
 			Application::Get().GetWindow().SetVSync(isVSync);
+
+		ImGui::Checkbox("WireFrame", &g_WireFrame);
 
 		ImGui::End();
 	}

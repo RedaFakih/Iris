@@ -82,10 +82,10 @@ void main()
 	color *= u_Uniforms.Exposure;
 
 	// Grain
-	float grainStrength = 10.0f;
+	float grainStrength = 15.0f;
 	float x = (v_TexCoord.x + 1.0f) * (v_TexCoord.y + 1.0f) * u_Uniforms.Time;
 	float grain = mod((mod(x, 13.0f) + 1.0f) * (mod(x, 123.0f) + 1.0f), 0.01f) - 0.006f;
-	color += grain * grainStrength;
+	// color += grain * grainStrength;
 
 	color = ACESTonemap(color);
 	color = GammaCorrect(color, gamma);

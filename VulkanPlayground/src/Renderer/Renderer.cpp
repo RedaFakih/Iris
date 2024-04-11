@@ -161,11 +161,9 @@ namespace vkPlayground {
 		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/Compositing.glsl");
 		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/PlaygroundStatic.glsl");
 		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/PreDepth.glsl");
-		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/Renderer2D_Quad.glsl");
 		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/Renderer2D_Line.glsl");
+		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/Renderer2D_Quad.glsl");
 		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/WireFrame.glsl");
-
-		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/PlaygroundStatic1.glsl"); // TODO: REMOVE
 
 		constexpr uint32_t whiteTextureData = 0xffffffff;
 		TextureSpecification spec = {

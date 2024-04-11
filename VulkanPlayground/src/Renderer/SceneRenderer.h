@@ -68,6 +68,7 @@ namespace vkPlayground {
 		Ref<Renderer2D> GetRenderer2D() { return m_Renderer2D; }
 
 		void SetLineWidth(float lineWidth);
+		float GetLineWidth() const { return m_LineWidth; }
 
 		uint32_t GetViewportWidth() const { return m_ViewportWidth; }
 		uint32_t GetViewportHeight() const { return m_ViewportHeight; }

@@ -6,6 +6,8 @@
 #include "Renderer/Renderer.h"
 #include "UniformBufferSet.h"
 
+extern bool g_WireFrame;
+
 namespace vkPlayground {
 
 	Ref<SceneRenderer> SceneRenderer::Create(Ref<Scene> scene, const SceneRendererSpecification& spec)
@@ -97,7 +99,7 @@ namespace vkPlayground {
 				.ClearDepthOnLoad = false,
 				// TODO: The first attachment has to load... Since the skybox (when we have it...) pass writes to it before
 				// NOTE: The second attachment does not blend since we do not want to blend with luminance in the alpha channel
-				.Attachments = { { ImageFormat::RGBA32F, AttachmentLoadOp::Clear } , { ImageFormat::RGBA16F, false }, ImageFormat::RGBA, ImageFormat::DEPTH32F },
+				.Attachments = { { ImageFormat::RGBA32F, AttachmentLoadOp::Clear } , { ImageFormat::RGBA16F, false }, ImageFormat::RGBA, { ImageFormat::DEPTH32F, AttachmentPassThroughUsage::Input } },
 				.Samples = g_Samples
 			};
 			geometryFBSpec.ExistingImages[3] = m_PreDepthPass->GetDepthOutput(true); // Ignore the resolve image if the buffer is multisampeld
@@ -129,9 +131,9 @@ namespace vkPlayground {
 		// Composite
 		{
 			FramebufferSpecification compFBSpec = {
-				.DebugName = "CompositeFB",
+				.DebugName = "CompositePassFB",
 				.ClearColor = { 0.2f, 0.3f, 0.8f, 1.0f },
-				.Attachments = { ImageFormat::RGBA32F },
+				.Attachments = { { ImageFormat::RGBA32F, AttachmentPassThroughUsage::Input } },
 				.Samples = 1 // This will not have anything but resolve images at the end
 			};
 		
@@ -168,7 +170,7 @@ namespace vkPlayground {
 				.DebugName = "CompositingFB",
 				.ClearColorOnLoad = false,
 				.ClearDepthOnLoad = false,
-				.Attachments = { ImageFormat::RGBA32F, ImageFormat::DEPTH32F },
+				.Attachments = { { ImageFormat::RGBA32F, AttachmentPassThroughUsage::Input }, { ImageFormat::DEPTH32F, AttachmentPassThroughUsage::Input } },
 				.Samples = 1 // Will have only resolve images
 			};
 			compositingFBSpec.ExistingImages[0] = m_CompositePass->GetOutput(0);
@@ -275,6 +277,8 @@ namespace vkPlayground {
 			m_GeometryPass->GetTargetFramebuffer()->Resize(m_ViewportWidth, m_ViewportHeight);
 
 			m_CompositePass->GetTargetFramebuffer()->Resize(m_ViewportWidth, m_ViewportHeight);
+
+			m_CompositingFramebuffer->Resize(m_ViewportWidth, m_ViewportHeight);
 		}
 
 		// Update uniform buffers data for the starting frame
@@ -377,8 +381,10 @@ namespace vkPlayground {
 	{
 		m_LineWidth = lineWidth;
 
+		m_Renderer2D->SetLineWidth(lineWidth);
+
 		if (m_GeometryWireFramePass)
-			m_GeometryWireFramePass->GetPipeline()->GetSpecification().LineWidth = m_LineWidth;
+			m_GeometryWireFramePass->GetPipeline()->GetSpecification().LineWidth = lineWidth;
 	}
 
 	void SceneRenderer::FlushDrawList()
@@ -393,6 +399,10 @@ namespace vkPlayground {
 			GeometryPass();
 
 			CompositePass();
+
+			/*
+			 * Here PreDepthImage is in VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
+			 */
 
 			m_CommandBuffer->End();
 			m_CommandBuffer->Submit();
@@ -494,30 +504,19 @@ namespace vkPlayground {
 
 		}
 
-		// TODO: Wireframe
-		//{
-		//	Renderer::BeginRenderPass(m_CommandBuffer, m_GeometryWireFramePass);
+		// TODO: WireFrames for selected meshes when selection exists
+		if (g_WireFrame)
+		{
+			Renderer::BeginRenderPass(m_CommandBuffer, m_GeometryWireFramePass);
 
-		//	for (const auto& [mk, dc] : m_StaticMeshDrawList)
-		//	{
-		//		const auto& transformData = m_MeshTransformMap.at(mk);
-		//		Renderer::RenderStaticMeshWithMaterial(m_CommandBuffer, m_GeometryWireFramePass->GetPipeline(), dc.StaticMesh, dc.MeshSource, dc.SubMeshIndex, m_WireFrameMaterial, m_MeshTransformBuffers[frameIndex].VertexBuffer, transformData.TransformOffset + dc.InstanceOffset * sizeof(TransformVertexData), dc.InstanceCount);
-		//	}
+			for (const auto& [mk, dc] : m_StaticMeshDrawList)
+			{
+				const auto& transformData = m_MeshTransformMap.at(mk);
+				Renderer::RenderStaticMeshWithMaterial(m_CommandBuffer, m_GeometryWireFramePass->GetPipeline(), dc.StaticMesh, dc.MeshSource, dc.SubMeshIndex, m_WireFrameMaterial, m_MeshTransformBuffers[frameIndex].VertexBuffer, transformData.TransformOffset + dc.InstanceOffset * sizeof(TransformVertexData), dc.InstanceCount);
+			}
 
-		//	Renderer::EndRenderPass(m_CommandBuffer);
-		//}
-
-		//Renderer::InsertImageMemoryBarrier(
-		//	m_CommandBuffer->GetActiveCommandBuffer(),
-		//	m_CompositePass->GetOutput(0)->GetVulkanImage(),
-		//	VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
-		//	VK_ACCESS_SHADER_READ_BIT,
-		//	VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-		//	VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-		//	VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-		//	VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-		//	{ .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = 1 }
-		//);
+			Renderer::EndRenderPass(m_CommandBuffer);
+		}
 	}
 
 	void SceneRenderer::ClearPass()

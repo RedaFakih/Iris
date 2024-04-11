@@ -278,8 +278,40 @@ namespace vkPlayground {
 
 		}
 
+		// Insert image barriers to prepare the images for rendering
+		PrepareForRendering();
+
 		m_RenderCommandBuffer->End();
 		m_RenderCommandBuffer->Submit();
+	}
+
+	void Renderer2D::PrepareForRendering()
+	{
+		// For rendering the color image
+		Renderer::InsertImageMemoryBarrier(
+			m_RenderCommandBuffer->GetActiveCommandBuffer(),
+			m_LinePass->GetOutput(0)->GetVulkanImage(),
+			VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+			VK_ACCESS_SHADER_READ_BIT,
+			VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+			VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+			VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+			VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+			{ .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = 1 }
+		);
+
+		// For rendering the depth image
+		Renderer::InsertImageMemoryBarrier(
+			m_RenderCommandBuffer->GetActiveCommandBuffer(),
+			m_LinePass->GetDepthOutput()->GetVulkanImage(),
+			VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+			VK_ACCESS_SHADER_READ_BIT,
+			VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+			VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL,
+			VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT,
+			VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+			{ .aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = 1 }
+		);
 	}
 
 	void Renderer2D::SetTargetFramebuffer(Ref<Framebuffer> framebuffer)

@@ -65,9 +65,6 @@ namespace vkPlayground {
 		bool m_ViewportPanelFocused = false;
 		bool m_AllowViewportCameraEvents = false;
 
-		// TODO: TEMP
-		Ref<Renderer2D> m_Renderer2D;
-
 	};
 
 }

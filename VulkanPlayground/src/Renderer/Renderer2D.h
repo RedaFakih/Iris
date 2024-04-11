@@ -100,6 +100,8 @@ namespace vkPlayground {
 
 
 	private:
+		void PrepareForRendering();
+
 		void AddQuadBuffer();
 		void AddLineBuffer();
 
@@ -120,7 +122,7 @@ namespace vkPlayground {
 
 		QuadVertex*& GetWriteableQuadBuffer();
 		LineVertex*& GetWriteableLineBuffer();
-
+		
 	private:
 		Renderer2DSpecification m_Specification;
 		Ref<RenderCommandBuffer> m_RenderCommandBuffer;
