@@ -8,7 +8,7 @@ Descriptor sets are ascending to their frequency of being bound (meaning higher 
 
  The following are the buffers and images that will be bound to those sets...
 
- layout(std140, set = 1, binding = 0) uniform Camera
+layout(std140, set = 1, binding = 0) uniform Camera
 {
 	mat4 ViewProjectionMatrix;
 	mat4 InverseViewProjectionMatrix;

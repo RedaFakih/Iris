@@ -47,6 +47,8 @@ void main()
 #version 450 core
 #stage fragment
 
+layout(early_fragment_tests) in;
+
 void main()
 {
     // Only write to depth.

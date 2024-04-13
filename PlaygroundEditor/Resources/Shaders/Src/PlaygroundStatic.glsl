@@ -103,7 +103,7 @@ layout(push_constant) uniform Materials
 } u_MaterialUniforms;
 
 vec3 s_LightColor = vec3(1.0f);
-vec3 s_LightPos = vec3(-20.2f, 3.0f, -5.0f);
+vec3 s_LightPos = vec3(-20.2f, 6.0f, -5.0f);
 
 void main()
 {

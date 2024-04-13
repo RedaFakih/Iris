@@ -121,7 +121,7 @@ namespace vkPlayground {
 
 			// If no descriptors are in the current set
 			if (!shaderDescriptorSets.at(set))
-				break;
+				continue;
 
 			// Check for set availablity
 			if (!m_InputResources.contains(set))
@@ -167,6 +167,7 @@ namespace vkPlayground {
 		if (!Validate())
 		{
 			VKPG_CORE_ERROR_TAG("Renderer", "[RenderPass ({})::Bake] Validation failed!", m_Specification.DebugName);
+			VKPG_VERIFY(false);
 			return;
 		}
 

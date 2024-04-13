@@ -36,6 +36,7 @@ namespace vkPlayground {
 
 		float GetCameraSpeed() const;
 
+		glm::vec3 GetLookAtDerection() const { return m_Direction; }
 		glm::vec3 GetUpDirection() const;
 		glm::vec3 GetRightDirection() const;
 		glm::vec3 GetForwardDirection() const;
@@ -108,6 +109,7 @@ namespace vkPlayground {
 
 		constexpr static float MIN_SPEED = 0.0005f;
 		constexpr static float MAX_SPEED = 2.0f;
+
 	};
 
 }

@@ -44,8 +44,8 @@ namespace vkPlayground {
 
 		VertexInputLayout vertexLayout = {
 			{ ShaderDataType::Float3, "a_Position" },
-			{ ShaderDataType::Float3, "a_Normal" },
-			{ ShaderDataType::Float3, "a_Tangent" },
+			{ ShaderDataType::Float3, "a_Normal"   },
+			{ ShaderDataType::Float3, "a_Tangent"  },
 			{ ShaderDataType::Float3, "a_Binormal" },
 			{ ShaderDataType::Float2, "a_TexCoord" }
 		};
@@ -95,7 +95,7 @@ namespace vkPlayground {
 			FramebufferSpecification geometryFBSpec = {
 				.DebugName = "StaticGeometryPassFB",
 				.ClearColorOnLoad = true,
-				.ClearColor = { 0.0f, 0.0f, 0.0f, 1.0f },
+				.ClearColor = { 0.04f, 0.04f, 0.04f, 1.0f },
 				.ClearDepthOnLoad = false,
 				// TODO: The first attachment has to load... Since the skybox (when we have it...) pass writes to it before
 				// NOTE: The second attachment does not blend since we do not want to blend with luminance in the alpha channel
@@ -178,6 +178,34 @@ namespace vkPlayground {
 			m_CompositingFramebuffer = Framebuffer::Create(compositingFBSpec);
 		}
 
+		// Grid
+		{
+			PipelineSpecification gridPipelineSpec = {
+				.DebugName = "GridPipeline",
+				.Shader = Renderer::GetShadersLibrary()->Get("Grid"),
+				.TargetFramebuffer = m_CompositingFramebuffer,
+				.VertexLayout = {
+					{ ShaderDataType::Float3, "a_Position" },
+					{ ShaderDataType::Float2, "a_TexCoord" }
+				},
+				.BackFaceCulling = false,
+				.DepthTest = true,
+				.DepthWrite = true
+			};
+
+			RenderPassSpecification gridPassSpec = {
+				.DebugName = "GridPass",
+				.Pipeline = Pipeline::Create(gridPipelineSpec),
+				.MarkerColor = { 1.0f, 0.5f, 1.0f, 1.0f }
+			};
+			m_GridPass = RenderPass::Create(gridPassSpec);
+			m_GridMaterial = Material::Create(gridPipelineSpec.Shader, "GridMaterial");
+			m_GridMaterial->Set("u_Uniforms.Scale", 10.0f);
+
+			m_GridPass->SetInput("Camera", m_UBSCamera);
+			m_GridPass->Bake();
+		}
+
 		// Wireframe pass
 		{
 			PipelineSpecification wireframePipelineSpec = {
@@ -188,6 +216,7 @@ namespace vkPlayground {
 				.InstanceLayout = instanceLayout,
 				.BackFaceCulling = false,
 				.DepthTest = true,
+				.DepthWrite = true,
 				.WireFrame = true,
 				.LineWidth = 2.0f
 			};
@@ -203,11 +232,6 @@ namespace vkPlayground {
 
 			m_GeometryWireFramePass->SetInput("Camera", m_UBSCamera);
 			m_GeometryWireFramePass->Bake();
-		}
-
-		// Grid
-		{
-			// TODO:
 		}
 
 		// Skybox
@@ -499,12 +523,15 @@ namespace vkPlayground {
 		Renderer::SubmitFullScreenQuad(m_CommandBuffer, m_CompositePass->GetPipeline(), m_CompositeMaterial);
 		Renderer::EndRenderPass(m_CommandBuffer);
 
-		// TODO: Grid
+		if (m_Options.ShowGrid)
 		{
-
+			Renderer::BeginRenderPass(m_CommandBuffer, m_GridPass);
+			Renderer::SubmitFullScreenQuad(m_CommandBuffer, m_GridPass->GetPipeline(), m_GridMaterial);
+			Renderer::EndRenderPass(m_CommandBuffer);
 		}
 
 		// TODO: WireFrames for selected meshes when selection exists
+		// TODO: if (m_Options.ShowSelectedInWireFrame)
 		if (g_WireFrame)
 		{
 			Renderer::BeginRenderPass(m_CommandBuffer, m_GeometryWireFramePass);

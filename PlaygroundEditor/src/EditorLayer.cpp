@@ -27,7 +27,9 @@
 // TODO: REMOVE
 #include <stb/stb_image_writer/stb_image_write.h>
 
+// TODO: REMOVE
 bool g_WireFrame = false;
+bool g_Render2D = true;
 
 namespace vkPlayground {
 
@@ -60,8 +62,8 @@ namespace vkPlayground {
 
 		EditorResources::Init();
 
-		AssimpMeshImporter importer("Resources/assets/meshes/Sponza/Sponza.gltf");
-		// AssimpMeshImporter importer("Resources/assets/meshes/stormtrooper/stormtrooper.gltf");
+		// AssimpMeshImporter importer("Resources/assets/meshes/Sponza/Sponza.gltf");
+		AssimpMeshImporter importer("Resources/assets/meshes/stormtrooper/stormtrooper.gltf");
 		s_MeshSource = importer.ImportToMeshSource();
 		s_Mesh = StaticMesh::Create(s_MeshSource);
 
@@ -93,7 +95,7 @@ namespace vkPlayground {
 		m_ViewportRenderer->SetScene(m_EditorScene);
 		m_ViewportRenderer->BeginScene({ m_EditorCamera, m_EditorCamera.GetViewMatrix(), m_EditorCamera.GetNearClip(), m_EditorCamera.GetFarClip(), m_EditorCamera.GetFOV() });
 		
-		m_ViewportRenderer->SubmitStaticMesh(s_Mesh, s_MeshSource, s_Mesh->GetMaterials(), glm::mat4(1.0f));
+		m_ViewportRenderer->SubmitStaticMesh(s_Mesh, s_MeshSource, s_Mesh->GetMaterials(), glm::mat4(1.0f) * glm::translate(glm::mat4(1.0f), {0.0f, 0.0f, 0.0f}));
 		
 		m_ViewportRenderer->EndScene();
 
@@ -105,29 +107,31 @@ namespace vkPlayground {
 			renderer2D->BeginScene(m_EditorCamera.GetViewProjection(), m_EditorCamera.GetViewMatrix());
 			renderer2D->SetTargetFramebuffer(m_ViewportRenderer->GetExternalCompositeFramebuffer());
 		
-			renderer2D->DrawQuadBillboard({ -3.053855f, 4.328760f, 1.0f }, { 2.0f, 2.0f }, { 1.0f, 0.0f, 1.0f, 1.0f });
-			
-			for (int x = -15; x < 15; x++)
+			if (g_Render2D)
 			{
-				for (int y = -3; y < 3; y++)
+				renderer2D->DrawQuadBillboard({ -3.053855f, 4.328760f, 1.0f }, { 2.0f, 2.0f }, { 1.0f, 0.0f, 1.0f, 1.0f });
+
+				for (int x = -15; x < 15; x++)
 				{
-					renderer2D->DrawQuad({ x, y, 2.0f }, { 1, 1 }, { glm::sin(x), glm::cos(y), glm::sin(x + y), 1.0f });
+					for (int y = -3; y < 3; y++)
+					{
+						renderer2D->DrawQuad({ x, y, 2.0f }, { 1, 1 }, { glm::sin(x), glm::cos(y), glm::sin(x + y), 1.0f });
+					}
 				}
+
+				renderer2D->DrawAABB({ {5.0f, 5.0f, 1.0f}, {7.0f, 7.0f, -4.0f} }, glm::mat4(1.0f));
+				renderer2D->DrawAABB({ {4.0f, 4.0f, -1.0f}, {5.0f, 5.0f, -4.0f} }, glm::translate(glm::mat4(1.0f), { 2.0f, -1.0f, -0.5f }), { 0.0f, 1.0f, 1.0f, 1.0f });
+				renderer2D->DrawCircle({ 5.0f, 5.0f, -2.0f }, glm::vec3(1.0f), 2.0f, { 1.0f, 0.0f, 1.0f, 1.0f });
+				// renderer2D->DrawLine(glm::vec3(0.0f), glm::vec3(6.0f), glm::vec4(1.0f, 0.0f, 1.0f, 1.0f));
+				// renderer2D->DrawLine(glm::vec3(0.0f), glm::vec3(-20.2f, 3.0f, -5.0f), glm::vec4(0.2f, 0.3f, 0.8f, 1.0f));
+				// renderer2D->DrawLine(glm::vec3(0.0f, -2.0f, 0.0f), glm::vec3(0.0f, -5.0f, 0.0f), glm::vec4(1.0f, 0.0f, 0.0f, 1.0f));
+				renderer2D->DrawQuadBillboard({ -2.0f, -2.0f, -0.5f }, { 2.0f, 2.0f }, s_BillBoardTexture, 2.0f, { 1.0f, 0.7f, 1.0f, 0.5f });
+				// renderer2D->DrawAABB(s_MeshSource->GetBoundingBox(), glm::mat4(1.0f));
+
+				//renderer2D->DrawLine(glm::vec3(0.0f), glm::vec3(1.0f, 0.0f, 0.0f), glm::vec4(1.0f, 0.0f, 0.0f, 1.0f));
+				//renderer2D->DrawLine(glm::vec3(0.0f), glm::vec3(0.0f, 1.0f, 0.0f), glm::vec4(0.0f, 1.0f, 0.0f, 1.0f));
+				//renderer2D->DrawLine(glm::vec3(0.0f), glm::vec3(0.0f, 0.0f, 1.0f), glm::vec4(0.0f, 0.0f, 1.0f, 1.0f));
 			}
-			
-			renderer2D->DrawAABB({ {5.0f, 5.0f, 1.0f}, {7.0f, 7.0f, -4.0f} }, glm::mat4(1.0f));
-			renderer2D->DrawAABB({ {4.0f, 4.0f, -1.0f}, {5.0f, 5.0f, -4.0f} }, glm::translate(glm::mat4(1.0f), {2.0f, -1.0f, -0.5f}), { 0.0f, 1.0f, 1.0f, 1.0f });
-			renderer2D->DrawCircle({ 5.0f, 5.0f, -2.0f }, glm::vec3(1.0f), 2.0f, { 1.0f, 0.0f, 1.0f, 1.0f });
-			// renderer2D->DrawLine(glm::vec3(0.0f), glm::vec3(6.0f), glm::vec4(1.0f, 0.0f, 1.0f, 1.0f));
-			// renderer2D->DrawLine(glm::vec3(0.0f), glm::vec3(-20.2f, 3.0f, -5.0f), glm::vec4(0.2f, 0.3f, 0.8f, 1.0f));
-			// renderer2D->DrawLine(glm::vec3(0.0f, -2.0f, 0.0f), glm::vec3(0.0f, -5.0f, 0.0f), glm::vec4(1.0f, 0.0f, 0.0f, 1.0f));
-			renderer2D->DrawQuadBillboard({ -2.0f, -2.0f, -0.5f }, { 2.0f, 2.0f }, s_BillBoardTexture, 2.0f, { 1.0f, 0.7f, 1.0f, 0.5f });
-			// renderer2D->DrawAABB(s_MeshSource->GetBoundingBox(), glm::mat4(1.0f));
-		
-			// Draw the Axes of my system
-			renderer2D->DrawLine(glm::vec3(0.0f), glm::vec3(1.0f, 0.0f, 0.0f) * 10.0f, glm::vec4(1.0f, 0.0f, 0.0f, 1.0f));
-			renderer2D->DrawLine(glm::vec3(0.0f), glm::vec3(0.0f, 1.0f, 0.0f) * 10.0f, glm::vec4(0.0f, 1.0f, 0.0f, 1.0f));
-			renderer2D->DrawLine(glm::vec3(0.0f), glm::vec3(0.0f, 0.0f, 1.0f) * 10.0f, glm::vec4(0.0f, 0.0f, 1.0f, 1.0f));
 
 			renderer2D->EndScene();
 		}
@@ -296,6 +300,10 @@ namespace vkPlayground {
 			Application::Get().GetWindow().SetVSync(isVSync);
 
 		ImGui::Checkbox("WireFrame", &g_WireFrame);
+
+		ImGui::Checkbox("Grid", &m_ViewportRenderer->GetOptions().ShowGrid);
+
+		ImGui::Checkbox("Render 2D", &g_Render2D);
 
 		ImGui::End();
 	}

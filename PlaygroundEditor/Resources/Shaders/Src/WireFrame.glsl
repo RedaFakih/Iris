@@ -44,6 +44,8 @@ void main()
 #version 450 core
 #stage fragment
 
+layout(early_fragment_tests) in;
+
 layout(location = 0) out vec4 o_Color;
 
 layout(push_constant) uniform Material

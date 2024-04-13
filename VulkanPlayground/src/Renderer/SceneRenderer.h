@@ -16,15 +16,18 @@ namespace vkPlayground {
 	 *  - Keep track of viewport size...
 	 */
 
-	// TODO: For grid options and what not
-	// struct SceneRendererOptions
-
 	struct SceneRendererCamera
 	{
 		Camera Camera;
 		glm::mat4 ViewMatrix;
 		float Near, Far; // Non-reversed (they are reversed originally so that z buffer works)
 		float FOV;
+	};
+
+	struct SceneRendererOptions
+	{
+		bool ShowGrid = true;
+		bool ShowSelectedInWireFrame = false; // TODO:
 	};
 
 	struct SceneRendererSpecification
@@ -77,6 +80,7 @@ namespace vkPlayground {
 		float GetOpacity() const { return m_Opacity; }
 
 		const Statistics& GetStatistics() const { return m_Statistics; }
+		SceneRendererOptions& GetOptions() { return m_Options; }
 		const SceneRendererSpecification& GetSpecification() const { return m_Specification; }
 
 	private:
@@ -132,6 +136,7 @@ namespace vkPlayground {
 	private:
 		Ref<Scene> m_Scene;
 		SceneRendererSpecification m_Specification;
+		SceneRendererOptions m_Options;
 
 		Ref<RenderCommandBuffer> m_CommandBuffer;
 
@@ -181,9 +186,10 @@ namespace vkPlayground {
 		Ref<RenderPass> m_GeometryWireFramePass;
 		Ref<Material> m_WireFrameMaterial;
 
-		// TODO: Grid...
-		// Ref<RenderPass> m_GridRenderPass
-		// Ref<Material> m_GridMaterial;
+		Ref<RenderPass> m_GridPass;
+		Ref<Material> m_GridMaterial;
+
+
 		// TODO: ReadBack image for mouse picking?
 
 		Ref<Material> m_CompositeMaterial;

@@ -25,7 +25,7 @@ namespace vkPlayground {
 		// Check the version statement
 		std::size_t eol = shaderSource.find_first_of("\r\n", pos) + 1; // Add 1 since we would want to keep the new lines in the preprocessed string
 		std::vector<std::string> tokens = TokenizeString(shaderSource.substr(pos, eol - pos));
-		VKPG_VERIFY(tokens.size() >= 3 && tokens[1] == "version", "Invalid `#version` expression or not found!");
+		VKPG_VERIFY((tokens.size() >= 3) && (tokens[1] == "version"), "Invalid `#version` expression or not found!");
 		pos = shaderSource.find('#', pos + 1);
 
 		while (pos != std::string::npos)

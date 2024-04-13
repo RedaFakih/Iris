@@ -19,16 +19,16 @@ layout(location = 0) out vec4 o_Color;
 
 layout(location = 0) in vec2 v_TexCoord;
 
-//layout(std140, set = 1, binding = 0) uniform Camera
-//{
-//	mat4 ViewProjectionMatrix;
-//	mat4 InverseViewProjectionMatrix;
-//	mat4 ProjectionMatrix;
-//	mat4 InverseProjectionMatrix;
-//	mat4 ViewMatrix;
-//	mat4 InverseViewMatrix;
-//	vec2 DepthUnpackConsts;
-//} u_Camera;
+// layout(std140, set = 1, binding = 0) uniform Camera
+// {
+// 	mat4 ViewProjectionMatrix;
+// 	mat4 InverseViewProjectionMatrix;
+// 	mat4 ProjectionMatrix;
+// 	mat4 InverseProjectionMatrix;
+// 	mat4 ViewMatrix;
+// 	mat4 InverseViewMatrix;
+// 	vec2 DepthUnpackConsts;
+// } u_Camera;
 
 layout(set = 2, binding = 0) uniform sampler2D u_Texture;
 layout(set = 2, binding = 1) uniform sampler2D u_DepthTexture;

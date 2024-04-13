@@ -33,7 +33,7 @@
 	if (!(check))\
 	{\
 		std::source_location loc = std::source_location::current();\
-		VKPG_FATAL_TAG("Core", "Verify Failed in File: {0}, Function: {1}, Line: {2}!", loc.file_name(), loc.function_name(), loc.line());\
+		VKPG_CORE_FATAL_TAG("Core", "Verify Failed in File: {0}, Function: {1}, Line: {2}!", loc.file_name(), loc.function_name(), loc.line());\
 		VKPG_CORE_VERIFY_INTERNAL(__VA_ARGS__);\
 		VKPG_DEBUG_BREAK();\
 	}\

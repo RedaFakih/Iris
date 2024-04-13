@@ -159,6 +159,9 @@ namespace vkPlayground {
 		s_Data->QuadIndexBuffer = IndexBuffer::Create(indices, 6 * sizeof(uint32_t));
 
 		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/Compositing.glsl");
+		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/Grid.glsl");
+		// NOTE: For later to be fixed...
+		// Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/RayCastedGrid.glsl");
 		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/PlaygroundStatic.glsl");
 		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/PreDepth.glsl");
 		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/Renderer2D_Line.glsl");
