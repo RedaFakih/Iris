@@ -5,9 +5,10 @@
 #include "Core/Events/MouseEvents.h"
 #include "Core/Layer.h"
 #include "Editor/EditorCamera.h"
-#include "Scene/Scene.h"
-#include "Renderer/SceneRenderer.h"
+#include "Editor/PanelsManager.h"
 #include "Renderer/Renderer2D.h"
+#include "Renderer/SceneRenderer.h"
+#include "Scene/Scene.h"
 
 #include <imgui/imgui_internal.h>
 
@@ -42,18 +43,25 @@ namespace Iris {
 
 	// Primary panels for editor
 	private:
-		void StartDocking();
-		void EndDocking();
-		//void ShowMenuBarItems();
+		void UI_StartDocking();
+		void UI_EndDocking();
 
-		void ShowViewport();
-		void ShowShadersPanel();
-		void ShowFontsPanel();
+		// Return title bar height
+		float UI_DrawTitleBar();
+		void UI_HandleManualWindowResize();
+		bool UI_TitleBarHitTest(int x, int y) const;
+		void UI_DrawMainMenuBar();
+
+		void UI_ShowViewport();
+		void UI_ShowShadersPanel();
+		void UI_ShowFontsPanel();
 
 	private:
 		Ref<Scene> m_EditorScene;
 		Ref<SceneRenderer> m_ViewportRenderer;
 		Ref<Renderer2D> m_Renderer2D;
+
+		Scope<PanelsManager> m_PanelsManager;
 
 		EditorCamera m_EditorCamera;
 
@@ -62,11 +70,22 @@ namespace Iris {
 
 		float m_LineWidth = 2.0f;
 
+		bool m_TitleBarHovered = false;
+		uint32_t m_TitleBarTargetColor;
+		uint32_t m_TitleBarActiveColor;
+		uint32_t m_TitleBarPreviousColor;
+		bool m_AnimateTitleBarColor = true;
+
 		bool m_StartedCameraClickInViewport = false;
 
 		bool m_ViewportPanelMouseOver = false;
 		bool m_ViewportPanelFocused = false;
 		bool m_AllowViewportCameraEvents = false;
+
+		// UI...
+		bool m_ShowImGuiStackToolWindow = false;
+		bool m_ShowImGuiMetricsWindow = false;
+		bool m_ShowImGuiStyleEditor = false;
 
 	};
 

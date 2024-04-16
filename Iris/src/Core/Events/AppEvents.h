@@ -66,4 +66,23 @@ namespace Iris::Events {
 
 	};
 
+	class WindowTitleBarHitTestEvent : public Event
+	{
+	public:
+		WindowTitleBarHitTestEvent(int x, int y, int& hit)
+			: m_X(x), m_Y(y), m_Hit(hit) {}
+
+		inline int GetX() const { return m_X; }
+		inline int GetY() const { return m_Y; }
+		inline void SetHit(bool hit) { m_Hit = static_cast<int>(hit); }
+
+		IR_EVENT_CLASS_TYPE(WindowTitleBarHitTest)
+
+	private:
+		int m_X;
+		int m_Y;
+		int& m_Hit;
+
+	};
+
 }

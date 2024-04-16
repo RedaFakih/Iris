@@ -26,40 +26,17 @@ namespace Iris {
 		PanelsManager() = default;
 		~PanelsManager();
 
-		[[nodiscard]] Scope<PanelsManager> Create();
+		[[nodiscard]] static Scope<PanelsManager> Create();
 
 		void OnImGuiRender();
 		void OnEvent(Events::Event& e);
 		void SetSceneContext(const Ref<Scene> scene);
 
-		// TODO:
-		// void Serialize();
-		// void Deserialize();
+		void Serialize();
+		void Deserialize();
 
 		PanelSpecification* GetPanelSpec(uint32_t id);
 		const PanelSpecification* GetPanelSpec(uint32_t id) const;
-
-		template<typename TPanel, typename... Args>
-		Ref<TPanel> AddPanel(PanelCategory category, const char* strID, bool isOpenByDefault, Args&&... args)
-		{
-			return AddPanel(category, PanelSpecification{
-				.ID = strID,
-				.Name = strID,
-				.Panel = TPanel::Create(std::forward<Args>(args)...),
-				.IsOpen = isOpenByDefault
-			});
-		}
-
-		template<typename TPanel, typename... Args>
-		Ref<TPanel> AddPanel(PanelCategory category, const char* strID, const char* displayName, bool isOpenByDefault, Args&&... args)
-		{
-			return AddPanel(category, PanelSpecification{
-				.ID = strID,
-				.Name = displayName,
-				.Panel = TPanel::Create(std::forward<Args>(args)...),
-				.IsOpen = isOpenByDefault
-				});
-		}
 
 		template<typename TPanel>
 		Ref<TPanel> AddPanel(PanelCategory category, const PanelSpecification& spec)
@@ -76,7 +53,29 @@ namespace Iris {
 			}
 
 			panelMap[panelIDHash] = spec;
-			return reinterpret_cast<TPanel>(spec.Panel);
+			return spec.Panel;
+		}
+
+		template<typename TPanel, typename... Args>
+		Ref<TPanel> AddPanel(PanelCategory category, const char* strID, bool isOpenByDefault, Args&&... args)
+		{
+			return AddPanel<TPanel>(category, PanelSpecification{
+				.ID = strID,
+				.Name = strID,
+				.Panel = TPanel::Create(std::forward<Args>(args)...),
+				.IsOpen = isOpenByDefault
+			});
+		}
+
+		template<typename TPanel, typename... Args>
+		Ref<TPanel> AddPanel(PanelCategory category, const char* strID, const char* displayName, bool isOpenByDefault, Args&&... args)
+		{
+			return AddPanel<TPanel>(category, PanelSpecification{
+				.ID = strID,
+				.Name = displayName,
+				.Panel = TPanel::Create(std::forward<Args>(args)...),
+				.IsOpen = isOpenByDefault
+			});
 		}
 
 		void RemovePanel(const char* strID);
@@ -88,12 +87,12 @@ namespace Iris {
 
 			uint32_t panelID = Hash::GenerateFNVHash(strID);
 
-			for (const auto& panelMap : m_Panels)
+			for (auto& panelMap : m_Panels)
 			{
 				if (!panelMap.contains(panelID))
 					continue;
 
-				return reinterpret_cast<TPanel>(panelMap.at(panelID).Panel);
+				return panelMap.at(panelID).Panel;
 			}
 
 			IR_CORE_ERROR_TAG("PanelsManager", "Could not find panel with ID: {}", strID);

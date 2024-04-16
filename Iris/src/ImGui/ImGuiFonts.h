@@ -27,7 +27,7 @@ namespace Iris {
 		void Load(const FontSpecification& spec, bool isDefault = false);
 		void PushFont(const std::string_view name) const;
 		void PopFont() const;
-		const ImFont* GetFont(const std::string_view name) const;
+		ImFont* GetFont(const std::string_view name) const;
 
 		const ImFont* GetDefaultFont() const;
 		inline const std::unordered_map<std::string, ImFont*>& GetFonts() const { return m_Fonts; }

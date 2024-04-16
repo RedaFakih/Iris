@@ -59,7 +59,7 @@ namespace Iris {
 		ImGui::PopFont();
 	}
 
-	const ImFont* ImGuiFontsLibrary::GetFont(const std::string_view name) const
+	ImFont* ImGuiFontsLibrary::GetFont(const std::string_view name) const
 	{
 		std::string nameStr(name);
 		IR_VERIFY(m_Fonts.contains(nameStr), "Failed to find the font with provided name!");

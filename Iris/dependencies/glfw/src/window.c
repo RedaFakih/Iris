@@ -86,6 +86,12 @@ void _glfwInputWindowSize(_GLFWwindow* window, int width, int height)
         window->callbacks.size((GLFWwindow*) window, width, height);
 }
 
+void _glfwInputTitleBarHitTest(_GLFWwindow* window, int posX, int posY, int* hit)
+{
+    if (window->callbacks.tbhittest)
+        window->callbacks.tbhittest((GLFWwindow*)window, posX, posY, hit);
+}
+
 // Notifies shared code that a window has been iconified or restored
 //
 void _glfwInputWindowIconify(_GLFWwindow* window, GLFWbool iconified)
@@ -240,6 +246,7 @@ void glfwDefaultWindowHints(void)
     _glfw.hints.window.resizable    = GLFW_TRUE;
     _glfw.hints.window.visible      = GLFW_TRUE;
     _glfw.hints.window.decorated    = GLFW_TRUE;
+    _glfw.hints.window.titlebar     = GLFW_TRUE;
     _glfw.hints.window.focused      = GLFW_TRUE;
     _glfw.hints.window.autoIconify  = GLFW_TRUE;
     _glfw.hints.window.centerCursor = GLFW_TRUE;
@@ -391,6 +398,9 @@ GLFWAPI void glfwWindowHint(int hint, int value)
             return;
         case GLFW_REFRESH_RATE:
             _glfw.hints.refreshRate = value;
+            return;
+        case GLFW_TITLEBAR:
+            _glfw.hints.window.titlebar = value ? GLFW_TRUE : GLFW_FALSE;
             return;
     }
 
@@ -832,6 +842,8 @@ GLFWAPI int glfwGetWindowAttrib(GLFWwindow* handle, int attrib)
             return window->resizable;
         case GLFW_DECORATED:
             return window->decorated;
+        case GLFW_TITLEBAR:
+            return _glfw.hints.window.titlebar;
         case GLFW_FLOATING:
             return window->floating;
         case GLFW_AUTO_ICONIFY:
@@ -892,6 +904,14 @@ GLFWAPI void glfwSetWindowAttrib(GLFWwindow* handle, int attrib, int value)
             if (!window->monitor)
                 _glfw.platform.setWindowDecorated(window, value);
             return;
+
+        case GLFW_TITLEBAR:
+            if (_glfw.hints.window.titlebar == value)
+                return;
+
+            _glfw.hints.window.titlebar = value;
+            if (!window->monitor)
+                _glfw.platform.setWindowTitleBar(window, value);
 
         case GLFW_FLOATING:
             window->floating = value;
@@ -987,6 +1007,17 @@ GLFWAPI GLFWwindowposfun glfwSetWindowPosCallback(GLFWwindow* handle,
     _GLFW_REQUIRE_INIT_OR_RETURN(NULL);
     _GLFW_SWAP(GLFWwindowposfun, window->callbacks.pos, cbfun);
     return cbfun;
+}
+
+GLFWAPI GLFWtitlebarhittestfun glfwSetTitleBarHitTestCallback(GLFWwindow* handle,
+                                                              GLFWtitlebarhittestfun tbhtfun)
+{
+    _GLFWwindow* window = (_GLFWwindow*)handle;
+    assert(window != NULL);
+
+    _GLFW_REQUIRE_INIT_OR_RETURN(NULL);
+    _GLFW_SWAP(GLFWtitlebarhittestfun, window->callbacks.tbhittest, tbhtfun);
+    return tbhtfun;
 }
 
 GLFWAPI GLFWwindowsizefun glfwSetWindowSizeCallback(GLFWwindow* handle,

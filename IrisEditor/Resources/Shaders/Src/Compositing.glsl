@@ -31,7 +31,7 @@ layout(location = 0) in vec2 v_TexCoord;
 // } u_Camera;
 
 layout(set = 2, binding = 0) uniform sampler2D u_Texture;
-layout(set = 2, binding = 1) uniform sampler2D u_DepthTexture;
+// layout(set = 2, binding = 1) uniform sampler2D u_DepthTexture;
 
 layout(push_constant) uniform Uniforms
 {
@@ -41,13 +41,13 @@ layout(push_constant) uniform Uniforms
 } u_Uniforms;
 
 // From XeGTAO
-//float LinearizeDepth(const float screenDepth)
-//{
-//	float depthLinearizeMul = u_Camera.DepthUnpackConsts.x;
-//	float depthLinearizeAdd = u_Camera.DepthUnpackConsts.y;
-//	// Optimised version of "-cameraClipNear / (cameraClipFar - projDepth * (cameraClipFar - cameraClipNear)) * cameraClipFar"
-//	return depthLinearizeMul / (depthLinearizeAdd - screenDepth);
-//}
+// float LinearizeDepth(const float screenDepth)
+// {
+// 	float depthLinearizeMul = u_Camera.DepthUnpackConsts.x;
+// 	float depthLinearizeAdd = u_Camera.DepthUnpackConsts.y;
+// 	// Optimised version of "-cameraClipNear / (cameraClipFar - projDepth * (cameraClipFar - cameraClipNear)) * cameraClipFar"
+// 	return depthLinearizeMul / (depthLinearizeAdd - screenDepth);
+// }
 
 // Based on http://www.oscars.org/science-technology/sci-tech-projects/aces
 vec3 ACESTonemap(vec3 color)
@@ -92,6 +92,6 @@ void main()
 	color *= u_Uniforms.Opacity;
 
 	o_Color = vec4(color, 1.0f);
-//	float depth = 1.0f / LinearizeDepth(texture(u_DepthTexture, v_TexCoord).r);
-//	o_Color = vec4(vec3(depth), 1.0f);
+	// float depth = 1.0f / LinearizeDepth(texture(u_DepthTexture, v_TexCoord).r);
+	// o_Color = vec4(vec3(depth), 1.0f);
 }

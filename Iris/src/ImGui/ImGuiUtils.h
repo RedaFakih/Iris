@@ -40,6 +40,14 @@ namespace Iris::UI {
 		~ImGuiScopedColor() { ImGui::PopStyleColor(); }
 	};
 
+	struct ImGuiScopedFont
+	{
+		ImGuiScopedFont(const ImGuiScopedFont&) = delete;
+		ImGuiScopedFont& operator=(const ImGuiScopedFont&) = delete;
+		ImGuiScopedFont(ImFont* font) { ImGui::PushFont(font); }
+		~ImGuiScopedFont() { ImGui::PopFont(); }
+	};
+
 	struct ImGuiScopedID
 	{
 		template<typename T>
@@ -60,12 +68,14 @@ namespace Iris::UI {
 
 	void PopID();
 
+	void SetToolTip(std::string_view text, float delayInSeconds = 0.1f, bool allowWhenDisabled = true, ImVec2 padding = ImVec2(5, 5));
+
 	void ShowHelpMarker(const char* description);
 
 	void ToolTip(const std::string& tip, const ImVec4& color = ImVec4(1.0f, 1.0f, 0.529f, 0.7f));
 
 	template<typename... Args>
-	void ToolTipWithVariableArgs(const ImVec4& color, const std::string& tip, Args&&... args)
+	inline void ToolTipWithVariableArgs(const ImVec4& color, const std::string& tip, Args&&... args)
 	{
 		ImGui::BeginTooltip();
 		ImGui::TextColored(color, tip.c_str(), std::forward<Args>(args)...);
@@ -179,35 +189,57 @@ namespace Iris::UI {
 
 	ImRect RectOffset(const ImRect& input, float x, float y);
 
+	// The delay won't work on texts, because the timer isn't tracked for them.
+	bool IsItemHovered(float delayInSeconds = 0.1f, ImGuiHoveredFlags flags = 0);
+
 	// Returns whether the last items is disabled
 	bool IsItemDisabled();
 
+	typedef int OutlineFlags;
+	enum OutlineFlags_
+	{
+		OutlineFlags_None = 0,   // draw no activity outline
+		OutlineFlags_WhenHovered = 1 << 1,   // draw an outline when item is hovered
+		OutlineFlags_WhenActive = 1 << 2,   // draw an outline when item is active
+		OutlineFlags_WhenInactive = 1 << 3,   // draw an outline when item is inactive
+		OutlineFlags_HighlightActive = 1 << 4,   // when active, the outline is in highlight colour
+		OutlineFlags_NoHighlightActive = OutlineFlags_WhenHovered | OutlineFlags_WhenActive | OutlineFlags_WhenInactive,
+		OutlineFlags_NoOutlineInactive = OutlineFlags_WhenHovered | OutlineFlags_WhenActive | OutlineFlags_HighlightActive,
+		OutlineFlags_All = OutlineFlags_WhenHovered | OutlineFlags_WhenActive | OutlineFlags_WhenInactive | OutlineFlags_HighlightActive,
+	};
+
 	// Draw an outline for the last item
-	void DrawItemActivityOutline(float rounding = GImGui->Style.FrameRounding, bool drawWhenNotActive = false, ImColor colorWhenActive = Colors::Theme::Accent);
+	void DrawItemActivityOutline(OutlineFlags flags = OutlineFlags_All, ImColor colorHighlight = Colors::Theme::Accent, float rounding = GImGui->Style.FrameRounding);
 
 	void UnderLine(bool fullWidth = false, float offsetX = 0.0f, float offsetY = -1.0f);
 
 	void RenderWindowOuterBorders(ImGuiWindow* currentWindow);
 	
+	// Exposed resize behavior for native OS windows
+	bool UpdateWindowManualResize(ImGuiWindow* window, ImVec2& newSize, ImVec2& newPosition);
+
 	/////////////////////////////////////////////////////////
 	// UI...
 	/////////////////////////////////////////////////////////
 
+	bool BeginPopup(const char* strID, ImGuiWindowFlags flags = 0);
+	void EndPopup();
+
+	bool BeginMenuBar(const ImRect& barRectangle);
+	void EndMenuBar();
+
 	bool PropertyGridHeader(const std::string& name, bool openByDefault = true);
-
 	void BeginPropertyGrid(uint32_t columns = 2, bool defaultWidth = true);
-
 	void EndPropertyGrid();
 
 	void Separator(ImVec2 size, ImVec4 color);
 
 	bool PropertyString(const char* label, const char* value, bool isError = false);
-
 	bool PropertyStringReadOnly(const char* label, const char* value, bool isErorr = false);
-
 	bool PropertyFloat(const char* label, float& value, float delta = 0.1f, float min = 0.0f, float max = 0.0f, const char* helpText = "");
-
 	bool PropertyBool(const char* label, bool& value, const char* helpText = "");
+	bool PropertySliderFloat(const char* label, float& value, float min = 0.0f, float max = 0.0f, const char* format = "%.3f", const char* helpText = "");
+	bool PropertySliderFloat2(const char* label, ImVec2& value, float min = 0.0f, float max = 0.0f, const char* format = "%.3f", const char* helpText = "");
 
 	template<typename Enum, typename Type = int32_t>
 	inline bool PropertyDropdown(const char* label, const char** options, int optionCount, Enum& selected, const char* helpText = "")
@@ -260,10 +292,6 @@ namespace Iris::UI {
 	}
 
 	bool PropertyDropdown(const char* label, const char** options, int optionCount, int* selected, const char* helpText = "");
-
-	bool PropertySliderFloat(const char* label, float& value, float min = 0.0f, float max = 0.0f, const char* format = "%.3f", const char* helpText = "");
-
-	bool PropertySliderFloat2(const char* label, ImVec2& value, float min = 0.0f, float max = 0.0f, const char* format = "%.3f", const char* helpText = "");
 
 	bool MultiLineText(const char* label, std::string& value, const ImVec2& size = ImVec2(0, 0), ImGuiInputTextFlags flags = 0, ImGuiInputTextCallback callback = NULL, void* user_data = NULL);
 
@@ -320,5 +348,56 @@ namespace Iris::UI {
 
 	// Normal image
 	void Image(const Ref<Texture2D>& image, const ImVec2& size, const ImVec2& uv0 = ImVec2(0, 0), const ImVec2& uv1 = ImVec2(1, 1), const ImVec4& tint_col = ImVec4(1, 1, 1, 1), const ImVec4& border_col = ImVec4(0, 0, 0, 0));
+
+	/////////////////////////////////////////////////////////////////////////////////////////
+	// Borders...
+
+	void DrawBorder(ImVec2 rectMin, ImVec2 rectMax, const ImVec4& borderColour, float thickness = 1.0f, float offsetX = 0.0f, float offsetY = 0.0f);
+
+	inline void DrawBorder(const ImVec4& borderColour, float thickness = 1.0f, float offsetX = 0.0f, float offsetY = 0.0f)
+	{
+		DrawBorder(ImGui::GetItemRectMin(), ImGui::GetItemRectMax(), borderColour, thickness, offsetX, offsetY);
+	}
+
+	inline void DrawBorder(float thickness = 1.0f, float offsetX = 0.0f, float offsetY = 0.0f)
+	{
+		DrawBorder(ImGui::GetStyleColorVec4(ImGuiCol_Border), thickness, offsetX, offsetY);
+	}
+
+	inline void DrawBorder(ImVec2 rectMin, ImVec2 rectMax, float thickness = 1.0f, float offsetX = 0.0f, float offsetY = 0.0f)
+	{
+		DrawBorder(rectMin, rectMax, ImGui::GetStyleColorVec4(ImGuiCol_Border), thickness, offsetX, offsetY);
+	}
+
+	void DrawBorder(ImRect rect, float thickness = 1.0f, float rounding = 0.0f, float offsetX = 0.0f, float offsetY = 0.0f);
+
+	void DrawBorderHorizontal(ImVec2 rectMin, ImVec2 rectMax, const ImVec4& borderColour, float thickness = 1.0f, float offsetX = 0.0f, float offsetY = 0.0f);
+
+	inline void DrawBorderHorizontal(ImVec2 rectMin, ImVec2 rectMax, float thickness = 1.0f, float offsetX = 0.0f, float offsetY = 0.0f)
+	{
+		DrawBorderHorizontal(rectMin, rectMax, ImGui::GetStyleColorVec4(ImGuiCol_Border), thickness, offsetX, offsetY);
+	}
+
+	inline void DrawBorderHorizontal(const ImVec4& borderColour, float thickness = 1.0f, float offsetX = 0.0f, float offsetY = 0.0f)
+	{
+		DrawBorderHorizontal(ImGui::GetItemRectMin(), ImGui::GetItemRectMax(), borderColour, thickness, offsetX, offsetY);
+	}
+
+	inline void DrawBorderHorizontal(float thickness = 1.0f, float offsetX = 0.0f, float offsetY = 0.0f)
+	{
+		DrawBorderHorizontal(ImGui::GetStyleColorVec4(ImGuiCol_Border), thickness, offsetX, offsetY);
+	}
+
+	void DrawBorderVertical(ImVec2 rectMin, ImVec2 rectMax, const ImVec4& borderColour, float thickness = 1.0f, float offsetX = 0.0f, float offsetY = 0.0f);
+
+	inline void DrawBorderVertical(const ImVec4& borderColour, float thickness = 1.0f, float offsetX = 0.0f, float offsetY = 0.0f)
+	{
+		DrawBorderVertical(ImGui::GetItemRectMin(), ImGui::GetItemRectMax(), borderColour, thickness, offsetX, offsetY);
+	}
+
+	inline void DrawBorderVertical(float thickness = 1.0f, float offsetX = 0.0f, float offsetY = 0.0f)
+	{
+		DrawBorderVertical(ImGui::GetStyleColorVec4(ImGuiCol_Border), thickness, offsetX, offsetY);
+	}
 
 }

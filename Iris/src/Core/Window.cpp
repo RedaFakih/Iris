@@ -6,8 +6,12 @@
 #include "Renderer/Core/VulkanAllocator.h"
 
 #include <glfw/glfw3.h>
+#include <imgui/imgui.h>
+#include <stb_image/stb_image.h>
 
 namespace Iris {
+
+#include "Embed/IrisIcon.embed"
 
 	static bool s_GLFWInitialized = false;
 
@@ -51,7 +55,12 @@ namespace Iris {
 		}
 
 		glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-		glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
+
+		if (!m_Specification.Decorated)
+		{
+			// This removes titlebar
+			 glfwWindowHint(GLFW_TITLEBAR, false);
+		}
 
 		if (m_Specification.FullScreen)
 		{
@@ -69,6 +78,26 @@ namespace Iris {
 		else
 		{
 			m_Window = glfwCreateWindow((int)m_Data.Width, (int)m_Data.Height, m_Data.Title.c_str(), nullptr, nullptr);
+		}
+
+		// Set icon
+		{
+			GLFWimage icon;
+			int channels;
+			if (!m_Specification.IconPath.empty())
+			{
+				std::string iconPathStr = m_Specification.IconPath.string();
+				icon.pixels = stbi_load(iconPathStr.c_str(), &icon.width, &icon.height, &channels, STBI_rgb_alpha);
+				glfwSetWindowIcon(m_Window, 1, &icon);
+				stbi_image_free(icon.pixels);
+			}
+			else
+			{
+				// Embedded Iris icon
+				icon.pixels = stbi_load_from_memory(g_IrisIconPNG, sizeof(g_IrisIconPNG), &icon.width, &icon.height, &channels, STBI_rgb_alpha);
+				glfwSetWindowIcon(m_Window, 1, &icon);
+				stbi_image_free(icon.pixels);
+			}
 		}
 
 		// Init the context: VulkanInstance, VulkanDevice, VulkanPhysicalDevice, PipelineCache, ValidationLayers...
@@ -161,12 +190,14 @@ namespace Iris {
 			{
 				case GLFW_PRESS:
 				{
+					Input::UpdateButtonState((MouseButton)button, KeyState::Pressed);
 					Events::MouseButtonPressedEvent event((MouseButton)button);
 					data.EventCallback(event);
 					break;
 				}
 				case GLFW_RELEASE:
 				{
+					Input::UpdateButtonState((MouseButton)button, KeyState::Released);
 					Events::MouseButtonReleasedEvent event((MouseButton)button);
 					data.EventCallback(event);
 					break;
@@ -189,6 +220,23 @@ namespace Iris {
 			Events::MouseMovedEvent event((float)xPos, (float)yPos);
 			data.EventCallback(event);
 		});
+
+		glfwSetTitleBarHitTestCallback(m_Window, [](GLFWwindow* window, int x, int y, int* hit)
+		{
+			auto& data = *(WindowData*)glfwGetWindowUserPointer(window);
+		
+			Events::WindowTitleBarHitTestEvent event(x, y, *hit);
+			data.EventCallback(event);
+		});
+
+		m_ImGuiMouseCursors[ImGuiMouseCursor_Arrow]      = glfwCreateStandardCursor(GLFW_ARROW_CURSOR);
+		m_ImGuiMouseCursors[ImGuiMouseCursor_TextInput]  = glfwCreateStandardCursor(GLFW_IBEAM_CURSOR);
+		m_ImGuiMouseCursors[ImGuiMouseCursor_ResizeAll]  = glfwCreateStandardCursor(GLFW_ARROW_CURSOR); // GLFW Does not have this
+		m_ImGuiMouseCursors[ImGuiMouseCursor_ResizeNS]   = glfwCreateStandardCursor(GLFW_VRESIZE_CURSOR);
+		m_ImGuiMouseCursors[ImGuiMouseCursor_ResizeEW]   = glfwCreateStandardCursor(GLFW_HRESIZE_CURSOR);
+		m_ImGuiMouseCursors[ImGuiMouseCursor_ResizeNESW] = glfwCreateStandardCursor(GLFW_ARROW_CURSOR); // GLFW Does not have this
+		m_ImGuiMouseCursors[ImGuiMouseCursor_ResizeNWSE] = glfwCreateStandardCursor(GLFW_ARROW_CURSOR); // GLFW Does not have this
+		m_ImGuiMouseCursors[ImGuiMouseCursor_Hand]       = glfwCreateStandardCursor(GLFW_HAND_CURSOR);
 
 		// Update window to actual size
 		{
@@ -255,5 +303,16 @@ namespace Iris {
 		int x = (vidMode->width / 2) - (m_Data.Width / 2);
 		int y = (vidMode->height / 2) - (m_Data.Height / 2);
 		glfwSetWindowPos(m_Window, x, y);
+	}
+
+	bool Window::IsMaximized() const
+	{
+		return (bool)glfwGetWindowAttrib(m_Window, GLFW_MAXIMIZED);
+	}
+
+	void Window::SetTitle(const std::string& title)
+	{
+		m_Data.Title = title;
+		glfwSetWindowTitle(m_Window, title.c_str());
 	}
 }

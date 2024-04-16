@@ -13,8 +13,8 @@ namespace Iris::Events {
 	enum class EventType
 	{
 		None = 0,
-		AppTick, AppUpdate, AppRender,
-		WindowResize, WindowMinimize, WindowMaximize, WindowClose, WindowPathDrop,
+		/* TODO: AppTick,  AppUpdate, AppRender, */
+		WindowResize, WindowMinimize, WindowClose, /* TODO: WindowPathDrop, */ WindowTitleBarHitTest,
 		KeyPressed, KeyReleased, KeyTyped,
 		MouseButtonPressed, MouseButtonReleased, MouseMoved, MouseScrolled
 	};

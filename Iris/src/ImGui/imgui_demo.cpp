@@ -6162,16 +6162,16 @@ void ImGui::ShowStyleEditor(ImGuiStyle* ref, int* outThemeID)
 
     UI::BeginPropertyGrid(2/*, false*/);
 
-    static const char* availableThemes[] = { "Luna", "Dark", "Light", "Classic" };
+    static const char* availableThemes[] = { "Iris", "Dark", "Light", "Classic" };
     static int selectedThemeStyle = *outThemeID;
     if (UI::PropertyDropdown("Color Theme", availableThemes, 4, &selectedThemeStyle))
     {
         switch (selectedThemeStyle)
         {
-        case 0: Application::Get().GetImGuiLayer()->SetDarkThemeColors(); break;
-        case 1: ImGui::StyleColorsDark(); break;
-        case 2: ImGui::StyleColorsLight(); break;
-        case 3: ImGui::StyleColorsClassic(); break;
+            case 0: Application::Get().GetImGuiLayer()->SetDarkThemeColors(); break;
+            case 1: ImGui::StyleColorsDark(); break;
+            case 2: ImGui::StyleColorsLight(); break;
+            case 3: ImGui::StyleColorsClassic(); break;
         }
     }
     *outThemeID = selectedThemeStyle; // Set the theme id to be used in serialization

@@ -47,6 +47,7 @@ namespace Colors
 		constexpr auto Titlebar		   = IM_COL32(21, 21, 21, 255);
 		constexpr auto TitlebarOrange  = IM_COL32(186, 66, 30, 255);
 		constexpr auto TitlebarGreen   = IM_COL32(18, 88, 30, 255);
+		constexpr auto TitlebarCyan    = IM_COL32(20, 125, 106, 255);
 		constexpr auto TitlebarRed     = IM_COL32(185, 30, 30, 255);
 		constexpr auto PropertyField   = IM_COL32(15, 15, 15, 255);
 		constexpr auto Text			   = IM_COL32(192, 192, 192, 255);

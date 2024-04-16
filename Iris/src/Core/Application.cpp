@@ -5,6 +5,7 @@
 #include "Input/Input.h"
 
 #include <glfw/glfw3.h>
+#include <nfd.hpp>
 
 namespace Iris {
 
@@ -21,14 +22,16 @@ namespace Iris {
 			.Title = spec.Name,
 			.Width = spec.WindowWidth,
 			.Height = spec.WindowHeight,
+			.Decorated = spec.WindowDecorated,
 			.VSync = spec.VSync,
-			.FullScreen = spec.FullScreen
+			.FullScreen = spec.FullScreen,
+			.IconPath = spec.IconPath
 		};
 		m_Window = Window::Create(windowSpec);
 		m_Window->Init();
 		m_Window->SetEventCallbackFunction([this](Events::Event& e) { Application::OnEvent(e); });
 
-		// Set some more configurations for the window. (e.g. start maximized/centered, is it resizable? and all the stuff...)
+		IR_VERIFY(NFD::Init() == NFD_OKAY);
 
 		Renderer::SetConfig(spec.RendererConfig);
 		Renderer::Init();
@@ -49,6 +52,8 @@ namespace Iris {
 
 	Application::~Application()
 	{
+		NFD::Quit();
+
 		m_Window->SetEventCallbackFunction([](Events::Event& e) {});
 
 		for (Layer* layer : m_LayerStack)
@@ -106,6 +111,11 @@ namespace Iris {
 			// ++frameCounter;
 		}
 		OnShutdown();
+	}
+
+	void Application::Close()
+	{
+		m_Running = false;
 	}
 
 	void Application::ProcessEvents()
@@ -210,6 +220,17 @@ namespace Iris {
 	float Application::GetTime() const
 	{
 		return static_cast<float>(glfwGetTime());
+	}
+
+	const char* Application::GetConfigurationName()
+	{
+#if defined(IR_CONFIG_DEBUG)
+		return "Debug";
+#elif defined(IR_CONFIG_RELEASE)
+		return "Release";
+#else
+#error Unknown Configuration
+#endif
 	}
 
 }

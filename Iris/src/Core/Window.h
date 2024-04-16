@@ -9,8 +9,10 @@
 
 #include <functional>
 #include <string>
+#include <filesystem>
 
 struct GLFWwindow;
+struct GLFWcursor;
 
 namespace Iris {
 
@@ -19,8 +21,10 @@ namespace Iris {
 		std::string Title = "Iris";
 		uint32_t Width = 1600;
 		uint32_t Height = 900;
+		bool Decorated = true;
 		bool VSync = true;
 		bool FullScreen = false;
+		std::filesystem::path IconPath;
 	};
 
 	class Window
@@ -56,12 +60,16 @@ namespace Iris {
 		void Maximize();
 		void CentreWindow();
 
+		bool IsMaximized() const;
+
 		const std::string& GetTitle() const { return m_Data.Title; }
-		const void SetTitle(const std::string& title) { m_Data.Title = title; }
+		void SetTitle(const std::string& title);
 
 	private:
 		GLFWwindow* m_Window = nullptr;
 		WindowSpecification m_Specification;
+
+		GLFWcursor* m_ImGuiMouseCursors[8] = { 0 };
 
 		struct WindowData
 		{

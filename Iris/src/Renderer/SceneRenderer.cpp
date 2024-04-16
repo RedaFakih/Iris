@@ -1,9 +1,9 @@
 #include "IrisPCH.h"
 #include "SceneRenderer.h"
 
+#include "Renderer/Renderer.h"
 #include "Shaders/Shader.h"
 #include "Texture.h"
-#include "Renderer/Renderer.h"
 #include "UniformBufferSet.h"
 
 extern bool g_WireFrame;
@@ -158,9 +158,10 @@ namespace Iris {
 			m_CompositePass = RenderPass::Create(compositePassSpec);
 			m_CompositeMaterial = Material::Create(Renderer::GetShadersLibrary()->Get("Compositing"));
 
+			// For if we decide we want to view the depth image
 			// m_CompositePass->SetInput("Camera", m_UBSCamera);
 			m_CompositePass->SetInput("u_Texture", m_GeometryPass->GetOutput(0));
-			m_CompositePass->SetInput("u_DepthTexture", m_PreDepthPass->GetDepthOutput());
+			// m_CompositePass->SetInput("u_DepthTexture", m_PreDepthPass->GetDepthOutput());
 			m_CompositePass->Bake();
 		}
 
@@ -422,6 +423,8 @@ namespace Iris {
 			PreDepthPass();
 			GeometryPass();
 
+			// NOTE: If we want to sample the depth texture in the composite pass we need to transition to shader read only then transition back
+			// to attachment since the renderer2D uses it.
 			CompositePass();
 
 			/*

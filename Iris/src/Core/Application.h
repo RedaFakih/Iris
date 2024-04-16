@@ -19,6 +19,7 @@ namespace Iris {
 		std::string Name = "Iris";
 		uint32_t WindowWidth = 1600;
 		uint32_t WindowHeight = 900;
+		bool WindowDecorated = false;
 		bool FullScreen = false; // NOTE: If set to `true` this makes the application run in FULLSCREEN without the titlebar and anything
 		bool VSync = true;
 		std::string WorkingDirectory;
@@ -26,6 +27,7 @@ namespace Iris {
 		bool Resizable = true;
 		bool EnableImGui = false;
 		RendererConfiguration RendererConfig;
+		std::filesystem::path IconPath;
 	};
 
 	class Application
@@ -38,6 +40,8 @@ namespace Iris {
 		virtual void OnShutdown() {}
 
 		void Run();
+		void Close();
+
 		void OnEvent(Events::Event& e);
 		
 		void PushLayer(Layer* layer);
@@ -52,20 +56,20 @@ namespace Iris {
 
 		template<typename Func>
 		inline void QueueEvent(Func&& func) { m_EventQueue.push(std::forward<Func>(func)); }
-		template<typename TEvent, bool TDispatchImmediatly, typename... Args>
+		template<typename TEvent, bool TDispatchImmediatly = false, typename... Args>
 		void DispatchEvent(Args&&... args)
 		{
-			static_assert(std::is_assignable<Events::Event, TEvent>);
+			static_assert(std::is_assignable<Events::Event, TEvent>::value);
 
 			std::shared_ptr<TEvent> event = std::make_shared<TEvent>(std::forward<Args>(args)...);
 			if constexpr (TDispatchImmediatly)
 			{
-				OnEvent(event);
+				OnEvent(*event);
 			}
 			else
 			{
 				std::scoped_lock<std::mutex> lock(m_EventQueueMutex);
-				QueueEvent([event]() { Application::Get().OnEvent(event); });
+				QueueEvent([event]() { Application::Get().OnEvent(*event); });
 			}
 		}
 
@@ -76,6 +80,8 @@ namespace Iris {
 		uint32_t GetCurrentFrameIndex() const { return m_CurrentFrameIndex; }
 
 		const ApplicationSpecification& GetSpecification() const { return m_Specification; }
+
+		static const char* GetConfigurationName();
 
 	private:
 		void ProcessEvents();
