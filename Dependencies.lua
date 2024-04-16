@@ -3,16 +3,17 @@ VULKAN_SDK = os.getenv("VULKAN_SDK")
 
 IncludeDir = {}
 
-IncludeDir["GLFW"]                = "%{wks.location}/VulkanPlayground/dependencies/glfw/include"
-IncludeDir["ImGui"]               = "%{wks.location}/VulkanPlayground/dependencies/ImGui"
-IncludeDir["stb"]                 = "%{wks.location}/VulkanPlayground/dependencies/stb"
-IncludeDir["glm"]                 = "%{wks.location}/VulkanPlayground/dependencies/glm"
-IncludeDir["spdlog"]              = "%{wks.location}/VulkanPlayground/dependencies/spdlog/include"
-IncludeDir["EnTT"]                = "%{wks.location}/VulkanPlayground/dependencies/entt/include"
+IncludeDir["GLFW"]                = "%{wks.location}/Iris/dependencies/glfw/include"
+IncludeDir["ImGui"]               = "%{wks.location}/Iris/dependencies/ImGui"
+IncludeDir["stb"]                 = "%{wks.location}/Iris/dependencies/stb"
+IncludeDir["glm"]                 = "%{wks.location}/Iris/dependencies/glm"
+IncludeDir["spdlog"]              = "%{wks.location}/Iris/dependencies/spdlog/include"
+IncludeDir["EnTT"]                = "%{wks.location}/Iris/dependencies/entt/include"
 IncludeDir["VulkanSDK"]           = "%{VULKAN_SDK}/Include"
-IncludeDir["Yaml"]                = "%{wks.location}/VulkanPlayground/dependencies/yaml-cpp/include"
-IncludeDir["choc"]                = "%{wks.location}/VulkanPlayground/dependencies/Choc"
-IncludeDir["assimp"]              = "%{wks.location}/VulkanPlayground/dependencies/assimp/include"
+IncludeDir["Yaml"]                = "%{wks.location}/Iris/dependencies/yaml-cpp/include"
+IncludeDir["choc"]                = "%{wks.location}/Iris/dependencies/Choc"
+IncludeDir["assimp"]              = "%{wks.location}/Iris/dependencies/assimp/include"
+IncludeDir["NFDExtended"]         = "%{wks.location}/Iris/dependencies/NFD-Extended/NFD-Extended/src/include"
 
 LibraryDir = {}
 
@@ -20,8 +21,8 @@ LibraryDir["VulkanSDK"]           = "%{VULKAN_SDK}/Lib"
 
 Library = {}
 
-Library["AssimpDebug"]			  = "%{wks.location}/VulkanPlayground/dependencies/assimp/bin/Debug/assimp-vc143-mtd.lib"
-Library["AssimpRelease"]	      = "%{wks.location}/VulkanPlayground/dependencies/assimp/bin/Release/assimp-vc143-mt.lib"
+Library["AssimpDebug"]			  = "%{wks.location}/Iris/dependencies/assimp/bin/Debug/assimp-vc143-mtd.lib"
+Library["AssimpRelease"]	      = "%{wks.location}/Iris/dependencies/assimp/bin/Release/assimp-vc143-mt.lib"
 
 Library["Vulkan"]                 = "%{LibraryDir.VulkanSDK}/vulkan-1.lib"
 Library["dxc"]                    = "%{LibraryDir.VulkanSDK}/dxcompiler.lib"

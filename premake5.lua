@@ -1,7 +1,7 @@
 include "Dependencies.lua"
 
-workspace "VulkanPlayground"
-    startproject "PlaygroundEditor"
+workspace "Iris"
+    startproject "IrisEditor"
     conformancemode "On"
 
     language "C++"
@@ -30,15 +30,16 @@ workspace "VulkanPlayground"
 outputdir = "%{cfg.architecture}-%{cfg.buildcfg}"
 
 group "Dependencies"
-    include "VulkanPlayground/dependencies/glfw"
-    include "VulkanPlayground/dependencies/ImGui/imgui"
+    include "Iris/dependencies/glfw"
+    include "Iris/dependencies/ImGui/imgui"
+    include "Iris/dependencies/NFD-Extended"
 group ""
 
 group "Core"
-    include "VulkanPlayground"
+    include "Iris"
 group ""
 
 group "Tools"
-    include "PlaygroundEditor"
-    include "PlaygroundRuntime"
+    include "IrisEditor"
+    include "IrisRuntime"
 group ""

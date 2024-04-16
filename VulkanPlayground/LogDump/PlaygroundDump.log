@@ -1,181 +1,526 @@
-[16:26:00] [info] Core: [Renderer]: Vulkan instance layers:
-[16:26:00] [info] Core: [Renderer]: 	VK_LAYER_NV_optimus
-[16:26:00] [info] Core: [Renderer]: 	VK_LAYER_NV_nomad_release_public_2022_4_0
-[16:26:00] [info] Core: [Renderer]: 	VK_LAYER_NV_GPU_Trace_release_public_2022_4_0
-[16:26:00] [info] Core: [Renderer]: 	VK_LAYER_RENDERDOC_Capture
-[16:26:00] [info] Core: [Renderer]: 	VK_LAYER_VALVE_steam_overlay
-[16:26:00] [info] Core: [Renderer]: 	VK_LAYER_VALVE_steam_fossilize
-[16:26:00] [info] Core: [Renderer]: 	VK_LAYER_EOS_Overlay
-[16:26:00] [info] Core: [Renderer]: 	VK_LAYER_EOS_Overlay
-[16:26:00] [info] Core: [Renderer]: 	VK_LAYER_LUNARG_api_dump
-[16:26:00] [info] Core: [Renderer]: 	VK_LAYER_LUNARG_gfxreconstruct
-[16:26:00] [info] Core: [Renderer]: 	VK_LAYER_KHRONOS_synchronization2
-[16:26:00] [info] Core: [Renderer]: 	VK_LAYER_KHRONOS_validation
-[16:26:02] [warning] Core: [Renderer]: Selected Physical Device has: 157 extensions...
-[16:26:03] [trace] Core: [Renderer]: 	VK_KHR_16bit_storage
-[16:26:03] [trace] Core: [Renderer]: 	VK_KHR_8bit_storage
-[16:26:04] [trace] Core: [Renderer]: 	VK_KHR_bind_memory2
-[16:26:04] [trace] Core: [Renderer]: 	VK_KHR_buffer_device_address
-[16:26:04] [trace] Core: [Renderer]: 	VK_KHR_copy_commands2
-[16:26:04] [trace] Core: [Renderer]: 	VK_KHR_create_renderpass2
-[16:26:04] [trace] Core: [Renderer]: 	VK_KHR_dedicated_allocation
-[16:26:04] [trace] Core: [Renderer]: 	VK_KHR_depth_stencil_resolve
-[16:26:04] [trace] Core: [Renderer]: 	VK_KHR_descriptor_update_template
-[16:26:04] [trace] Core: [Renderer]: 	VK_KHR_device_group
-[16:26:04] [trace] Core: [Renderer]: 	VK_KHR_draw_indirect_count
-[16:26:04] [trace] Core: [Renderer]: 	VK_KHR_driver_properties
-[16:26:04] [trace] Core: [Renderer]: 	VK_KHR_dynamic_rendering
-[16:26:04] [trace] Core: [Renderer]: 	VK_KHR_external_fence
-[16:26:04] [trace] Core: [Renderer]: 	VK_KHR_external_fence_win32
-[16:26:04] [trace] Core: [Renderer]: 	VK_KHR_external_memory
-[16:26:05] [trace] Core: [Renderer]: 	VK_KHR_external_memory_win32
-[16:26:05] [trace] Core: [Renderer]: 	VK_KHR_external_semaphore
-[16:26:05] [trace] Core: [Renderer]: 	VK_KHR_external_semaphore_win32
-[16:26:05] [trace] Core: [Renderer]: 	VK_KHR_format_feature_flags2
-[16:26:05] [trace] Core: [Renderer]: 	VK_KHR_get_memory_requirements2
-[16:26:05] [trace] Core: [Renderer]: 	VK_KHR_global_priority
-[16:26:05] [trace] Core: [Renderer]: 	VK_KHR_image_format_list
-[16:26:05] [trace] Core: [Renderer]: 	VK_KHR_imageless_framebuffer
-[16:26:05] [trace] Core: [Renderer]: 	VK_KHR_maintenance1
-[16:26:05] [trace] Core: [Renderer]: 	VK_KHR_maintenance2
-[16:26:05] [trace] Core: [Renderer]: 	VK_KHR_maintenance3
-[16:26:05] [trace] Core: [Renderer]: 	VK_KHR_maintenance4
-[16:26:05] [trace] Core: [Renderer]: 	VK_KHR_multiview
-[16:26:05] [trace] Core: [Renderer]: 	VK_KHR_pipeline_executable_properties
-[16:26:05] [trace] Core: [Renderer]: 	VK_KHR_pipeline_library
-[16:26:05] [trace] Core: [Renderer]: 	VK_KHR_present_id
-[16:26:05] [trace] Core: [Renderer]: 	VK_KHR_present_wait
-[16:26:05] [trace] Core: [Renderer]: 	VK_KHR_push_descriptor
-[16:26:05] [trace] Core: [Renderer]: 	VK_KHR_relaxed_block_layout
-[16:26:05] [trace] Core: [Renderer]: 	VK_KHR_sampler_mirror_clamp_to_edge
-[16:26:05] [trace] Core: [Renderer]: 	VK_KHR_sampler_ycbcr_conversion
-[16:26:06] [trace] Core: [Renderer]: 	VK_KHR_separate_depth_stencil_layouts
-[16:26:06] [trace] Core: [Renderer]: 	VK_KHR_shader_atomic_int64
-[16:26:06] [trace] Core: [Renderer]: 	VK_KHR_shader_clock
-[16:26:06] [trace] Core: [Renderer]: 	VK_KHR_shader_draw_parameters
-[16:26:06] [trace] Core: [Renderer]: 	VK_KHR_shader_float16_int8
-[16:26:06] [trace] Core: [Renderer]: 	VK_KHR_shader_float_controls
-[16:26:06] [trace] Core: [Renderer]: 	VK_KHR_shader_integer_dot_product
-[16:26:06] [trace] Core: [Renderer]: 	VK_KHR_shader_non_semantic_info
-[16:26:06] [trace] Core: [Renderer]: 	VK_KHR_shader_subgroup_extended_types
-[16:26:06] [trace] Core: [Renderer]: 	VK_KHR_shader_terminate_invocation
-[16:26:06] [trace] Core: [Renderer]: 	VK_KHR_spirv_1_4
-[16:26:06] [trace] Core: [Renderer]: 	VK_KHR_storage_buffer_storage_class
-[16:26:06] [trace] Core: [Renderer]: 	VK_KHR_swapchain
-[16:26:06] [trace] Core: [Renderer]: 	VK_KHR_swapchain_mutable_format
-[16:26:06] [trace] Core: [Renderer]: 	VK_KHR_synchronization2
-[16:26:06] [trace] Core: [Renderer]: 	VK_KHR_timeline_semaphore
-[16:26:06] [trace] Core: [Renderer]: 	VK_KHR_uniform_buffer_standard_layout
-[16:26:06] [trace] Core: [Renderer]: 	VK_KHR_variable_pointers
-[16:26:07] [trace] Core: [Renderer]: 	VK_KHR_vulkan_memory_model
-[16:26:07] [trace] Core: [Renderer]: 	VK_KHR_win32_keyed_mutex
-[16:26:07] [trace] Core: [Renderer]: 	VK_KHR_workgroup_memory_explicit_layout
-[16:26:07] [trace] Core: [Renderer]: 	VK_KHR_zero_initialize_workgroup_memory
-[16:26:07] [trace] Core: [Renderer]: 	VK_EXT_4444_formats
-[16:26:07] [trace] Core: [Renderer]: 	VK_EXT_attachment_feedback_loop_layout
-[16:26:07] [trace] Core: [Renderer]: 	VK_EXT_blend_operation_advanced
-[16:26:07] [trace] Core: [Renderer]: 	VK_EXT_border_color_swizzle
-[16:26:07] [trace] Core: [Renderer]: 	VK_EXT_buffer_device_address
-[16:26:07] [trace] Core: [Renderer]: 	VK_EXT_calibrated_timestamps
-[16:26:07] [trace] Core: [Renderer]: 	VK_EXT_color_write_enable
-[16:26:07] [trace] Core: [Renderer]: 	VK_EXT_conditional_rendering
-[16:26:07] [trace] Core: [Renderer]: 	VK_EXT_conservative_rasterization
-[16:26:07] [trace] Core: [Renderer]: 	VK_EXT_custom_border_color
-[16:26:07] [trace] Core: [Renderer]: 	VK_EXT_depth_clamp_zero_one
-[16:26:07] [trace] Core: [Renderer]: 	VK_EXT_depth_clip_control
-[16:26:07] [trace] Core: [Renderer]: 	VK_EXT_depth_clip_enable
-[16:26:07] [trace] Core: [Renderer]: 	VK_EXT_depth_range_unrestricted
-[16:26:07] [trace] Core: [Renderer]: 	VK_EXT_descriptor_buffer
-[16:26:07] [trace] Core: [Renderer]: 	VK_EXT_descriptor_indexing
-[16:26:07] [trace] Core: [Renderer]: 	VK_EXT_discard_rectangles
-[16:26:07] [trace] Core: [Renderer]: 	VK_EXT_extended_dynamic_state
-[16:26:07] [trace] Core: [Renderer]: 	VK_EXT_extended_dynamic_state2
-[16:26:07] [trace] Core: [Renderer]: 	VK_EXT_extended_dynamic_state3
-[16:26:07] [trace] Core: [Renderer]: 	VK_EXT_external_memory_host
-[16:26:07] [trace] Core: [Renderer]: 	VK_EXT_fragment_shader_interlock
-[16:26:07] [trace] Core: [Renderer]: 	VK_EXT_full_screen_exclusive
-[16:26:07] [trace] Core: [Renderer]: 	VK_EXT_global_priority
-[16:26:07] [trace] Core: [Renderer]: 	VK_EXT_global_priority_query
-[16:26:07] [trace] Core: [Renderer]: 	VK_EXT_graphics_pipeline_library
-[16:26:07] [trace] Core: [Renderer]: 	VK_EXT_hdr_metadata
-[16:26:07] [trace] Core: [Renderer]: 	VK_EXT_host_query_reset
-[16:26:07] [trace] Core: [Renderer]: 	VK_EXT_image_2d_view_of_3d
-[16:26:07] [trace] Core: [Renderer]: 	VK_EXT_image_robustness
-[16:26:07] [trace] Core: [Renderer]: 	VK_EXT_image_sliced_view_of_3d
-[16:26:07] [trace] Core: [Renderer]: 	VK_EXT_image_view_min_lod
-[16:26:07] [trace] Core: [Renderer]: 	VK_EXT_index_type_uint8
-[16:26:07] [trace] Core: [Renderer]: 	VK_EXT_inline_uniform_block
-[16:26:07] [trace] Core: [Renderer]: 	VK_EXT_line_rasterization
-[16:26:07] [trace] Core: [Renderer]: 	VK_EXT_load_store_op_none
-[16:26:07] [trace] Core: [Renderer]: 	VK_EXT_memory_budget
-[16:26:07] [trace] Core: [Renderer]: 	VK_EXT_memory_priority
-[16:26:07] [trace] Core: [Renderer]: 	VK_EXT_multi_draw
-[16:26:08] [trace] Core: [Renderer]: 	VK_EXT_non_seamless_cube_map
-[16:26:08] [trace] Core: [Renderer]: 	VK_EXT_pci_bus_info
-[16:26:08] [trace] Core: [Renderer]: 	VK_EXT_pipeline_creation_cache_control
-[16:26:08] [trace] Core: [Renderer]: 	VK_EXT_pipeline_creation_feedback
-[16:26:08] [trace] Core: [Renderer]: 	VK_EXT_pipeline_robustness
-[16:26:08] [trace] Core: [Renderer]: 	VK_EXT_post_depth_coverage
-[16:26:08] [trace] Core: [Renderer]: 	VK_EXT_primitive_topology_list_restart
-[16:26:08] [trace] Core: [Renderer]: 	VK_EXT_primitives_generated_query
-[16:26:08] [trace] Core: [Renderer]: 	VK_EXT_private_data
-[16:26:08] [trace] Core: [Renderer]: 	VK_EXT_provoking_vertex
-[16:26:08] [trace] Core: [Renderer]: 	VK_EXT_queue_family_foreign
-[16:26:08] [trace] Core: [Renderer]: 	VK_EXT_robustness2
-[16:26:08] [trace] Core: [Renderer]: 	VK_EXT_sample_locations
-[16:26:08] [trace] Core: [Renderer]: 	VK_EXT_sampler_filter_minmax
-[16:26:08] [trace] Core: [Renderer]: 	VK_EXT_scalar_block_layout
-[16:26:08] [trace] Core: [Renderer]: 	VK_EXT_separate_stencil_usage
-[16:26:08] [trace] Core: [Renderer]: 	VK_EXT_shader_atomic_float
-[16:26:08] [trace] Core: [Renderer]: 	VK_EXT_shader_demote_to_helper_invocation
-[16:26:08] [trace] Core: [Renderer]: 	VK_EXT_shader_image_atomic_int64
-[16:26:08] [trace] Core: [Renderer]: 	VK_EXT_shader_module_identifier
-[16:26:08] [trace] Core: [Renderer]: 	VK_EXT_shader_object
-[16:26:08] [trace] Core: [Renderer]: 	VK_EXT_shader_subgroup_ballot
-[16:26:08] [trace] Core: [Renderer]: 	VK_EXT_shader_subgroup_vote
-[16:26:08] [trace] Core: [Renderer]: 	VK_EXT_shader_viewport_index_layer
-[16:26:08] [trace] Core: [Renderer]: 	VK_EXT_subgroup_size_control
-[16:26:08] [trace] Core: [Renderer]: 	VK_EXT_texel_buffer_alignment
-[16:26:08] [trace] Core: [Renderer]: 	VK_EXT_tooling_info
-[16:26:08] [trace] Core: [Renderer]: 	VK_EXT_transform_feedback
-[16:26:08] [trace] Core: [Renderer]: 	VK_EXT_vertex_attribute_divisor
-[16:26:08] [trace] Core: [Renderer]: 	VK_EXT_vertex_input_dynamic_state
-[16:26:08] [trace] Core: [Renderer]: 	VK_EXT_ycbcr_2plane_444_formats
-[16:26:08] [trace] Core: [Renderer]: 	VK_EXT_ycbcr_image_arrays
-[16:26:08] [trace] Core: [Renderer]: 	VK_NV_acquire_winrt_display
-[16:26:08] [trace] Core: [Renderer]: 	VK_NV_clip_space_w_scaling
-[16:26:08] [trace] Core: [Renderer]: 	VK_NV_copy_memory_indirect
-[16:26:08] [trace] Core: [Renderer]: 	VK_NV_coverage_reduction_mode
-[16:26:08] [trace] Core: [Renderer]: 	VK_NV_dedicated_allocation
-[16:26:08] [trace] Core: [Renderer]: 	VK_NV_dedicated_allocation_image_aliasing
-[16:26:09] [trace] Core: [Renderer]: 	VK_NV_device_diagnostic_checkpoints
-[16:26:09] [trace] Core: [Renderer]: 	VK_NV_device_diagnostics_config
-[16:26:09] [trace] Core: [Renderer]: 	VK_NV_device_generated_commands
-[16:26:09] [trace] Core: [Renderer]: 	VK_NV_external_memory
-[16:26:09] [trace] Core: [Renderer]: 	VK_NV_external_memory_win32
-[16:26:09] [trace] Core: [Renderer]: 	VK_NV_fill_rectangle
-[16:26:09] [trace] Core: [Renderer]: 	VK_NV_fragment_coverage_to_color
-[16:26:09] [trace] Core: [Renderer]: 	VK_NV_framebuffer_mixed_samples
-[16:26:09] [trace] Core: [Renderer]: 	VK_NV_geometry_shader_passthrough
-[16:26:09] [trace] Core: [Renderer]: 	VK_NV_inherited_viewport_scissor
-[16:26:09] [trace] Core: [Renderer]: 	VK_NV_linear_color_attachment
-[16:26:09] [trace] Core: [Renderer]: 	VK_NV_low_latency
-[16:26:09] [trace] Core: [Renderer]: 	VK_NV_memory_decompression
-[16:26:09] [trace] Core: [Renderer]: 	VK_NV_sample_mask_override_coverage
-[16:26:09] [trace] Core: [Renderer]: 	VK_NV_shader_sm_builtins
-[16:26:09] [trace] Core: [Renderer]: 	VK_NV_shader_subgroup_partitioned
-[16:26:09] [trace] Core: [Renderer]: 	VK_NV_viewport_array2
-[16:26:09] [trace] Core: [Renderer]: 	VK_NV_viewport_swizzle
-[16:26:09] [trace] Core: [Renderer]: 	VK_NV_win32_keyed_mutex
-[16:26:09] [trace] Core: [Renderer]: 	VK_NVX_multiview_per_view_attributes
-[16:26:09] [trace] Core: [Renderer]: 	VK_AMD_buffer_marker
-[16:26:27] [debug] Core: [Shader]: No cache found! Compiling shaders...
-[16:26:51] [debug] Core: [Shader]: No cache found! Compiling shaders...
-[16:28:46] [trace] Core: [VulkanAllocator]: VertexBuffer: Allocating buffer with size: 96.00 Bytes
-[16:28:46] [info] Core: [VulkanAllocator]: VertexBuffer: Total allocated since start: 96.00 Bytes
-[16:28:50] [trace] Core: [VulkanAllocator]: VertexBuffer: Allocating buffer with size: 96.00 Bytes
-[16:28:50] [info] Core: [VulkanAllocator]: VertexBuffer: Total allocated since start: 192.00 Bytes
-[16:28:53] [trace] Core: [VulkanAllocator]: IndexBuffer: Allocating buffer with size: 24.00 Bytes
-[16:28:54] [info] Core: [VulkanAllocator]: IndexBuffer: Total allocated since start: 216.00 Bytes
-[16:28:54] [trace] Core: [VulkanAllocator]: IndexBuffer: Allocating buffer with size: 24.00 Bytes
-[16:28:54] [info] Core: [VulkanAllocator]: IndexBuffer: Total allocated since start: 240.00 Bytes
+[08:09:11] [warning] Core: [Renderer]: Selected Physical Device has: 179 extensions...
+[08:09:11] [trace] Core: [Renderer]: 	VK_KHR_16bit_storage
+[08:09:11] [trace] Core: [Renderer]: 	VK_KHR_8bit_storage
+[08:09:11] [trace] Core: [Renderer]: 	VK_KHR_bind_memory2
+[08:09:11] [trace] Core: [Renderer]: 	VK_KHR_buffer_device_address
+[08:09:11] [trace] Core: [Renderer]: 	VK_KHR_calibrated_timestamps
+[08:09:11] [trace] Core: [Renderer]: 	VK_KHR_copy_commands2
+[08:09:11] [trace] Core: [Renderer]: 	VK_KHR_create_renderpass2
+[08:09:11] [trace] Core: [Renderer]: 	VK_KHR_dedicated_allocation
+[08:09:11] [trace] Core: [Renderer]: 	VK_KHR_depth_stencil_resolve
+[08:09:11] [trace] Core: [Renderer]: 	VK_KHR_descriptor_update_template
+[08:09:11] [trace] Core: [Renderer]: 	VK_KHR_device_group
+[08:09:11] [trace] Core: [Renderer]: 	VK_KHR_draw_indirect_count
+[08:09:11] [trace] Core: [Renderer]: 	VK_KHR_driver_properties
+[08:09:11] [trace] Core: [Renderer]: 	VK_KHR_dynamic_rendering
+[08:09:11] [trace] Core: [Renderer]: 	VK_KHR_dynamic_rendering_local_read
+[08:09:11] [trace] Core: [Renderer]: 	VK_KHR_external_fence
+[08:09:11] [trace] Core: [Renderer]: 	VK_KHR_external_fence_win32
+[08:09:11] [trace] Core: [Renderer]: 	VK_KHR_external_memory
+[08:09:11] [trace] Core: [Renderer]: 	VK_KHR_external_memory_win32
+[08:09:11] [trace] Core: [Renderer]: 	VK_KHR_external_semaphore
+[08:09:11] [trace] Core: [Renderer]: 	VK_KHR_external_semaphore_win32
+[08:09:11] [trace] Core: [Renderer]: 	VK_KHR_format_feature_flags2
+[08:09:11] [trace] Core: [Renderer]: 	VK_KHR_get_memory_requirements2
+[08:09:11] [trace] Core: [Renderer]: 	VK_KHR_global_priority
+[08:09:11] [trace] Core: [Renderer]: 	VK_KHR_image_format_list
+[08:09:11] [trace] Core: [Renderer]: 	VK_KHR_imageless_framebuffer
+[08:09:11] [trace] Core: [Renderer]: 	VK_KHR_index_type_uint8
+[08:09:11] [trace] Core: [Renderer]: 	VK_KHR_line_rasterization
+[08:09:11] [trace] Core: [Renderer]: 	VK_KHR_load_store_op_none
+[08:09:11] [trace] Core: [Renderer]: 	VK_KHR_maintenance1
+[08:09:11] [trace] Core: [Renderer]: 	VK_KHR_maintenance2
+[08:09:11] [trace] Core: [Renderer]: 	VK_KHR_maintenance3
+[08:09:11] [trace] Core: [Renderer]: 	VK_KHR_maintenance4
+[08:09:11] [trace] Core: [Renderer]: 	VK_KHR_maintenance5
+[08:09:11] [trace] Core: [Renderer]: 	VK_KHR_maintenance6
+[08:09:11] [trace] Core: [Renderer]: 	VK_KHR_map_memory2
+[08:09:11] [trace] Core: [Renderer]: 	VK_KHR_multiview
+[08:09:11] [trace] Core: [Renderer]: 	VK_KHR_pipeline_executable_properties
+[08:09:11] [trace] Core: [Renderer]: 	VK_KHR_pipeline_library
+[08:09:11] [trace] Core: [Renderer]: 	VK_KHR_present_id
+[08:09:11] [trace] Core: [Renderer]: 	VK_KHR_present_wait
+[08:09:11] [trace] Core: [Renderer]: 	VK_KHR_push_descriptor
+[08:09:11] [trace] Core: [Renderer]: 	VK_KHR_relaxed_block_layout
+[08:09:11] [trace] Core: [Renderer]: 	VK_KHR_sampler_mirror_clamp_to_edge
+[08:09:11] [trace] Core: [Renderer]: 	VK_KHR_sampler_ycbcr_conversion
+[08:09:11] [trace] Core: [Renderer]: 	VK_KHR_separate_depth_stencil_layouts
+[08:09:11] [trace] Core: [Renderer]: 	VK_KHR_shader_atomic_int64
+[08:09:11] [trace] Core: [Renderer]: 	VK_KHR_shader_clock
+[08:09:11] [trace] Core: [Renderer]: 	VK_KHR_shader_draw_parameters
+[08:09:11] [trace] Core: [Renderer]: 	VK_KHR_shader_expect_assume
+[08:09:11] [trace] Core: [Renderer]: 	VK_KHR_shader_float16_int8
+[08:09:11] [trace] Core: [Renderer]: 	VK_KHR_shader_float_controls
+[08:09:11] [trace] Core: [Renderer]: 	VK_KHR_shader_float_controls2
+[08:09:11] [trace] Core: [Renderer]: 	VK_KHR_shader_integer_dot_product
+[08:09:11] [trace] Core: [Renderer]: 	VK_KHR_shader_non_semantic_info
+[08:09:11] [trace] Core: [Renderer]: 	VK_KHR_shader_quad_control
+[08:09:11] [trace] Core: [Renderer]: 	VK_KHR_shader_subgroup_extended_types
+[08:09:11] [trace] Core: [Renderer]: 	VK_KHR_shader_subgroup_rotate
+[08:09:11] [trace] Core: [Renderer]: 	VK_KHR_shader_terminate_invocation
+[08:09:11] [trace] Core: [Renderer]: 	VK_KHR_spirv_1_4
+[08:09:11] [trace] Core: [Renderer]: 	VK_KHR_storage_buffer_storage_class
+[08:09:11] [trace] Core: [Renderer]: 	VK_KHR_swapchain
+[08:09:11] [trace] Core: [Renderer]: 	VK_KHR_swapchain_mutable_format
+[08:09:11] [trace] Core: [Renderer]: 	VK_KHR_synchronization2
+[08:09:11] [trace] Core: [Renderer]: 	VK_KHR_timeline_semaphore
+[08:09:11] [trace] Core: [Renderer]: 	VK_KHR_uniform_buffer_standard_layout
+[08:09:11] [trace] Core: [Renderer]: 	VK_KHR_variable_pointers
+[08:09:11] [trace] Core: [Renderer]: 	VK_KHR_vertex_attribute_divisor
+[08:09:11] [trace] Core: [Renderer]: 	VK_KHR_vulkan_memory_model
+[08:09:11] [trace] Core: [Renderer]: 	VK_KHR_win32_keyed_mutex
+[08:09:11] [trace] Core: [Renderer]: 	VK_KHR_workgroup_memory_explicit_layout
+[08:09:11] [trace] Core: [Renderer]: 	VK_KHR_zero_initialize_workgroup_memory
+[08:09:11] [trace] Core: [Renderer]: 	VK_EXT_4444_formats
+[08:09:11] [trace] Core: [Renderer]: 	VK_EXT_attachment_feedback_loop_dynamic_state
+[08:09:11] [trace] Core: [Renderer]: 	VK_EXT_attachment_feedback_loop_layout
+[08:09:11] [trace] Core: [Renderer]: 	VK_EXT_blend_operation_advanced
+[08:09:11] [trace] Core: [Renderer]: 	VK_EXT_border_color_swizzle
+[08:09:11] [trace] Core: [Renderer]: 	VK_EXT_buffer_device_address
+[08:09:11] [trace] Core: [Renderer]: 	VK_EXT_calibrated_timestamps
+[08:09:11] [trace] Core: [Renderer]: 	VK_EXT_color_write_enable
+[08:09:11] [trace] Core: [Renderer]: 	VK_EXT_conditional_rendering
+[08:09:11] [trace] Core: [Renderer]: 	VK_EXT_conservative_rasterization
+[08:09:11] [trace] Core: [Renderer]: 	VK_EXT_custom_border_color
+[08:09:11] [trace] Core: [Renderer]: 	VK_EXT_depth_bias_control
+[08:09:11] [trace] Core: [Renderer]: 	VK_EXT_depth_clamp_zero_one
+[08:09:11] [trace] Core: [Renderer]: 	VK_EXT_depth_clip_control
+[08:09:11] [trace] Core: [Renderer]: 	VK_EXT_depth_clip_enable
+[08:09:11] [trace] Core: [Renderer]: 	VK_EXT_depth_range_unrestricted
+[08:09:11] [trace] Core: [Renderer]: 	VK_EXT_descriptor_buffer
+[08:09:11] [trace] Core: [Renderer]: 	VK_EXT_descriptor_indexing
+[08:09:11] [trace] Core: [Renderer]: 	VK_EXT_discard_rectangles
+[08:09:11] [trace] Core: [Renderer]: 	VK_EXT_dynamic_rendering_unused_attachments
+[08:09:11] [trace] Core: [Renderer]: 	VK_EXT_extended_dynamic_state
+[08:09:11] [trace] Core: [Renderer]: 	VK_EXT_extended_dynamic_state2
+[08:09:11] [trace] Core: [Renderer]: 	VK_EXT_extended_dynamic_state3
+[08:09:11] [trace] Core: [Renderer]: 	VK_EXT_external_memory_host
+[08:09:11] [trace] Core: [Renderer]: 	VK_EXT_fragment_shader_interlock
+[08:09:11] [trace] Core: [Renderer]: 	VK_EXT_full_screen_exclusive
+[08:09:11] [trace] Core: [Renderer]: 	VK_EXT_global_priority
+[08:09:11] [trace] Core: [Renderer]: 	VK_EXT_global_priority_query
+[08:09:11] [trace] Core: [Renderer]: 	VK_EXT_graphics_pipeline_library
+[08:09:11] [trace] Core: [Renderer]: 	VK_EXT_hdr_metadata
+[08:09:11] [trace] Core: [Renderer]: 	VK_EXT_host_image_copy
+[08:09:11] [trace] Core: [Renderer]: 	VK_EXT_host_query_reset
+[08:09:11] [trace] Core: [Renderer]: 	VK_EXT_image_2d_view_of_3d
+[08:09:11] [trace] Core: [Renderer]: 	VK_EXT_image_robustness
+[08:09:11] [trace] Core: [Renderer]: 	VK_EXT_image_sliced_view_of_3d
+[08:09:11] [trace] Core: [Renderer]: 	VK_EXT_image_view_min_lod
+[08:09:11] [trace] Core: [Renderer]: 	VK_EXT_index_type_uint8
+[08:09:11] [trace] Core: [Renderer]: 	VK_EXT_inline_uniform_block
+[08:09:11] [trace] Core: [Renderer]: 	VK_EXT_line_rasterization
+[08:09:11] [trace] Core: [Renderer]: 	VK_EXT_load_store_op_none
+[08:09:11] [trace] Core: [Renderer]: 	VK_EXT_memory_budget
+[08:09:11] [trace] Core: [Renderer]: 	VK_EXT_memory_priority
+[08:09:11] [trace] Core: [Renderer]: 	VK_EXT_multi_draw
+[08:09:11] [trace] Core: [Renderer]: 	VK_EXT_nested_command_buffer
+[08:09:11] [trace] Core: [Renderer]: 	VK_EXT_non_seamless_cube_map
+[08:09:11] [trace] Core: [Renderer]: 	VK_EXT_pci_bus_info
+[08:09:11] [trace] Core: [Renderer]: 	VK_EXT_pipeline_creation_cache_control
+[08:09:11] [trace] Core: [Renderer]: 	VK_EXT_pipeline_creation_feedback
+[08:09:11] [trace] Core: [Renderer]: 	VK_EXT_pipeline_robustness
+[08:09:11] [trace] Core: [Renderer]: 	VK_EXT_post_depth_coverage
+[08:09:11] [trace] Core: [Renderer]: 	VK_EXT_primitive_topology_list_restart
+[08:09:11] [trace] Core: [Renderer]: 	VK_EXT_primitives_generated_query
+[08:09:11] [trace] Core: [Renderer]: 	VK_EXT_private_data
+[08:09:11] [trace] Core: [Renderer]: 	VK_EXT_provoking_vertex
+[08:09:11] [trace] Core: [Renderer]: 	VK_EXT_queue_family_foreign
+[08:09:11] [trace] Core: [Renderer]: 	VK_EXT_robustness2
+[08:09:11] [trace] Core: [Renderer]: 	VK_EXT_sample_locations
+[08:09:11] [trace] Core: [Renderer]: 	VK_EXT_sampler_filter_minmax
+[08:09:11] [trace] Core: [Renderer]: 	VK_EXT_scalar_block_layout
+[08:09:11] [trace] Core: [Renderer]: 	VK_EXT_separate_stencil_usage
+[08:09:11] [trace] Core: [Renderer]: 	VK_EXT_shader_atomic_float
+[08:09:11] [trace] Core: [Renderer]: 	VK_EXT_shader_demote_to_helper_invocation
+[08:09:11] [trace] Core: [Renderer]: 	VK_EXT_shader_image_atomic_int64
+[08:09:11] [trace] Core: [Renderer]: 	VK_EXT_shader_module_identifier
+[08:09:11] [trace] Core: [Renderer]: 	VK_EXT_shader_object
+[08:09:11] [trace] Core: [Renderer]: 	VK_EXT_shader_subgroup_ballot
+[08:09:11] [trace] Core: [Renderer]: 	VK_EXT_shader_subgroup_vote
+[08:09:11] [trace] Core: [Renderer]: 	VK_EXT_shader_viewport_index_layer
+[08:09:11] [trace] Core: [Renderer]: 	VK_EXT_subgroup_size_control
+[08:09:11] [trace] Core: [Renderer]: 	VK_EXT_swapchain_maintenance1
+[08:09:11] [trace] Core: [Renderer]: 	VK_EXT_texel_buffer_alignment
+[08:09:11] [trace] Core: [Renderer]: 	VK_EXT_tooling_info
+[08:09:11] [trace] Core: [Renderer]: 	VK_EXT_transform_feedback
+[08:09:11] [trace] Core: [Renderer]: 	VK_EXT_vertex_attribute_divisor
+[08:09:11] [trace] Core: [Renderer]: 	VK_EXT_vertex_input_dynamic_state
+[08:09:11] [trace] Core: [Renderer]: 	VK_EXT_ycbcr_2plane_444_formats
+[08:09:11] [trace] Core: [Renderer]: 	VK_EXT_ycbcr_image_arrays
+[08:09:11] [trace] Core: [Renderer]: 	VK_NV_acquire_winrt_display
+[08:09:11] [trace] Core: [Renderer]: 	VK_NV_clip_space_w_scaling
+[08:09:11] [trace] Core: [Renderer]: 	VK_NV_copy_memory_indirect
+[08:09:11] [trace] Core: [Renderer]: 	VK_NV_coverage_reduction_mode
+[08:09:11] [trace] Core: [Renderer]: 	VK_NV_dedicated_allocation
+[08:09:11] [trace] Core: [Renderer]: 	VK_NV_dedicated_allocation_image_aliasing
+[08:09:11] [trace] Core: [Renderer]: 	VK_NV_descriptor_pool_overallocation
+[08:09:11] [trace] Core: [Renderer]: 	VK_NV_device_diagnostic_checkpoints
+[08:09:11] [trace] Core: [Renderer]: 	VK_NV_device_diagnostics_config
+[08:09:11] [trace] Core: [Renderer]: 	VK_NV_device_generated_commands
+[08:09:11] [trace] Core: [Renderer]: 	VK_NV_device_generated_commands_compute
+[08:09:11] [trace] Core: [Renderer]: 	VK_NV_external_memory
+[08:09:11] [trace] Core: [Renderer]: 	VK_NV_external_memory_win32
+[08:09:11] [trace] Core: [Renderer]: 	VK_NV_fill_rectangle
+[08:09:11] [trace] Core: [Renderer]: 	VK_NV_fragment_coverage_to_color
+[08:09:11] [trace] Core: [Renderer]: 	VK_NV_framebuffer_mixed_samples
+[08:09:11] [trace] Core: [Renderer]: 	VK_NV_geometry_shader_passthrough
+[08:09:11] [trace] Core: [Renderer]: 	VK_NV_inherited_viewport_scissor
+[08:09:11] [trace] Core: [Renderer]: 	VK_NV_linear_color_attachment
+[08:09:11] [trace] Core: [Renderer]: 	VK_NV_low_latency
+[08:09:11] [trace] Core: [Renderer]: 	VK_NV_low_latency2
+[08:09:11] [trace] Core: [Renderer]: 	VK_NV_memory_decompression
+[08:09:11] [trace] Core: [Renderer]: 	VK_NV_sample_mask_override_coverage
+[08:09:11] [trace] Core: [Renderer]: 	VK_NV_shader_sm_builtins
+[08:09:11] [trace] Core: [Renderer]: 	VK_NV_shader_subgroup_partitioned
+[08:09:11] [trace] Core: [Renderer]: 	VK_NV_viewport_array2
+[08:09:11] [trace] Core: [Renderer]: 	VK_NV_viewport_swizzle
+[08:09:11] [trace] Core: [Renderer]: 	VK_NV_win32_keyed_mutex
+[08:09:11] [trace] Core: [Renderer]: 	VK_NVX_multiview_per_view_attributes
+[08:09:11] [trace] Core: [Renderer]: 	VK_AMD_buffer_marker
+[08:09:11] [info] Core: [Renderer]: Vendor: NVIDIA
+[08:09:11] [info] Core: [Renderer]: Device: NVIDIA GeForce MX330
+[08:09:11] [info] Core: [Renderer]: Driver Version: 2315452416
+[08:09:11] [trace] Core: [VulkanAllocator]: VertexBuffer: Allocating buffer with size: 80.00 Bytes
+[08:09:11] [info] Core: [VulkanAllocator]: VertexBuffer: Total allocated: 80.00 Bytes, Current Memory Usage: 80.00 Bytes
+[08:09:11] [trace] Core: [VulkanAllocator]: VertexBuffer: Allocating buffer with size: 80.00 Bytes
+[08:09:11] [info] Core: [VulkanAllocator]: VertexBuffer: Total allocated: 160.00 Bytes, Current Memory Usage: 160.00 Bytes
+[08:09:11] [trace] Core: [VulkanAllocator]: VertexBuffer: Destroying buffer with size: 80.00 Bytes
+[08:09:11] [trace] Core: [VulkanAllocator]: IndexBuffer: Allocating buffer with size: 24.00 Bytes
+[08:09:11] [info] Core: [VulkanAllocator]: IndexBuffer: Total allocated: 184.00 Bytes, Current Memory Usage: 104.00 Bytes
+[08:09:11] [trace] Core: [VulkanAllocator]: IndexBuffer: Allocating buffer with size: 24.00 Bytes
+[08:09:11] [info] Core: [VulkanAllocator]: IndexBuffer: Total allocated: 208.00 Bytes, Current Memory Usage: 128.00 Bytes
+[08:09:11] [trace] Core: [VulkanAllocator]: IndexBuffer: Destroying buffer with size: 24.00 Bytes
+[08:09:11] [debug] Core: [ShaderCompiler]: Compiling shader: Resources/Shaders/Src/Compositing.glsl
+[08:09:11] [info] Core: [Shader]: Creating descriptor set 0 with 0 ubo's, 0 samplers
+[08:09:11] [info] Core: [Shader]: Creating descriptor set 1 with 0 ubo's, 0 samplers
+[08:09:11] [info] Core: [Shader]: Creating descriptor set 2 with 0 ubo's, 2 samplers
+[08:09:11] [debug] Core: [ShaderCompiler]: Compiling shader: Resources/Shaders/Src/Grid.glsl
+[08:09:11] [info] Core: [Shader]: Creating descriptor set 0 with 0 ubo's, 0 samplers
+[08:09:11] [info] Core: [Shader]: Creating descriptor set 1 with 1 ubo's, 0 samplers
+[08:09:11] [debug] Core: [ShaderCompiler]: Compiling shader: Resources/Shaders/Src/PlaygroundStatic.glsl
+[08:09:11] [info] Core: [Shader]: Creating descriptor set 0 with 0 ubo's, 0 samplers
+[08:09:11] [info] Core: [Shader]: Creating descriptor set 1 with 1 ubo's, 0 samplers
+[08:09:11] [info] Core: [Shader]: Creating descriptor set 2 with 0 ubo's, 0 samplers
+[08:09:11] [info] Core: [Shader]: Creating descriptor set 3 with 0 ubo's, 4 samplers
+[08:09:11] [debug] Core: [ShaderCompiler]: Compiling shader: Resources/Shaders/Src/PreDepth.glsl
+[08:09:11] [info] Core: [Shader]: Creating descriptor set 0 with 0 ubo's, 0 samplers
+[08:09:11] [info] Core: [Shader]: Creating descriptor set 1 with 1 ubo's, 0 samplers
+[08:09:11] [debug] Core: [ShaderCompiler]: Compiling shader: Resources/Shaders/Src/Renderer2D_Line.glsl
+[08:09:11] [info] Core: [Shader]: Creating descriptor set 0 with 1 ubo's, 0 samplers
+[08:09:11] [debug] Core: [ShaderCompiler]: Compiling shader: Resources/Shaders/Src/Renderer2D_Quad.glsl
+[08:09:11] [info] Core: [Shader]: Creating descriptor set 0 with 1 ubo's, 0 samplers
+[08:09:11] [info] Core: [Shader]: Creating descriptor set 1 with 0 ubo's, 0 samplers
+[08:09:11] [info] Core: [Shader]: Creating descriptor set 2 with 0 ubo's, 0 samplers
+[08:09:11] [info] Core: [Shader]: Creating descriptor set 3 with 0 ubo's, 1 samplers
+[08:09:11] [debug] Core: [ShaderCompiler]: Compiling shader: Resources/Shaders/Src/TexturePass.glsl
+[08:09:11] [info] Core: [Shader]: Creating descriptor set 0 with 0 ubo's, 0 samplers
+[08:09:11] [info] Core: [Shader]: Creating descriptor set 1 with 0 ubo's, 0 samplers
+[08:09:11] [info] Core: [Shader]: Creating descriptor set 2 with 0 ubo's, 0 samplers
+[08:09:11] [info] Core: [Shader]: Creating descriptor set 3 with 0 ubo's, 1 samplers
+[08:09:11] [debug] Core: [ShaderCompiler]: Compiling shader: Resources/Shaders/Src/WireFrame.glsl
+[08:09:11] [info] Core: [Shader]: Creating descriptor set 0 with 0 ubo's, 0 samplers
+[08:09:11] [info] Core: [Shader]: Creating descriptor set 1 with 1 ubo's, 0 samplers
+[08:09:11] [trace] Core: [VulkanAllocator]: Texture2D: Allocating image with size: 512.00 Bytes
+[08:09:11] [info] Core: [VulkanAllocator]: Texture2D: Total allocated: 720.00 Bytes, Current Memory Usage: 616.00 Bytes
+[08:09:11] [trace] Core: [VulkanAllocator]: Texture2D: Allocating buffer with size: 4.00 Bytes
+[08:09:11] [info] Core: [VulkanAllocator]: Texture2D: Total allocated: 724.00 Bytes, Current Memory Usage: 620.00 Bytes
+[08:09:11] [trace] Core: [VulkanAllocator]: Texture2D: Destroying buffer with size: 4.00 Bytes
+[08:09:11] [trace] Core: [VulkanAllocator]: Texture2D: Allocating image with size: 512.00 Bytes
+[08:09:11] [info] Core: [VulkanAllocator]: Texture2D: Total allocated: 1.21 KB, Current Memory Usage: 1.10 KB
+[08:09:11] [trace] Core: [VulkanAllocator]: Texture2D: Allocating buffer with size: 4.00 Bytes
+[08:09:11] [info] Core: [VulkanAllocator]: Texture2D: Total allocated: 1.21 KB, Current Memory Usage: 1.11 KB
+[08:09:11] [trace] Core: [VulkanAllocator]: Texture2D: Destroying buffer with size: 4.00 Bytes
+[08:09:11] [trace] Core: [VulkanAllocator]: Texture2D: Allocating image with size: 512.00 Bytes
+[08:09:11] [info] Core: [VulkanAllocator]: Texture2D: Total allocated: 1.71 KB, Current Memory Usage: 1.60 KB
+[08:09:11] [trace] Core: [VulkanAllocator]: Texture2D: Allocating buffer with size: 4.00 Bytes
+[08:09:11] [info] Core: [VulkanAllocator]: Texture2D: Total allocated: 1.71 KB, Current Memory Usage: 1.61 KB
+[08:09:11] [trace] Core: [VulkanAllocator]: Texture2D: Destroying buffer with size: 4.00 Bytes
+[08:09:11] [warning] Core: [Renderer]: Initializing Scene Renderer for scene: Runtime Scene
+[08:09:11] [trace] Core: [VulkanAllocator]: UnifromBuffer: Allocating buffer with size: 512.00 Bytes
+[08:09:11] [info] Core: [VulkanAllocator]: UnifromBuffer: Total allocated: 2.21 KB, Current Memory Usage: 2.10 KB
+[08:09:11] [trace] Core: [VulkanAllocator]: UnifromBuffer: Allocating buffer with size: 512.00 Bytes
+[08:09:11] [info] Core: [VulkanAllocator]: UnifromBuffer: Total allocated: 2.71 KB, Current Memory Usage: 2.60 KB
+[08:09:11] [trace] Core: [VulkanAllocator]: UnifromBuffer: Allocating buffer with size: 512.00 Bytes
+[08:09:11] [info] Core: [VulkanAllocator]: UnifromBuffer: Total allocated: 3.21 KB, Current Memory Usage: 3.10 KB
+[08:09:11] [trace] Core: [VulkanAllocator]: UnifromBuffer: Allocating buffer with size: 256.00 Bytes
+[08:09:11] [info] Core: [VulkanAllocator]: UnifromBuffer: Total allocated: 3.46 KB, Current Memory Usage: 3.35 KB
+[08:09:11] [trace] Core: [VulkanAllocator]: UnifromBuffer: Allocating buffer with size: 256.00 Bytes
+[08:09:11] [info] Core: [VulkanAllocator]: UnifromBuffer: Total allocated: 3.71 KB, Current Memory Usage: 3.60 KB
+[08:09:11] [trace] Core: [VulkanAllocator]: UnifromBuffer: Allocating buffer with size: 256.00 Bytes
+[08:09:11] [info] Core: [VulkanAllocator]: UnifromBuffer: Total allocated: 3.96 KB, Current Memory Usage: 3.85 KB
+[08:09:11] [trace] Core: [VulkanAllocator]: UnifromBuffer: Allocating buffer with size: 256.00 Bytes
+[08:09:11] [info] Core: [VulkanAllocator]: UnifromBuffer: Total allocated: 4.21 KB, Current Memory Usage: 4.10 KB
+[08:09:11] [trace] Core: [VulkanAllocator]: UnifromBuffer: Allocating buffer with size: 256.00 Bytes
+[08:09:11] [info] Core: [VulkanAllocator]: UnifromBuffer: Total allocated: 4.46 KB, Current Memory Usage: 4.35 KB
+[08:09:11] [trace] Core: [VulkanAllocator]: UnifromBuffer: Allocating buffer with size: 256.00 Bytes
+[08:09:11] [info] Core: [VulkanAllocator]: UnifromBuffer: Total allocated: 4.71 KB, Current Memory Usage: 4.60 KB
+[08:09:11] [trace] Core: [VulkanAllocator]: Texture2D: Allocating image with size: 8.44 MB
+[08:09:11] [info] Core: [VulkanAllocator]: Texture2D: Total allocated: 8.44 MB, Current Memory Usage: 8.44 MB
+[08:09:11] [info] Core: [Renderer]: [RenderPass (Renderer2D-Quad)::Bake] update 1 descriptors in set 0
+[08:09:11] [info] Core: [Renderer]: [RenderPass (Renderer2D-Quad)::Bake] update 1 descriptors in set 0
+[08:09:11] [info] Core: [Renderer]: [RenderPass (Renderer2D-Quad)::Bake] update 1 descriptors in set 0
+[08:09:11] [trace] Core: [VulkanAllocator]: VertexBuffer: Allocating buffer with size: 859.38 KB
+[08:09:11] [info] Core: [VulkanAllocator]: VertexBuffer: Total allocated: 9.28 MB, Current Memory Usage: 9.28 MB
+[08:09:11] [trace] Core: [VulkanAllocator]: VertexBuffer: Allocating buffer with size: 859.38 KB
+[08:09:11] [info] Core: [VulkanAllocator]: VertexBuffer: Total allocated: 10.12 MB, Current Memory Usage: 10.12 MB
+[08:09:11] [trace] Core: [VulkanAllocator]: VertexBuffer: Allocating buffer with size: 859.38 KB
+[08:09:11] [info] Core: [VulkanAllocator]: VertexBuffer: Total allocated: 10.96 MB, Current Memory Usage: 10.96 MB
+[08:09:11] [trace] Core: [VulkanAllocator]: IndexBuffer: Allocating buffer with size: 117.19 KB
+[08:09:11] [info] Core: [VulkanAllocator]: IndexBuffer: Total allocated: 11.07 MB, Current Memory Usage: 11.07 MB
+[08:09:11] [trace] Core: [VulkanAllocator]: IndexBuffer: Allocating buffer with size: 117.19 KB
+[08:09:11] [info] Core: [VulkanAllocator]: IndexBuffer: Total allocated: 11.19 MB, Current Memory Usage: 11.19 MB
+[08:09:11] [trace] Core: [VulkanAllocator]: IndexBuffer: Destroying buffer with size: 117.19 KB
+[08:09:11] [info] Core: [Renderer]: [RenderPass (Renderer2D-Line)::Bake] update 1 descriptors in set 0
+[08:09:11] [info] Core: [Renderer]: [RenderPass (Renderer2D-Line)::Bake] update 1 descriptors in set 0
+[08:09:11] [info] Core: [Renderer]: [RenderPass (Renderer2D-Line)::Bake] update 1 descriptors in set 0
+[08:09:11] [trace] Core: [VulkanAllocator]: VertexBuffer: Allocating buffer with size: 109.38 KB
+[08:09:11] [info] Core: [VulkanAllocator]: VertexBuffer: Total allocated: 11.30 MB, Current Memory Usage: 11.18 MB
+[08:09:11] [trace] Core: [VulkanAllocator]: VertexBuffer: Allocating buffer with size: 109.38 KB
+[08:09:11] [info] Core: [VulkanAllocator]: VertexBuffer: Total allocated: 11.40 MB, Current Memory Usage: 11.29 MB
+[08:09:11] [trace] Core: [VulkanAllocator]: VertexBuffer: Allocating buffer with size: 109.38 KB
+[08:09:11] [info] Core: [VulkanAllocator]: VertexBuffer: Total allocated: 11.51 MB, Current Memory Usage: 11.39 MB
+[08:09:11] [trace] Core: [VulkanAllocator]: IndexBuffer: Allocating buffer with size: 46.88 KB
+[08:09:11] [info] Core: [VulkanAllocator]: IndexBuffer: Total allocated: 11.55 MB, Current Memory Usage: 11.44 MB
+[08:09:11] [trace] Core: [VulkanAllocator]: IndexBuffer: Allocating buffer with size: 46.88 KB
+[08:09:11] [info] Core: [VulkanAllocator]: IndexBuffer: Total allocated: 11.60 MB, Current Memory Usage: 11.49 MB
+[08:09:11] [trace] Core: [VulkanAllocator]: IndexBuffer: Destroying buffer with size: 46.88 KB
+[08:09:11] [warning] Core: [Renderer]: [RenderPass (QuadMaterial)::Init] Setting u_Textures to white 2D texture.
+[08:09:11] [info] Core: [Renderer]: [RenderPass (QuadMaterial)::Bake] update 1 descriptors in set 3
+[08:09:11] [info] Core: [Renderer]: [RenderPass (QuadMaterial)::Bake] update 1 descriptors in set 3
+[08:09:11] [info] Core: [Renderer]: [RenderPass (QuadMaterial)::Bake] update 1 descriptors in set 3
+[08:09:11] [trace] Core: [VulkanAllocator]: Texture2D: Allocating image with size: 8.44 MB
+[08:09:11] [info] Core: [VulkanAllocator]: Texture2D: Total allocated: 20.04 MB, Current Memory Usage: 19.88 MB
+[08:09:11] [info] Core: [Renderer]: [RenderPass (OpaquePreDepthRenderPass)::Bake] update 1 descriptors in set 1
+[08:09:11] [info] Core: [Renderer]: [RenderPass (OpaquePreDepthRenderPass)::Bake] update 1 descriptors in set 1
+[08:09:11] [info] Core: [Renderer]: [RenderPass (OpaquePreDepthRenderPass)::Bake] update 1 descriptors in set 1
+[08:09:11] [trace] Core: [VulkanAllocator]: Texture2D: Allocating image with size: 33.75 MB
+[08:09:11] [info] Core: [VulkanAllocator]: Texture2D: Total allocated: 53.79 MB, Current Memory Usage: 53.63 MB
+[08:09:11] [trace] Core: [VulkanAllocator]: Texture2D: Allocating image with size: 16.88 MB
+[08:09:11] [info] Core: [VulkanAllocator]: Texture2D: Total allocated: 70.66 MB, Current Memory Usage: 70.50 MB
+[08:09:11] [trace] Core: [VulkanAllocator]: Texture2D: Allocating image with size: 8.44 MB
+[08:09:11] [info] Core: [VulkanAllocator]: Texture2D: Total allocated: 79.10 MB, Current Memory Usage: 78.94 MB
+[08:09:11] [info] Core: [Renderer]: [RenderPass (StaticGeometryRenderPass)::Bake] update 1 descriptors in set 1
+[08:09:11] [info] Core: [Renderer]: [RenderPass (StaticGeometryRenderPass)::Bake] update 1 descriptors in set 1
+[08:09:11] [info] Core: [Renderer]: [RenderPass (StaticGeometryRenderPass)::Bake] update 1 descriptors in set 1
+[08:09:11] [trace] Core: [VulkanAllocator]: Texture2D: Allocating image with size: 33.75 MB
+[08:09:11] [info] Core: [VulkanAllocator]: Texture2D: Total allocated: 112.85 MB, Current Memory Usage: 112.69 MB
+[08:09:11] [warning] Core: [Renderer]: [RenderPass (CompositePass)::Init] Setting u_Texture to white 2D texture.
+[08:09:11] [warning] Core: [Renderer]: [RenderPass (CompositePass)::Init] Setting u_DepthTexture to white 2D texture.
+[08:09:11] [info] Core: [Renderer]: [RenderPass (CompositePass)::Bake] update 2 descriptors in set 2
+[08:09:11] [info] Core: [Renderer]: [RenderPass (CompositePass)::Bake] update 2 descriptors in set 2
+[08:09:11] [info] Core: [Renderer]: [RenderPass (CompositePass)::Bake] update 2 descriptors in set 2
+[08:09:11] [info] Core: [Renderer]: [RenderPass (GridPass)::Bake] update 1 descriptors in set 1
+[08:09:11] [info] Core: [Renderer]: [RenderPass (GridPass)::Bake] update 1 descriptors in set 1
+[08:09:11] [info] Core: [Renderer]: [RenderPass (GridPass)::Bake] update 1 descriptors in set 1
+[08:09:11] [info] Core: [Renderer]: [RenderPass (WireFramePass)::Bake] update 1 descriptors in set 1
+[08:09:11] [info] Core: [Renderer]: [RenderPass (WireFramePass)::Bake] update 1 descriptors in set 1
+[08:09:11] [info] Core: [Renderer]: [RenderPass (WireFramePass)::Bake] update 1 descriptors in set 1
+[08:09:11] [trace] Core: [VulkanAllocator]: VertexBuffer: Allocating buffer with size: 480.00 KB
+[08:09:11] [info] Core: [VulkanAllocator]: VertexBuffer: Total allocated: 113.32 MB, Current Memory Usage: 113.16 MB
+[08:09:11] [trace] Core: [VulkanAllocator]: VertexBuffer: Allocating buffer with size: 480.00 KB
+[08:09:11] [info] Core: [VulkanAllocator]: VertexBuffer: Total allocated: 113.79 MB, Current Memory Usage: 113.63 MB
+[08:09:11] [trace] Core: [VulkanAllocator]: VertexBuffer: Allocating buffer with size: 480.00 KB
+[08:09:11] [info] Core: [VulkanAllocator]: VertexBuffer: Total allocated: 114.26 MB, Current Memory Usage: 114.10 MB
+[08:09:11] [trace] Core: [VulkanAllocator]: UnifromBuffer: Allocating buffer with size: 256.00 Bytes
+[08:09:11] [info] Core: [VulkanAllocator]: UnifromBuffer: Total allocated: 114.26 MB, Current Memory Usage: 114.10 MB
+[08:09:11] [trace] Core: [VulkanAllocator]: UnifromBuffer: Allocating buffer with size: 256.00 Bytes
+[08:09:11] [info] Core: [VulkanAllocator]: UnifromBuffer: Total allocated: 114.26 MB, Current Memory Usage: 114.10 MB
+[08:09:11] [trace] Core: [VulkanAllocator]: UnifromBuffer: Allocating buffer with size: 256.00 Bytes
+[08:09:11] [info] Core: [VulkanAllocator]: UnifromBuffer: Total allocated: 114.26 MB, Current Memory Usage: 114.10 MB
+[08:09:11] [trace] Core: [VulkanAllocator]: Texture2D: Allocating image with size: 8.44 MB
+[08:09:11] [info] Core: [VulkanAllocator]: Texture2D: Total allocated: 122.70 MB, Current Memory Usage: 122.53 MB
+[08:09:11] [info] Core: [Renderer]: [RenderPass (Renderer2D-Quad)::Bake] update 1 descriptors in set 0
+[08:09:11] [info] Core: [Renderer]: [RenderPass (Renderer2D-Quad)::Bake] update 1 descriptors in set 0
+[08:09:11] [info] Core: [Renderer]: [RenderPass (Renderer2D-Quad)::Bake] update 1 descriptors in set 0
+[08:09:11] [trace] Core: [VulkanAllocator]: VertexBuffer: Allocating buffer with size: 859.38 KB
+[08:09:11] [info] Core: [VulkanAllocator]: VertexBuffer: Total allocated: 123.53 MB, Current Memory Usage: 123.37 MB
+[08:09:11] [trace] Core: [VulkanAllocator]: VertexBuffer: Allocating buffer with size: 859.38 KB
+[08:09:11] [info] Core: [VulkanAllocator]: VertexBuffer: Total allocated: 124.37 MB, Current Memory Usage: 124.21 MB
+[08:09:11] [trace] Core: [VulkanAllocator]: VertexBuffer: Allocating buffer with size: 859.38 KB
+[08:09:11] [info] Core: [VulkanAllocator]: VertexBuffer: Total allocated: 125.21 MB, Current Memory Usage: 125.05 MB
+[08:09:11] [trace] Core: [VulkanAllocator]: IndexBuffer: Allocating buffer with size: 117.19 KB
+[08:09:11] [info] Core: [VulkanAllocator]: IndexBuffer: Total allocated: 125.33 MB, Current Memory Usage: 125.17 MB
+[08:09:11] [trace] Core: [VulkanAllocator]: IndexBuffer: Allocating buffer with size: 117.19 KB
+[08:09:11] [info] Core: [VulkanAllocator]: IndexBuffer: Total allocated: 125.44 MB, Current Memory Usage: 125.28 MB
+[08:09:11] [trace] Core: [VulkanAllocator]: IndexBuffer: Destroying buffer with size: 117.19 KB
+[08:09:11] [info] Core: [Renderer]: [RenderPass (Renderer2D-Line)::Bake] update 1 descriptors in set 0
+[08:09:11] [info] Core: [Renderer]: [RenderPass (Renderer2D-Line)::Bake] update 1 descriptors in set 0
+[08:09:11] [info] Core: [Renderer]: [RenderPass (Renderer2D-Line)::Bake] update 1 descriptors in set 0
+[08:09:11] [trace] Core: [VulkanAllocator]: VertexBuffer: Allocating buffer with size: 109.38 KB
+[08:09:11] [info] Core: [VulkanAllocator]: VertexBuffer: Total allocated: 125.55 MB, Current Memory Usage: 125.27 MB
+[08:09:11] [trace] Core: [VulkanAllocator]: VertexBuffer: Allocating buffer with size: 109.38 KB
+[08:09:11] [info] Core: [VulkanAllocator]: VertexBuffer: Total allocated: 125.66 MB, Current Memory Usage: 125.38 MB
+[08:09:11] [trace] Core: [VulkanAllocator]: VertexBuffer: Allocating buffer with size: 109.38 KB
+[08:09:11] [info] Core: [VulkanAllocator]: VertexBuffer: Total allocated: 125.76 MB, Current Memory Usage: 125.49 MB
+[08:09:11] [trace] Core: [VulkanAllocator]: IndexBuffer: Allocating buffer with size: 46.88 KB
+[08:09:11] [info] Core: [VulkanAllocator]: IndexBuffer: Total allocated: 125.81 MB, Current Memory Usage: 125.53 MB
+[08:09:11] [trace] Core: [VulkanAllocator]: IndexBuffer: Allocating buffer with size: 46.88 KB
+[08:09:11] [info] Core: [VulkanAllocator]: IndexBuffer: Total allocated: 125.85 MB, Current Memory Usage: 125.58 MB
+[08:09:11] [trace] Core: [VulkanAllocator]: IndexBuffer: Destroying buffer with size: 46.88 KB
+[08:09:11] [warning] Core: [Renderer]: [RenderPass (QuadMaterial)::Init] Setting u_Textures to white 2D texture.
+[08:09:11] [info] Core: [Renderer]: [RenderPass (QuadMaterial)::Bake] update 1 descriptors in set 3
+[08:09:11] [info] Core: [Renderer]: [RenderPass (QuadMaterial)::Bake] update 1 descriptors in set 3
+[08:09:11] [info] Core: [Renderer]: [RenderPass (QuadMaterial)::Bake] update 1 descriptors in set 3
+[08:09:11] [warning] Core: [Renderer]: [RenderPass (SwapChainMaterial)::Init] Setting u_Texture to white 2D texture.
+[08:09:11] [info] Core: [Renderer]: [RenderPass (SwapChainMaterial)::Bake] update 1 descriptors in set 3
+[08:09:11] [info] Core: [Renderer]: [RenderPass (SwapChainMaterial)::Bake] update 1 descriptors in set 3
+[08:09:11] [info] Core: [Renderer]: [RenderPass (SwapChainMaterial)::Bake] update 1 descriptors in set 3
+[08:09:11] [info] Core: [Mesh]: Loading mesh: "Resources/assets/meshes/stormtrooper/stormtrooper.gltf"
+[08:09:11] [info] Core: [Assimp]: Info,  T20596: Load Resources/assets/meshes/stormtrooper/stormtrooper.gltf
+[08:09:11] [debug] Core: [Assimp]: Debug, T20596: Assimp 5.2.3671737427 amd64 msvc shared singlethreadedsingle : 
+[08:09:11] [info] Core: [Assimp]: Info,  T20596: Found a possible importer: glTF Importer; trying signature-based detection
+[08:09:11] [info] Core: [Assimp]: Info,  T20596: Found a possible importer: glTF2 Importer; trying signature-based detection
+[08:09:11] [debug] Core: [Assimp]: Debug, T20596: Loading GLTF2 asset
+[08:09:11] [debug] Core: [Assimp]: Debug, T20596: Parsing GLTF2 JSON
+[08:09:11] [info] Core: [Assimp]: Info,  T20596: Found a matching importer for this file format: glTF2 Importer.
+[08:09:11] [info] Core: [Assimp]: Info,  T20596: Import root directory is 'Resources/assets/meshes/stormtrooper\'
+[08:09:11] [debug] Core: [Assimp]: Debug, T20596: Reading GLTF2 file
+[08:09:11] [debug] Core: [Assimp]: Debug, T20596: Loading GLTF2 asset
+[08:09:11] [debug] Core: [Assimp]: Debug, T20596: Parsing GLTF2 JSON
+[08:09:11] [debug] Core: [Assimp]: Debug, T20596: Importing 1 materials
+[08:09:11] [debug] Core: [Assimp]: Debug, T20596: Importing 1 meshes
+[08:09:11] [debug] Core: [Assimp]: Debug, T20596: Importing nodes
+[08:09:11] [debug] Core: [Assimp]: Debug, T20596: Importing 0 animations
+[08:09:11] [debug] Core: [Assimp]: Debug, T20596: Importing metadata
+[08:09:11] [debug] Core: [Assimp]: Debug, T20596: UpdateImporterScale scale set: 1
+[08:09:11] [debug] Core: [Assimp]: Debug, T20596: ValidateDataStructureProcess begin
+[08:09:11] [warning] Core: [Assimp]: Warn,  T20596: Validation warning: aiBone::mWeights[0].mWeight has an invalid value
+[08:09:11] [debug] Core: [Assimp]: Debug, T20596: ValidateDataStructureProcess end
+[08:09:11] [info] Core: [Assimp]: Info,  T20596: Entering post processing pipeline
+[08:09:11] [debug] Core: [Assimp]: Debug, T20596: GenUVCoordsProcess begin
+[08:09:11] [debug] Core: [Assimp]: Debug, T20596: GenUVCoordsProcess finished
+[08:09:11] [debug] Core: [Assimp]: Debug, T20596: TriangulateProcess begin
+[08:09:11] [debug] Core: [Assimp]: Debug, T20596: TriangulateProcess finished. There was nothing to be done.
+[08:09:11] [debug] Core: [Assimp]: Debug, T20596: SortByPTypeProcess begin
+[08:09:11] [info] Core: [Assimp]: Info,  T20596: Points: 0, Lines: 0, Triangles: 1, Polygons: 0 (Meshes, X = removed)
+[08:09:11] [debug] Core: [Assimp]: Debug, T20596: SortByPTypeProcess finished
+[08:09:11] [debug] Core: [Assimp]: Debug, T20596: Skipping OptimizeMeshesProcess
+[08:09:11] [debug] Core: [Assimp]: Debug, T20596: GenFaceNormalsProcess begin
+[08:09:11] [debug] Core: [Assimp]: Debug, T20596: GenFaceNormalsProcess finished. Normals are already there
+[08:09:11] [debug] Core: [Assimp]: Debug, T20596: Generate spatially-sorted vertex cache
+[08:09:11] [debug] Core: [Assimp]: Debug, T20596: CalcTangentsProcess begin
+[08:09:11] [info] Core: [Assimp]: Info,  T20596: CalcTangentsProcess finished. Tangents have been calculated
+[08:09:11] [debug] Core: [Assimp]: Debug, T20596: JoinVerticesProcess begin
+[08:09:11] [debug] Core: [Assimp]: Debug, T20596: Mesh 0 (stormtroopermesh.002) | Verts in: 5174 out: 5174 | ~0%
+[08:09:11] [debug] Core: [Assimp]: Debug, T20596: JoinVerticesProcess finished 
+[08:09:11] [debug] Core: [Assimp]: Debug, T20596: LimitBoneWeightsProcess begin
+[08:09:11] [info] Core: [Assimp]: Info,  T20596: Removed 13 weights. Input bones: 65. Output bones: 52
+[08:09:11] [debug] Core: [Assimp]: Debug, T20596: LimitBoneWeightsProcess end
+[08:09:11] [info] Core: [Assimp]: Info,  T20596: Leaving post processing pipeline
+[08:09:11] [trace] Core: [Mesh]: ----- Materials - "Resources/assets/meshes/stormtrooper/stormtrooper.gltf" -----
+[08:09:11] [warning] Core: [Renderer]: [RenderPass (stormtroopermat.002)::Init] Setting u_AlbedoTexture to white 2D texture.
+[08:09:11] [warning] Core: [Renderer]: [RenderPass (stormtroopermat.002)::Init] Setting u_NormalTexture to white 2D texture.
+[08:09:11] [warning] Core: [Renderer]: [RenderPass (stormtroopermat.002)::Init] Setting u_RoughnessTexture to white 2D texture.
+[08:09:11] [warning] Core: [Renderer]: [RenderPass (stormtroopermat.002)::Init] Setting u_MetalnessTexture to white 2D texture.
+[08:09:11] [info] Core: [Renderer]: [RenderPass (stormtroopermat.002)::Bake] update 4 descriptors in set 3
+[08:09:11] [info] Core: [Renderer]: [RenderPass (stormtroopermat.002)::Bake] update 4 descriptors in set 3
+[08:09:11] [info] Core: [Renderer]: [RenderPass (stormtroopermat.002)::Bake] update 4 descriptors in set 3
+[08:09:11] [trace] Core: [Mesh]: 	   stormtroopermat.002 (index = 0)
+[08:09:11] [trace] Core: [Mesh]: 	   COLOR = 0 - 0 - 0
+[08:09:11] [trace] Core: [Mesh]: 	   ROUGHNESS = 0.5527864
+[08:09:11] [trace] Core: [Mesh]: 	   METALNESS = 1
+[08:09:11] [trace] Core: [Mesh]: 	   Albedo map path: Resources/assets/meshes/stormtrooper\stormtrooper_D.png
+[08:09:11] [trace] Core: [VulkanAllocator]: Texture2D: Allocating image with size: 4.00 MB
+[08:09:11] [info] Core: [VulkanAllocator]: Texture2D: Total allocated: 129.85 MB, Current Memory Usage: 129.53 MB
+[08:09:11] [trace] Core: [VulkanAllocator]: Texture2D: Allocating buffer with size: 4.00 MB
+[08:09:11] [info] Core: [VulkanAllocator]: Texture2D: Total allocated: 133.85 MB, Current Memory Usage: 133.53 MB
+[08:09:11] [trace] Core: [VulkanAllocator]: Texture2D: Destroying buffer with size: 4.00 MB
+[08:09:11] [trace] Core: [Mesh]: 	   No normal map
+[08:09:11] [trace] Core: [Mesh]: 	   No roughness map
+[08:09:11] [trace] Core: [Mesh]: 	   No metalness map
+[08:09:11] [warning] Core: [Renderer]: [RenderPass (PlaygroundStatic (Material))::Init] Setting u_AlbedoTexture to white 2D texture.
+[08:09:11] [warning] Core: [Renderer]: [RenderPass (PlaygroundStatic (Material))::Init] Setting u_NormalTexture to white 2D texture.
+[08:09:11] [warning] Core: [Renderer]: [RenderPass (PlaygroundStatic (Material))::Init] Setting u_RoughnessTexture to white 2D texture.
+[08:09:11] [warning] Core: [Renderer]: [RenderPass (PlaygroundStatic (Material))::Init] Setting u_MetalnessTexture to white 2D texture.
+[08:09:11] [info] Core: [Renderer]: [RenderPass (PlaygroundStatic (Material))::Bake] update 4 descriptors in set 3
+[08:09:11] [info] Core: [Renderer]: [RenderPass (PlaygroundStatic (Material))::Bake] update 4 descriptors in set 3
+[08:09:11] [info] Core: [Renderer]: [RenderPass (PlaygroundStatic (Material))::Bake] update 4 descriptors in set 3
+[08:09:11] [trace] Core: [Mesh]: 	    (index = 1)
+[08:09:11] [trace] Core: [Mesh]: 	   COLOR = 0 - 0 - 0
+[08:09:11] [trace] Core: [Mesh]: 	   ROUGHNESS = 1
+[08:09:11] [trace] Core: [Mesh]: 	   METALNESS = 1
+[08:09:11] [trace] Core: [Mesh]: 	   No albedo map
+[08:09:11] [trace] Core: [Mesh]: 	   No normal map
+[08:09:11] [trace] Core: [Mesh]: 	   No roughness map
+[08:09:11] [trace] Core: [Mesh]: 	   No metalness map
+[08:09:11] [trace] Core: [Mesh]: ---------------------------
+[08:09:11] [trace] Core: [VulkanAllocator]: VertexBuffer: Allocating buffer with size: 282.95 KB
+[08:09:11] [info] Core: [VulkanAllocator]: VertexBuffer: Total allocated: 134.13 MB, Current Memory Usage: 129.81 MB
+[08:09:11] [trace] Core: [VulkanAllocator]: VertexBuffer: Allocating buffer with size: 282.95 KB
+[08:09:11] [info] Core: [VulkanAllocator]: VertexBuffer: Total allocated: 134.41 MB, Current Memory Usage: 130.09 MB
+[08:09:11] [trace] Core: [VulkanAllocator]: VertexBuffer: Destroying buffer with size: 282.95 KB
+[08:09:11] [trace] Core: [VulkanAllocator]: IndexBuffer: Allocating buffer with size: 76.38 KB
+[08:09:11] [info] Core: [VulkanAllocator]: IndexBuffer: Total allocated: 134.48 MB, Current Memory Usage: 129.88 MB
+[08:09:11] [trace] Core: [VulkanAllocator]: IndexBuffer: Allocating buffer with size: 76.38 KB
+[08:09:11] [info] Core: [VulkanAllocator]: IndexBuffer: Total allocated: 134.56 MB, Current Memory Usage: 129.96 MB
+[08:09:11] [trace] Core: [VulkanAllocator]: IndexBuffer: Destroying buffer with size: 76.38 KB
+[08:09:11] [warning] Core: [Renderer]: [RenderPass (stormtroopermat.002)::Init] Setting u_AlbedoTexture to white 2D texture.
+[08:09:11] [warning] Core: [Renderer]: [RenderPass (stormtroopermat.002)::Init] Setting u_NormalTexture to white 2D texture.
+[08:09:11] [warning] Core: [Renderer]: [RenderPass (stormtroopermat.002)::Init] Setting u_RoughnessTexture to white 2D texture.
+[08:09:11] [warning] Core: [Renderer]: [RenderPass (stormtroopermat.002)::Init] Setting u_MetalnessTexture to white 2D texture.
+[08:09:11] [info] Core: [Renderer]: [RenderPass (stormtroopermat.002)::Bake] update 4 descriptors in set 3
+[08:09:11] [info] Core: [Renderer]: [RenderPass (stormtroopermat.002)::Bake] update 4 descriptors in set 3
+[08:09:11] [info] Core: [Renderer]: [RenderPass (stormtroopermat.002)::Bake] update 4 descriptors in set 3
+[08:09:11] [warning] Core: [Renderer]: [RenderPass (PlaygroundStatic (Material))::Init] Setting u_AlbedoTexture to white 2D texture.
+[08:09:11] [warning] Core: [Renderer]: [RenderPass (PlaygroundStatic (Material))::Init] Setting u_NormalTexture to white 2D texture.
+[08:09:11] [warning] Core: [Renderer]: [RenderPass (PlaygroundStatic (Material))::Init] Setting u_RoughnessTexture to white 2D texture.
+[08:09:11] [warning] Core: [Renderer]: [RenderPass (PlaygroundStatic (Material))::Init] Setting u_MetalnessTexture to white 2D texture.
+[08:09:11] [info] Core: [Renderer]: [RenderPass (PlaygroundStatic (Material))::Bake] update 4 descriptors in set 3
+[08:09:11] [info] Core: [Renderer]: [RenderPass (PlaygroundStatic (Material))::Bake] update 4 descriptors in set 3
+[08:09:11] [info] Core: [Renderer]: [RenderPass (PlaygroundStatic (Material))::Bake] update 4 descriptors in set 3
+[08:09:11] [trace] Core: [VulkanAllocator]: Texture2D: Allocating image with size: 2.24 MB
+[08:09:11] [info] Core: [VulkanAllocator]: Texture2D: Total allocated: 136.80 MB, Current Memory Usage: 132.13 MB
+[08:09:11] [trace] Core: [VulkanAllocator]: Texture2D: Allocating buffer with size: 1.56 MB
+[08:09:11] [info] Core: [VulkanAllocator]: Texture2D: Total allocated: 138.36 MB, Current Memory Usage: 133.69 MB
+[08:09:11] [trace] Core: [VulkanAllocator]: Texture2D: Destroying buffer with size: 1.56 MB
+[08:09:11] [info] Core: [Renderer]: [RenderPass (SwapChainMaterial)::InvalidateAndUpdate] updating 1 descriptors in set 3 (frameIndex = 0)
+[08:09:12] [info] Core: [Renderer]: [RenderPass (SwapChainMaterial)::InvalidateAndUpdate] updating 1 descriptors in set 3 (frameIndex = 1)
+[08:09:12] [info] Core: [Renderer]: [RenderPass (SwapChainMaterial)::InvalidateAndUpdate] updating 1 descriptors in set 3 (frameIndex = 2)
+[08:09:12] [trace] Core: [VulkanAllocator]: Texture2D: Destroying image with size: 8.44 MB
+[08:09:12] [trace] Core: [VulkanAllocator]: Texture2D: Destroying image with size: 8.44 MB
+[08:09:36] [trace] Core: [VulkanAllocator]: Texture2D: Destroying image with size: 2.24 MB
+[08:09:36] [trace] Core: [VulkanAllocator]: IndexBuffer: Destroying buffer with size: 76.38 KB
+[08:09:36] [trace] Core: [VulkanAllocator]: VertexBuffer: Destroying buffer with size: 282.95 KB
+[08:09:36] [trace] Core: [VulkanAllocator]: IndexBuffer: Destroying buffer with size: 46.88 KB
+[08:09:36] [trace] Core: [VulkanAllocator]: VertexBuffer: Destroying buffer with size: 109.38 KB
+[08:09:36] [trace] Core: [VulkanAllocator]: VertexBuffer: Destroying buffer with size: 109.38 KB
+[08:09:36] [trace] Core: [VulkanAllocator]: VertexBuffer: Destroying buffer with size: 109.38 KB
+[08:09:36] [trace] Core: [VulkanAllocator]: IndexBuffer: Destroying buffer with size: 117.19 KB
+[08:09:36] [trace] Core: [VulkanAllocator]: VertexBuffer: Destroying buffer with size: 859.38 KB
+[08:09:36] [trace] Core: [VulkanAllocator]: VertexBuffer: Destroying buffer with size: 859.38 KB
+[08:09:36] [trace] Core: [VulkanAllocator]: VertexBuffer: Destroying buffer with size: 859.38 KB
+[08:09:36] [trace] Core: [VulkanAllocator]: UniformBuffer: Destroying buffer with size: 256.00 Bytes
+[08:09:36] [trace] Core: [VulkanAllocator]: UniformBuffer: Destroying buffer with size: 256.00 Bytes
+[08:09:36] [trace] Core: [VulkanAllocator]: UniformBuffer: Destroying buffer with size: 256.00 Bytes
+[08:09:36] [trace] Core: [VulkanAllocator]: VertexBuffer: Destroying buffer with size: 480.00 KB
+[08:09:36] [trace] Core: [VulkanAllocator]: VertexBuffer: Destroying buffer with size: 480.00 KB
+[08:09:36] [trace] Core: [VulkanAllocator]: VertexBuffer: Destroying buffer with size: 480.00 KB
+[08:09:36] [trace] Core: [VulkanAllocator]: UniformBuffer: Destroying buffer with size: 256.00 Bytes
+[08:09:36] [trace] Core: [VulkanAllocator]: UniformBuffer: Destroying buffer with size: 256.00 Bytes
+[08:09:36] [trace] Core: [VulkanAllocator]: UniformBuffer: Destroying buffer with size: 256.00 Bytes
+[08:09:36] [trace] Core: [VulkanAllocator]: UniformBuffer: Destroying buffer with size: 512.00 Bytes
+[08:09:36] [trace] Core: [VulkanAllocator]: UniformBuffer: Destroying buffer with size: 512.00 Bytes
+[08:09:36] [trace] Core: [VulkanAllocator]: UniformBuffer: Destroying buffer with size: 512.00 Bytes
+[08:09:36] [trace] Core: [VulkanAllocator]: IndexBuffer: Destroying buffer with size: 46.88 KB
+[08:09:36] [trace] Core: [VulkanAllocator]: VertexBuffer: Destroying buffer with size: 109.38 KB
+[08:09:36] [trace] Core: [VulkanAllocator]: VertexBuffer: Destroying buffer with size: 109.38 KB
+[08:09:36] [trace] Core: [VulkanAllocator]: VertexBuffer: Destroying buffer with size: 109.38 KB
+[08:09:36] [trace] Core: [VulkanAllocator]: IndexBuffer: Destroying buffer with size: 117.19 KB
+[08:09:36] [trace] Core: [VulkanAllocator]: VertexBuffer: Destroying buffer with size: 859.38 KB
+[08:09:36] [trace] Core: [VulkanAllocator]: VertexBuffer: Destroying buffer with size: 859.38 KB
+[08:09:36] [trace] Core: [VulkanAllocator]: VertexBuffer: Destroying buffer with size: 859.38 KB
+[08:09:36] [trace] Core: [VulkanAllocator]: UniformBuffer: Destroying buffer with size: 256.00 Bytes
+[08:09:36] [trace] Core: [VulkanAllocator]: UniformBuffer: Destroying buffer with size: 256.00 Bytes
+[08:09:36] [trace] Core: [VulkanAllocator]: UniformBuffer: Destroying buffer with size: 256.00 Bytes
+[08:09:36] [trace] Core: [VulkanAllocator]: Texture2D: Destroying image with size: 33.75 MB
+[08:09:36] [trace] Core: [VulkanAllocator]: Texture2D: Destroying image with size: 8.44 MB
+[08:09:36] [trace] Core: [VulkanAllocator]: Texture2D: Destroying image with size: 4.00 MB
+[08:09:36] [trace] Core: [VulkanAllocator]: Texture2D: Destroying image with size: 33.75 MB
+[08:09:36] [trace] Core: [VulkanAllocator]: Texture2D: Destroying image with size: 16.88 MB
+[08:09:36] [trace] Core: [VulkanAllocator]: Texture2D: Destroying image with size: 8.44 MB
+[08:09:36] [trace] Core: [VulkanAllocator]: IndexBuffer: Destroying buffer with size: 24.00 Bytes
+[08:09:36] [trace] Core: [VulkanAllocator]: VertexBuffer: Destroying buffer with size: 80.00 Bytes
+[08:09:36] [trace] Core: [VulkanAllocator]: Texture2D: Destroying image with size: 512.00 Bytes
+[08:09:36] [trace] Core: [VulkanAllocator]: Texture2D: Destroying image with size: 512.00 Bytes
+[08:09:36] [trace] Core: [VulkanAllocator]: Texture2D: Destroying image with size: 512.00 Bytes

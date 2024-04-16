@@ -1,1 +1,0 @@
-vkInstance, PhysicalDevice and LogicalDevice all are stored, Created, Destroyed in the RendererContext!
