@@ -14,7 +14,7 @@ namespace Iris::Logging {
 	{
 		std::vector<spdlog::sink_ptr> playgroundSinks =
 		{
-			std::make_shared<spdlog::sinks::basic_file_sink_mt>("../VulkanPlayground/LogDump/PlaygroundDump.log", true),
+			std::make_shared<spdlog::sinks::basic_file_sink_mt>("../Iris/LogDump/IrisDump.log", true),
 			std::make_shared<spdlog::sinks::stdout_color_sink_mt>()
 		};
 

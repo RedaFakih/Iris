@@ -136,6 +136,7 @@ namespace Iris::UI {
 		if (IsItemHovered(delayInSeconds, allowWhenDisabled ? ImGuiHoveredFlags_AllowWhenDisabled : 0))
 		{
 			UI::ImGuiScopedStyle tooltipPadding(ImGuiStyleVar_WindowPadding, padding);
+			UI::ImGuiScopedStyle tooltipRounding(ImGuiStyleVar_WindowRounding, 6.0f);
 			UI::ImGuiScopedColor textCol(ImGuiCol_Text, Colors::Theme::TextBrighter);
 			ImGui::SetTooltip(text.data());
 		}

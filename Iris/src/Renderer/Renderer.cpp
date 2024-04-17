@@ -160,10 +160,10 @@ namespace Iris {
 
 		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/Compositing.glsl");
 		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/Grid.glsl");
+		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/IrisPBRStatic.glsl");
+		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/PreDepth.glsl");
 		// NOTE: For later to be fixed...
 		// Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/RayCastedGrid.glsl");
-		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/PlaygroundStatic.glsl");
-		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/PreDepth.glsl");
 		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/Renderer2D_Line.glsl");
 		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/Renderer2D_Quad.glsl");
 		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/TexturePass.glsl");

@@ -106,7 +106,7 @@ namespace Iris {
 
 			PipelineSpecification staticGeometryPipelineSpec = {
 				.DebugName = "PBRStaicPipeline",
-				.Shader = Renderer::GetShadersLibrary()->Get("PlaygroundStatic"),
+				.Shader = Renderer::GetShadersLibrary()->Get("IrisPBRStatic"),
 				.TargetFramebuffer = Framebuffer::Create(geometryFBSpec),
 				.VertexLayout = vertexLayout,
 				.InstanceLayout = instanceLayout,

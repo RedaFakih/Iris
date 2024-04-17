@@ -180,7 +180,7 @@ namespace Iris {
 			{
 				aiMaterial* aiMaterial = scene->mMaterials[i];
 				aiString aiMaterialName = aiMaterial->GetName();
-				Ref<Material> material = Material::Create(Renderer::GetShadersLibrary()->Get("PlaygroundStatic"), aiMaterialName.C_Str());
+				Ref<Material> material = Material::Create(Renderer::GetShadersLibrary()->Get("IrisPBRStatic"), aiMaterialName.C_Str());
 				meshSource->m_Materials[i] = material;
 
 				IR_CORE_TRACE_TAG("Mesh", "\t   {0} (index = {1})", aiMaterialName.data, i);
@@ -456,7 +456,7 @@ namespace Iris {
 		{
 			if (scene->HasMeshes())
 			{
-				Ref<Material> material = Material::Create(Renderer::GetShadersLibrary()->Get("PlaygroundStatic"), "PlaygroundDefault");
+				Ref<Material> material = Material::Create(Renderer::GetShadersLibrary()->Get("IrisPBRStatic"), "PlaygroundDefault");
 				material->Set("u_MaterialUniforms.AlbedoColor", glm::vec3(0.8f));
 				material->Set("u_MaterialUniforms.Emission", 0.0f);
 				material->Set("u_MaterialUniforms.Roughness", 0.8f);

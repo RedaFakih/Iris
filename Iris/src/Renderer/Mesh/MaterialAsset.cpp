@@ -36,7 +36,7 @@ namespace Iris {
 		//if (isTransparent)
 		//	m_Material = Material::Create(Renderer::GetShadersLibrary()->Get("PlaygroundStaticTransparent"));
 		//else
-			m_Material = Material::Create(Renderer::GetShadersLibrary()->Get("PlaygroundStatic"));
+			m_Material = Material::Create(Renderer::GetShadersLibrary()->Get("IrisPBRStatic"));
 
 		SetDefaults();
 	}

@@ -45,7 +45,7 @@ namespace Iris {
 		: Layer("EditorLayer"), m_EditorCamera(45.0f, 1280.0f, 720.0f, 0.1f, 10000.0f)
 	{
 		m_TitleBarPreviousColor = Colors::Theme::TitlebarRed;
-		m_TitleBarTargetColor   = Colors::Theme::TitlebarCyan;
+		m_TitleBarTargetColor   = Colors::Theme::TitlebarGreen;
 	}
 
 	EditorLayer::~EditorLayer()
@@ -205,7 +205,7 @@ namespace Iris {
 		// TODO: Move into EditorStyle editor panel
 		if (m_ShowImGuiStyleEditor)
 		{
-			ImGui::Begin("Style Editor", &m_ShowImGuiStyleEditor);
+			ImGui::Begin("Style Editor", &m_ShowImGuiStyleEditor, ImGuiWindowFlags_NoCollapse);
 			static int style;
 			ImGui::ShowStyleEditor(0, &style);
 			ImGui::End();
@@ -292,7 +292,7 @@ namespace Iris {
 
 		ImGui::SetCursorPos(windowPadding);
 		const ImVec2 titlebarMin = ImGui::GetCursorScreenPos();
-		const ImVec2 titlebarMax = { ImGui::GetCursorPos().x + ImGui::GetWindowWidth() - windowPadding.y * 2.0f, ImGui::GetCursorPos().y + titlebarHeight };
+		const ImVec2 titlebarMax = { ImGui::GetCursorScreenPos().x + ImGui::GetWindowWidth() - windowPadding.y * 2.0f, ImGui::GetCursorScreenPos().y + titlebarHeight };
 		ImDrawList* drawList = ImGui::GetWindowDrawList();
 		drawList->AddRectFilled(titlebarMin, titlebarMax, Colors::Theme::Titlebar);
 
@@ -325,10 +325,14 @@ namespace Iris {
 
 		// Logo
 		{
-			const int logoWidth = EditorResources::IrisLogo->GetWidth();
-			const int logoHeight = EditorResources::IrisLogo->GetHeight();
+			int logoWidth = EditorResources::IrisLogo->GetWidth();
+			int logoHeight = EditorResources::IrisLogo->GetHeight();
 
-			const ImVec2 logoOffset{ 14.0f + windowPadding.x, 6.0f + windowPadding.y };
+			// Overrides
+			logoWidth = 50;
+			logoHeight = 50;
+
+			const ImVec2 logoOffset{ 14.0f + windowPadding.x, 6.0f + windowPadding.y - 1.3f };
 			const ImVec2 logoRectStart = { ImGui::GetItemRectMin().x + logoOffset.x, ImGui::GetItemRectMin().y + logoOffset.y };
 			const ImVec2 logoRectMax = { logoRectStart.x + logoWidth, logoRectStart.y + logoHeight };
 			drawList->AddImage(UI::GetTextureID(EditorResources::IrisLogo), logoRectStart, logoRectMax);
@@ -360,7 +364,7 @@ namespace Iris {
 				m_TitleBarHovered = false;
 		}
 
-		const float menuBarRight = ImGui::GetItemRectMax().x - ImGui::GetCurrentWindow()->Pos.x;
+		const float menuBarLeft = ImGui::GetItemRectMin().x - ImGui::GetCurrentWindow()->Pos.x;
 		ImGuiFontsLibrary& fontsLib = Application::Get().GetImGuiLayer()->GetFontsLibrary();
 
 		// TODO: Project name
@@ -401,8 +405,8 @@ namespace Iris {
 			UI::ImGuiScopedColor textColor(ImGuiCol_Text, Colors::Theme::Text);
 			const std::string sceneName = m_EditorScene->GetName();
 
-			ImGui::SetCursorPosX(menuBarRight);
-			UI::ShiftCursorX(50.0f);
+			ImGui::SetCursorPosX(menuBarLeft);
+			UI::ShiftCursorX(13.0f);
 			{
 				UI::ImGuiScopedFont boldFont(fontsLib.GetFont("RobotoBold"));
 				ImGui::Text(sceneName.c_str());
@@ -414,14 +418,14 @@ namespace Iris {
 			ImRect itemRect = UI::RectExpanded(UI::GetItemRect(), underLineExpandWidth, 0.0f);
 
 			// Horizontal line
-			//itemRect.Min.y = itemRect.Max.y - underlineThickness;
-			//itemRect = UI::RectOffset(itemRect, 0.0f, underlineThickness * 2.0f);
+			// itemRect.Min.y = itemRect.Max.y - underLineThickness;
+			// itemRect = UI::RectOffset(itemRect, 0.0f, underLineThickness * 2.0f);
 
 			// Vertical line
 			itemRect.Max.x = itemRect.Min.x + underLineThickness;
-			itemRect = UI::RectExpanded(itemRect, -underLineThickness * 2.0f, 0.0f);
+			itemRect = UI::RectOffset(itemRect, -underLineThickness * 2.0f, 0.0f);
 
-			// drawList->AddRectFilled(itemRect.Min, itemRect.Max, Colors::Theme::Muted, 2.0f);
+			drawList->AddRectFilled(itemRect.Min, itemRect.Max, Colors::Theme::Muted, 2.0f);
 		}
 
 		ImGui::ResumeLayout();
@@ -642,6 +646,10 @@ namespace Iris {
 
 					for (auto& [id, panelSpec] : m_PanelsManager->GetPanels(PanelCategory::Edit))
 						ImGui::MenuItem(panelSpec.Name, nullptr, &panelSpec.IsOpen);
+
+					ImGui::Separator();
+
+					ImGui::MenuItem("Whatever");
 
 					ImGui::PopStyleColor();
 					ImGui::EndMenu();
