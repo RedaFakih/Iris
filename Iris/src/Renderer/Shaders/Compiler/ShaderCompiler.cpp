@@ -159,7 +159,7 @@ namespace Iris {
 		shader->m_DisableOptimizations = disableOptimizations;
 
 		Ref<ShaderCompiler> compiler = ShaderCompiler::Create(filePath, disableOptimizations);
-		compiler->Reload(forceCompile);
+		shader->m_CompilationStatus = compiler->Reload(forceCompile);
 
 		shader->LoadAndCreateShaders(compiler->GetSPIRVData());
 		shader->SetReflectionData(compiler->m_ReflectionData);

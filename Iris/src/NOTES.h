@@ -7,7 +7,7 @@
  * NEXT STEP ON TUTORIAL: Compute Shaders
  *
  * NEXT THING TO WORK ON:
- * - Change the way the titlebar looks...
+ * - Bug in SceneHierarchyPanel in Debug mode only for deletion of related entities
  * - Scene and components so that we can finally get some interaction
  * - Add Filled Circles to Renderer2D? (Circle sprites)
  * - Add compute passes to the engine so we can have environment maps and some IBL

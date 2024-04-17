@@ -31,6 +31,7 @@ namespace Iris {
 		[[nodiscard]] static Ref<Shader> Create();
 		[[nodiscard]] static Ref<Shader> Create(std::string_view path, bool forceCompile = false, bool disableOptimization = false);
 
+		// Returns whether reloading failed or not
 		void Reload();
 
 		void Release();
@@ -62,6 +63,8 @@ namespace Iris {
 		// For getting the descriptor mainly for materials in the renderer
 		const VkWriteDescriptorSet* GetDescriptorSet(const std::string& name, uint32_t set = 0) const;
 
+		bool GetCompilationStatus() const { return m_CompilationStatus; }
+
 	private:
 		void LoadAndCreateShaders(const std::map<VkShaderStageFlagBits, std::vector<uint32_t>>& shaderData);
 		void BuildWriteDescriptors();
@@ -70,6 +73,7 @@ namespace Iris {
 		std::string m_Name;
 		std::string m_FilePath;
 		bool m_DisableOptimizations = false;
+		bool m_CompilationStatus = false;
 
 		std::map<VkShaderStageFlagBits, std::vector<uint32_t>> m_VulkanSPIRV;
 		std::vector<VkPipelineShaderStageCreateInfo> m_PipelineShaderStageCreateInfos;

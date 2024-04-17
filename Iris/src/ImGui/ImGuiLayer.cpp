@@ -48,7 +48,8 @@ namespace Iris {
 		ImGuiStyle& style = ImGui::GetStyle();
 		if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
 		{
-			style.WindowRounding = 0.0f;
+			style.WindowRounding = 6.0f;
+			style.PopupRounding = 3.0f;
 			style.Colors[ImGuiCol_WindowBg].w = 1.0f;
 		}
 		style.Colors[ImGuiCol_WindowBg] = ImVec4(0.15f, 0.15f, 0.15f, style.Colors[ImGuiCol_WindowBg].w);

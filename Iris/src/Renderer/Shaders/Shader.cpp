@@ -65,7 +65,13 @@ namespace Iris {
 		// This has to be done on the render thread...
 		// Renderer::Submit([]() {});
 		if (!ShaderCompiler::TryRecompile(this))
+		{
 			IR_CORE_FATAL_TAG("Shader", "Failed to recompile shader!");
+			m_CompilationStatus = false;
+			return;
+		}
+
+		m_CompilationStatus = true;
 	}
 
 	void Shader::Release()

@@ -6,7 +6,7 @@ namespace Iris::Utils {
 	std::string ToLower(const std::string_view string)
 	{
 		std::string retVal;
-		retVal.reserve(string.size());
+		retVal.resize(string.size());
 
 		for (std::size_t i = 0; i < string.size(); i++)
 			retVal[i] = std::tolower(string[i]);
@@ -17,7 +17,7 @@ namespace Iris::Utils {
 	std::string ToUpper(const std::string_view string)
 	{
 		std::string retVal;
-		retVal.reserve(string.size());
+		retVal.resize(string.size());
 
 		for (std::size_t i = 0; i < string.size(); i++)
 			retVal[i] = std::toupper(string[i]);

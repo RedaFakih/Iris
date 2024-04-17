@@ -136,7 +136,6 @@ namespace Iris::UI {
 		if (IsItemHovered(delayInSeconds, allowWhenDisabled ? ImGuiHoveredFlags_AllowWhenDisabled : 0))
 		{
 			UI::ImGuiScopedStyle tooltipPadding(ImGuiStyleVar_WindowPadding, padding);
-			UI::ImGuiScopedStyle tooltipRounding(ImGuiStyleVar_WindowRounding, 6.0f);
 			UI::ImGuiScopedColor textCol(ImGuiCol_Text, Colors::Theme::TextBrighter);
 			ImGui::SetTooltip(text.data());
 		}
@@ -1236,6 +1235,50 @@ namespace Iris::UI {
 		const auto colour = ImGui::ColorConvertFloat4ToU32(borderColour);
 		drawList->AddLine(min, ImVec2(min.x, max.y), colour, thickness);
 		drawList->AddLine(ImVec2(max.x, min.y), max, colour, thickness);
+	}
+
+	bool IsMatchingSearch(const std::string& item, std::string_view searchQuery, bool caseSensitive, bool stripWhiteSpaces, bool stripUnderscores)
+	{
+		if (searchQuery.empty())
+			return true;
+
+		if (item.empty())
+			return false;
+
+		std::string itemSanitized = stripUnderscores ? choc::text::replace(item, "_", " ") : item;
+
+		if (stripWhiteSpaces)
+			itemSanitized = choc::text::replace(itemSanitized, " ", "");
+
+		std::string searchString = stripWhiteSpaces ? choc::text::replace(searchQuery, " ", "") : std::string(searchQuery);
+
+		if (!caseSensitive)
+		{
+			itemSanitized = Utils::ToLower(itemSanitized);
+			searchString = Utils::ToLower(searchString);
+		}
+
+		bool result = false;
+		if (choc::text::contains(searchString, " "))
+		{
+			std::vector<std::string> searchTerms = choc::text::splitAtWhitespace(searchString);
+			for (const auto& searchTerm : searchTerms)
+			{
+				if (!searchTerm.empty() && choc::text::contains(itemSanitized, searchTerm))
+					result = true;
+				else
+				{
+					result = false;
+					break;
+				}
+			}
+		}
+		else
+		{
+			result = choc::text::contains(itemSanitized, searchString);
+		}
+
+		return result;
 	}
 
 }
