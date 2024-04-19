@@ -39,7 +39,8 @@ project "Iris"
         "%{IncludeDir.spdlog}",
         "%{IncludeDir.EnTT}",
         "%{IncludeDir.NFDExtended}",
-        "%{IncludeDir.Yaml}"
+        "%{IncludeDir.Yaml}",
+        "%{IncludeDir.MagicEnum}"
     }
 
     links {

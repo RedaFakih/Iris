@@ -38,8 +38,12 @@ namespace Iris {
 		bool OnKeyPressed(Events::KeyPressedEvent& e);
 		bool OnMouseButtonPressed(Events::MouseButtonPressedEvent& e);
 
+		void SceneHierarchySetEditorCameraTransform(Entity entity);
+
 	private:
 		std::pair<float, float> GetMouseInViewportSpace() const;
+
+		void OnEntityDeleted(Entity e);
 
 	// Primary panels for editor
 	private:
@@ -51,12 +55,17 @@ namespace Iris {
 		void UI_HandleManualWindowResize();
 		bool UI_TitleBarHitTest(int x, int y) const;
 		void UI_DrawMainMenuBar();
+		float GetSnapValue();
+		void UI_DrawGizmos();
+
+		void DeleteEntity(Entity entity);
 
 		void UI_ShowViewport();
 		void UI_ShowShadersPanel();
 		void UI_ShowFontsPanel();
 
 	private:
+		Ref<Scene> m_CurrentScene;
 		Ref<Scene> m_EditorScene;
 		Ref<SceneRenderer> m_ViewportRenderer;
 		Ref<Renderer2D> m_Renderer2D;
@@ -68,6 +77,9 @@ namespace Iris {
 		ImRect m_ViewportRect;
 		ImVec2 m_ViewportSize = { 0.0f, 0.0f };
 
+		int m_GizmoType = -1; // -1 = No gizmo
+		int m_GizmoMode = 0; // 0 = local
+
 		float m_LineWidth = 2.0f;
 
 		bool m_TitleBarHovered = false;
@@ -77,6 +89,8 @@ namespace Iris {
 		bool m_AnimateTitleBarColor = true;
 
 		bool m_StartedCameraClickInViewport = false;
+
+		bool m_ShowGizmos = true;
 
 		bool m_ViewportPanelMouseOver = false;
 		bool m_ViewportPanelFocused = false;

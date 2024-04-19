@@ -3,6 +3,7 @@
 #include "Editor/EditorResources.h"
 #include "Renderer/Texture.h"
 #include "Themes.h"
+#include "Utils/FileSystem.h"
 #include "Utils/StringUtils.h"
 
 #include <choc/text/choc_StringUtilities.h>
@@ -25,6 +26,15 @@ namespace ImGui {
 }
 
 namespace Iris::UI {
+
+	enum class VectorAxis
+	{
+		None = 0,
+		X = BIT(0),
+		Y = BIT(1),
+		Z = BIT(2),
+		W = BIT(3)
+	};
 
 	struct ImGuiScopedStyle
 	{
@@ -167,9 +177,9 @@ namespace Iris::UI {
 		return colRaw;
 	}
 
-	bool ColorEdit3Control(const char* label, glm::vec3& color, bool showAsWheel = true);
+	bool PropertyColor3(const char* label, glm::vec3& color, bool showAsWheel = true);
 
-	bool ColorEdit4Control(const char* label, glm::vec4& color, bool showAsWheel = true);
+	bool PropertyColor4(const char* label, glm::vec4& color, bool showAsWheel = true);
 
 	//////////////////////////////////////////////////////////////////////////
 	//////// DrawList Utils /////////
@@ -232,6 +242,8 @@ namespace Iris::UI {
 	void BeginPropertyGrid(uint32_t columns = 2, bool defaultWidth = true);
 	void EndPropertyGrid();
 
+	bool TreeNodeWithIcon(const std::string& label, const Ref<Texture2D>& icon, const ImVec2& size, bool openByDefault = true);
+
 	void Separator(ImVec2 size, ImVec4 color);
 
 	bool PropertyString(const char* label, const char* value, bool isError = false);
@@ -240,6 +252,11 @@ namespace Iris::UI {
 	bool PropertyBool(const char* label, bool& value, const char* helpText = "");
 	bool PropertySliderFloat(const char* label, float& value, float min = 0.0f, float max = 0.0f, const char* format = "%.3f", const char* helpText = "");
 	bool PropertySliderFloat2(const char* label, ImVec2& value, float min = 0.0f, float max = 0.0f, const char* format = "%.3f", const char* helpText = "");
+
+	bool PropertyDragFloat(const char* label, double& value, float delta = 0.1f, double min = 0.0, double max = 0.0, const char* helpText = "");
+	bool PropertyDragFloat2(const char* label, glm::vec2& value, float delta = 0.1f, double min = 0.0, double max = 0.0, const char* helpText = "");
+	bool PropertyDragFloat3(const char* label, glm::vec3& value, float delta = 0.1f, double min = 0.0, double max = 0.0, const char* helpText = "");
+	bool PropertyDragFloat4(const char* label, glm::vec4& value, float delta = 0.1f, double min = 0.0, double max = 0.0, const char* helpText = "");
 
 	template<typename Enum, typename Type = int32_t>
 	inline bool PropertyDropdown(const char* label, const char** options, int optionCount, Enum& selected, const char* helpText = "")
@@ -401,8 +418,249 @@ namespace Iris::UI {
 	}
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	/// Custom Drag Scalars...
+	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+	const char* PatchFormatStringFloatToInt(const char* fmt);
+
+	int FormatString(char* buf, size_t buf_size, const char* fmt, ...);
+
+	bool DragScalar(const char* label, ImGuiDataType data_type, void* p_data, float v_speed, const void* p_min, const void* p_max, const char* format, ImGuiSliderFlags flags);
+
+	inline bool DragScalarN(const char* label, ImGuiDataType data_type, void* p_data, int components, float v_speed = 1.0f, const void* p_min = NULL, const void* p_max = NULL, const char* format = NULL, ImGuiSliderFlags flags = 0)
+	{
+		bool changed = ImGui::DragScalarN(label, data_type, p_data, components, v_speed, p_min, p_max, format, flags);
+		DrawItemActivityOutline();
+		return changed;
+	}
+
+	inline bool DragFloat(const char* label, float* v, float v_speed = 1.0f, float v_min = 0.0f, float v_max = 0.0f, const char* format = "%.3f", ImGuiSliderFlags flags = 0)
+	{
+		return DragScalar(label, ImGuiDataType_Float, v, v_speed, &v_min, &v_max, format, flags);
+	}
+
+	inline bool SliderFloat(const char* label, float* v, float v_min, float v_max, const char* format = "%.3f", ImGuiSliderFlags flags = 0)
+	{
+		bool changed = ImGui::SliderFloat(label, v, v_min, v_max, format, flags);
+		DrawItemActivityOutline();
+		return changed;
+	}
+
+	inline bool DragFloat2(const char* label, float v[2], float v_speed = 1.0f, float v_min = 0.0f, float v_max = 0.0f, const char* format = "%.3f", ImGuiSliderFlags flags = 0)
+	{
+		bool changed = ImGui::DragFloat2(label, v, v_speed, v_min, v_max, format, flags);
+		DrawItemActivityOutline();
+		return changed;
+	}
+
+	inline bool SliderFloat2(const char* label, float v[2], float v_min, float v_max, const char* format = "%.3f", ImGuiSliderFlags flags = 0)
+	{
+		bool changed = ImGui::SliderFloat2(label, v, v_min, v_max, format, flags);
+		DrawItemActivityOutline();
+		return changed;
+	}
+
+	inline bool DragFloat3(const char* label, float v[3], float v_speed = 1.0f, float v_min = 0.0f, float v_max = 0.0f, const char* format = "%.3f", ImGuiSliderFlags flags = 0)
+	{
+		bool changed = ImGui::DragFloat3(label, v, v_speed, v_min, v_max, format, flags);
+		DrawItemActivityOutline();
+		return changed;
+	}
+
+	inline bool SliderFloat3(const char* label, float v[3], float v_min, float v_max, const char* format = "%.3f", ImGuiSliderFlags flags = 0)
+	{
+		bool changed = ImGui::SliderFloat3(label, v, v_min, v_max, format, flags);
+		DrawItemActivityOutline();
+		return changed;
+	}
+
+	inline bool DragFloat4(const char* label, float v[4], float v_speed = 1.0f, float v_min = 0.0f, float v_max = 0.0f, const char* format = "%.3f", ImGuiSliderFlags flags = 0)
+	{
+		bool changed = ImGui::DragFloat4(label, v, v_speed, v_min, v_max, format, flags);
+		DrawItemActivityOutline();
+		return changed;
+	}
+
+	inline bool SliderFloat4(const char* label, float v[4], float v_min, float v_max, const char* format = "%.3f", ImGuiSliderFlags flags = 0)
+	{
+		bool changed = ImGui::SliderFloat4(label, v, v_min, v_max, format, flags);
+		DrawItemActivityOutline();
+		return changed;
+	}
+
+	inline bool DragDouble(const char* label, double* v, float v_speed = 1.0f, double v_min = 0.0, double v_max = 0.0, const char* format = "%.3f", ImGuiSliderFlags flags = 0)
+	{
+		return DragScalar(label, ImGuiDataType_Double, v, v_speed, &v_min, &v_max, format, flags);
+	}
+
+	inline bool DragInt8(const char* label, int8_t* v, float v_speed = 1.0f, int8_t v_min = 0, int8_t v_max = 0, const char* format = nullptr, ImGuiSliderFlags flags = 0)
+	{
+		return DragScalar(label, ImGuiDataType_S8, v, v_speed, &v_min, &v_max, format, flags);
+	}
+
+	inline bool DragInt16(const char* label, int16_t* v, float v_speed = 1.0f, int16_t v_min = 0, int16_t v_max = 0, const char* format = nullptr, ImGuiSliderFlags flags = 0)
+	{
+		return DragScalar(label, ImGuiDataType_S16, v, v_speed, &v_min, &v_max, format, flags);
+	}
+
+	inline bool DragInt32(const char* label, int32_t* v, float v_speed = 1.0f, int32_t v_min = 0, int32_t v_max = 0, const char* format = nullptr, ImGuiSliderFlags flags = 0)
+	{
+		return DragScalar(label, ImGuiDataType_S32, v, v_speed, &v_min, &v_max, format, flags);
+	}
+
+	inline bool SliderInt32(const char* label, int* v, int v_min, int v_max, const char* format = "%d", ImGuiSliderFlags flags = 0)
+	{
+		bool changed = ImGui::SliderInt(label, v, v_min, v_max, format, flags);
+		DrawItemActivityOutline();
+		return changed;
+	}
+
+	inline bool DragInt64(const char* label, int64_t* v, float v_speed = 1.0f, int64_t v_min = 0, int64_t v_max = 0, const char* format = nullptr, ImGuiSliderFlags flags = 0)
+	{
+		return DragScalar(label, ImGuiDataType_S64, v, v_speed, &v_min, &v_max, format, flags);
+	}
+
+	inline bool DragUInt8(const char* label, uint8_t* v, float v_speed = 1.0f, uint8_t v_min = 0, uint8_t v_max = 0, const char* format = nullptr, ImGuiSliderFlags flags = 0)
+	{
+		return DragScalar(label, ImGuiDataType_U8, v, v_speed, &v_min, &v_max, format, flags);
+	}
+
+	inline bool DragUInt16(const char* label, uint16_t* v, float v_speed = 1.0f, uint16_t v_min = 0, uint16_t v_max = 0, const char* format = nullptr, ImGuiSliderFlags flags = 0)
+	{
+		return DragScalar(label, ImGuiDataType_U16, v, v_speed, &v_min, &v_max, format, flags);
+	}
+
+	inline bool DragUInt32(const char* label, uint32_t* v, float v_speed = 1.0f, uint32_t v_min = 0, uint32_t v_max = 0, const char* format = nullptr, ImGuiSliderFlags flags = 0)
+	{
+		return DragScalar(label, ImGuiDataType_U32, v, v_speed, &v_min, &v_max, format, flags);
+	}
+
+	inline bool DragUInt64(const char* label, uint64_t* v, float v_speed = 1.0f, uint64_t v_min = 0, uint64_t v_max = 0, const char* format = nullptr, ImGuiSliderFlags flags = 0)
+	{
+		return DragScalar(label, ImGuiDataType_U64, v, v_speed, &v_min, &v_max, format, flags);
+	}
+
+	inline bool InputScalar(const char* label, ImGuiDataType data_type, void* p_data, const void* p_step = NULL, const void* p_step_fast = NULL, const char* format = NULL, ImGuiInputTextFlags flags = 0)
+	{
+		bool changed = ImGui::InputScalar(label, data_type, p_data, p_step, p_step_fast, format, flags);
+		DrawItemActivityOutline();
+		return changed;
+	}
+
+	inline bool InputFloat(const char* label, float* v, float step = 0.0f, float step_fast = 0.0f, const char* format = "%.3f", ImGuiInputTextFlags flags = 0)
+	{
+		return InputScalar(label, ImGuiDataType_Float, v, &step, &step_fast, format, flags);
+	}
+
+	inline bool InputDouble(const char* label, double* v, double step = 0.0, double step_fast = 0.0, const char* format = "%.6f", ImGuiInputTextFlags flags = 0)
+	{
+		return InputScalar(label, ImGuiDataType_Double, v, &step, &step_fast, format, flags);
+	}
+
+	inline bool InputInt8(const char* label, int8_t* v, int8_t step = 1, int8_t step_fast = 1, ImGuiInputTextFlags flags = 0)
+	{
+		return InputScalar(label, ImGuiDataType_S8, v, &step, &step_fast, nullptr, flags);
+	}
+
+	inline bool InputInt16(const char* label, int16_t* v, int16_t step = 1, int16_t step_fast = 10, ImGuiInputTextFlags flags = 0)
+	{
+		return InputScalar(label, ImGuiDataType_S16, v, &step, &step_fast, nullptr, flags);
+	}
+
+	inline bool InputInt32(const char* label, int32_t* v, int32_t step = 1, int32_t step_fast = 100, ImGuiInputTextFlags flags = 0)
+	{
+		return InputScalar(label, ImGuiDataType_S32, v, &step, &step_fast, nullptr, flags);
+	}
+
+	inline bool InputInt64(const char* label, int64_t* v, int64_t step = 1, int64_t step_fast = 1000, ImGuiInputTextFlags flags = 0)
+	{
+		return InputScalar(label, ImGuiDataType_S64, v, &step, &step_fast, nullptr, flags);
+	}
+
+	inline bool InputUInt8(const char* label, uint8_t* v, uint8_t step = 1, uint8_t step_fast = 1, ImGuiInputTextFlags flags = 0)
+	{
+		return InputScalar(label, ImGuiDataType_U8, v, &step, &step_fast, nullptr, flags);
+	}
+
+	inline bool InputUInt16(const char* label, uint16_t* v, uint16_t step = 1, uint16_t step_fast = 10, ImGuiInputTextFlags flags = 0)
+	{
+		return InputScalar(label, ImGuiDataType_U16, v, &step, &step_fast, nullptr, flags);
+	}
+
+	inline bool InputUInt32(const char* label, uint32_t* v, uint32_t step = 1, uint32_t step_fast = 100, ImGuiInputTextFlags flags = 0)
+	{
+		return InputScalar(label, ImGuiDataType_U32, v, &step, &step_fast, nullptr, flags);
+	}
+
+	inline bool InputUInt64(const char* label, uint64_t* value, ImGuiInputTextFlags flags = 0)
+	{
+		return InputScalar(label, ImGuiDataType_U64, value, nullptr, nullptr, nullptr, flags);
+	}
+
+	inline bool InputUInt64(const char* label, uint64_t* v, uint64_t step = 0, uint64_t step_fast = 0, ImGuiInputTextFlags flags = 0)
+	{
+		return InputScalar(label, ImGuiDataType_U64, v, step ? &step : nullptr, step_fast ? &step_fast : nullptr, nullptr, flags);
+	}
+
+	inline bool InputText(const char* label, char* buf, size_t buf_size, ImGuiInputTextFlags flags = 0, ImGuiInputTextCallback callback = NULL, void* user_data = NULL)
+	{
+		bool changed = ImGui::InputText(label, buf, buf_size, flags, callback, user_data);
+		DrawItemActivityOutline();
+		return changed;
+	}
+
+	inline bool InputText(const char* label, std::string* value, ImGuiInputTextFlags flags = 0, ImGuiInputTextCallback callback = NULL, void* user_data = NULL)
+	{
+		bool changed = ImGui::InputText(label, value, flags, callback, user_data);
+		DrawItemActivityOutline();
+		return changed;
+	}
+
+	inline bool InputTextMultiline(const char* label, std::string* value, const ImVec2& size = ImVec2(0, 0), ImGuiInputTextFlags flags = 0, ImGuiInputTextCallback callback = NULL, void* user_data = NULL)
+	{
+		bool changed = ImGui::InputTextMultiline(label, value, size, flags, callback, user_data);
+		DrawItemActivityOutline();
+		return changed;
+	}
+
+	inline bool ColorEdit3(const char* label, float col[3], ImGuiColorEditFlags flags = 0)
+	{
+		bool changed = ImGui::ColorEdit3(label, col, flags);
+		DrawItemActivityOutline();
+		return changed;
+	}
+
+	inline bool ColorEdit4(const char* label, float col[4], ImGuiColorEditFlags flags = 0)
+	{
+		bool changed = ImGui::ColorEdit4(label, col, flags);
+		DrawItemActivityOutline();
+		return changed;
+	}
+
+	inline bool BeginCombo(const char* label, const char* preview_value, ImGuiComboFlags flags = 0)
+	{
+		bool opened = ImGui::BeginCombo(label, preview_value, flags);
+		DrawItemActivityOutline();
+		return opened;
+	}
+
+	inline void EndCombo()
+	{
+		ImGui::EndCombo();
+	}
+
+	inline bool Checkbox(const char* label, bool* b)
+	{
+		bool changed = ImGui::Checkbox(label, b);
+		UI::DrawItemActivityOutline();
+		return changed;
+	}
+
+	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	/// Widgets...
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+	bool EditVec3(std::string_view label, ImVec2 size, float resetValue, bool& manuallyEdited, glm::vec3& value, VectorAxis renderMultiSelectAxes = VectorAxis::None, float speed = 1.0f, glm::vec3 v_min = glm::vec3(0.0f), glm::vec3 v_max = glm::vec3(0.0f), const char* format = "%.2f", ImGuiSliderFlags flags = 0);
 
 	// Helper for the SearchWidget...
 	bool IsMatchingSearch(const std::string& item, std::string_view searchQuery, bool caseSensitive = false, bool stripWhiteSpaces = false, bool stripUnderscores = false);

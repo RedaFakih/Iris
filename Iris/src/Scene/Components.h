@@ -24,6 +24,12 @@ namespace Iris {
 		std::string Tag;
 	};
 
+	struct RelationshipComponent
+	{
+		UUID ParentHandle = 0;
+		std::vector<UUID> Children;
+	};
+
 	struct TransformComponent
 	{
 		glm::vec3 Translation = { 0.0f, 0.0f, 0.0f };
@@ -81,7 +87,7 @@ namespace Iris {
 	{
 		// Type of camera is stored in the camera itself
 		SceneCamera Camera;
-		bool Primary = true;
+		bool Primary = false;
 	};
 
 	// Renderer2D Quad Component
@@ -111,6 +117,6 @@ namespace Iris {
 	{
 	};
 
-	using AllComponents = ComponentGroup<IDComponent, TagComponent, TransformComponent, CameraComponent, SpriteRendererComponent, StaticMeshComponent>;
+	using AllComponents = ComponentGroup<IDComponent, TagComponent, RelationshipComponent, TransformComponent, CameraComponent, SpriteRendererComponent, StaticMeshComponent>;
 
 }

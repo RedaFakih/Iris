@@ -2,7 +2,9 @@
 #include "ImGuiLayer.h"
 
 #include "Core/Application.h"
+#include "FontAwesome.h"
 #include "ImGuiFonts.h"
+#include "ImGuizmo.h"
 #include "Renderer/Core/RendererContext.h"
 #include "Renderer/Core/Vulkan.h"
 #include "Renderer/Renderer.h"
@@ -124,7 +126,7 @@ namespace Iris {
 		ImGui_ImplVulkan_NewFrame();
 		ImGui_ImplGlfw_NewFrame();
 		ImGui::NewFrame();
-		// ImGuizmo::BeginFrame(); // TODO:
+		ImGuizmo::BeginFrame();
 	}
 
 	void ImGuiLayer::End()
@@ -309,7 +311,7 @@ namespace Iris {
 		m_FontsLibrary.Load(robotoDefault, true);
 
 		// TODO: Here we should replace the hex values with defines for font awesome glyphs
-		const ImWchar s_FontAwesomeGlyphRanges[] = { 0xf000, 0xf307, 0 };
+		const ImWchar s_FontAwesomeGlyphRanges[] = { IR_ICON_MIN_FA, IR_ICON_MAX_FA, 0 };
 		FontSpecification fontAwesome = {
 			.FontName = "FontAwesome",
 			.Filepath = "Resources/Editor/Fonts/FontAwesome/fontawesome-webfont.ttf",

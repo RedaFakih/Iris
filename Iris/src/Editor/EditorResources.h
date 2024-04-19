@@ -11,6 +11,12 @@ namespace Iris {
 	public:
 		inline static Ref<Texture2D> IrisLogo = nullptr;
 
+		inline static Ref<Texture2D> AssetIcon = nullptr;
+		inline static Ref<Texture2D> CameraIcon = nullptr;
+		inline static Ref<Texture2D> StaticMeshIcon = nullptr;
+		inline static Ref<Texture2D> SpriteIcon = nullptr;
+		inline static Ref<Texture2D> TransformIcon = nullptr;
+
 		inline static Ref<Texture2D> MinimizeIcon = nullptr;
 		inline static Ref<Texture2D> MaximizeIcon = nullptr;
 		inline static Ref<Texture2D> RestoreIcon = nullptr;
@@ -18,6 +24,9 @@ namespace Iris {
 
 		inline static Ref<Texture2D> SearchIcon = nullptr;
 		inline static Ref<Texture2D> ClearIcon = nullptr;
+		inline static Ref<Texture2D> GearIcon = nullptr;
+		inline static Ref<Texture2D> PencilIcon = nullptr;
+		inline static Ref<Texture2D> PlusIcon = nullptr;
 
 		static void Init()
 		{
@@ -25,6 +34,12 @@ namespace Iris {
 			spec.WrapMode = TextureWrap::Clamp;
 
 			IrisLogo = LoadTexture("IrisIcon.png", "IrisLogo", spec);
+			
+			AssetIcon = LoadTexture("Icons/Generic.png", "AssetIcon", spec);
+			CameraIcon = LoadTexture("Icons/Camera.png", "CameraIcon", spec);
+			StaticMeshIcon = LoadTexture("Icons/StaticMesh.png", "StaticMeshIcon", spec);
+			SpriteIcon = LoadTexture("Icons/SpriteRenderer.png", "SpriteIcon", spec);
+			TransformIcon = LoadTexture("Icons/Transform.png", "TransformIcon", spec);
 
 			MinimizeIcon = LoadTexture("Viewport/Minimize.png", "MinimizeIcon", spec);
 			MaximizeIcon = LoadTexture("Viewport/Maximize.png", "MaximizeIcon", spec);
@@ -33,11 +48,20 @@ namespace Iris {
 
 			SearchIcon = LoadTexture("Generic/Search.png", "SearchIcon", spec);
 			ClearIcon = LoadTexture("Generic/Clear.png", "ClearIcon", spec);
+			GearIcon = LoadTexture("Generic/Gear.png", "GearIcon", spec);
+			PencilIcon = LoadTexture("Generic/Pencil.png", "PencilIcon", spec);
+			PlusIcon = LoadTexture("Generic/Plus.png", "PlusIcon", spec);
 		}
 
 		static void Shutdown()
 		{
 			IrisLogo.Reset();
+			
+			AssetIcon.Reset();
+			CameraIcon.Reset();
+			StaticMeshIcon.Reset();
+			SpriteIcon.Reset();
+			TransformIcon.Reset();
 
 			MinimizeIcon.Reset();
 			MaximizeIcon.Reset();
@@ -46,6 +70,9 @@ namespace Iris {
 
 			SearchIcon.Reset();
 			ClearIcon.Reset();
+			GearIcon.Reset();
+			PencilIcon.Reset();
+			PlusIcon.Reset();
 		}
 
 	private:

@@ -17,6 +17,7 @@ project "IrisEditor"
         "%{IncludeDir.glm}",
         "%{IncludeDir.choc}",
         "%{IncludeDir.EnTT}",
+        "%{IncludeDir.MagicEnum}",
         "%{IncludeDir.VulkanSDK}"
     }
 

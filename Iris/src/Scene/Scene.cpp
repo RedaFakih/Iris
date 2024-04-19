@@ -1,16 +1,22 @@
 #include "IrisPCH.h"
 #include "Scene.h"
 
-#include "Renderer/Shaders/Shader.h"
-#include "Renderer/UniformBufferSet.h"
-#include "Renderer/Texture.h"
+#include "Editor/SelectionManager.h"
 #include "Renderer/SceneRenderer.h"
+#include "Renderer/Shaders/Shader.h"
+#include "Renderer/Texture.h"
+#include "Renderer/UniformBufferSet.h"
 
 namespace Iris {
 
 	Ref<Scene> Scene::Create(const std::string& name, bool isEditorScene)
 	{
 		return CreateRef<Scene>(name, isEditorScene);
+	}
+
+	Ref<Scene> Scene::CreateEmpty()
+	{
+		return CreateRef<Scene>("Empty", false);
 	}
 
 	Scene::Scene(const std::string& name, bool isEditorScene)
@@ -128,18 +134,74 @@ namespace Iris {
 		m_ViewportHeight = height;
 	}
 
+	Entity Scene::GetMainCameraEntity()
+	{
+		auto view = m_Registry.view<CameraComponent>();
+		for (auto entity : view)
+		{
+			auto& comp = view.get<CameraComponent>(entity);
+			if (comp.Primary)
+			{
+				IR_ASSERT(comp.Camera.GetOrthographicSize() || comp.Camera.GetDegPerspectiveVerticalFOV(), "Camera is not fully initialized");
+				return { entity, this };
+			}
+		}
+		return {};
+	}
+
+	std::vector<UUID> Scene::GetAllChildren(Entity entity) const
+	{
+		std::vector<UUID> result;
+
+		for (auto childID : entity.Children())
+		{
+			result.push_back(childID);
+
+			std::vector<UUID> childChildrenIDs = GetAllChildren(GetEntityWithUUID(childID));
+			result.reserve(result.size() + childChildrenIDs.size());
+			result.insert(result.end(), childChildrenIDs.begin(), childChildrenIDs.end());
+		}
+
+		return result;
+	}
+
 	Entity Scene::CreateEntity(const std::string& name)
 	{
-		return CreateEntityWithUUID(UUID(), name);
+		return CreateChildEntity({}, name);
+	}
+
+	Entity Scene::CreateChildEntity(Entity parent, const std::string& name)
+	{
+		auto entity = Entity{ m_Registry.create(), this };
+		auto& idComponent = entity.AddComponent<IDComponent>();
+		idComponent.ID = {};
+
+		if (!name.empty())
+			entity.AddComponent<TagComponent>(name);
+
+		entity.AddComponent<TransformComponent>();
+		entity.AddComponent<RelationshipComponent>();
+
+		if (parent)
+			entity.SetParent(parent);
+
+		m_EntityIDMap[idComponent.ID] = entity;
+
+		SortEntities();
+
+		return entity;
 	}
 
 	Entity Scene::CreateEntityWithUUID(UUID id, const std::string& name, bool shouldSort)
 	{
 		Entity entity = { m_Registry.create(), this };
 		entity.AddComponent<IDComponent>(id);
+
+		if (!name.empty())
+			entity.AddComponent<TagComponent>(name);
+
 		entity.AddComponent<TransformComponent>();
-		TagComponent& tag = entity.AddComponent<TagComponent>(name);
-		tag.Tag = name.empty() ? "PlaygroundDefault" : name;
+		entity.AddComponent<RelationshipComponent>();
 
 		IR_ASSERT(!m_EntityIDMap.contains(id));
 		m_EntityIDMap[id] = entity;
@@ -150,7 +212,7 @@ namespace Iris {
 		return entity;
 	}
 
-	void Scene::DestroyEntity(Entity entity)
+	void Scene::DestroyEntity(Entity entity, bool excludeChildren, bool first)
 	{
 		if (!entity)
 			return;
@@ -158,16 +220,35 @@ namespace Iris {
 		if (m_OnEntityDestroyedCallback)
 			m_OnEntityDestroyedCallback(entity);
 
-		// TODO: Deselect
+		if (!excludeChildren)
+		{
+			for (std::size_t i = 0; i < entity.Children().size(); i++)
+			{
+				auto childID = entity.Children()[i];
+				Entity child = GetEntityWithUUID(childID);
+				DestroyEntity(childID, excludeChildren, false);
+			}
+		}
+
+		if (first)
+		{
+			Entity parent = entity.GetParent();
+			if (parent)
+				parent.RemoveChild(entity);
+		}
 
 		UUID id = entity.GetUUID();
+
+		if (SelectionManager::IsSelected(id))
+			SelectionManager::Deselect(id);
+
 		m_Registry.destroy(entity.m_EntityHandle);
 		m_EntityIDMap.erase(id);
 
 		SortEntities();
 	}
 
-	void Scene::DestroyEntity(UUID entityID)
+	void Scene::DestroyEntity(UUID entityID, bool excludeChildren, bool first)
 	{
 		auto it = m_EntityIDMap.find(entityID);
 		if (it == m_EntityIDMap.end())
@@ -176,22 +257,57 @@ namespace Iris {
 		DestroyEntity(it->second);
 	}
 
+	void Scene::ConvertToLocalSpace(Entity entity)
+	{
+		Entity parent = TryGetEntityWithUUID(entity.GetParentUUID());
+
+		if (!parent)
+			return;
+
+		auto& transform = entity.Transform();
+		glm::mat4 parentTransform = GetWorldSpaceTransformMatrix(parent);
+		glm::mat4 localTransform = glm::inverse(parentTransform) * transform.GetTransform();
+		transform.SetTransform(localTransform);
+	}
+
+	void Scene::ConvertToWorldSpace(Entity entity)
+	{
+		Entity parent = TryGetEntityWithUUID(entity.GetParentUUID());
+
+		if (!parent)
+			return;
+
+		glm::mat4 transform = GetWorldSpaceTransformMatrix(entity);
+		auto& entityTransform = entity.Transform();
+		entityTransform.SetTransform(transform);
+	}
+
 	glm::mat4 Scene::GetWorldSpaceTransformMatrix(Entity entity)
 	{
 		glm::mat4 transform(1.0f);
 
-		// TODO: Get Parent transform so that we get the correct transform
+		Entity parent = TryGetEntityWithUUID(entity.GetParentUUID());
+		if (parent)
+			transform = GetWorldSpaceTransformMatrix(parent);
 
 		return transform * entity.Transform().GetTransform();
 	}
 
-	Entity Scene::GetEntitiyWithUUID(UUID id) const
+	TransformComponent Scene::GetWorldSpaceTransform(Entity entity)
+	{
+		glm::mat4 transform = GetWorldSpaceTransformMatrix(entity);
+		TransformComponent transformComponent;
+		transformComponent.SetTransform(transform);
+		return transformComponent;
+	}
+
+	Entity Scene::GetEntityWithUUID(UUID id) const
 	{
 		IR_ASSERT(m_EntityIDMap.contains(id), "Invalid Entity ID or entity does not exist!");
 		return m_EntityIDMap.at(id);
 	}
 
-	Entity Scene::TryGetEntitiyWithUUID(UUID id) const
+	Entity Scene::TryGetEntityWithUUID(UUID id) const
 	{
 		const auto it = m_EntityIDMap.find(id);
 		if (it != m_EntityIDMap.end())
@@ -210,6 +326,66 @@ namespace Iris {
 		}
 
 		return Entity{};
+	}
+
+	Entity Scene::TryGetDescendantEntityWithTag(Entity entity, const std::string& tag)
+	{
+		if (entity)
+		{
+			if (entity.GetComponent<TagComponent>().Tag == tag)
+				return entity;
+
+			for (const auto childID : entity.Children())
+			{
+				Entity descendant = TryGetDescendantEntityWithTag(GetEntityWithUUID(childID), tag);
+				if (descendant)
+					return descendant;
+			}
+		}
+
+		return {};
+	}
+
+	void Scene::ParentEntity(Entity entity, Entity parent)
+	{
+		if (parent.IsDescendantOf(entity))
+		{
+			UnparentEntity(parent);
+
+			Entity newParent = TryGetEntityWithUUID(entity.GetParentUUID());
+			if (newParent)
+			{
+				UnparentEntity(entity);
+				ParentEntity(parent, newParent);
+			}
+		}
+		else
+		{
+			Entity previousParent = TryGetEntityWithUUID(entity.GetParentUUID());
+
+			if (previousParent)
+				UnparentEntity(entity);
+		}
+
+		entity.SetParentUUID(parent.GetUUID());
+		parent.Children().push_back(entity.GetUUID());
+
+		ConvertToLocalSpace(entity);
+	}
+
+	void Scene::UnparentEntity(Entity entity, bool convertToWorldSpace)
+	{
+		Entity parent = TryGetEntityWithUUID(entity.GetParentUUID());
+		if (!parent)
+			return;
+
+		auto& parentChildren = parent.Children();
+		parentChildren.erase(std::remove(parentChildren.begin(), parentChildren.end(), entity.GetUUID()), parentChildren.end());
+
+		if (convertToWorldSpace)
+			ConvertToWorldSpace(entity);
+
+		entity.SetParentUUID(0);
 	}
 
 	void Scene::SortEntities()

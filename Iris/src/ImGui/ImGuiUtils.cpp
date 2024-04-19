@@ -2,11 +2,15 @@
 #include "ImGuiUtils.h"
 
 #include "Core/Application.h"
+#include "Core/Input/Input.h"
 
 #include <imgui/imgui_impl_vulkan.h>
 
 #include <glm/gtc/type_ptr.hpp>
 #include <spdlog/fmt/fmt.h>
+
+#include <magic_enum.hpp>
+using namespace magic_enum::bitwise_operators;
 
 namespace ImGui {
 
@@ -245,7 +249,7 @@ namespace Iris::UI {
 
 	//////// DrawList Utils /////////
 
-	bool ColorEdit3Control(const char* label, glm::vec3& color, bool showAsWheel)
+	bool PropertyColor3(const char* label, glm::vec3& color, bool showAsWheel)
 	{
 		ImGuiColorEditFlags flags = ImGuiColorEditFlags_AlphaBar
 			| ImGuiColorEditFlags_AlphaPreview
@@ -267,7 +271,7 @@ namespace Iris::UI {
 		return modified;
 	}
 
-	bool ColorEdit4Control(const char* label, glm::vec4& color, bool showAsWheel)
+	bool PropertyColor4(const char* label, glm::vec4& color, bool showAsWheel)
 	{
 		ImGuiColorEditFlags flags = ImGuiColorEditFlags_AlphaBar
 			| ImGuiColorEditFlags_AlphaPreview
@@ -497,8 +501,42 @@ namespace Iris::UI {
 		ImGui::Columns(1);
 		UnderLine();
 		ImGui::PopStyleVar(2);
-		ShiftCursorY(18.0f);
+		ShiftCursorY(7.0f);
 		PopID();
+	}
+
+	bool TreeNodeWithIcon(const std::string& label, const Ref<Texture2D>& icon, const ImVec2& size, bool openByDefault)
+	{
+		ImGuiTreeNodeFlags treeNodeFlags = ImGuiTreeNodeFlags_Framed
+			| ImGuiTreeNodeFlags_SpanAvailWidth
+			| ImGuiTreeNodeFlags_AllowItemOverlap
+			| ImGuiTreeNodeFlags_FramePadding;
+
+		if (openByDefault)
+			treeNodeFlags |= ImGuiTreeNodeFlags_DefaultOpen;
+
+		bool open = false;
+		const float framePaddingX = 6.0f;
+		const float framePaddingY = 6.0f; // affects height of the header
+
+		UI::ImGuiScopedStyle headerRounding(ImGuiStyleVar_FrameRounding, 0.0f);
+		UI::ImGuiScopedStyle headerPaddingAndHeight(ImGuiStyleVar_FramePadding, ImVec2{ framePaddingX, framePaddingY });
+
+		ImGui::PushID(label.c_str());
+		ImVec2 contentRegionAvailable = ImGui::GetContentRegionAvail();
+		open = ImGui::TreeNodeEx("##dummy_id", treeNodeFlags, "");
+
+		float lineHeight = ImGui::GetItemRectMax().y - ImGui::GetItemRectMin().y;
+		ImGui::SameLine();
+		UI::ShiftCursorY(size.y / 2.0f - 6.5f);
+		UI::Image(icon, size);
+		ImGui::SameLine();
+		UI::ShiftCursorY(-(size.y / 2.0f) + 10.5f);
+		ImGui::TextUnformatted(Utils::ToUpper(label).c_str());
+
+		ImGui::PopID();
+
+		return open;
 	}
 
 	void Separator(ImVec2 size, ImVec4 color)
@@ -616,7 +654,6 @@ namespace Iris::UI {
 
 		bool modified = ImGui::Checkbox(fmt::format("##{0}", label).c_str(), &value);
 
-		// TODO: Maybe useless for the checkbox
 		if (!IsItemDisabled())
 			DrawItemActivityOutline();
 
@@ -680,6 +717,102 @@ namespace Iris::UI {
 		return modified;
 	}
 
+	bool PropertyDragFloat(const char* label, double& value, float delta, double min, double max, const char* helpText)
+	{
+		ShiftCursor(10.0f, 9.0f);
+		ImGui::Text(label);
+
+		if (std::strlen(helpText) != 0)
+		{
+			ImGui::SameLine();
+			ShowHelpMarker(helpText);
+		}
+
+		ImGui::NextColumn();
+		ShiftCursorY(4.0f);
+		ImGui::PushItemWidth(-1);
+
+		bool modified = UI::DragDouble(fmt::format("##{0}", label).c_str(), &value, delta, min, max);
+
+		ImGui::PopItemWidth();
+		ImGui::NextColumn();
+		UnderLine();
+
+		return modified;
+	}
+
+	bool PropertyDragFloat2(const char* label, glm::vec2& value, float delta, double min, double max, const char* helpText)
+	{
+		ShiftCursor(10.0f, 9.0f);
+		ImGui::Text(label);
+
+		if (std::strlen(helpText) != 0)
+		{
+			ImGui::SameLine();
+			ShowHelpMarker(helpText);
+		}
+
+		ImGui::NextColumn();
+		ShiftCursorY(4.0f);
+		ImGui::PushItemWidth(-1);
+
+		bool modified = UI::DragFloat2(fmt::format("##{0}", label).c_str(), glm::value_ptr(value), delta, static_cast<float>(min), static_cast<float>(max));
+
+		ImGui::PopItemWidth();
+		ImGui::NextColumn();
+		UnderLine();
+
+		return modified;
+	}
+
+	bool PropertyDragFloat3(const char* label, glm::vec3& value, float delta, double min, double max, const char* helpText)
+	{
+		ShiftCursor(10.0f, 9.0f);
+		ImGui::Text(label);
+
+		if (std::strlen(helpText) != 0)
+		{
+			ImGui::SameLine();
+			ShowHelpMarker(helpText);
+		}
+
+		ImGui::NextColumn();
+		ShiftCursorY(4.0f);
+		ImGui::PushItemWidth(-1);
+
+		bool modified = UI::DragFloat3(fmt::format("##{0}", label).c_str(), glm::value_ptr(value), delta, static_cast<float>(min), static_cast<float>(max));
+
+		ImGui::PopItemWidth();
+		ImGui::NextColumn();
+		UnderLine();
+
+		return modified;
+	}
+
+	bool PropertyDragFloat4(const char* label, glm::vec4& value, float delta, double min, double max, const char* helpText)
+	{
+		ShiftCursor(10.0f, 9.0f);
+		ImGui::Text(label);
+
+		if (std::strlen(helpText) != 0)
+		{
+			ImGui::SameLine();
+			ShowHelpMarker(helpText);
+		}
+
+		ImGui::NextColumn();
+		ShiftCursorY(4.0f);
+		ImGui::PushItemWidth(-1);
+
+		bool modified = UI::DragFloat4(fmt::format("##{0}", label).c_str(), glm::value_ptr(value), delta, static_cast<float>(min), static_cast<float>(max));
+
+		ImGui::PopItemWidth();
+		ImGui::NextColumn();
+		UnderLine();
+
+		return modified;
+	}
+
 	bool PropertyDropdown(const char* label, const char** options, int optionCount, int* selected, const char* helpText)
 	{
 		bool modified = false;
@@ -699,6 +832,7 @@ namespace Iris::UI {
 
 		ImGui::PushItemWidth(-1);
 		const std::string id = fmt::format("##{0}", label);
+		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 5.0f, 5.0f });
 		if (ImGui::BeginCombo(id.c_str(), current))
 		{
 			for (int i = 0; i < optionCount; i++)
@@ -717,6 +851,7 @@ namespace Iris::UI {
 
 			ImGui::EndCombo();
 		}
+		ImGui::PopStyleVar();
 
 		if (!IsItemDisabled())
 			DrawItemActivityOutline();
@@ -1235,6 +1370,197 @@ namespace Iris::UI {
 		const auto colour = ImGui::ColorConvertFloat4ToU32(borderColour);
 		drawList->AddLine(min, ImVec2(min.x, max.y), colour, thickness);
 		drawList->AddLine(ImVec2(max.x, min.y), max, colour, thickness);
+	}
+
+	const char* PatchFormatStringFloatToInt(const char* fmt)
+	{
+		if (fmt[0] == '%' && fmt[1] == '.' && fmt[2] == '0' && fmt[3] == 'f' && fmt[4] == 0) // Fast legacy path for "%.0f" which is expected to be the most common case.
+			return "%d";
+		const char* fmt_start = ImParseFormatFindStart(fmt);    // Find % (if any, and ignore %%)
+		const char* fmt_end = ImParseFormatFindEnd(fmt_start);  // Find end of format specifier, which itself is an exercise of confidence/recklessness (because snprintf is dependent on libc or user).
+		if (fmt_end > fmt_start && fmt_end[-1] == 'f')
+		{
+			if (fmt_start == fmt && fmt_end[0] == 0)
+				return "%d";
+			ImGuiContext& g = *GImGui;
+			ImFormatString(g.TempBuffer.Data, IM_ARRAYSIZE(g.TempBuffer.Data), "%.*s%%d%s", (int)(fmt_start - fmt), fmt, fmt_end); // Honor leading and trailing decorations, but lose alignment/precision.
+			return g.TempBuffer.Data;
+		}
+		return fmt;
+	}
+
+	int FormatString(char* buf, size_t buf_size, const char* fmt, ...)
+	{
+		va_list args;
+		va_start(args, fmt);
+		int w = vsnprintf(buf, buf_size, fmt, args);
+		va_end(args);
+		if (buf == NULL)
+			return w;
+		if (w == -1 || w >= (int)buf_size)
+			w = (int)buf_size - 1;
+		buf[w] = 0;
+		return w;
+	}
+
+	bool DragScalar(const char* label, ImGuiDataType data_type, void* p_data, float v_speed, const void* p_min, const void* p_max, const char* format, ImGuiSliderFlags flags)
+	{
+		ImGuiWindow* window = ImGui::GetCurrentWindow();
+		if (window->SkipItems)
+			return false;
+
+		ImGuiContext& g = *GImGui;
+		const ImGuiStyle& style = g.Style;
+		const ImGuiID id = window->GetID(label);
+		const float w = ImGui::CalcItemWidth();
+
+		const ImVec2 label_size = ImGui::CalcTextSize(label, NULL, true);
+		const ImRect frame_bb(window->DC.CursorPos, ImVec2(window->DC.CursorPos.x + w, window->DC.CursorPos.y + (label_size.y + style.FramePadding.y * 2.0f)));
+		const ImRect total_bb(frame_bb.Min, ImVec2(frame_bb.Max.x + (label_size.x > 0.0f ? style.ItemInnerSpacing.x + label_size.x : 0.0f), frame_bb.Max.y));
+
+		const bool temp_input_allowed = (flags & ImGuiSliderFlags_NoInput) == 0;
+		ImGui::ItemSize(total_bb, style.FramePadding.y);
+		if (!ImGui::ItemAdd(total_bb, id, &frame_bb, temp_input_allowed ? ImGuiItemFlags_Inputable : 0))
+			return false;
+
+		// Default format string when passing NULL
+		if (format == NULL)
+			format = ImGui::DataTypeGetInfo(data_type)->PrintFmt;
+		else if (data_type == ImGuiDataType_S32 && strcmp(format, "%d") != 0) // (FIXME-LEGACY: Patch old "%.0f" format string to use "%d", read function more details.)
+			format = PatchFormatStringFloatToInt(format);
+
+		// Tabbing or CTRL-clicking on Drag turns it into an InputText
+		const bool hovered = ImGui::ItemHoverable(frame_bb, id);
+		bool temp_input_is_active = temp_input_allowed && ImGui::TempInputIsActive(id);
+		if (!temp_input_is_active)
+		{
+			const bool input_requested_by_tabbing = temp_input_allowed && (g.LastItemData.StatusFlags & ImGuiItemStatusFlags_FocusedByTabbing) != 0;
+			const bool clicked = (hovered && g.IO.MouseClicked[0]);
+			const bool double_clicked = (hovered && g.IO.MouseClickedCount[0] == 2);
+			if (input_requested_by_tabbing || clicked || double_clicked || g.NavActivateId == id || g.NavActivateInputId == id)
+			{
+				ImGui::SetActiveID(id, window);
+				ImGui::SetFocusID(id, window);
+				ImGui::FocusWindow(window);
+				g.ActiveIdUsingNavDirMask = (1 << ImGuiDir_Left) | (1 << ImGuiDir_Right);
+				if (temp_input_allowed)
+					if (input_requested_by_tabbing || (clicked && g.IO.KeyCtrl) || double_clicked || g.NavActivateInputId == id)
+						temp_input_is_active = true;
+			}
+
+			// Experimental: simple click (without moving) turns Drag into an InputText
+			if (g.IO.ConfigDragClickToInputText && temp_input_allowed && !temp_input_is_active)
+				if (g.ActiveId == id && hovered && g.IO.MouseReleased[0] && !ImGui::IsMouseDragPastThreshold(0, g.IO.MouseDragThreshold * 0.5f))
+				{
+					g.NavActivateId = g.NavActivateInputId = id;
+					g.NavActivateFlags = ImGuiActivateFlags_PreferInput;
+					temp_input_is_active = true;
+				}
+		}
+
+		if (temp_input_is_active)
+		{
+			// Only clamp CTRL+Click input when ImGuiSliderFlags_AlwaysClamp is set
+			const bool is_clamp_input = (flags & ImGuiSliderFlags_AlwaysClamp) != 0 && (p_min == NULL || p_max == NULL || ImGui::DataTypeCompare(data_type, p_min, p_max) < 0);
+			return ImGui::TempInputScalar(frame_bb, id, label, data_type, p_data, format, is_clamp_input ? p_min : NULL, is_clamp_input ? p_max : NULL);
+		}
+
+		// Draw frame
+		const ImU32 frame_col = ImGui::GetColorU32(g.ActiveId == id ? ImGuiCol_FrameBgActive : hovered ? ImGuiCol_FrameBgHovered : ImGuiCol_FrameBg);
+		ImGui::RenderNavHighlight(frame_bb, id);
+		ImGui::RenderFrame(frame_bb.Min, frame_bb.Max, frame_col, true, style.FrameRounding);
+
+		// Drag behavior
+		const bool value_changed = ImGui::DragBehavior(id, data_type, p_data, v_speed, p_min, p_max, format, flags);
+		if (value_changed)
+			ImGui::MarkItemEdited(id);
+
+		const bool mixed_value = (g.CurrentItemFlags & ImGuiItemFlags_MixedValue) != 0;
+
+		// Display value using user-provided display format so user can add prefix/suffix/decorations to the value.
+		char value_buf[64];
+		const char* value_buf_end = value_buf + (mixed_value ? FormatString(value_buf, IM_ARRAYSIZE(value_buf), "---") : ImGui::DataTypeFormatString(value_buf, IM_ARRAYSIZE(value_buf), data_type, p_data, format));
+		if (g.LogEnabled)
+			ImGui::LogSetNextTextDecoration("{", "}");
+		ImGui::RenderTextClipped(frame_bb.Min, frame_bb.Max, value_buf, value_buf_end, NULL, ImVec2(0.5f, 0.5f));
+
+		if (label_size.x > 0.0f)
+			ImGui::RenderText(ImVec2(frame_bb.Max.x + style.ItemInnerSpacing.x, frame_bb.Min.y + style.FramePadding.y), label);
+
+		DrawItemActivityOutline();
+
+		IMGUI_TEST_ENGINE_ITEM_INFO(id, label, g.LastItemData.StatusFlags);
+		return value_changed;
+	}
+
+	bool EditVec3(std::string_view label, ImVec2 size, float resetValue, bool& manuallyEdited, glm::vec3& value, VectorAxis renderMultiSelectAxes, float speed, glm::vec3 v_min, glm::vec3 v_max, const char* format, ImGuiSliderFlags flags)
+	{
+		ImGui::BeginVertical(fmt::format("{0}fr", label).c_str());
+		bool changed = false;
+
+		{
+			constexpr float spacingX = 8.0f;
+
+			UI::ImGuiScopedStyle itemSpacing(ImGuiStyleVar_ItemSpacing, { spacingX, 0.0f });
+			UI::ImGuiScopedStyle padding(ImGuiStyleVar_WindowPadding, { 0.0f, 2.0f });
+			constexpr float framePadding = 2.0f;
+			constexpr float outlineSpacing = 1.0f;
+			const float lineHeight = GImGui->Font->FontSize + framePadding * 2.0f;
+			const ImVec2 buttonSize = { lineHeight + 2.0f, lineHeight + 4.3f };
+			const float inputItemWidth = size.x / 3.0f - buttonSize.x;
+
+			UI::ShiftCursorY(framePadding);
+
+			const ImGuiFontsLibrary& fontsLibrary = Application::Get().GetImGuiLayer()->GetFontsLibrary();
+
+			auto drawControl = [&](const std::string& label, float& value, const ImVec4& colorN, const ImVec4& colorH, const ImVec4& colorP, bool renderMultiSelect, float speed, float v_min, float v_max, const char* format, ImGuiSliderFlags flags)
+			{
+				UI::ShiftCursorY(-0.1f);
+
+				{
+					UI::ImGuiScopedStyle buttomFrame(ImGuiStyleVar_FramePadding, { framePadding, 0.0f });
+					UI::ImGuiScopedStyle buttomRounding(ImGuiStyleVar_FrameRounding, 1.0f);
+					UI::ImGuiScopedColor buttonColor(ImGuiCol_Button, colorN);
+					UI::ImGuiScopedColor buttonColorHovered(ImGuiCol_ButtonHovered, colorH);
+					UI::ImGuiScopedColor buttonColorActive(ImGuiCol_ButtonActive, colorP);
+					UI::ImGuiScopedFont font(fontsLibrary.GetFont("RobotoBold"));
+
+					if (ImGui::Button(label.c_str(), buttonSize))
+					{
+						value = resetValue;
+						changed = true;
+					}
+				}
+
+				ImGui::SameLine(0.0f, outlineSpacing);
+				ImGui::SetNextItemWidth(inputItemWidth);
+				//UI::ShiftCursorY(-framePadding / 2.0f);
+
+				bool wasTempInputActive = ImGui::TempInputIsActive(ImGui::GetID(("##" + label).c_str()));
+				changed |= UI::DragFloat(("##" + label).c_str(), &value, speed, v_min, v_max, format, flags);
+
+				if (changed && Input::IsKeyDown(KeyCode::Tab))
+					manuallyEdited = true;
+
+				if (ImGui::TempInputIsActive(ImGui::GetID(("##" + label).c_str())))
+					changed = false;
+
+				if (wasTempInputActive)
+					manuallyEdited |= ImGui::IsItemDeactivatedAfterEdit();
+			};
+
+			drawControl("X", value.x, { 0.8f, 0.1f, 0.15f, 1.0f }, { 0.9f, 0.2f, 0.2f, 1.0f }, { 0.8f, 0.1f, 0.15f, 1.0f }, (renderMultiSelectAxes & VectorAxis::X) == VectorAxis::X, speed, v_min.x, v_max.x, format, flags);
+
+			ImGui::SameLine(0.0f, outlineSpacing);
+			drawControl("Y", value.y, { 0.2f, 0.7f, 0.2f, 1.0f }, { 0.3f, 0.8f, 0.3f, 1.0f }, { 0.2f, 0.7f, 0.2f, 1.0f }, (renderMultiSelectAxes & VectorAxis::Y) == VectorAxis::Y, speed, v_min.y, v_max.y, format, flags);
+
+			ImGui::SameLine(0.0f, outlineSpacing);
+			drawControl("Z", value.z, { 0.1f, 0.25f, 0.8f, 1.0f }, { 0.2f, 0.35f, 0.9f, 1.0f }, { 0.1f, 0.25f, 0.8f, 1.0f }, (renderMultiSelectAxes & VectorAxis::Z) == VectorAxis::Z, speed, v_min.z, v_max.z, format, flags);
+
+			ImGui::EndVertical();
+		}
+
+		return changed || manuallyEdited;
 	}
 
 	bool IsMatchingSearch(const std::string& item, std::string_view searchQuery, bool caseSensitive, bool stripWhiteSpaces, bool stripUnderscores)

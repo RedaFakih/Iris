@@ -23,6 +23,7 @@ namespace Iris {
 		~Scene();
 
 		[[nodiscard]] static Ref<Scene> Create(const std::string& name = "UntitledScene", bool isEditorScene = false);
+		[[nodiscard]] static Ref<Scene> CreateEmpty();
 
 		// TODO:
 		void OnUpdateRuntime(TimeStep ts);
@@ -34,14 +35,19 @@ namespace Iris {
 
 		void SetViewportSize(uint32_t width, uint32_t height);
 
-		void SetEntityDestroyedCallback(void(*callback)(Entity)) { m_OnEntityDestroyedCallback = callback; }
+		void SetEntityDestroyedCallback(const std::function<void(Entity)>& callback) { m_OnEntityDestroyedCallback = callback; }
+
+		Entity GetMainCameraEntity();
+
+		std::vector<UUID> GetAllChildren(Entity entity) const;
 
 		Entity CreateEntity(const std::string& name = "");
+		Entity CreateChildEntity(Entity parent, const std::string& name = "");
 		Entity CreateEntityWithUUID(UUID id, const std::string& name = "", bool shouldSort = true);
 		// TODO: Deffers the destruction of the entity to post update
 		//void SubmitToDestroyEntity(Entity entity);
-		void DestroyEntity(Entity entity);
-		void DestroyEntity(UUID entityID);
+		void DestroyEntity(Entity entity, bool excludeChildren = false, bool first = true);
+		void DestroyEntity(UUID entityID, bool excludeChildren = false, bool first = true);
 
 		template<typename... Componenets>
 		auto GetAllEntitiesWith()
@@ -49,13 +55,23 @@ namespace Iris {
 			return m_Registry.view<Componenets...>();
 		}
 
+		void ConvertToLocalSpace(Entity entity);
+		void ConvertToWorldSpace(Entity entity);
 		glm::mat4 GetWorldSpaceTransformMatrix(Entity entity);
+		TransformComponent GetWorldSpaceTransform(Entity entity);
 
 		// Error if entity does not exist
-		Entity GetEntitiyWithUUID(UUID id) const;
+		Entity GetEntityWithUUID(UUID id) const;
 		// Empty entity if not found
-		Entity TryGetEntitiyWithUUID(UUID id) const;
+		Entity TryGetEntityWithUUID(UUID id) const;
 		Entity TryGetEntityWithTag(const std::string& tag);
+
+		// return descendant entity with tag as specified, or empty entity if cannot be found - caller must check
+		// descendant could be immediate child, or deeper in the hierachy
+		Entity TryGetDescendantEntityWithTag(Entity entity, const std::string& tag);
+
+		void ParentEntity(Entity entity, Entity parent);
+		void UnparentEntity(Entity entity, bool convertToWorldSpace = true);
 
 		UUID GetUUID() const { return m_SceneID; }
 
@@ -64,7 +80,23 @@ namespace Iris {
 
 		glm::vec2 GetViewportSize() const { return { m_ViewportWidth, m_ViewportHeight }; }
 
-		const EntityMap& GetEntitiyMap() const { return m_EntityIDMap; }
+		const EntityMap& GetEntityMap() const { return m_EntityIDMap; }
+
+		template<typename TComponent>
+		void CopyComponentIfExists(entt::entity dst, entt::registry& dstRegistry, entt::entity src)
+		{
+			if (m_Registry.has<TComponent>(src))
+			{
+				auto& srcComponent = m_Registry.get<TComponent>(src);
+				dstRegistry.emplace_or_replace<TComponent>(dst, srcComponent);
+			}
+		}
+
+		template<typename TComponent>
+		static void CopyComponentFromScene(Entity dst, Ref<Scene> dstScene, Entity src, Ref<Scene> srcScene)
+		{
+			srcScene->CopyComponentIfExists<TComponent>((entt::entity)dst, dstScene->m_Registry, (entt::entity)src);
+		}
 
 	private:
 		void SortEntities();
@@ -81,9 +113,10 @@ namespace Iris {
 
 		EntityMap m_EntityIDMap;
 
-		void(*m_OnEntityDestroyedCallback)(Entity) = nullptr;
+		std::function<void(Entity)> m_OnEntityDestroyedCallback;
 
 		friend class Entity;
+		friend class ECSDebugPanel;
 
 	};
 

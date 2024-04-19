@@ -65,6 +65,52 @@ namespace Iris {
 			return !(*this == other);
 		}
 
+		Entity GetParent() const;
+
+		void SetParent(Entity parent)
+		{
+			Entity currentParent = GetParent();
+			if (currentParent)
+				return;
+
+			// If changing parent, remove child from existing parent
+			if (currentParent)
+				currentParent.RemoveChild(*this);
+
+			// Setting to null is okay
+			SetParentUUID(parent.GetUUID());
+
+			if (parent)
+			{
+				auto& parentChildren = parent.Children();
+				UUID uuid = GetUUID();
+				if (std::find(parentChildren.begin(), parentChildren.end(), uuid) == parentChildren.end())
+					parentChildren.emplace_back(GetUUID());
+			}
+		}
+
+		void SetParentUUID(UUID parent) { GetComponent<RelationshipComponent>().ParentHandle = parent; }
+		UUID GetParentUUID() const { return GetComponent<RelationshipComponent>().ParentHandle; }
+		std::vector<UUID>& Children() { return GetComponent<RelationshipComponent>().Children; }
+		const std::vector<UUID>& Children() const { return GetComponent<RelationshipComponent>().Children; }
+
+		bool RemoveChild(Entity child)
+		{
+			UUID childID = child.GetUUID();
+			std::vector<UUID>& children = Children();
+			auto it = std::find(children.begin(), children.end(), childID);
+			if (it != children.end())
+			{
+				children.erase(it);
+				return true;
+			}
+
+			return false;
+		}
+
+		bool IsAncestorOf(Entity entity) const;
+		bool IsDescendantOf(Entity entity) const { return entity.IsAncestorOf(*this); }
+
 		TransformComponent& Transform() { return GetComponent<TransformComponent>(); }
 		const glm::mat4& Transform() const { return GetComponent<TransformComponent>().GetTransform(); }
 
@@ -78,6 +124,7 @@ namespace Iris {
 		inline static std::string s_NoName = "NoName";
 
 		friend class Scene;
+		friend class SceneHierarchyPanel;
 	};
 
 }

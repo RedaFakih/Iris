@@ -553,12 +553,12 @@ static LRESULT CALLBACK windowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM l
 
                     // Inform the application of the frame change to force redrawing with the new client area that is extended into the titlebar
                     SetWindowPos(
-                        hWnd, 
-                        NULL, 
-                        size_rect.left, 
-                        size_rect.top, 
+                        hWnd,
+                        NULL,
+                        size_rect.left,
+                        size_rect.top,
                         size_rect.right - size_rect.left, 
-                        size_rect.bottom - size_rect.top, 
+                        size_rect.bottom - size_rect.top,
                         SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE    
                     );
                 }

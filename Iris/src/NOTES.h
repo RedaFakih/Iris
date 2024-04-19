@@ -7,8 +7,6 @@
  * NEXT STEP ON TUTORIAL: Compute Shaders
  *
  * NEXT THING TO WORK ON:
- * - Bug in SceneHierarchyPanel in Debug mode only for deletion of related entities
- * - Scene and components so that we can finally get some interaction
  * - Add Filled Circles to Renderer2D? (Circle sprites)
  * - Add compute passes to the engine so we can have environment maps and some IBL
  * - SceneRenderer continue building all the passes
@@ -19,6 +17,9 @@
  * - Make the place where the scene names are rendered in the titlebar act as scene `TABS` that way you could have multiple scenes open at the same time and you switch between them by just pressing the scene name in the titlebar
  * - For raycasting grids we need to fix that the grid is not fixed in place and it moves as the camera moves so it is not useful as a reference grid
  * - OIT? With Weighted Blended technique using info provided from learnopengl.com <https://learnopengl.com/Guest-Articles/2020/OIT/Weighted-Blended> <https://github.com/nvpro-samples/vk_order_independent_transparency>
+ * 
+ * - When we have an AssetManager:
+ *   - Switch all the stuff that references assets in the Properties panel (Textures, meshes, materials...)
  * 
  * TO BE EXPANDED: (constant expansion)
  * - DescriptorSetManager (Constant Expansion with shader reflection)

@@ -5,6 +5,7 @@
 #include "Editor/EditorResources.h"
 #include "Editor/Panels/SceneHierarchyPanel.h"
 #include "Editor/Panels/ShadersPanel.h"
+#include "Editor/Panels/ECSDebugPanel.h"
 #include "Renderer/Core/RenderCommandBuffer.h"
 #include "Renderer/Framebuffer.h"
 #include "Renderer/IndexBuffer.h"
@@ -15,6 +16,7 @@
 #include "Renderer/RenderPass.h"
 #include "Renderer/UniformBufferSet.h"
 #include "Renderer/VertexBuffer.h"
+#include "ImGui/ImGuizmo.h"
 #include "Utils/FileSystem.h"
 
 #include "ImGui/ImGuiUtils.h"
@@ -61,13 +63,18 @@ namespace Iris {
 		EditorResources::Init();
 		m_PanelsManager = PanelsManager::Create();
 
-		Ref<SceneHierarchyPanel> sceneHierarchyPanel = m_PanelsManager->AddPanel<SceneHierarchyPanel>(PanelCategory::View, "SceneHierarchyPanel", "Scene Hierarchy", false, m_EditorScene/*, SelectionContext::Scene */);
-		// TODO: Set callbacks for it
+		Ref<SceneHierarchyPanel> sceneHierarchyPanel = m_PanelsManager->AddPanel<SceneHierarchyPanel>(PanelCategory::View, "SceneHierarchyPanel", "Scene Hierarchy", true, m_EditorScene, SelectionContext::Scene);
+		sceneHierarchyPanel->SetEntityDeletedCallback([this](Entity entity) { OnEntityDeleted(entity); });
+		sceneHierarchyPanel->AddEntityContextMenuPlugin([this](Entity entity) { SceneHierarchySetEditorCameraTransform(entity); });
 
 		m_PanelsManager->AddPanel<ShadersPanel>(PanelCategory::View, "ShadersPanel", "Shaders", false);
 
-		// TODO: REMOVE since this should be handled by a new scene and all that stuff
+		// TODO: REMOVE since this should be handled by NewScene and all that stuff
 		m_EditorScene = Scene::Create("Editor Scene");
+		m_CurrentScene = m_EditorScene;
+
+		// NOTE: For debugging ECS Problems
+		// m_PanelsManager->AddPanel<ECSDebugPanel>(PanelCategory::View, "ECSDebugPanel", "ECS", false, m_CurrentScene);
 
 		m_ViewportRenderer = SceneRenderer::Create(m_EditorScene, { .RendererScale = 1.0f });
 		m_ViewportRenderer->SetLineWidth(m_LineWidth);
@@ -76,7 +83,6 @@ namespace Iris {
 
 		// AssimpMeshImporter importer("Resources/assets/meshes/LowPolySponza/Sponza.gltf");
 		AssimpMeshImporter importer("Resources/assets/meshes/stormtrooper/stormtrooper.gltf");
-		// AssimpMeshImporter importer("Resources/assets/meshes/Cube.gltf");
 		s_MeshSource = importer.ImportToMeshSource();
 		s_Mesh = StaticMesh::Create(s_MeshSource);
 
@@ -87,25 +93,26 @@ namespace Iris {
 		s_BillBoardTexture = Texture2D::Create(textureSpec, "Resources/assets/textures/qiyana.png");
 
 		// TODO: REMOVE When we have Editor UI
-		Entity meshEntity = m_EditorScene->CreateEntity("MeshEntity");
+		Entity meshEntity = m_CurrentScene->CreateEntity("MeshEntity");
 		auto& staticMeshComponent = meshEntity.AddComponent<StaticMeshComponent>();
 		staticMeshComponent.StaticMesh = s_Mesh;
 		staticMeshComponent.MaterialTable = s_Mesh->GetMaterials();
 
-		// Entity spriteEntity = m_EditorScene->CreateEntity("Sprite");
-		// auto& spriteRC = spriteEntity.AddComponent<SpriteRendererComponent>();
-		// spriteRC.Color = { 1.0f, 0.5f, 0.0f, 1.0f };
-		// spriteRC.TilingFactor = 2.0f;
-		// auto& transform = spriteEntity.GetComponent<TransformComponent>();
-		// transform.SetTransform(transform.GetTransform() * glm::translate(glm::mat4(1.0f), { 1.0f, 0.0f, 0.0f }));
-		// 
-		// Entity spriteEntity2 = m_EditorScene->CreateEntity("Sprite2");
-		// auto& spriteRC2 = spriteEntity2.AddComponent<SpriteRendererComponent>();
-		// spriteRC2.Color = { 1.0f, 0.5f, 1.0f, 1.0f };
-		// spriteRC2.TilingFactor = 3.0f;
-		// spriteRC2.Texture = s_BillBoardTexture;
-		// auto& transform2 = spriteEntity2.GetComponent<TransformComponent>();
-		// transform2.SetTransform(transform2.GetTransform() * glm::translate(glm::mat4(1.0f), { 0.0f, 0.0f, 1.0f }));
+		Entity spriteEntity = m_CurrentScene->CreateEntity("Sprite");
+		spriteEntity.SetParent(meshEntity);
+		auto& spriteRC = spriteEntity.AddComponent<SpriteRendererComponent>();
+		spriteRC.Color = { 1.0f, 0.5f, 0.0f, 1.0f };
+		auto& transform = spriteEntity.GetComponent<TransformComponent>();
+		transform.SetTransform(transform.GetTransform() * glm::translate(glm::mat4(1.0f), { 1.0f, 0.0f, 0.0f }));
+		
+		Entity spriteEntity2 = m_CurrentScene->CreateEntity("Sprite2");
+		spriteEntity2.SetParent(spriteEntity);
+		auto& spriteRC2 = spriteEntity2.AddComponent<SpriteRendererComponent>();
+		spriteRC2.Color = { 1.0f, 0.5f, 1.0f, 1.0f };
+		spriteRC2.TilingFactor = 3.0f;
+		spriteRC2.Texture = s_BillBoardTexture;
+		auto& transform2 = spriteEntity2.GetComponent<TransformComponent>();
+		transform2.SetTransform(transform2.GetTransform() * glm::translate(glm::mat4(1.0f), { 0.0f, 0.0f, 1.0f }));
 	}
 
 	void EditorLayer::OnDetach()
@@ -113,7 +120,9 @@ namespace Iris {
 		EditorResources::Shutdown();
 
 		m_ViewportRenderer->SetScene(nullptr);
-		// TODO: m_CurrentScene = nullptr;
+		m_CurrentScene = nullptr;
+
+		m_PanelsManager->SetSceneContext(nullptr);
 
 		// Check that m_EditorScene is the last one (so setting it null here will destroy the scene)
 		IR_ASSERT(m_EditorScene->GetRefCount() == 1, "Scene will not be destroyed after project is closed - something is still holding scene refs!");
@@ -122,6 +131,8 @@ namespace Iris {
 
 	void EditorLayer::OnUpdate(TimeStep ts)
 	{
+		m_PanelsManager->SetSceneContext(m_EditorScene);
+
 		m_EditorCamera.SetActive(m_AllowViewportCameraEvents);
 		m_EditorCamera.OnUpdate(ts);
 
@@ -151,6 +162,11 @@ namespace Iris {
 		bool NotRightAndNOTLeftAltANDLeftOrMiddle = !Input::IsMouseButtonDown(MouseButton::Right) && !(Input::IsKeyDown(KeyCode::LeftAlt) && (Input::IsMouseButtonDown(MouseButton::Left) || Input::IsMouseButtonDown(MouseButton::Middle)));
 		if (NotRightAndNOTLeftAltANDLeftOrMiddle)
 			m_StartedCameraClickInViewport = false;
+	}
+
+	void EditorLayer::OnEntityDeleted(Entity e)
+	{
+		SelectionManager::Deselect(SelectionContext::Scene, e.GetUUID());
 	}
 
 	void EditorLayer::OnRender2D()
@@ -403,7 +419,7 @@ namespace Iris {
 		// Current Scene name
 		{
 			UI::ImGuiScopedColor textColor(ImGuiCol_Text, Colors::Theme::Text);
-			const std::string sceneName = m_EditorScene->GetName();
+			const std::string sceneName = m_CurrentScene->GetName();
 
 			ImGui::SetCursorPosX(menuBarLeft);
 			UI::ShiftCursorX(13.0f);
@@ -713,6 +729,204 @@ namespace Iris {
 		ImGui::EndGroup();
 	}
 
+	float EditorLayer::GetSnapValue()
+	{
+		switch (m_GizmoType)
+		{
+			case ImGuizmo::OPERATION::TRANSLATE: return 0.1f;
+			case ImGuizmo::OPERATION::ROTATE: return 45.0f;
+			case ImGuizmo::OPERATION::SCALE: return 0.1f;
+		}
+
+		return 0.0f;
+	}
+
+	void EditorLayer::UI_DrawGizmos()
+	{
+		if (m_GizmoType == -1)
+			return;
+
+		const auto& selections = SelectionManager::GetSelections(SelectionContext::Scene);
+
+		if (selections.empty())
+			return;
+
+		ImGuizmo::SetOrthographic(false);
+		ImGuizmo::SetDrawlist();
+		ImGuizmo::SetRect(ImGui::GetWindowPos().x, ImGui::GetWindowPos().y, ImGui::GetWindowWidth(), ImGui::GetWindowHeight());
+
+		bool snap = Input::IsKeyDown(KeyCode::LeftControl);
+
+		float snapValue = GetSnapValue();
+		float snapValues[3] = { snapValue, snapValue, snapValue };
+
+		glm::mat4 projectionMatrix, viewMatrix;
+		projectionMatrix = m_EditorCamera.GetProjectionMatrix();
+		viewMatrix = m_EditorCamera.GetViewMatrix();
+
+		if (selections.size() == 1)
+		{
+			Entity entity = m_CurrentScene->GetEntityWithUUID(selections[0]);
+			TransformComponent& entityTransform = entity.Transform();
+			glm::mat4 transform = m_CurrentScene->GetWorldSpaceTransformMatrix(entity);
+
+			if (ImGuizmo::Manipulate(
+				glm::value_ptr(viewMatrix),
+				glm::value_ptr(projectionMatrix),
+				(ImGuizmo::OPERATION)m_GizmoType,
+				ImGuizmo::LOCAL,
+				glm::value_ptr(transform),
+				nullptr,
+				snap ? snapValues : nullptr)
+				)
+			{
+				Entity parent = m_CurrentScene->TryGetEntityWithUUID(entity.GetParentUUID());
+				if (parent)
+				{
+					glm::mat4 parentTransform = m_CurrentScene->GetWorldSpaceTransformMatrix(parent);
+					transform = glm::inverse(parentTransform) * transform;
+				}
+
+				// Manipulated transform is now in local space of parent (= world space if no parent)
+				// We can decompose into translation, rotation, and scale and compare with original
+				// to figure out how to best update entity transform
+				//
+				// Why do we do this instead of just setting the entire entity transform?
+				// Because it's more robust to set only those components of transform
+				// that we are meant to be changing (dictated by m_GizmoType).  That way we avoid
+				// small drift (particularly in rotation and scale) due numerical precision issues
+				// from all those matrix operations.
+				glm::vec3 translation;
+				glm::quat rotation;
+				glm::vec3 scale;
+				Math::DecomposeTransform(transform, translation, rotation, scale);
+
+				switch (m_GizmoType)
+				{
+				case ImGuizmo::TRANSLATE:
+				{
+					entityTransform.Translation = translation;
+					break;
+				}
+				case ImGuizmo::ROTATE:
+				{
+					// Do this in Euler in an attempt to preserve any full revolutions (> 360)
+					glm::vec3 originalRotationEuler = entityTransform.GetRotationEuler();
+
+					// Map original rotation to range [-180, 180] which is what ImGuizmo gives us
+					originalRotationEuler.x = fmodf(originalRotationEuler.x + glm::pi<float>(), glm::two_pi<float>()) - glm::pi<float>();
+					originalRotationEuler.y = fmodf(originalRotationEuler.y + glm::pi<float>(), glm::two_pi<float>()) - glm::pi<float>();
+					originalRotationEuler.z = fmodf(originalRotationEuler.z + glm::pi<float>(), glm::two_pi<float>()) - glm::pi<float>();
+
+					glm::vec3 deltaRotationEuler = glm::eulerAngles(rotation) - originalRotationEuler;
+
+					// Try to avoid drift due numeric precision
+					if (fabs(deltaRotationEuler.x) < 0.001) deltaRotationEuler.x = 0.0f;
+					if (fabs(deltaRotationEuler.y) < 0.001) deltaRotationEuler.y = 0.0f;
+					if (fabs(deltaRotationEuler.z) < 0.001) deltaRotationEuler.z = 0.0f;
+
+					entityTransform.SetRotationEuler(entityTransform.GetRotationEuler() += deltaRotationEuler);
+					break;
+				}
+				case ImGuizmo::SCALE:
+				{
+					entityTransform.Scale = scale;
+					break;
+				}
+				}
+			}
+		}
+		else // Multi select transforms not supported
+		{
+			glm::vec3 medianLocation = glm::vec3(0.0f);
+			glm::vec3 medianScale = glm::vec3(1.0f);
+			glm::vec3 medianRotation = glm::vec3(0.0f);
+			for (auto entityID : selections)
+			{
+				Entity entity = m_CurrentScene->GetEntityWithUUID(entityID);
+				medianLocation += entity.Transform().Translation;
+				medianScale += entity.Transform().Scale;
+				medianRotation += entity.Transform().GetRotationEuler();
+			}
+			medianLocation /= selections.size();
+			medianScale /= selections.size();
+			medianRotation /= selections.size();
+
+			glm::mat4 medianPointMatrix = glm::translate(glm::mat4(1.0f), medianLocation)
+				* glm::toMat4(glm::quat(medianRotation))
+				* glm::scale(glm::mat4(1.0f), medianScale);
+
+			glm::mat4 deltaMatrix = glm::mat4(1.0f);
+
+			if (ImGuizmo::Manipulate(
+				glm::value_ptr(viewMatrix),
+				glm::value_ptr(projectionMatrix),
+				(ImGuizmo::OPERATION)m_GizmoType,
+				ImGuizmo::LOCAL,
+				glm::value_ptr(medianPointMatrix),
+				glm::value_ptr(deltaMatrix),
+				snap ? snapValues : nullptr)
+				)
+			{
+				//switch (m_MultiTransformTarget)
+				//{
+				//	case TransformationTarget::MedianPoint:
+				//	{
+				//		for (auto entityID : selections)
+				//		{
+				//			Entity entity = m_CurrentScene->GetEntityWithUUID(entityID);
+				//			TransformComponent& transform = entity.Transform();
+				//			transform.SetTransform(deltaMatrix * transform.GetTransform());
+				//		}
+
+				//		break;
+				//	}
+				//	case TransformationTarget::IndividualOrigins:
+				//	{
+				//		glm::vec3 deltaTranslation, deltaScale;
+				//		glm::quat deltaRotation;
+				//		Math::DecomposeTransform(deltaMatrix, deltaTranslation, deltaRotation, deltaScale);
+
+				//		for (auto entityID : selections)
+				//		{
+				//			Entity entity = m_CurrentScene->GetEntityWithUUID(entityID);
+				//			TransformComponent& transform = entity.Transform();
+
+				//			switch (m_GizmoType)
+				//			{
+				//			case ImGuizmo::TRANSLATE:
+				//			{
+				//				transform.Translation += deltaTranslation;
+				//				break;
+				//			}
+				//			case ImGuizmo::ROTATE:
+				//			{
+				//				transform.SetRotationEuler(transform.GetRotationEuler() + glm::eulerAngles(deltaRotation));
+				//				break;
+				//			}
+				//			case ImGuizmo::SCALE:
+				//			{
+				//				if (deltaScale != glm::vec3(1.0f, 1.0f, 1.0f))
+				//					transform.Scale *= deltaScale;
+				//				break;
+				//			}
+				//			}
+				//		}
+				//		break;
+				//	}
+				//}
+			}
+		}
+	}
+
+	void EditorLayer::DeleteEntity(Entity entity)
+	{
+		if (!entity)
+			return;
+
+		m_EditorScene->DestroyEntity(entity);
+	}
+
 	void EditorLayer::UI_ShowViewport()
 	{
 		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
@@ -737,7 +951,12 @@ namespace Iris {
 
 		m_AllowViewportCameraEvents = (ImGui::IsMouseHoveringRect(m_ViewportRect.Min, m_ViewportRect.Max) && m_ViewportPanelFocused) || m_StartedCameraClickInViewport;
 
-		// TODO: Toolbars.. settings... Gizmos...
+		// TODO: Toolbars.. settings...
+
+		if (m_ShowGizmos)
+		{
+			UI_DrawGizmos();
+		}
 
 		ImGui::End();
 		ImGui::PopStyleVar();
@@ -745,23 +964,7 @@ namespace Iris {
 
 	void EditorLayer::UI_ShowShadersPanel()
 	{
-		ImGui::Begin("Shaders");
-
-		Ref<ShadersLibrary> shadersLib = Renderer::GetShadersLibrary();
-
-		for (auto& [name, shader] : shadersLib->GetShaders())
-		{
-			ImGui::Columns(2);
-
-			ImGui::Text(name.c_str());
-
-			ImGui::NextColumn();
-
-			if (ImGui::Button(fmt::format("Reload##{0}", name).c_str()))
-				shader->Reload();
-
-			ImGui::Columns(1);
-		}
+		ImGui::Begin("Renderer Stuff");
 
 		float fov = glm::degrees(m_EditorCamera.GetFOV());
 		if (ImGui::SliderFloat("FOV", &fov, 30, 120))
@@ -838,14 +1041,50 @@ namespace Iris {
 
 	bool EditorLayer::OnKeyPressed(Events::KeyPressedEvent& e)
 	{
-		if (UI::IsWindowFocused("Viewport"))
+		if (UI::IsWindowFocused("Viewport") || UI::IsWindowFocused("Scene Hierarchy"))
 		{
 			if (m_ViewportPanelMouseOver && !Input::IsMouseButtonDown(MouseButton::Right))
 			{
 				switch (e.GetKeyCode())
 				{
+					case KeyCode::Q:
+						m_GizmoType = -1;
+						break;
+					case KeyCode::W:
+						m_GizmoType = ImGuizmo::OPERATION::TRANSLATE;
+						break;
+					case KeyCode::E:
+						m_GizmoType = ImGuizmo::OPERATION::ROTATE;
+						break;
+					case KeyCode::R:
+						m_GizmoType = ImGuizmo::OPERATION::SCALE;
+						break;
 					case KeyCode::F:
-						m_EditorCamera.Focus({ 0.0f, 0.0f, 0.0f });
+					{
+						if (SelectionManager::GetSelectionCount(SelectionContext::Scene) == 0)
+							break;
+
+						UUID selectedEntityID = SelectionManager::GetSelections(SelectionContext::Scene).front();
+						Entity selectedEntity = m_CurrentScene->GetEntityWithUUID(selectedEntityID);
+						m_EditorCamera.Focus(m_CurrentScene->GetWorldSpaceTransform(selectedEntity).Translation);
+						break;
+					}
+				}
+			}
+
+			switch (e.GetKeyCode())
+			{
+				case KeyCode::Escape:
+				{
+					SelectionManager::DeselectAll();
+					break;
+				}
+				case KeyCode::Delete:
+				{
+					auto selectedEntities = SelectionManager::GetSelections(SelectionContext::Scene);
+					for (auto entity : selectedEntities)
+						DeleteEntity(m_CurrentScene->TryGetEntityWithUUID(entity));
+					break;
 				}
 			}
 		}
@@ -894,6 +1133,12 @@ namespace Iris {
 		my = viewportSize.y - my; // Invert my
 
 		return { (mx / viewportSize.x) * 2.0f - 1.0f, (my / viewportSize.y) * 2.0f - 1.0f };
+	}
+
+	void EditorLayer::SceneHierarchySetEditorCameraTransform(Entity entity)
+	{
+		TransformComponent& tc = entity.Transform();
+		tc.SetTransform(glm::inverse(m_EditorCamera.GetViewMatrix()));
 	}
 
 }

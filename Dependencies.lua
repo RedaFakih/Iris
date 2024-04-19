@@ -14,6 +14,7 @@ IncludeDir["Yaml"]                = "%{wks.location}/Iris/dependencies/yaml-cpp/
 IncludeDir["choc"]                = "%{wks.location}/Iris/dependencies/Choc"
 IncludeDir["assimp"]              = "%{wks.location}/Iris/dependencies/assimp/include"
 IncludeDir["NFDExtended"]         = "%{wks.location}/Iris/dependencies/NFD-Extended/NFD-Extended/src/include"
+IncludeDir["MagicEnum"]           = "%{wks.location}/Iris/dependencies/magic_enum/include"
 
 LibraryDir = {}
 

@@ -16,6 +16,15 @@ struct GLFWcursor;
 
 namespace Iris {
 
+	/*
+	 * For custom title bar:
+	 * References: 
+	 *		- https://www.youtube.com/watch?v=-NJDxf4XwlQ (1)
+	 *		- https://github.com/grassator/win32-window-custom-titlebar (2)
+	 *		- https://kubyshkin.name/posts/win32-window-custom-title-bar-caption/ (3)
+	 *		- https://www.youtube.com/watch?v=-NJDxf4XwlQ (4)
+	 */
+
 	struct WindowSpecification
 	{
 		std::string Title = "Iris";
