@@ -69,7 +69,7 @@ namespace Iris {
 			RenderPassSpecification quadSpec = {
 				.DebugName = "Renderer2D-Quad",
 				.Pipeline = Pipeline::Create(pipelineSpecification),
-				.MarkerColor = glm::vec4(0.0f, 0.0f, 1.0f, 1.0f)
+				.MarkerColor = { 0.0f, 0.0f, 1.0f, 1.0f }
 			};
 			m_QuadPass = RenderPass::Create(quadSpec);
 			m_QuadPass->SetInput("Camera", m_UBSCamera);
@@ -143,7 +143,7 @@ namespace Iris {
 				RenderPassSpecification lineSpec = {
 					.DebugName = "Renderer2D-Line",
 					.Pipeline = Pipeline::Create(pipelineSpecification),
-					.MarkerColor = glm::vec4(0.1f, 0.2f, 0.7f, 1.0f)
+					.MarkerColor = { 0.0f, 0.0f, 1.0f, 1.0f }
 				};
 				m_LinePass = RenderPass::Create(lineSpec);
 				m_LinePass->SetInput("Camera", m_UBSCamera);

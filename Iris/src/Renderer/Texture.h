@@ -59,7 +59,6 @@ namespace Iris {
 		None = 0,
 		Texture, // Defualt: Loaded via a filepath or image data
 		Attachment, // For Framebuffers
-		// HostRead // NOTE: Usefull for read-back images (Mousepicking using IDs texture for example)
 	};
 
 	struct TextureSpecification

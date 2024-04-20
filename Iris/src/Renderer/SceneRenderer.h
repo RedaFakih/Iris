@@ -27,12 +27,13 @@ namespace Iris {
 	struct SceneRendererOptions
 	{
 		bool ShowGrid = true;
-		bool ShowSelectedInWireFrame = false; // TODO:
+		bool ShowSelectedInWireFrame = false;
 	};
 
 	struct SceneRendererSpecification
 	{
 		float RendererScale = 1.0f;
+		bool JumpFloodPass = true;
 	};
 
 	class SceneRenderer : public RefCountedObject
@@ -63,6 +64,7 @@ namespace Iris {
 		void EndScene();
 
 		void SubmitStaticMesh(Ref<StaticMesh> staticMesh, Ref<MeshSource> meshSource, Ref<MaterialTable> materialTable, const glm::mat4& transform = glm::mat4(1.0f), Ref<Material> overrideMaterial = nullptr);
+		void SubmitSelectedStaticMesh(Ref<StaticMesh> staticMesh, Ref<MeshSource> meshSource, Ref<MaterialTable> materialTable, const glm::mat4& transform = glm::mat4(1.0f), Ref<Material> overrideMaterial = nullptr);
 
 		Ref<Texture2D> GetFinalPassImage();
 
@@ -129,6 +131,7 @@ namespace Iris {
 
 		void PreDepthPass();
 		void GeometryPass();
+		void JumpFloodPass();
 		void CompositePass();
 
 		void UpdateStatistics();
@@ -181,20 +184,33 @@ namespace Iris {
 		Ref<Pipeline> m_GeometryPipeline;
 		Ref<RenderPass> m_GeometryPass;
 
+		// Selected Geometry
+		Ref<RenderPass> m_SelectedGeometryPass;
+		Ref<Material> m_SelectedGeometryMaterial;
+
 		// TODO: Add wireframe on top pass where there is no depth testing
 		// Geometry Wireframe
 		Ref<RenderPass> m_GeometryWireFramePass;
 		Ref<Material> m_WireFrameMaterial;
 
+		// Grid
 		Ref<RenderPass> m_GridPass;
 		Ref<Material> m_GridMaterial;
 
-
-		// TODO: ReadBack image for mouse picking?
-
+		// Composite
 		Ref<Material> m_CompositeMaterial;
 		Ref<RenderPass> m_CompositePass;
 
+		// Jump Flood
+		Ref<RenderPass> m_JumpFloodInitPass;
+		Ref<Material> m_JumpFloodInitMaterial;
+		Ref<RenderPass> m_JumpFloodPass[2];
+		Ref<Material> m_JumpFloodPassMaterial[2];
+		Ref<RenderPass> m_JumpFloodCompositePass;
+		Ref<Material> m_JumpFloodCompositeMaterial;
+		Ref<Framebuffer> m_JumpFloodFramebuffers[2];
+
+		// For external compositing
 		Ref<Framebuffer> m_CompositingFramebuffer;
 
 		// For instanced rendering support...
@@ -234,6 +250,7 @@ namespace Iris {
 		};
 
 		std::map<MeshKey, StaticDrawCommand> m_StaticMeshDrawList;
+		std::map<MeshKey, StaticDrawCommand> m_SelectedStaticMeshDrawList;
 
 		uint32_t m_ViewportWidth = 0;
 		uint32_t m_ViewportHeight = 0;

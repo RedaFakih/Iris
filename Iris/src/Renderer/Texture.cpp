@@ -196,7 +196,7 @@ namespace Iris {
             .mipLevels = mipCount,
             .arrayLayers = 1, // TODO (whether the texture is an array)
             .samples = Utils::GetSamplerCount(m_Specification.Samples),
-            .tiling = VK_IMAGE_TILING_OPTIMAL, // NOTE: This should be decided on a boolean whether the image usage is HostRead or not when we have that
+            .tiling = VK_IMAGE_TILING_OPTIMAL,
             // .tiling = m_Specification.Usage == ImageUsage::HostRead ? VK_IMAGE_TILING_LINEAR : VK_IMAGE_TILING_OPTIMAL,
             .usage = usage,
             .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
@@ -205,7 +205,7 @@ namespace Iris {
 
         // 1. Create image object
         VkDeviceSize gpuAllocationSize = 0;
-        VmaMemoryUsage memUsage = VMA_MEMORY_USAGE_GPU_ONLY; // NOTE: This should be decided on a boolean whether the image usage is HostRead or not when we have that
+        VmaMemoryUsage memUsage = VMA_MEMORY_USAGE_GPU_ONLY;
         // VmaMemoryUsage memUsage = m_Specification.Usage == ImageUsage::HostRead ? VMA_MEMORY_USAGE_GPU_TO_CPU : VMA_MEMORY_USAGE_GPU_ONLY;
         m_MemoryAllocation = allocator.AllocateImage(&imageCI, memUsage, &m_Image, &gpuAllocationSize);
         VKUtils::SetDebugUtilsObjectName(device, VK_OBJECT_TYPE_IMAGE, m_Specification.DebugName, m_Image);
@@ -292,7 +292,6 @@ namespace Iris {
 
             vkCmdCopyBufferToImage(commandBuffer, stagingBuffer, m_Image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
 
-            // NOTE: When we have HostRead usage we need to handle the final layout since it should be a transfer related
             VkImageLayout finalImageLayout;
             if (m_Specification.Format == ImageFormat::DEPTH24STENCIL8 || m_Specification.Format == ImageFormat::DEPTH32F || m_Specification.Format == ImageFormat::DEPTH32FSTENCIL8UINT)
                 finalImageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
@@ -319,7 +318,6 @@ namespace Iris {
             else
             {
                 // Second Layout Transition
-                // NOTE: We should take care of the dstStageMask when we have HostRead Images, the stuff to block should be trasnfer stage related 
                 Renderer::InsertImageMemoryBarrier(
                     commandBuffer, 
                     m_Image, 

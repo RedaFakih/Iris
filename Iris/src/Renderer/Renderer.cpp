@@ -161,11 +161,15 @@ namespace Iris {
 		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/Compositing.glsl");
 		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/Grid.glsl");
 		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/IrisPBRStatic.glsl");
+		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/JumpFloodComposite.glsl");
+		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/JumpFloodInit.glsl");
+		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/JumpFloodPass.glsl");
 		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/PreDepth.glsl");
 		// NOTE: For later to be fixed...
 		// Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/RayCastedGrid.glsl");
 		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/Renderer2D_Line.glsl");
 		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/Renderer2D_Quad.glsl");
+		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/SelectedGeometry.glsl");
 		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/TexturePass.glsl");
 		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/WireFrame.glsl");
 
@@ -450,6 +454,54 @@ namespace Iris {
 
 		vkCmdDrawIndexed(vkCommandBuffer, s_Data->QuadIndexBuffer->GetCount(), 1, 0, 0, 0);
 		s_Data->DrawCallCount++;
+	}
+
+	void Renderer::SubmitFullScreenQuadWithOverrides(Ref<RenderCommandBuffer> renderCommandBuffer, Ref<Pipeline> pipeline, Ref<Material> material, Buffer vertexShaderOverrides, Buffer fragmentShaderOverrides)
+	{
+		Buffer vertexPushConstantBuffer;
+		if (vertexShaderOverrides)
+		{
+			vertexPushConstantBuffer.Allocate(vertexShaderOverrides.Size);
+			vertexPushConstantBuffer.Write(vertexShaderOverrides.Data, vertexShaderOverrides.Size);
+		}
+
+		Buffer fragmentPushConstantBuffer;
+		if (fragmentShaderOverrides)
+		{
+			fragmentPushConstantBuffer.Allocate(fragmentShaderOverrides.Size);
+			fragmentPushConstantBuffer.Write(fragmentShaderOverrides.Data, fragmentShaderOverrides.Size);
+		}
+
+		uint32_t frameIndex = Renderer::GetCurrentFrameIndex();
+		VkCommandBuffer vkCommandBuffer = renderCommandBuffer->GetActiveCommandBuffer();
+
+		VkPipelineLayout layout = pipeline->GetVulkanPipelineLayout();
+
+		VkBuffer vbQuadBuffer = s_Data->QuadVertexBuffer->GetVulkanBuffer();
+		VkDeviceSize offsets[1] = { 0 };
+		vkCmdBindVertexBuffers(vkCommandBuffer, 0, 1, &vbQuadBuffer, offsets);
+
+		VkBuffer ibQuadBuffer = s_Data->QuadIndexBuffer->GetVulkanBuffer();
+		vkCmdBindIndexBuffer(vkCommandBuffer, ibQuadBuffer, 0, VK_INDEX_TYPE_UINT32);
+
+		if (material)
+		{
+			VkDescriptorSet descSet = material->GetDescriptorSet(frameIndex);
+			if (descSet)
+				vkCmdBindDescriptorSets(vkCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, layout, material->GetFirstSetIndex(), 1, &descSet, 0, nullptr);
+
+			if (vertexPushConstantBuffer)
+				vkCmdPushConstants(vkCommandBuffer, layout, VK_SHADER_STAGE_VERTEX_BIT, 0, static_cast<uint32_t>(vertexPushConstantBuffer.Size), vertexPushConstantBuffer.Data);
+
+			if (fragmentPushConstantBuffer)
+				vkCmdPushConstants(vkCommandBuffer, layout, VK_SHADER_STAGE_FRAGMENT_BIT, static_cast<uint32_t>(vertexPushConstantBuffer.Size), static_cast<uint32_t>(fragmentPushConstantBuffer.Size), fragmentPushConstantBuffer.Data);
+		}
+
+		vkCmdDrawIndexed(vkCommandBuffer, s_Data->QuadIndexBuffer->GetCount(), 1, 0, 0, 0);
+		s_Data->DrawCallCount++;
+
+		vertexPushConstantBuffer.Release();
+		fragmentPushConstantBuffer.Release();
 	}
 
 	void Renderer::RenderStaticMesh(Ref<RenderCommandBuffer> renderCommandBuffer, Ref<Pipeline> pipeline, Ref<StaticMesh> staticMesh, Ref<MeshSource> meshSource, uint32_t subMeshIndex, Ref<MaterialTable> materialTable, Ref<VertexBuffer> transformBuffer, uint32_t transformOffset, uint32_t instanceCount)

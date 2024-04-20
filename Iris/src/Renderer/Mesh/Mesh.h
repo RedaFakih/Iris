@@ -104,8 +104,7 @@ namespace Iris {
 		std::vector<Ref<Material>>& GetMaterials() { return m_Materials; }
 		const std::vector<Ref<Material>>& GetMaterials() const { return m_Materials; }
 
-		// NOTE: This is needed for ray casting mouse picking if we implement that
-		// const std::vector<MeshUtils::Triangle>& GetTriangleCache(uint32_t index) const { IR_ASSERT(m_TriangleCache.contains(index)); return m_TriangleCache.at(index); }
+		const std::vector<MeshUtils::Triangle>& GetTriangleCache(uint32_t index) const { IR_ASSERT(m_TriangleCache.contains(index)); return m_TriangleCache.at(index); }
 
 		const AABB& GetBoundingBox() const { return m_BoundingBox; }
 
@@ -128,8 +127,7 @@ namespace Iris {
 
 		std::vector<Ref<Material>> m_Materials;
 
-		// NOTE: This is for ray collision testing for mouse picking if we ever implement it
-		// std::unordered_map<uint32_t, std::vector<MeshUtils::Triangle>> m_TriangleCache;
+		std::unordered_map<uint32_t, std::vector<MeshUtils::Triangle>> m_TriangleCache;
 
 		AABB m_BoundingBox;
 

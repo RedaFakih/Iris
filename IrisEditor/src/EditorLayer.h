@@ -42,6 +42,7 @@ namespace Iris {
 
 	private:
 		std::pair<float, float> GetMouseInViewportSpace() const;
+		std::pair<glm::vec3, glm::vec3> CastRay(const EditorCamera& camera, float x, float y);
 
 		void OnEntityDeleted(Entity e);
 
@@ -63,6 +64,14 @@ namespace Iris {
 		void UI_ShowViewport();
 		void UI_ShowShadersPanel();
 		void UI_ShowFontsPanel();
+
+	private:
+		struct SelectionData
+		{
+			Entity Entity;
+			MeshUtils::SubMesh* Mesh;
+			float Distance = 0.0f;
+		};
 
 	private:
 		Ref<Scene> m_CurrentScene;
@@ -100,6 +109,9 @@ namespace Iris {
 		bool m_ShowImGuiStackToolWindow = false;
 		bool m_ShowImGuiMetricsWindow = false;
 		bool m_ShowImGuiStyleEditor = false;
+
+		enum class TransformationTarget { MedianPoint, IndividualOrigins };
+		TransformationTarget m_MultiTransformTarget = TransformationTarget::MedianPoint;
 
 	};
 

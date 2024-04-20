@@ -2,6 +2,7 @@
 
 #include "Asset/MeshImporter.h"
 #include "Core/Input/Input.h"
+#include "Core/Ray.h"
 #include "Editor/EditorResources.h"
 #include "Editor/Panels/SceneHierarchyPanel.h"
 #include "Editor/Panels/ShadersPanel.h"
@@ -30,10 +31,9 @@
 #include <glm/gtc/type_ptr.hpp>
 
 // TODO: REMOVE
-#include <stb/stb_image_writer/stb_image_write.h>
+// #include <stb/stb_image_writer/stb_image_write.h>
 
 // TODO: REMOVE
-bool g_WireFrame = false;
 bool g_Render2D = true;
 
 namespace Iris {
@@ -803,41 +803,47 @@ namespace Iris {
 
 				switch (m_GizmoType)
 				{
-				case ImGuizmo::TRANSLATE:
-				{
-					entityTransform.Translation = translation;
-					break;
-				}
-				case ImGuizmo::ROTATE:
-				{
-					// Do this in Euler in an attempt to preserve any full revolutions (> 360)
-					glm::vec3 originalRotationEuler = entityTransform.GetRotationEuler();
+					case ImGuizmo::TRANSLATE:
+					{
+						entityTransform.Translation = translation;
+						break;
+					}
+					case ImGuizmo::ROTATE:
+					{
+						// Do this in Euler in an attempt to preserve any full revolutions (> 360)
+						glm::vec3 originalRotationEuler = entityTransform.GetRotationEuler();
 
-					// Map original rotation to range [-180, 180] which is what ImGuizmo gives us
-					originalRotationEuler.x = fmodf(originalRotationEuler.x + glm::pi<float>(), glm::two_pi<float>()) - glm::pi<float>();
-					originalRotationEuler.y = fmodf(originalRotationEuler.y + glm::pi<float>(), glm::two_pi<float>()) - glm::pi<float>();
-					originalRotationEuler.z = fmodf(originalRotationEuler.z + glm::pi<float>(), glm::two_pi<float>()) - glm::pi<float>();
+						// Map original rotation to range [-180, 180] which is what ImGuizmo gives us
+						originalRotationEuler.x = fmodf(originalRotationEuler.x + glm::pi<float>(), glm::two_pi<float>()) - glm::pi<float>();
+						originalRotationEuler.y = fmodf(originalRotationEuler.y + glm::pi<float>(), glm::two_pi<float>()) - glm::pi<float>();
+						originalRotationEuler.z = fmodf(originalRotationEuler.z + glm::pi<float>(), glm::two_pi<float>()) - glm::pi<float>();
 
-					glm::vec3 deltaRotationEuler = glm::eulerAngles(rotation) - originalRotationEuler;
+						glm::vec3 deltaRotationEuler = glm::eulerAngles(rotation) - originalRotationEuler;
 
-					// Try to avoid drift due numeric precision
-					if (fabs(deltaRotationEuler.x) < 0.001) deltaRotationEuler.x = 0.0f;
-					if (fabs(deltaRotationEuler.y) < 0.001) deltaRotationEuler.y = 0.0f;
-					if (fabs(deltaRotationEuler.z) < 0.001) deltaRotationEuler.z = 0.0f;
+						// Try to avoid drift due numeric precision
+						if (fabs(deltaRotationEuler.x) < 0.001) deltaRotationEuler.x = 0.0f;
+						if (fabs(deltaRotationEuler.y) < 0.001) deltaRotationEuler.y = 0.0f;
+						if (fabs(deltaRotationEuler.z) < 0.001) deltaRotationEuler.z = 0.0f;
 
-					entityTransform.SetRotationEuler(entityTransform.GetRotationEuler() += deltaRotationEuler);
-					break;
-				}
-				case ImGuizmo::SCALE:
-				{
-					entityTransform.Scale = scale;
-					break;
-				}
+						entityTransform.SetRotationEuler(entityTransform.GetRotationEuler() += deltaRotationEuler);
+						break;
+					}
+					case ImGuizmo::SCALE:
+					{
+						entityTransform.Scale = scale;
+						break;
+					}
 				}
 			}
 		}
-		else // Multi select transforms not supported
+		else
 		{
+			if (m_MultiTransformTarget == TransformationTarget::MedianPoint && m_GizmoType == ImGuizmo::SCALE)
+			{
+				// NOTE: Disabling multi-entity scaling for median point mode for now since it causes strange scaling behavior
+				return;
+			}
+
 			glm::vec3 medianLocation = glm::vec3(0.0f);
 			glm::vec3 medianScale = glm::vec3(1.0f);
 			glm::vec3 medianRotation = glm::vec3(0.0f);
@@ -868,53 +874,53 @@ namespace Iris {
 				snap ? snapValues : nullptr)
 				)
 			{
-				//switch (m_MultiTransformTarget)
-				//{
-				//	case TransformationTarget::MedianPoint:
-				//	{
-				//		for (auto entityID : selections)
-				//		{
-				//			Entity entity = m_CurrentScene->GetEntityWithUUID(entityID);
-				//			TransformComponent& transform = entity.Transform();
-				//			transform.SetTransform(deltaMatrix * transform.GetTransform());
-				//		}
+				switch (m_MultiTransformTarget)
+				{
+					case TransformationTarget::MedianPoint:
+					{
+						for (auto entityID : selections)
+						{
+							Entity entity = m_CurrentScene->GetEntityWithUUID(entityID);
+							TransformComponent& transform = entity.Transform();
+							transform.SetTransform(deltaMatrix * transform.GetTransform());
+						}
 
-				//		break;
-				//	}
-				//	case TransformationTarget::IndividualOrigins:
-				//	{
-				//		glm::vec3 deltaTranslation, deltaScale;
-				//		glm::quat deltaRotation;
-				//		Math::DecomposeTransform(deltaMatrix, deltaTranslation, deltaRotation, deltaScale);
+						break;
+					}
+					case TransformationTarget::IndividualOrigins:
+					{
+						glm::vec3 deltaTranslation, deltaScale;
+						glm::quat deltaRotation;
+						Math::DecomposeTransform(deltaMatrix, deltaTranslation, deltaRotation, deltaScale);
 
-				//		for (auto entityID : selections)
-				//		{
-				//			Entity entity = m_CurrentScene->GetEntityWithUUID(entityID);
-				//			TransformComponent& transform = entity.Transform();
+						for (auto entityID : selections)
+						{
+							Entity entity = m_CurrentScene->GetEntityWithUUID(entityID);
+							TransformComponent& transform = entity.Transform();
 
-				//			switch (m_GizmoType)
-				//			{
-				//			case ImGuizmo::TRANSLATE:
-				//			{
-				//				transform.Translation += deltaTranslation;
-				//				break;
-				//			}
-				//			case ImGuizmo::ROTATE:
-				//			{
-				//				transform.SetRotationEuler(transform.GetRotationEuler() + glm::eulerAngles(deltaRotation));
-				//				break;
-				//			}
-				//			case ImGuizmo::SCALE:
-				//			{
-				//				if (deltaScale != glm::vec3(1.0f, 1.0f, 1.0f))
-				//					transform.Scale *= deltaScale;
-				//				break;
-				//			}
-				//			}
-				//		}
-				//		break;
-				//	}
-				//}
+							switch (m_GizmoType)
+							{
+								case ImGuizmo::TRANSLATE:
+								{
+									transform.Translation += deltaTranslation;
+									break;
+								}
+								case ImGuizmo::ROTATE:
+								{
+									transform.SetRotationEuler(transform.GetRotationEuler() + glm::eulerAngles(deltaRotation));
+									break;
+								}
+								case ImGuizmo::SCALE:
+								{
+									if (deltaScale != glm::vec3(1.0f, 1.0f, 1.0f))
+										transform.Scale *= deltaScale;
+									break;
+								}
+							}
+						}
+						break;
+					}
+				}
 			}
 		}
 	}
@@ -990,7 +996,7 @@ namespace Iris {
 		if (ImGui::Checkbox("VSync", &isVSync))
 			Application::Get().GetWindow().SetVSync(isVSync);
 
-		ImGui::Checkbox("WireFrame", &g_WireFrame);
+		ImGui::Checkbox("Selected In WireFrame", &m_ViewportRenderer->GetOptions().ShowSelectedInWireFrame);
 
 		ImGui::Checkbox("Grid", &m_ViewportRenderer->GetOptions().ShowGrid);
 
@@ -1114,11 +1120,81 @@ namespace Iris {
 		if (Input::IsKeyDown(KeyCode::LeftAlt) || Input::IsMouseButtonDown(MouseButton::Right))
 			return false;
 
-		// TODO: ImGuizmo
+		if (ImGuizmo::IsOver())
+			return false;
 
 		ImGui::ClearActiveID();
 
-		// TODO: Select entity...
+		std::vector<SelectionData> selectionData;
+		auto [mouseX, mouseY] = GetMouseInViewportSpace();
+		if (mouseX > -1.0f && mouseX < 1.0f && mouseY > -1.0f && mouseY < 1.0f)
+		{
+			auto [origin, direction] = CastRay(m_EditorCamera, mouseX, mouseY);
+			
+			auto meshEntities = m_CurrentScene->GetAllEntitiesWith<StaticMeshComponent>();
+			for (auto e : meshEntities)
+			{
+				Entity entity = { e, m_CurrentScene.Raw()};
+				auto& mc = entity.GetComponent<StaticMeshComponent>();
+			
+				if (mc.StaticMesh)
+				{
+					Ref<MeshSource> meshSource = mc.StaticMesh->GetMeshSource();
+					if (meshSource)
+					{
+						auto& subMeshes = meshSource->GetSubMeshes();
+						for (uint32_t i = 0; i < subMeshes.size(); i++)
+						{
+							glm::mat4 transform = m_CurrentScene->GetWorldSpaceTransformMatrix(entity);
+							Ray ray = {
+								glm::inverse(transform * subMeshes[i].Transform) * glm::vec4(origin, 1.0f),
+								glm::inverse(glm::mat3(transform * subMeshes[i].Transform)) * direction
+							};
+
+							float t;
+							bool intersects = ray.IntersectsAABB(subMeshes[i].BoundingBox, t);
+							if (intersects)
+							{
+								const auto& triangleCache = meshSource->GetTriangleCache(i);
+								for (const auto& triangle : triangleCache)
+								{
+									if (ray.IntersectsTriangle(triangle.V0.Position, triangle.V1.Position, triangle.V2.Position, t))
+									{
+										selectionData.push_back({ entity, &subMeshes[i], t });
+										break;
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+
+			std::sort(selectionData.begin(), selectionData.end(), [](auto& a, auto& b) { return a.Distance < b.Distance; });
+
+			bool ctrlDown = Input::IsKeyDown(KeyCode::LeftControl) || Input::IsKeyDown(KeyCode::RightControl);
+			bool shiftDown = Input::IsKeyDown(KeyCode::LeftShift) || Input::IsKeyDown(KeyCode::RightShift);
+
+			if (!ctrlDown)
+				SelectionManager::DeselectAll();
+
+			if (!selectionData.empty())
+			{
+				Entity entity = selectionData.front().Entity;
+				if (shiftDown)
+				{
+					while (entity.GetParent())
+					{
+						entity = entity.GetParent();
+					}
+				}
+
+				if (SelectionManager::IsSelected(SelectionContext::Scene, entity.GetUUID()) && ctrlDown)
+					SelectionManager::Deselect(SelectionContext::Scene, entity.GetUUID());
+				else
+					SelectionManager::Select(SelectionContext::Scene, entity.GetUUID());
+			}
+		}
 
 		return false;
 	}
@@ -1133,6 +1209,20 @@ namespace Iris {
 		my = viewportSize.y - my; // Invert my
 
 		return { (mx / viewportSize.x) * 2.0f - 1.0f, (my / viewportSize.y) * 2.0f - 1.0f };
+	}
+
+	std::pair<glm::vec3, glm::vec3> EditorLayer::CastRay(const EditorCamera& camera, float x, float y)
+	{
+		glm::vec4 mouseClipPos = { x, y, -1.0f, 1.0f };
+
+		auto inverseProj = glm::inverse(camera.GetProjectionMatrix());
+		auto inverseView = glm::inverse(glm::mat3(camera.GetViewMatrix()));
+	
+		glm::vec3 rayPos = camera.GetPosition();
+		glm::vec4 ray = inverseProj * mouseClipPos;
+		glm::vec3 direction = inverseView * ray;
+
+		return { rayPos, direction };
 	}
 
 	void EditorLayer::SceneHierarchySetEditorCameraTransform(Entity entity)

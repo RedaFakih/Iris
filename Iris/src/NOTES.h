@@ -7,13 +7,13 @@
  * NEXT STEP ON TUTORIAL: Compute Shaders
  *
  * NEXT THING TO WORK ON:
- * - Add Filled Circles to Renderer2D? (Circle sprites)
+ * - Jump flood outlining?
  * - Add compute passes to the engine so we can have environment maps and some IBL
+ * - Add Filled Circles to Renderer2D? (Circle sprites)
  * - SceneRenderer continue building all the passes
  * - Handle renderer descriptor pool situation and come up with some solutions for it... Read note written in Renderer.cpp (line: 101)
  * - For runtime layer switch to using a main camera component and not the editor camera
  * - Add pipeline for double sided materials where you just disable culling... but it has its own drawlist
- * - Mouse picking with read back image OR ray casting OR ID image that we copy each frame to a readback Buffer (Check if this method is slow)
  * - Make the place where the scene names are rendered in the titlebar act as scene `TABS` that way you could have multiple scenes open at the same time and you switch between them by just pressing the scene name in the titlebar
  * - For raycasting grids we need to fix that the grid is not fixed in place and it moves as the camera moves so it is not useful as a reference grid
  * - OIT? With Weighted Blended technique using info provided from learnopengl.com <https://learnopengl.com/Guest-Articles/2020/OIT/Weighted-Blended> <https://github.com/nvpro-samples/vk_order_independent_transparency>

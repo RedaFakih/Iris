@@ -145,8 +145,7 @@ namespace Iris {
 					MeshUtils::Index index = { mesh->mFaces[i].mIndices[0], mesh->mFaces[i].mIndices[1], mesh->mFaces[i].mIndices[2] };
 					meshSource->m_Indices.push_back(index);
 
-					// NOTE: This is for in case we implement mouse picking with ray casting
-					// meshSource->m_TriangleCache[m].emplace_back({ meshSource->m_Vertices[index.V1 + subMesh.BaseVertex], meshSource->m_Vertices[index.V2 + subMesh.BaseVertex], meshSource->m_Vertices[index.V3 + subMesh.BaseVertex] });
+					meshSource->m_TriangleCache[m].emplace_back(meshSource->m_Vertices[index.V1 + subMesh.BaseVertex], meshSource->m_Vertices[index.V2 + subMesh.BaseVertex], meshSource->m_Vertices[index.V3 + subMesh.BaseVertex]);
 				}
 			}
 

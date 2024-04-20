@@ -276,7 +276,8 @@ namespace Iris {
 			else
 			{
 				options.GenerateDebugInfo = false;
-				// NOTE: There may be an internal error with shaderc optimizing compute shaders...
+				// NOTE: Shaderc internal error with optimizing compute shaders...
+				//options.Optimize = !m_DisableOptimizations && stage != VK_SHADER_STAGE_COMPUTE_BIT;
 				options.Optimize = true;
 			}
 

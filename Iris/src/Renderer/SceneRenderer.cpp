@@ -6,8 +6,6 @@
 #include "Texture.h"
 #include "UniformBufferSet.h"
 
-extern bool g_WireFrame;
-
 namespace Iris {
 
 	Ref<SceneRenderer> SceneRenderer::Create(Ref<Scene> scene, const SceneRendererSpecification& spec)
@@ -81,7 +79,7 @@ namespace Iris {
 			RenderPassSpecification preDepthRenderPassSpec = {
 				.DebugName = "OpaquePreDepthRenderPass",
 				.Pipeline = m_PreDepthPipeline,
-				.MarkerColor = { 1.0f, 0.0f, 1.0f, 1.0f }
+				.MarkerColor = { 1.0f, 1.0f, 0.0f, 1.0f }
 			};
 			m_PreDepthPass = RenderPass::Create(preDepthRenderPassSpec);
 			m_PreDepthMaterial = Material::Create(preDepthPipelineSpec.Shader, "PreDepthMaterial");
@@ -126,6 +124,40 @@ namespace Iris {
 
 			m_GeometryPass->SetInput("Camera", m_UBSCamera);
 			m_GeometryPass->Bake();
+		}
+
+		// Selected Geometry isolation
+		{
+			FramebufferSpecification selectedGeoFB = {
+				.DebugName = "SelectedGeoIsolationFB",
+				.ClearColorOnLoad = true,
+				.ClearColor = { 0.0f, 0.0f, 0.0f, 0.0f },
+				.ClearDepthOnLoad = true,
+				.DepthClearValue = 1.0f,
+				.Attachments = { ImageFormat::RGBA32F, ImageFormat::DEPTH32F },
+				.Samples = 1
+			};
+
+			PipelineSpecification selectedGeoPipeline = {
+				.DebugName = "SelectedGeoIsolationPipeline",
+				.Shader = Renderer::GetShadersLibrary()->Get("SelectedGeometry"),
+				.TargetFramebuffer = Framebuffer::Create(selectedGeoFB),
+				.VertexLayout = vertexLayout,
+				.InstanceLayout = instanceLayout,
+				.DepthOperator = DepthCompareOperator::LessOrEqual
+			};
+
+			RenderPassSpecification selectedGeoPass = {
+				.DebugName = "SelectedGeoPass",
+				.Pipeline = Pipeline::Create(selectedGeoPipeline),
+				.MarkerColor = { 0.8f, 0.3f, 0.2f, 1.0f }
+			};
+			m_SelectedGeometryPass = RenderPass::Create(selectedGeoPass);
+
+			m_SelectedGeometryPass->SetInput("Camera", m_UBSCamera);
+			m_SelectedGeometryPass->Bake();
+
+			m_SelectedGeometryMaterial = Material::Create(selectedGeoPipeline.Shader, "SelectedGeoIsolationMaterial");
 		}
 
 		// Composite
@@ -197,7 +229,7 @@ namespace Iris {
 			RenderPassSpecification gridPassSpec = {
 				.DebugName = "GridPass",
 				.Pipeline = Pipeline::Create(gridPipelineSpec),
-				.MarkerColor = { 1.0f, 0.5f, 1.0f, 1.0f }
+				.MarkerColor = { 1.0f, 0.5f, 0.0f, 1.0f }
 			};
 			m_GridPass = RenderPass::Create(gridPassSpec);
 			m_GridMaterial = Material::Create(gridPipelineSpec.Shader, "GridMaterial");
@@ -225,7 +257,7 @@ namespace Iris {
 			RenderPassSpecification wireFramePassSpec = {
 				.DebugName = "WireFramePass",
 				.Pipeline = Pipeline::Create(wireframePipelineSpec),
-				.MarkerColor = { 0.2f, 0.3f, 0.8f, 1.0f }
+				.MarkerColor = { 0.2f, 0.8f, 0.3f, 1.0f }
 			};
 			m_GeometryWireFramePass = RenderPass::Create(wireFramePassSpec);
 			m_WireFrameMaterial = Material::Create(wireframePipelineSpec.Shader, "WireFrameMaterial");
@@ -238,6 +270,112 @@ namespace Iris {
 		// Skybox
 		{
 			// TODO:
+		}
+
+		// References: <https://bgolus.medium.com/the-quest-for-very-wide-outlines-ba82ed442cd9>
+		// JFA (Outline)
+		{
+			// Jump Flood framebuffers
+			FramebufferSpecification jFFramebuffersSpec = {
+				.DebugName = "JumpFloodFramebuffer1",
+				.ClearColorOnLoad = true,
+				.ClearColor = { 0.1f, 0.1f, 0.5f, 1.0f },
+				.Attachments = { ImageFormat::RGBA32F },
+				.Samples = 1,
+				.BlendMode = FramebufferBlendMode::OneZero
+			};
+			m_JumpFloodFramebuffers[0] = Framebuffer::Create(jFFramebuffersSpec);
+			jFFramebuffersSpec.DebugName = "JumpFloodFramebuffer2";
+			m_JumpFloodFramebuffers[1] = Framebuffer::Create(jFFramebuffersSpec);
+
+			// Init...
+			PipelineSpecification jumpFloodInitPipeline = {
+				.DebugName = "JumpFloodInitPipeline",
+				.Shader = Renderer::GetShadersLibrary()->Get("JumpFloodInit"),
+				.TargetFramebuffer = m_JumpFloodFramebuffers[0],
+				.VertexLayout = {
+					{ ShaderDataType::Float3, "a_Position" },
+				    { ShaderDataType::Float2, "a_TexCoord" }
+				},
+				.DepthWrite = false
+			};
+
+			RenderPassSpecification jumpFloodInitPass = {
+				.DebugName = "JumpFloodInitPass",
+				.Pipeline = Pipeline::Create(jumpFloodInitPipeline),
+				.MarkerColor = { 0.9f, 0.4f, 0.9f, 1.0f }
+			};
+			m_JumpFloodInitPass = RenderPass::Create(jumpFloodInitPass);
+
+			m_JumpFloodInitPass->SetInput("u_Texture", m_SelectedGeometryPass->GetOutput(0));
+			m_JumpFloodInitPass->Bake();
+
+			m_JumpFloodInitMaterial = Material::Create(jumpFloodInitPipeline.Shader, "JumpFloodInitMaterial");
+
+			// Pass...
+			const char* passName[2] = { "EvenPass", "OddPass" };
+			for (uint32_t i = 0; i < 2; i++)
+			{
+				PipelineSpecification jumpFloodPassPipeline = {
+					.DebugName = fmt::format("JumpFlood{0}Pipeline", passName[i]),
+					.Shader = Renderer::GetShadersLibrary()->Get("JumpFloodPass"),
+					.TargetFramebuffer = m_JumpFloodFramebuffers[(i + 1) % 2],
+					.VertexLayout = {
+						{ ShaderDataType::Float3, "a_Position" },
+						{ ShaderDataType::Float2, "a_TexCoord" }
+					},
+					.DepthWrite = false
+				};
+
+				RenderPassSpecification jumpFloodPassPass = {
+					.DebugName = fmt::format("JumpFlood{0}", passName[i]),
+					.Pipeline = Pipeline::Create(jumpFloodPassPipeline),
+					.MarkerColor = { 0.8f, 0.3f, 0.8f, 1.0f }
+				};
+				m_JumpFloodPass[i] = RenderPass::Create(jumpFloodPassPass);
+
+				m_JumpFloodPass[i]->SetInput("u_Texture", m_JumpFloodFramebuffers[i]->GetImage(0));
+				m_JumpFloodPass[i]->Bake();
+
+				m_JumpFloodPassMaterial[i] = Material::Create(jumpFloodPassPipeline.Shader, fmt::format("JumpFlood{0}Material", passName[i]));
+			}
+
+			// Composite... We check this bool since we do not usualy want to do this in runtime... Unless otherwise specified
+			if (m_Specification.JumpFloodPass)
+			{
+				// TODO: Handle image layouts here
+				FramebufferSpecification jumpFloodCompositeFB = {
+					.DebugName = "JumpFloodCompositeFB",
+					.ClearColorOnLoad = false,
+					.Attachments = { { ImageFormat::RGBA32F, AttachmentPassThroughUsage::Input } }
+				};
+				jumpFloodCompositeFB.ExistingImages[0] = m_CompositePass->GetOutput(0);
+
+				PipelineSpecification jumpFloodCompositePipeline = {
+					.DebugName = "JumpFloodCompsitePipeline",
+					.Shader = Renderer::GetShadersLibrary()->Get("JumpFloodComposite"),
+					// TODO: Is it possible to move this pipeline and the skybox to use samae framebuffer?
+					.TargetFramebuffer = Framebuffer::Create(jumpFloodCompositeFB),
+					//.TargetFramebuffer = m_CompositingFramebuffer,
+					.VertexLayout = {
+						{ ShaderDataType::Float3, "a_Position" },
+						{ ShaderDataType::Float2, "a_TexCoord" }
+					},
+					.DepthTest = false
+				};
+
+				RenderPassSpecification jumpFloodCompositePass = {
+					.DebugName = "JumpFloodCompositePass",
+					.Pipeline = Pipeline::Create(jumpFloodCompositePipeline),
+					.MarkerColor = { 0.7f, 0.2f, 0.7f, 1.0f }
+				};
+				m_JumpFloodCompositePass = RenderPass::Create(jumpFloodCompositePass);
+
+				m_JumpFloodCompositePass->SetInput("u_Texture", m_JumpFloodFramebuffers[1]->GetImage(0));
+				m_JumpFloodCompositePass->Bake();
+
+				m_JumpFloodCompositeMaterial = Material::Create(jumpFloodCompositePipeline.Shader, "JumpFloodCompositeMaterial");
+			}
 		}
 
 		// TODO: Resizable
@@ -300,8 +438,17 @@ namespace Iris {
 			// PreDepth and Geometry framebuffers need to be resized first since other framebuffers reference images in them
 			m_PreDepthPass->GetTargetFramebuffer()->Resize(m_ViewportWidth, m_ViewportHeight);
 			m_GeometryPass->GetTargetFramebuffer()->Resize(m_ViewportWidth, m_ViewportHeight);
-
+			m_SelectedGeometryPass->GetTargetFramebuffer()->Resize(m_ViewportWidth, m_ViewportHeight);
 			m_CompositePass->GetTargetFramebuffer()->Resize(m_ViewportWidth, m_ViewportHeight);
+
+			// NOTE: We are able to not resize the grid pass since it references the Compositing framebuffer whic is resized manually
+			// m_GridPass->GetTargetFramebuffer()->Resize(m_ViewportWidth, m_ViewportHeight);
+			
+			if (m_JumpFloodCompositePass)
+				m_JumpFloodCompositePass->GetTargetFramebuffer()->Resize(m_ViewportWidth, m_ViewportHeight);
+
+			for (auto& jumpFloodFB : m_JumpFloodFramebuffers)
+				jumpFloodFB->Resize(m_ViewportWidth, m_ViewportHeight);
 
 			m_CompositingFramebuffer->Resize(m_ViewportWidth, m_ViewportHeight);
 		}
@@ -394,6 +541,52 @@ namespace Iris {
 		}
 	}
 
+	void SceneRenderer::SubmitSelectedStaticMesh(Ref<StaticMesh> staticMesh, Ref<MeshSource> meshSource, Ref<MaterialTable> materialTable, const glm::mat4& transform, Ref<Material> overrideMaterial)
+	{
+		const std::vector<MeshUtils::SubMesh>& subMeshData = meshSource->GetSubMeshes();
+		for (uint32_t subMeshIndex : staticMesh->GetSubMeshes())
+		{
+			const MeshUtils::SubMesh& subMesh = subMeshData[subMeshIndex];
+
+			glm::mat4 subMeshTransform = transform * subMesh.Transform;
+
+			uint32_t materialIndex = subMesh.MaterialIndex;
+
+			Ref<MaterialAsset> materialAsset = materialTable->HasMaterial(materialIndex) ? materialTable->GetMaterial(materialIndex) : staticMesh->GetMaterials()->GetMaterial(materialIndex);
+
+			MeshKey meshKey = { staticMesh, materialAsset, subMeshIndex, true };
+			TransformVertexData& transformStorage = m_MeshTransformMap[meshKey].Transforms.emplace_back();
+
+			// glm::mat4 [column][row]
+			transformStorage.MatrixRow[0] = { subMeshTransform[0][0],  subMeshTransform[1][0], subMeshTransform[2][0] , subMeshTransform[3][0] };
+			transformStorage.MatrixRow[1] = { subMeshTransform[0][1],  subMeshTransform[1][1], subMeshTransform[2][1] , subMeshTransform[3][1] };
+			transformStorage.MatrixRow[2] = { subMeshTransform[0][2],  subMeshTransform[1][2], subMeshTransform[2][2] , subMeshTransform[3][2] };
+
+			// For main geometry drawlist
+			{
+				auto& destDrawList = m_StaticMeshDrawList;
+				auto& dc = destDrawList[meshKey];
+				dc.StaticMesh = staticMesh;
+				dc.MeshSource = meshSource;
+				dc.SubMeshIndex = subMeshIndex;
+				dc.MaterialTable = materialTable;
+				dc.OverrideMaterial = overrideMaterial;
+				dc.InstanceCount++;
+			}
+
+			// For selected mesh drawlist
+			{
+				auto& dc = m_SelectedStaticMeshDrawList[meshKey];
+				dc.StaticMesh = staticMesh;
+				dc.MeshSource = meshSource;
+				dc.SubMeshIndex = subMeshIndex;
+				dc.MaterialTable = materialTable;
+				dc.OverrideMaterial = overrideMaterial;
+				dc.InstanceCount++;
+			}
+		}
+	}
+
 	Ref<Texture2D> SceneRenderer::GetFinalPassImage()
 	{
 		if (!m_ResourcesCreated)
@@ -423,6 +616,9 @@ namespace Iris {
 			PreDepthPass();
 			GeometryPass();
 
+			if (m_Specification.JumpFloodPass)
+				JumpFloodPass();
+
 			// NOTE: If we want to sample the depth texture in the composite pass we need to transition to shader read only then transition back
 			// to attachment since the renderer2D uses it.
 			CompositePass();
@@ -447,6 +643,7 @@ namespace Iris {
 		UpdateStatistics();
 
 		m_StaticMeshDrawList.clear();
+		m_SelectedStaticMeshDrawList.clear();
 
 		m_SceneData = {};
 
@@ -499,6 +696,16 @@ namespace Iris {
 
 		uint32_t frameIndex = Renderer::GetCurrentFrameIndex();
 
+		Renderer::BeginRenderPass(m_CommandBuffer, m_SelectedGeometryPass);
+
+		for (auto& [mk, dc] : m_SelectedStaticMeshDrawList)
+		{
+			const auto& transformData = m_MeshTransformMap.at(mk);
+			Renderer::RenderStaticMeshWithMaterial(m_CommandBuffer, m_SelectedGeometryPass->GetPipeline(), dc.StaticMesh, dc.MeshSource, dc.SubMeshIndex, m_SelectedGeometryMaterial, m_MeshTransformBuffers[frameIndex].VertexBuffer, transformData.TransformOffset + dc.InstanceOffset * sizeof(TransformVertexData), dc.InstanceCount);
+		}
+
+		Renderer::EndRenderPass(m_CommandBuffer);
+
 		Renderer::BeginRenderPass(m_CommandBuffer, m_GeometryPass);
 
 		for (const auto& [mk, dc] : m_StaticMeshDrawList)
@@ -508,6 +715,38 @@ namespace Iris {
 		}
 
 		Renderer::EndRenderPass(m_CommandBuffer);
+	}
+
+	void SceneRenderer::JumpFloodPass()
+	{
+		Renderer::BeginRenderPass(m_CommandBuffer, m_JumpFloodInitPass);
+		Renderer::SubmitFullScreenQuad(m_CommandBuffer, m_JumpFloodInitPass->GetPipeline(), m_JumpFloodInitMaterial);
+		Renderer::EndRenderPass(m_CommandBuffer);
+
+		constexpr int steps = 3;
+		int step = static_cast<int>(glm::round(glm::pow<int>(steps - 1, 2)));
+		int index = 0;
+
+		Ref<Framebuffer> passFb = m_JumpFloodPass[0]->GetTargetFramebuffer();
+		glm::vec2 texelSize = { 1.0f / static_cast<float>(passFb->GetWidth()), 1.0f / static_cast<float>(passFb->GetHeight()) };
+
+		Buffer vertexOverrides;
+		vertexOverrides.Allocate(sizeof(glm::vec2) + sizeof(int));
+		vertexOverrides.Write(reinterpret_cast<const uint8_t*>(glm::value_ptr(texelSize)), sizeof(glm::vec2));
+
+		while (step != 0)
+		{
+			vertexOverrides.Write(reinterpret_cast<const uint8_t*>(&step), sizeof(int), sizeof(glm::vec2));
+
+			Renderer::BeginRenderPass(m_CommandBuffer, m_JumpFloodPass[index]);
+			Renderer::SubmitFullScreenQuadWithOverrides(m_CommandBuffer, m_JumpFloodPass[index]->GetPipeline(), m_JumpFloodPassMaterial[index], vertexOverrides, Buffer());
+			Renderer::EndRenderPass(m_CommandBuffer);
+
+			index = (index + 1) % 2;
+			step /= 2;
+		}
+
+		vertexOverrides.Release();
 	}
 
 	void SceneRenderer::CompositePass()
@@ -533,18 +772,24 @@ namespace Iris {
 			Renderer::EndRenderPass(m_CommandBuffer);
 		}
 
-		// TODO: WireFrames for selected meshes when selection exists
-		// TODO: if (m_Options.ShowSelectedInWireFrame)
-		if (g_WireFrame)
+		// We usualy do not want to do this in runtime
+		if (m_Specification.JumpFloodPass)
+		{
+			Renderer::BeginRenderPass(m_CommandBuffer, m_JumpFloodCompositePass);
+			Renderer::SubmitFullScreenQuad(m_CommandBuffer, m_JumpFloodCompositePass->GetPipeline(), m_JumpFloodCompositeMaterial);
+			Renderer::EndRenderPass(m_CommandBuffer);
+		}
+		
+		if (m_Options.ShowSelectedInWireFrame)
 		{
 			Renderer::BeginRenderPass(m_CommandBuffer, m_GeometryWireFramePass);
-
-			for (const auto& [mk, dc] : m_StaticMeshDrawList)
+		
+			for (const auto& [mk, dc] : m_SelectedStaticMeshDrawList)
 			{
 				const auto& transformData = m_MeshTransformMap.at(mk);
 				Renderer::RenderStaticMeshWithMaterial(m_CommandBuffer, m_GeometryWireFramePass->GetPipeline(), dc.StaticMesh, dc.MeshSource, dc.SubMeshIndex, m_WireFrameMaterial, m_MeshTransformBuffers[frameIndex].VertexBuffer, transformData.TransformOffset + dc.InstanceOffset * sizeof(TransformVertexData), dc.InstanceCount);
 			}
-
+		
 			Renderer::EndRenderPass(m_CommandBuffer);
 		}
 	}
@@ -565,6 +810,13 @@ namespace Iris {
 		m_Statistics.DrawCalls = 0;
 		m_Statistics.Instances = 0;
 		m_Statistics.Meshes = 0;
+
+		for (const auto& [mk, dc] : m_SelectedStaticMeshDrawList)
+		{
+			m_Statistics.Instances += dc.InstanceCount;
+			m_Statistics.DrawCalls += 1;
+			m_Statistics.Meshes += 1;
+		}
 
 		for (const auto& [mk, dc] : m_StaticMeshDrawList)
 		{

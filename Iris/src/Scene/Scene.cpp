@@ -70,10 +70,9 @@ namespace Iris {
 						Entity e = { entity, this };
 						glm::mat4 transform = GetWorldSpaceTransformMatrix(e);
 
-						// TODO: Selected Mesh separation into drawlists happens here...
-						//if (SelectionManager::IsEntitySelected(e))
-						//	renderer->SubmitSelectedStaticMesh(staticMesh, meshSource, staticMeshComponenet.MaterialTable, transform);
-						//else
+						if (SelectionManager::IsEntityOrAncestorSelected(e))
+							renderer->SubmitSelectedStaticMesh(staticMesh, meshSource, staticMeshComponenet.MaterialTable, transform);
+						else
 							renderer->SubmitStaticMesh(staticMesh, meshSource, staticMeshComponenet.MaterialTable, transform);
 					}
 				}
