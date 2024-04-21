@@ -58,7 +58,7 @@ namespace Iris {
 
 		void SetScene(Ref<Scene> scene);
 
-		void SetViewportSize(uint32_t width, uint32_t height);
+		void SetViewportSize(uint32_t width, uint32_t height, float renderScale);
 
 		void BeginScene(const SceneRendererCamera& camera);
 		void EndScene();
@@ -83,6 +83,8 @@ namespace Iris {
 
 		const Statistics& GetStatistics() const { return m_Statistics; }
 		SceneRendererOptions& GetOptions() { return m_Options; }
+		const SceneRendererOptions& GetOptions() const { return m_Options; }
+		SceneRendererSpecification& GetSpecification() { return m_Specification; }
 		const SceneRendererSpecification& GetSpecification() const { return m_Specification; }
 
 	private:

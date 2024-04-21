@@ -106,8 +106,9 @@ namespace Iris {
 		uint32_t Width = 0;
 		uint32_t Height = 0;
 
+		// NOTE: This is not generally needed since the scale of framebuffers is just set by the global scene renderer
 		// Framebuffer scale (Rendering scale of the framebuffer)
-		float Scale = 1.0f;
+		//float Scale = 1.0f;
 
 		// Clear settings...
 		bool ClearColorOnLoad = true;

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Core/Base.h"
+#include "Core/Events/AppEvents.h"
 #include "Core/Events/KeyEvents.h"
 #include "Core/Events/MouseEvents.h"
 #include "Core/Layer.h"
@@ -27,6 +28,8 @@ namespace Iris {
 		EditorLayer();
 		virtual ~EditorLayer() override;
 
+		static EditorLayer* Get() { return s_EditorLayerInstance; }
+
 		virtual void OnAttach() override;
 		virtual void OnDetach() override;
 		virtual void OnUpdate(TimeStep ts) override;
@@ -37,6 +40,7 @@ namespace Iris {
 
 		bool OnKeyPressed(Events::KeyPressedEvent& e);
 		bool OnMouseButtonPressed(Events::MouseButtonPressedEvent& e);
+		bool OnTitleBarColorChange(Events::TitleBarColorChangeEvent& e);
 
 		void SceneHierarchySetEditorCameraTransform(Entity entity);
 
@@ -99,6 +103,10 @@ namespace Iris {
 
 		bool m_StartedCameraClickInViewport = false;
 
+		bool m_ShowBoundingBoxes = false;
+		bool m_ShowBoundingBoxSelectedMeshOnly = false;
+		bool m_ShowBoundingBoxSubMeshes = false;
+
 		bool m_ShowGizmos = true;
 
 		bool m_ViewportPanelMouseOver = false;
@@ -112,6 +120,9 @@ namespace Iris {
 
 		enum class TransformationTarget { MedianPoint, IndividualOrigins };
 		TransformationTarget m_MultiTransformTarget = TransformationTarget::MedianPoint;
+
+		// We can only have on instance of the EditorLayer
+		inline static EditorLayer* s_EditorLayerInstance = nullptr;
 
 	};
 

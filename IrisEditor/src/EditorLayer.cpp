@@ -1,6 +1,6 @@
 #include "EditorLayer.h"
 
-#include "Asset/MeshImporter.h"
+#include "AssetManager/Importers/MeshImporter.h"
 #include "Core/Input/Input.h"
 #include "Core/Ray.h"
 #include "Editor/EditorResources.h"
@@ -33,9 +33,6 @@
 // TODO: REMOVE
 // #include <stb/stb_image_writer/stb_image_write.h>
 
-// TODO: REMOVE
-bool g_Render2D = true;
-
 namespace Iris {
 
 	// TODO: REMOVE
@@ -46,6 +43,9 @@ namespace Iris {
 	EditorLayer::EditorLayer()
 		: Layer("EditorLayer"), m_EditorCamera(45.0f, 1280.0f, 720.0f, 0.1f, 10000.0f)
 	{
+		IR_VERIFY(!s_EditorLayerInstance, "No more than 1 EditorLayer can be created!");
+		s_EditorLayerInstance = this;
+
 		m_TitleBarPreviousColor = Colors::Theme::TitlebarRed;
 		m_TitleBarTargetColor   = Colors::Theme::TitlebarGreen;
 	}
@@ -76,7 +76,7 @@ namespace Iris {
 		// NOTE: For debugging ECS Problems
 		// m_PanelsManager->AddPanel<ECSDebugPanel>(PanelCategory::View, "ECSDebugPanel", "ECS", false, m_CurrentScene);
 
-		m_ViewportRenderer = SceneRenderer::Create(m_EditorScene, { .RendererScale = 1.0f });
+		m_ViewportRenderer = SceneRenderer::Create(m_CurrentScene, { .RendererScale = 1.0f });
 		m_ViewportRenderer->SetLineWidth(m_LineWidth);
 		m_Renderer2D = Renderer2D::Create();
 		m_Renderer2D->SetLineWidth(m_LineWidth);
@@ -133,13 +133,15 @@ namespace Iris {
 	{
 		m_PanelsManager->SetSceneContext(m_EditorScene);
 
+		// Set jump flood pass on or off based on if we have selected something in the past frame...
+		m_ViewportRenderer->GetSpecification().JumpFloodPass = SelectionManager::GetSelectionCount(SelectionContext::Scene) > 0;
+
 		m_EditorCamera.SetActive(m_AllowViewportCameraEvents);
 		m_EditorCamera.OnUpdate(ts);
 
 		m_EditorScene->OnUpdateEditor(ts);
 		m_EditorScene->OnRenderEditor(m_ViewportRenderer, ts, m_EditorCamera);
 
-		// TODO: Here there is a bug that if we want to render to the 2D renderer twice we have to actually handle the layout transition of the images
 		OnRender2D();
 
 		// TODO: Should be moved to OnKeyPressed
@@ -178,30 +180,65 @@ namespace Iris {
 		m_Renderer2D->BeginScene(m_EditorCamera.GetViewProjection(), m_EditorCamera.GetViewMatrix());
 		m_Renderer2D->SetTargetFramebuffer(m_ViewportRenderer->GetExternalCompositeFramebuffer());
 
-		if (g_Render2D)
+		if (m_ShowBoundingBoxes)
 		{
-			m_Renderer2D->DrawQuadBillboard({ -3.053855f, 4.328760f, 1.0f }, { 2.0f, 2.0f }, { 1.0f, 0.0f, 1.0f, 1.0f });
-
-			for (int x = -15; x < 15; x++)
+			if (m_ShowBoundingBoxSelectedMeshOnly)
 			{
-				for (int y = -3; y < 3; y++)
+				const auto& selectedEntites = SelectionManager::GetSelections(SelectionContext::Scene);
+				for (const auto& entityID : selectedEntites)
 				{
-					m_Renderer2D->DrawQuad({ x, y, 2.0f }, { 1, 1 }, { glm::sin(x), glm::cos(y), glm::sin(x + y), 1.0f });
+					Entity entity = m_CurrentScene->GetEntityWithUUID(entityID);
+
+					const auto& staticMeshComponent = entity.TryGetComponent<StaticMeshComponent>();
+					if (staticMeshComponent)
+					{
+						if (staticMeshComponent->StaticMesh)
+						{
+							Ref<MeshSource> meshSource = staticMeshComponent->StaticMesh->GetMeshSource();
+							if (meshSource)
+							{
+								if (m_ShowBoundingBoxSubMeshes)
+								{
+									const auto& subMeshIndices = staticMeshComponent->StaticMesh->GetSubMeshes();
+									const auto& subMeshes = meshSource->GetSubMeshes();
+
+									for (uint32_t subMeshIndex : subMeshIndices)
+									{
+										glm::mat4 transform = m_CurrentScene->GetWorldSpaceTransformMatrix(entity);
+										const AABB& aabb = subMeshes[subMeshIndex].BoundingBox;
+										m_Renderer2D->DrawAABB(aabb, transform * subMeshes[subMeshIndex].Transform, { 1.0f, 1.0f, 1.0f, 1.0f });
+									}
+								}
+								else
+								{
+									glm::mat4 transform = m_CurrentScene->GetWorldSpaceTransformMatrix(entity);
+									const AABB& aabb = meshSource->GetBoundingBox();
+									m_Renderer2D->DrawAABB(aabb, transform, { 1.0f, 1.0f, 1.0f, 1.0f });
+								}
+							}
+						}
+					}
 				}
 			}
-
-			m_Renderer2D->DrawAABB({ {5.0f, 5.0f, 1.0f}, {7.0f, 7.0f, -4.0f} }, glm::mat4(1.0f));
-			m_Renderer2D->DrawAABB({ {4.0f, 4.0f, -1.0f}, {5.0f, 5.0f, -4.0f} }, glm::translate(glm::mat4(1.0f), { 2.0f, -1.0f, -0.5f }), { 0.0f, 1.0f, 1.0f, 1.0f });
-			m_Renderer2D->DrawCircle({ 5.0f, 5.0f, -2.0f }, glm::vec3(1.0f), 2.0f, { 1.0f, 0.0f, 1.0f, 1.0f });
-			// m_Renderer2D->DrawLine(glm::vec3(0.0f), glm::vec3(6.0f), glm::vec4(1.0f, 0.0f, 1.0f, 1.0f));
-			// m_Renderer2D->DrawLine(glm::vec3(0.0f), glm::vec3(-20.2f, 3.0f, -5.0f), glm::vec4(0.2f, 0.3f, 0.8f, 1.0f));
-			// m_Renderer2D->DrawLine(glm::vec3(0.0f, -2.0f, 0.0f), glm::vec3(0.0f, -5.0f, 0.0f), glm::vec4(1.0f, 0.0f, 0.0f, 1.0f));
-			m_Renderer2D->DrawQuadBillboard({ -2.0f, -2.0f, -0.5f }, { 2.0f, 2.0f }, s_BillBoardTexture, 2.0f, { 1.0f, 0.7f, 1.0f, 0.5f });
-			// m_Renderer2D->DrawAABB(s_MeshSource->GetBoundingBox(), glm::mat4(1.0f));
-
-			//m_Renderer2D->DrawLine(glm::vec3(0.0f), glm::vec3(1.0f, 0.0f, 0.0f), glm::vec4(1.0f, 0.0f, 0.0f, 1.0f));
-			//m_Renderer2D->DrawLine(glm::vec3(0.0f), glm::vec3(0.0f, 1.0f, 0.0f), glm::vec4(0.0f, 1.0f, 0.0f, 1.0f));
-			//m_Renderer2D->DrawLine(glm::vec3(0.0f), glm::vec3(0.0f, 0.0f, 1.0f), glm::vec4(0.0f, 0.0f, 1.0f, 1.0f));
+			else
+			{
+				auto staticMeshEntities = m_CurrentScene->GetAllEntitiesWith<StaticMeshComponent>();
+				for (auto e : staticMeshEntities)
+				{
+					Entity entity = { e, m_CurrentScene.Raw() };
+					glm::mat4 transform = m_CurrentScene->GetWorldSpaceTransformMatrix(entity);
+					Ref<StaticMesh> staticMesh = entity.GetComponent<StaticMeshComponent>().StaticMesh;
+					if (staticMesh)
+					{
+						Ref<MeshSource> meshSource = staticMesh->GetMeshSource();
+						if (meshSource)
+						{
+							const AABB& aabb = meshSource->GetBoundingBox();
+							m_Renderer2D->DrawAABB(aabb, transform, { 1.0f, 1.0f, 1.0f, 1.0f });
+						}
+					}
+				}
+			}
 		}
 
 		// `true` indicates that we transition resulting images to presenting layouts...
@@ -943,7 +980,7 @@ namespace Iris {
 
 		ImVec2 viewportOffset = ImGui::GetCursorPos(); // Includes tab bar
 		ImVec2 viewportSize = ImGui::GetContentRegionAvail();
-		m_ViewportRenderer->SetViewportSize(static_cast<uint32_t>(viewportSize.x), static_cast<uint32_t>(viewportSize.y));
+		m_ViewportRenderer->SetViewportSize(static_cast<uint32_t>(viewportSize.x), static_cast<uint32_t>(viewportSize.y), m_ViewportRenderer->GetSpecification().RendererScale);
 		m_EditorScene->SetViewportSize(static_cast<uint32_t>(viewportSize.x), static_cast<uint32_t>(viewportSize.y));
 		m_EditorCamera.SetViewportSize(static_cast<uint32_t>(viewportSize.x), static_cast<uint32_t>(viewportSize.y));
 
@@ -992,6 +1029,7 @@ namespace Iris {
 
 		ImGui::Text("Average Framerate: %i", static_cast<uint32_t>(1.0f / Application::Get().GetFrameTime().GetSeconds()));
 
+		// TODO: Move into viewport overlay settings...
 		bool isVSync = Application::Get().GetWindow().IsVSync();
 		if (ImGui::Checkbox("VSync", &isVSync))
 			Application::Get().GetWindow().SetVSync(isVSync);
@@ -1000,7 +1038,38 @@ namespace Iris {
 
 		ImGui::Checkbox("Grid", &m_ViewportRenderer->GetOptions().ShowGrid);
 
-		ImGui::Checkbox("Render 2D", &g_Render2D);
+		if (ImGui::Checkbox("ShowBoundingBoxes", &m_ShowBoundingBoxes))
+		{
+			m_ShowBoundingBoxSelectedMeshOnly = m_ShowBoundingBoxes == false ? false : m_ShowBoundingBoxSelectedMeshOnly;
+			m_ShowBoundingBoxSubMeshes = m_ShowBoundingBoxes == false ? false : m_ShowBoundingBoxSubMeshes;
+		}
+		if (ImGui::Checkbox("SelectedBoundingBox", &m_ShowBoundingBoxSelectedMeshOnly))
+			m_ShowBoundingBoxes = m_ShowBoundingBoxSelectedMeshOnly == true ? true : m_ShowBoundingBoxes;
+		if (ImGui::Checkbox("SubMeshesBoundingBox", &m_ShowBoundingBoxSubMeshes))
+			m_ShowBoundingBoxes = m_ShowBoundingBoxSubMeshes == true ? true : m_ShowBoundingBoxes;
+
+		// TODO: Move into application settings panel
+		static float renderScale = m_ViewportRenderer->GetSpecification().RendererScale;
+		const float prevRenderScale = m_ViewportRenderer->GetSpecification().RendererScale;
+		if (ImGui::SliderFloat("RenderScale", &renderScale, 0.1f, 2.0f))
+			m_ViewportRenderer->SetViewportSize((uint32_t)(m_ViewportRenderer->GetViewportWidth() / prevRenderScale), (uint32_t)(m_ViewportRenderer->GetViewportHeight() / prevRenderScale), renderScale);
+		
+		// TODO: For fun... When we have threaded asset loading then we can use this to signify that an asset is being loaded
+		if (false)
+		{
+			static int counter = 0;
+			if (ImGui::Button("DispatchColorChange"))
+			{
+				if (counter == 0)
+					Application::Get().DispatchEvent<Events::TitleBarColorChangeEvent, true>(Colors::Theme::TitlebarOrange);
+				if (counter == 1)
+					Application::Get().DispatchEvent<Events::TitleBarColorChangeEvent, true>(Colors::Theme::TitlebarCyan);
+				if (counter == 2)
+					Application::Get().DispatchEvent<Events::TitleBarColorChangeEvent, true>(Colors::Theme::TitlebarGreen);
+
+				++counter %= 3;
+			}
+		}
 
 		ImGui::End();
 	}
@@ -1043,6 +1112,7 @@ namespace Iris {
 			e.SetHit(UI_TitleBarHitTest(e.GetX(), e.GetY()));
 			return true;
 		});
+		dispatcher.Dispatch<Events::TitleBarColorChangeEvent>([this](Events::TitleBarColorChangeEvent& e) { return OnTitleBarColorChange(e); });
 	}
 
 	bool EditorLayer::OnKeyPressed(Events::KeyPressedEvent& e)
@@ -1229,6 +1299,15 @@ namespace Iris {
 	{
 		TransformComponent& tc = entity.Transform();
 		tc.SetTransform(glm::inverse(m_EditorCamera.GetViewMatrix()));
+	}
+
+	bool EditorLayer::OnTitleBarColorChange(Events::TitleBarColorChangeEvent& e)
+	{
+		m_AnimateTitleBarColor = true;
+		m_TitleBarPreviousColor = m_TitleBarActiveColor;
+		m_TitleBarTargetColor = e.GetTargetColor();
+
+		return true;
 	}
 
 }

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Asset/Asset.h"
+#include "AssetManager/Asset/Asset.h"
 #include "Core/AABB.h"
 #include "MaterialAsset.h"
 #include "Renderer/IndexBuffer.h"

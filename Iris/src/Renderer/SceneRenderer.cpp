@@ -371,7 +371,8 @@ namespace Iris {
 				};
 				m_JumpFloodCompositePass = RenderPass::Create(jumpFloodCompositePass);
 
-				m_JumpFloodCompositePass->SetInput("u_Texture", m_JumpFloodFramebuffers[1]->GetImage(0));
+				// Take the output of the first framebuffer since we only do two jump flood passes (ping pong only once)
+				m_JumpFloodCompositePass->SetInput("u_Texture", m_JumpFloodFramebuffers[0]->GetImage(0));
 				m_JumpFloodCompositePass->Bake();
 
 				m_JumpFloodCompositeMaterial = Material::Create(jumpFloodCompositePipeline.Shader, "JumpFloodCompositeMaterial");
@@ -402,8 +403,11 @@ namespace Iris {
 		m_Scene = scene;
 	}
 
-	void SceneRenderer::SetViewportSize(uint32_t width, uint32_t height)
+	void SceneRenderer::SetViewportSize(uint32_t width, uint32_t height, float renderScale)
 	{
+		if (m_Specification.RendererScale != renderScale)
+			m_Specification.RendererScale = renderScale;
+
 		// Set the render scale here instead of individually for all framebuffers...
 		width = static_cast<uint32_t>(width * m_Specification.RendererScale);
 		height = static_cast<uint32_t>(height * m_Specification.RendererScale);
@@ -723,8 +727,8 @@ namespace Iris {
 		Renderer::SubmitFullScreenQuad(m_CommandBuffer, m_JumpFloodInitPass->GetPipeline(), m_JumpFloodInitMaterial);
 		Renderer::EndRenderPass(m_CommandBuffer);
 
-		constexpr int steps = 3;
-		int step = static_cast<int>(glm::round(glm::pow<int>(steps - 1, 2)));
+		constexpr float steps = 2.5;
+		int step = static_cast<int>(glm::round(glm::pow(steps - 1.0f, 2.0f)));
 		int index = 0;
 
 		Ref<Framebuffer> passFb = m_JumpFloodPass[0]->GetTargetFramebuffer();
@@ -734,8 +738,10 @@ namespace Iris {
 		vertexOverrides.Allocate(sizeof(glm::vec2) + sizeof(int));
 		vertexOverrides.Write(reinterpret_cast<const uint8_t*>(glm::value_ptr(texelSize)), sizeof(glm::vec2));
 
+		int counter = 0;
 		while (step != 0)
 		{
+			counter++;
 			vertexOverrides.Write(reinterpret_cast<const uint8_t*>(&step), sizeof(int), sizeof(glm::vec2));
 
 			Renderer::BeginRenderPass(m_CommandBuffer, m_JumpFloodPass[index]);

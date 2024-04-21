@@ -7,10 +7,10 @@
  * NEXT STEP ON TUTORIAL: Compute Shaders
  *
  * NEXT THING TO WORK ON:
- * - Jump flood outlining?
  * - Add compute passes to the engine so we can have environment maps and some IBL
  * - Add Filled Circles to Renderer2D? (Circle sprites)
  * - SceneRenderer continue building all the passes
+ * - Maybe make the outline color user set?
  * - Handle renderer descriptor pool situation and come up with some solutions for it... Read note written in Renderer.cpp (line: 101)
  * - For runtime layer switch to using a main camera component and not the editor camera
  * - Add pipeline for double sided materials where you just disable culling... but it has its own drawlist

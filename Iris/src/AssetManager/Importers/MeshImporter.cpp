@@ -1,6 +1,7 @@
 #include "IrisPCH.h"
 #include "MeshImporter.h"
 
+#include "ImGui/Themes.h"
 #include "Renderer/Mesh/Mesh.h"
 #include "Renderer/Renderer.h"
 #include "Renderer/Shaders/Shader.h"
@@ -116,7 +117,7 @@ namespace Iris {
 					MeshUtils::Vertex vertex;
 					vertex.Position = { mesh->mVertices[i].x, mesh->mVertices[i].y, mesh->mVertices[i].z };
 					vertex.Normal = { mesh->mNormals[i].x, mesh->mNormals[i].y, mesh->mNormals[i].z };
-					
+
 					if (mesh->HasTangentsAndBitangents())
 					{
 						vertex.Tangent = { mesh->mTangents[i].x, mesh->mTangents[i].y, mesh->mTangents[i].z };
@@ -185,7 +186,7 @@ namespace Iris {
 				IR_CORE_TRACE_TAG("Mesh", "\t   {0} (index = {1})", aiMaterialName.data, i);
 
 				aiString aiTexPath;
-				
+
 				// Albedo
 				glm::vec3 albedoColor = glm::vec3{ 0.8f };
 				float emission = 0.0f;
@@ -365,7 +366,7 @@ namespace Iris {
 						IR_CORE_TRACE_TAG("Mesh", "\t   Roughness map path: {0}", texturePath);
 
 						Buffer buffer = Utils::TextureImporter::LoadImageFromFile(texturePath, spec.Format, spec.Width, spec.Height);
-						
+
 						aiTexel* texels = reinterpret_cast<aiTexel*>(buffer.Data);
 						if (invertRoughness)
 						{
@@ -465,7 +466,7 @@ namespace Iris {
 				material->Set("u_AlbedoTexture", whiteTexture);
 				material->Set("u_RoughnessTexture", whiteTexture);
 				material->Set("u_MetalnessTexture", whiteTexture);
-			
+
 				meshSource->m_Materials.push_back(material);
 			}
 		}

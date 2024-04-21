@@ -2,7 +2,7 @@
 
 #include "Core/Input/Input.h"
 #include "Renderer/Renderer.h"
-#include "Asset/MeshImporter.h"
+#include "AssetManager/Importers/MeshImporter.h"
 
 bool g_WireFrame = false;
 
@@ -96,7 +96,7 @@ namespace Iris {
 	void RuntimeLayer::OnUpdate(TimeStep ts)
 	{
 		auto [width, height] = Application::Get().GetWindow().GetSize();
-		m_ViewportRenderer->SetViewportSize(width, height);
+		m_ViewportRenderer->SetViewportSize(width, height, m_ViewportRenderer->GetSpecification().RendererScale);
 		m_RuntimeScene->SetViewportSize(width, height);
 		m_EditorCamera.SetViewportSize(width, height);
 

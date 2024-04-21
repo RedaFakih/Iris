@@ -85,4 +85,19 @@ namespace Iris::Events {
 
 	};
 
+	class TitleBarColorChangeEvent : public Event
+	{
+	public:
+		TitleBarColorChangeEvent(uint32_t targetColor)
+			: m_TargetColor(targetColor) {}
+
+		inline uint32_t GetTargetColor() const { return m_TargetColor; }
+
+		IR_EVENT_CLASS_TYPE(TitleBarColorChange)
+
+	private:
+		uint32_t m_TargetColor;
+
+	};
+
 }

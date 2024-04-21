@@ -1,7 +1,7 @@
 #include "IrisPCH.h"
 #include "SceneHierarchyPanel.h"
 
-#include "Asset/MeshImporter.h" // TODO: REMOVE
+#include "AssetManager/Importers/MeshImporter.h" // TODO: REMOVE
 #include "Core/Application.h"
 #include "Core/Events/KeyEvents.h"
 #include "Core/Input/Input.h"

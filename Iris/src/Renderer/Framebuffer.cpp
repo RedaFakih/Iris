@@ -84,8 +84,10 @@ namespace Iris {
             {
                 TextureSpecification spec = {
                     .DebugName = fmt::format("{} - DepthAttachment{}", m_Specification.DebugName.empty() ? "Unnamed FB" : m_Specification.DebugName, attachmentIndex),
-                    .Width = static_cast<uint32_t>(m_Width * m_Specification.Scale),
-                    .Height = static_cast<uint32_t>(m_Height * m_Specification.Scale),
+                    //.Width = static_cast<uint32_t>(m_Width * m_Specification.Scale),
+                    //.Height = static_cast<uint32_t>(m_Height * m_Specification.Scale),
+                    .Width = m_Width,
+                    .Height = m_Height,
                     .Format = attachmentSpec.Format,
                     .Usage = ImageUsage::Attachment,
                     .Samples = m_Specification.Samples,
@@ -104,8 +106,10 @@ namespace Iris {
             {
                 TextureSpecification spec = {
                     .DebugName = fmt::format("{} - ColorAttachment{}", m_Specification.DebugName.empty() ? "Unnamed FB" : m_Specification.DebugName, attachmentIndex),
-                    .Width = static_cast<uint32_t>(m_Width * m_Specification.Scale),
-                    .Height = static_cast<uint32_t>(m_Height * m_Specification.Scale),
+                    //.Width = static_cast<uint32_t>(m_Width * m_Specification.Scale),
+                    //.Height = static_cast<uint32_t>(m_Height * m_Specification.Scale),
+                    .Width = m_Width,
+                    .Height = m_Height,
                     .Format = attachmentSpec.Format,
                     .Usage = ImageUsage::Attachment,
                     .Samples = m_Specification.Samples,
@@ -505,8 +509,10 @@ namespace Iris {
         if (!forceRecreate && (m_Width == width && m_Height == height))
             return;
 
-        m_Width = static_cast<uint32_t>(width * m_Specification.Scale);
-        m_Height = static_cast<uint32_t>(height * m_Specification.Scale);
+        //m_Width = static_cast<uint32_t>(width * m_Specification.Scale);
+        //m_Height = static_cast<uint32_t>(height * m_Specification.Scale);
+        m_Width = width;
+        m_Height = height;
 
         if (!m_Specification.SwapchainTarget)
             Invalidate();
