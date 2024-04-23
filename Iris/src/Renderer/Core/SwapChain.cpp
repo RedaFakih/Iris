@@ -318,24 +318,32 @@ namespace Iris {
 			 *	- Present the image on the screen, returning it to the swapchain
 			 */
 		
-			// These do not need to be created and destroyed each time we resize so we put behind a gaurd as long as the semaphores are valid
-			if (!m_Semaphores.RenderComplete || !m_Semaphores.PresentComplete)
+			uint32_t framesInFlight = Renderer::GetConfig().FramesInFlight;
+			if (m_ImageAvailableSemaphores.size() != framesInFlight)
 			{
-				VkSemaphoreCreateInfo semaphoreInfo = { .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
-				VK_CHECK_RESULT(vkCreateSemaphore(device, &semaphoreInfo, nullptr, &m_Semaphores.RenderComplete));
-				VKUtils::SetDebugUtilsObjectName(device, VK_OBJECT_TYPE_SEMAPHORE, "Swapchain Semaphore RenderComplete", m_Semaphores.RenderComplete);
-				VK_CHECK_RESULT(vkCreateSemaphore(device, &semaphoreInfo, nullptr, &m_Semaphores.PresentComplete));
-				VKUtils::SetDebugUtilsObjectName(device, VK_OBJECT_TYPE_SEMAPHORE, "Swapchain Semaphore PresentComplete", m_Semaphores.PresentComplete);
+				m_ImageAvailableSemaphores.resize(framesInFlight);
+				m_RenderFinishedSemaphores.resize(framesInFlight);
+				
+				VkSemaphoreCreateInfo semaphoreCreateInfo = {
+					.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO
+				};
+				for (uint32_t i = 0; i < framesInFlight; i++)
+				{
+					VK_CHECK_RESULT(vkCreateSemaphore(device, &semaphoreCreateInfo, nullptr, &m_ImageAvailableSemaphores[i]));
+					VKUtils::SetDebugUtilsObjectName(device, VK_OBJECT_TYPE_SEMAPHORE, fmt::format("Swapchain Semaphore ImageAvailable{0}", i), m_ImageAvailableSemaphores[i]);
+					VK_CHECK_RESULT(vkCreateSemaphore(device, &semaphoreCreateInfo, nullptr, &m_RenderFinishedSemaphores[i]));
+					VKUtils::SetDebugUtilsObjectName(device, VK_OBJECT_TYPE_SEMAPHORE, fmt::format("Swapchain Semaphore RenderFinished{0}", i), m_RenderFinishedSemaphores[i]);
+				}
 			}
 
-			if (m_WaitFences.size() != m_ImageCount)
+			if (m_WaitFences.size() != framesInFlight)
 			{
 				VkFenceCreateInfo fenceInfo = { 
 					.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO, 
 					.flags = VK_FENCE_CREATE_SIGNALED_BIT // Creates the fence in signaled state already
 				};
 
-				m_WaitFences.resize(m_ImageCount);
+				m_WaitFences.resize(framesInFlight);
 				for (auto& fence : m_WaitFences)
 				{
 					VK_CHECK_RESULT(vkCreateFence(device, &fenceInfo, nullptr, &fence));
@@ -443,24 +451,30 @@ namespace Iris {
 
 		for (auto& image : m_Images)
 			vkDestroyImageView(device, image.ImageView, nullptr);
+		m_Images.clear();
 
 		for (auto& commandBuffer : m_CommandBuffers)
 			vkDestroyCommandPool(device, commandBuffer.CommandPool, nullptr);
+		m_CommandBuffers.clear();
 
 		if(m_RenderPass)
 			vkDestroyRenderPass(device, m_RenderPass, nullptr);
 
 		for (VkFramebuffer& framebuffer : m_Framebuffers)
 			vkDestroyFramebuffer(device, framebuffer, nullptr);
+		m_Framebuffers.clear();
 
-		if (m_Semaphores.RenderComplete)
-			vkDestroySemaphore(device, m_Semaphores.RenderComplete, nullptr);
+		for (VkSemaphore& semaphore : m_ImageAvailableSemaphores)
+			vkDestroySemaphore(device, semaphore, nullptr);
+		m_ImageAvailableSemaphores.clear();
 
-		if (m_Semaphores.PresentComplete)
-			vkDestroySemaphore(device, m_Semaphores.PresentComplete, nullptr);
+		for (VkSemaphore& semaphore : m_RenderFinishedSemaphores)
+			vkDestroySemaphore(device, semaphore, nullptr);
+		m_RenderFinishedSemaphores.clear();
 
 		for (auto& fence : m_WaitFences)
 			vkDestroyFence(device, fence, nullptr);
+		m_WaitFences.clear();
 
 		vkDestroySurfaceKHR(m_Instance, m_Surface, nullptr);
 	
@@ -482,18 +496,17 @@ namespace Iris {
 		 * we know that anything (pipelines, renderpasses...) queued to destruction in the previous frame could now be deleted since there is
 		 * nothing that is still using them since that frame is already presented to the swapchain
 		 * 
-		 * So in some way we create our own render command queue to submit resource free commands to it and at this point `m_CurrentBufferIndex`
+		 * So in some way we create our own render command queue to submit resource free commands to it and at this point `m_CurrentFrameIndex`
 		 * has not been updated yet so it is still trailing by a frame so will free everything without problems
 		 */
 		
-		// TODO: Should be done on the Renderthread, so `SwapChain::BeginFrame` should be called inside a `Renderer::Submit`
-		RenderCommandQueue& rendererResourceFreeQueue = Renderer::GetRendererResourceReleaseQueue(m_CurrentBufferIndex);
+		RenderCommandQueue& rendererResourceFreeQueue = Renderer::GetRendererResourceReleaseQueue(m_CurrentFrameIndex);
 		rendererResourceFreeQueue.Execute();
 
 		m_CurrentImageIndex = AcquireNextImage();
 
 		// We reset the current command pool since it will reset its command buffer
-		VK_CHECK_RESULT(vkResetCommandPool(m_Device->GetVulkanDevice(), m_CommandBuffers[m_CurrentBufferIndex].CommandPool, 0));
+		VK_CHECK_RESULT(vkResetCommandPool(m_Device->GetVulkanDevice(), m_CommandBuffers[m_CurrentFrameIndex].CommandPool, 0));
 	}
 
 	void SwapChain::Present()
@@ -501,7 +514,7 @@ namespace Iris {
 		VkDevice device = m_Device->GetVulkanDevice();
 
 		// First reset the fence for the frame so that it will be signaled to the CPU when the GPU has finished rendering
-		VK_CHECK_RESULT(vkResetFences(device, 1, &m_WaitFences[m_CurrentBufferIndex]));
+		VK_CHECK_RESULT(vkResetFences(device, 1, &m_WaitFences[m_CurrentFrameIndex]));
 
 		// Submission
 		// This could be an array and each element corresponds to a semaphore (which will be more than 1)
@@ -509,15 +522,15 @@ namespace Iris {
 		VkSubmitInfo submitInfo = {
 			.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
 			.waitSemaphoreCount = 1, // NOTE: Specifies the semaphore to wait on before execution begins
-			.pWaitSemaphores = &m_Semaphores.PresentComplete,
+			.pWaitSemaphores = &m_ImageAvailableSemaphores[m_CurrentFrameIndex],
 			.pWaitDstStageMask = &waitStageFlags,
 			.commandBufferCount = 1,
-			.pCommandBuffers = &m_CommandBuffers[m_CurrentBufferIndex].CommandBuffer,
+			.pCommandBuffers = &m_CommandBuffers[m_CurrentFrameIndex].CommandBuffer,
 			.signalSemaphoreCount = 1, // NOTE: Specifies the semaphore to signal once the command buffer has finished execution
-			.pSignalSemaphores = &m_Semaphores.RenderComplete
+			.pSignalSemaphores = &m_RenderFinishedSemaphores[m_CurrentFrameIndex]
 		};
 
-		VK_CHECK_RESULT(vkQueueSubmit(m_Device->GetGraphicsQueue(), 1, &submitInfo, m_WaitFences[m_CurrentBufferIndex]));
+		VK_CHECK_RESULT(vkQueueSubmit(m_Device->GetGraphicsQueue(), 1, &submitInfo, m_WaitFences[m_CurrentFrameIndex]));
 
 		// Presentation
 		// Present the current commandbuffer to the swapchain
@@ -529,7 +542,7 @@ namespace Iris {
 				.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
 				.pNext = nullptr,
 				.waitSemaphoreCount = 1,
-				.pWaitSemaphores = &m_Semaphores.RenderComplete, // We want to wait for the commandbuffer to finish execution
+				.pWaitSemaphores = &m_RenderFinishedSemaphores[m_CurrentFrameIndex], // We want to wait for the commandbuffer to finish execution
 				.swapchainCount = 1,
 				.pSwapchains = &m_SwapChain,
 				.pImageIndices = &m_CurrentImageIndex,
@@ -550,30 +563,30 @@ namespace Iris {
 				VK_CHECK_RESULT(result);
 			}
 		}
-
-		{
-			m_CurrentBufferIndex = (m_CurrentBufferIndex + 1) % Renderer::GetConfig().FramesInFlight;
-
-			// Make sure that only one frame is being rendered at a time
-			// NOTE: So lets say we have submitted the first N frame in flight to the GPU but the GPU has not finished rendering the First frame we submitted
-			// Here we would have to wait for the GPU to finish rendering that image so that we can acquire the swapchain image of that frame to render into
-			// again.
-			VK_CHECK_RESULT(vkWaitForFences(device, 1, &m_WaitFences[m_CurrentBufferIndex], VK_TRUE, UINT64_MAX));
-		}
 	}
 
 	uint32_t SwapChain::AcquireNextImage()
 	{
+		m_CurrentFrameIndex = (m_CurrentFrameIndex + 1) % Renderer::GetConfig().FramesInFlight;
+
+		{
+			// Make sure that only one frame is being rendered at a time
+			// NOTE: So lets say we have submitted the first N frame in flight to the GPU but the GPU has not finished rendering the First frame we submitted
+			// Here we would have to wait for the GPU to finish rendering that image so that we can acquire the swapchain image of that frame to render into
+			// again.
+			VK_CHECK_RESULT(vkWaitForFences(m_Device->GetVulkanDevice(), 1, &m_WaitFences[m_CurrentFrameIndex], VK_TRUE, UINT64_MAX));
+		}
+
 		uint32_t imageIndex; // This index will be used to pick the framebuffer we render too (and command buffer we submit commands to).
 		// NOTE: If for some reason we fail to acquire the next image according to some problem that is stated by the spec we invalidate
 		// the swapchain and try again!
-		VkResult result = vkAcquireNextImageKHR(m_Device->GetVulkanDevice(), m_SwapChain, UINT64_MAX, m_Semaphores.PresentComplete, (VkFence)nullptr, &imageIndex);
+		VkResult result = vkAcquireNextImageKHR(m_Device->GetVulkanDevice(), m_SwapChain, UINT64_MAX, m_ImageAvailableSemaphores[m_CurrentFrameIndex], (VkFence)nullptr, &imageIndex);
 		if (result != VK_SUCCESS)
 		{
 			if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR)
 			{
 				OnResize(m_Width, m_Height);
-				VK_CHECK_RESULT(vkAcquireNextImageKHR(m_Device->GetVulkanDevice(), m_SwapChain, UINT64_MAX, m_Semaphores.PresentComplete, (VkFence)nullptr, &imageIndex));
+				VK_CHECK_RESULT(vkAcquireNextImageKHR(m_Device->GetVulkanDevice(), m_SwapChain, UINT64_MAX, m_ImageAvailableSemaphores[m_CurrentFrameIndex], (VkFence)nullptr, &imageIndex));
 			}
 		}
 

@@ -3,11 +3,12 @@
 
 #include "Core/Input/Input.h"
 #include "ImGui/ImGuiUtils.h"
+#include "Project/Project.h"
 #include "Renderer/Renderer.h"
 #include "Renderer/Shaders/Shader.h"
-#include "Scene/Scene.h"
-#include "Renderer/UniformBufferSet.h"
 #include "Renderer/Texture.h"
+#include "Renderer/UniformBufferSet.h"
+#include "Scene/Scene.h"
 
 #include <imgui/imgui.h>
 
@@ -67,9 +68,9 @@ namespace Iris {
             ImGui::PushItemWidth(-1);
             std::string message = reloadingSucceeded ? "Shader Ready!" : "Compilation Error! Check console for more info. Reverting to previous shader version.";
             if (!reloadingSucceeded)
-                ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(255, 36, 36, 255));
+                ImGui::PushStyleColor(ImGuiCol_Text, Colors::Theme::TextError);
             else
-                ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(118, 185, 0, 255));
+                ImGui::PushStyleColor(ImGuiCol_Text, Colors::Theme::TextSuccess);
 
             ImGui::InputText(fmt::format("##shader{0}compilationFailed", name).c_str(), (char*)message.c_str(), message.size(), ImGuiInputTextFlags_ReadOnly);
             

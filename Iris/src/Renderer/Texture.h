@@ -1,13 +1,14 @@
 #pragma once
 
+#include "AssetManager/Asset/Asset.h"
 #include "Core/Base.h"
 #include "Core/Buffer.h"
 #include "Renderer/Core/RendererContext.h"
 #include "Renderer/Core/VulkanAllocator.h"
 
-#include <vulkan/vulkan.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/integer.hpp>
+#include <vulkan/vulkan.h>
 
 namespace Iris {
 
@@ -99,8 +100,7 @@ namespace Iris {
 		uint32_t Layers = 1;
 	};
 
-	// TODO: This is an asset
-	class Texture2D : public RefCountedObject
+	class Texture2D : public Asset
 	{
 	public:
 		// NOTE: If the first constructor is used then an Invalidate call should follow to get a valid image
@@ -128,6 +128,7 @@ namespace Iris {
 		uint32_t GetWidth() const noexcept { return m_Specification.Width; }
 		uint32_t GetHeight() const noexcept { return m_Specification.Height; }
 		const glm::vec2& GetSize() const noexcept { return { m_Specification.Width, m_Specification.Height }; }
+		bool Loaded() const { return m_ImageView != nullptr; }
 
 		const VkImage GetVulkanImage() const { return m_Image; }
 		const VkImageView GetVulkanImageView() const { return m_ImageView; }
@@ -142,6 +143,9 @@ namespace Iris {
 		uint32_t GetMipLevelCount() const;
 		glm::ivec2 GetMipSize(uint32_t mip) const;
 
+		static AssetType GetStaticType() { return AssetType::Texture; }
+		virtual AssetType GetAssetType() const override { return GetStaticType(); }
+
 	private:
 		std::string m_AssetPath;
 		TextureSpecification m_Specification;
@@ -154,7 +158,7 @@ namespace Iris {
 
 		Buffer m_ImageData; // Local storage of the image
 
-		VkDescriptorImageInfo m_DescriptorInfo;
+		VkDescriptorImageInfo m_DescriptorInfo = {};
 	};
 
 	namespace Utils {

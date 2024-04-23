@@ -7,9 +7,9 @@
 #include "Renderer/Core/RendererContext.h"
 #include "Renderer/Core/SwapChain.h"
 
+#include <filesystem>
 #include <functional>
 #include <string>
-#include <filesystem>
 
 struct GLFWwindow;
 struct GLFWcursor;

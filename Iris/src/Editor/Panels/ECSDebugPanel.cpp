@@ -2,9 +2,10 @@
 #include "ECSDebugPanel.h"
 
 #include "Editor/SelectionManager.h"
-#include "Scene/Scene.h"
+#include "Project/Project.h"
 #include "Renderer/Texture.h"
 #include "Renderer/UniformBufferSet.h"
+#include "Scene/Scene.h"
 
 #include <imgui/imgui.h>
 

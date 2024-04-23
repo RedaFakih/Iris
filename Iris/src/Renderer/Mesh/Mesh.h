@@ -77,8 +77,7 @@ namespace Iris {
 		
 	}
 
-	// TODO: This is an asset
-	class MeshSource : public RefCountedObject
+	class MeshSource : public Asset
 	{
 	public:
 		MeshSource() = default;
@@ -114,6 +113,9 @@ namespace Iris {
 		// For debugging
 		void DumpVertexBuffer();
 
+		static AssetType GetStaticType() { return AssetType::MeshSource; }
+		virtual AssetType GetAssetType() const override { return GetStaticType(); }
+
 	private:
 		std::string m_AssetPath;
 
@@ -137,27 +139,29 @@ namespace Iris {
 
 	};
 
-	// TODO: This is an asset
 	class StaticMesh : public Asset
 	{
 	public:
-		explicit StaticMesh(Ref<MeshSource> meshSource);
-		StaticMesh(Ref<MeshSource> meshSource, const std::vector<uint32_t>& subMeshes);
+		explicit StaticMesh(AssetHandle meshSource);
+		StaticMesh(AssetHandle meshSource, const std::vector<uint32_t>& subMeshes);
 		virtual ~StaticMesh() = default;
 
-		[[nodiscard]] static Ref<StaticMesh> Create(Ref<MeshSource> meshSource);
-		[[nodiscard]] static Ref<StaticMesh> Create(Ref<MeshSource> meshSource, const std::vector<uint32_t>& subMeshes);
+		[[nodiscard]] static Ref<StaticMesh> Create(AssetHandle meshSource);
+		[[nodiscard]] static Ref<StaticMesh> Create(AssetHandle meshSource, const std::vector<uint32_t>& subMeshes);
 
-		Ref<MeshSource> GetMeshSource() const { return m_MeshSource; }
-		void SetMeshSource(Ref<MeshSource> meshSource) { m_MeshSource = meshSource; }
+		AssetHandle GetMeshSource() const { return m_MeshSource; }
+		void SetMeshSource(AssetHandle meshSource) { m_MeshSource = meshSource; }
 
 		const std::vector<uint32_t>& GetSubMeshes() const { return m_SubMeshes; }
 		void SetSubMeshes(const std::vector<uint32_t>& subMeshes, Ref<MeshSource> meshSource); // Pass empty vector to set all submeshes
 
 		Ref<MaterialTable> GetMaterials() const { return m_MaterialTable; }
 
+		static AssetType GetStaticType() { return AssetType::StaticMesh; }
+		virtual AssetType GetAssetType() const override { return GetStaticType(); }
+
 	private:
-		Ref<MeshSource> m_MeshSource;
+		AssetHandle m_MeshSource;
 		std::vector<uint32_t> m_SubMeshes;
 
 		Ref<MaterialTable> m_MaterialTable;

@@ -7,6 +7,11 @@
  * NEXT STEP ON TUTORIAL: Compute Shaders
  *
  * NEXT THING TO WORK ON:
+ * - Fix cleanup synchronization
+ * - Build RenderThread interface and debug why the Renderer::Submit is not properly working with resource freeing and also rendering
+ * - Add Mesh panel that prompts the user to create the Iris Mesh file if they load a MeshSource
+ * - If Mouse is pressed and moved in any other panel, the move mouse event is dispatched and then when we click in the viewport it is used which makes the flicker thing
+ * - Swith the asset thread to sleep and wake based on a condition variable
  * - Add compute passes to the engine so we can have environment maps and some IBL
  * - Add Filled Circles to Renderer2D? (Circle sprites)
  * - SceneRenderer continue building all the passes
@@ -45,6 +50,17 @@
  *		- Update the DescriptorManager with all the Utils and types and their handling cases
  *		- Update the RenderPass with the getters and setters and invokes to DescriptorManager
  * 
+ * NOTE (AssetManager):
+ *  - We have two asset managers: Editor and Runtime. They are split since the editor asset manager has to do things differently that what the runtime has to do.
+ *  - The asset manager interfaces with the AssetImporter class for loading and Loading data or Serializing data of assets
+ *		- The AssetImporter contains a list of AssetSerializer derived class (ex. TertureSerializer, MaterialAssetSerializer, ...)
+ *	    - Those classes handle the loading and serializing of their corresponding asset type
+ *		- Some assets may have an Iris specific middle file (YAML) that links the asset with its source asset file (ex. StaticMesh links the asset to MeshSource)
+ *			- In case of these assets, the corresponding AssetSerializer derived class will handle Loading and Serializing of that YAML file
+ *  - AssetThread:
+ *		- How it works with the asset manager?
+ *      - How dependecy between assets work and dependency changing (OnDependencyChanged)?
+ *		- Stuff it uses for waiting and all that
  * 
  * Future Plans:
  *	- Add meshoptimizer? <https://github.com/zeux/meshoptimizer/tree/master>

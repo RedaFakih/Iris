@@ -6,6 +6,7 @@
 namespace Iris {
 
 	class Scene;
+	class Project;
 
 	class EditorPanel : public RefCountedObject
 	{
@@ -15,6 +16,7 @@ namespace Iris {
 		virtual void OnImGuiRender(bool& isOpen) = 0;
 		virtual void OnEvent(Events::Event& e) {}
 		virtual void SetSceneContext(Ref<Scene> context) {}
+		virtual void OnProjectChanged(Ref<Project> project) {}
 	};
 
 }

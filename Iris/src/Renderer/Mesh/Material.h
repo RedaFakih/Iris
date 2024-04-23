@@ -1,9 +1,9 @@
 #pragma once
 
 #include "Core/Buffer.h"
-#include "Renderer/Shaders/ShaderUniform.h"
 #include "Renderer/DescriptorSetManager.h"
 #include "Renderer/Shaders/Shader.h"
+#include "Renderer/Shaders/ShaderUniform.h"
 
 namespace Iris {
 
@@ -19,7 +19,6 @@ namespace Iris {
 		TwoSided  = BIT(3), // 0b1000
 	};
 
-	// TODO: This is an asset
 	class Material : public RefCountedObject
 	{
 	public:

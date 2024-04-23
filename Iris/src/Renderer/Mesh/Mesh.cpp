@@ -1,6 +1,7 @@
 #include "IrisPCH.h"
 #include "Mesh.h"
 
+#include "AssetManager/AssetManager.h"
 #include "Renderer/Shaders/Shader.h"
 #include "Renderer/Texture.h"
 #include "Renderer/UniformBufferSet.h"
@@ -71,45 +72,50 @@ namespace Iris {
 		IR_CORE_DEBUG_TAG("Mesh", "-------------------------------------------------");
 	}
 
-	Ref<StaticMesh> StaticMesh::Create(Ref<MeshSource> meshSource)
+	Ref<StaticMesh> StaticMesh::Create(AssetHandle meshSource)
 	{
 		return CreateRef<StaticMesh>(meshSource);
 	}
 
-	Ref<StaticMesh> StaticMesh::Create(Ref<MeshSource> meshSource, const std::vector<uint32_t>& subMeshes)
+	Ref<StaticMesh> StaticMesh::Create(AssetHandle meshSource, const std::vector<uint32_t>& subMeshes)
 	{
 		return CreateRef<StaticMesh>(meshSource, subMeshes);
 	}
 
-	StaticMesh::StaticMesh(Ref<MeshSource> meshSource)
+	StaticMesh::StaticMesh(AssetHandle meshSource)
 		: m_MeshSource(meshSource)
 	{
-		if (meshSource)
+		Handle = {};
+
+		Ref<MeshSource> meshSourceAsset = AssetManager::GetAsset<MeshSource>(meshSource);
+		if (meshSourceAsset)
 		{
-			SetSubMeshes({}, meshSource);
+			SetSubMeshes({}, meshSourceAsset);
 
-			const std::vector<Ref<Material>>& meshMaterials = meshSource->GetMaterials();
-			uint32_t numOfMaterials = (uint32_t)meshMaterials.size();
-			m_MaterialTable = MaterialTable::Create(numOfMaterials);
+			const std::vector<Ref<Material>>& meshMaterials = meshSourceAsset->GetMaterials();
+			m_MaterialTable = MaterialTable::Create(static_cast<uint32_t>(meshMaterials.size()));
 
-			for (uint32_t i = 0; i < numOfMaterials; i++)
-				m_MaterialTable->SetMaterial(i, MaterialAsset::Create(meshMaterials[i]));
+			for (uint32_t i = 0; i < static_cast<uint32_t>(meshMaterials.size()); i++)
+				m_MaterialTable->SetMaterial(i, AssetManager::CreateMemoryOnlyAsset<MaterialAsset>(meshMaterials[i]));
+			// Memory only since the material table is just in memory and is not an asset
 		}
 	}
 
-	StaticMesh::StaticMesh(Ref<MeshSource> meshSource, const std::vector<uint32_t>& subMeshes)
+	StaticMesh::StaticMesh(AssetHandle meshSource, const std::vector<uint32_t>& subMeshes)
 		: m_MeshSource(meshSource)
 	{
-		if (meshSource)
+		Handle = {};
+
+		Ref<MeshSource> meshSourceAsset = AssetManager::GetAsset<MeshSource>(meshSource);
+		if (meshSourceAsset)
 		{
-			SetSubMeshes(subMeshes, meshSource);
+			SetSubMeshes(subMeshes, meshSourceAsset);
 
-			const std::vector<Ref<Material>>& meshMaterials = meshSource->GetMaterials();
-			uint32_t numOfMaterials = (uint32_t)meshMaterials.size();
-			m_MaterialTable = MaterialTable::Create(numOfMaterials);
+			const std::vector<Ref<Material>>& meshMaterials = meshSourceAsset->GetMaterials();
+			m_MaterialTable = MaterialTable::Create(static_cast<uint32_t>(meshMaterials.size()));
 
-			for (uint32_t i = 0; i < numOfMaterials; i++)
-				m_MaterialTable->SetMaterial(i, MaterialAsset::Create(meshMaterials[i]));
+			for (uint32_t i = 0; i < static_cast<uint32_t>(meshMaterials.size()); i++)
+				m_MaterialTable->SetMaterial(i, AssetManager::CreateMemoryOnlyAsset<MaterialAsset>(meshMaterials[i]));
 		}
 	}
 

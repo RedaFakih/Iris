@@ -1,7 +1,8 @@
 #pragma once
 
 #include "Core/Base.h"
-#include "Renderer/Core/Device.h"
+#include "Device.h"
+#include "VulkanAllocator.h"
 
 #include <vulkan/vulkan.h>
 
@@ -26,14 +27,14 @@ namespace Iris {
 		void Present();	
 
 		// TODO: TEMPORARY
-		VkCommandPool GetCurrentCommandPool() { return m_CommandBuffers[m_CurrentBufferIndex].CommandPool; }
+		//VkCommandPool GetCurrentCommandPool() { return m_CommandBuffers[m_CurrentFrameIndex].CommandPool; }
 
 		VkRenderPass GetRenderPass() { return m_RenderPass; }
 		VkFramebuffer GetCurrentFramebuffer() { return GetFramebuffer(m_CurrentImageIndex); }
 		VkFramebuffer GetFramebuffer(uint32_t index) { IR_ASSERT(index < m_Framebuffers.size(), "Index should be less than amount of framebuffers"); return m_Framebuffers[index]; }
 
-		uint32_t GetCurrentBufferIndex() const { return m_CurrentBufferIndex; }
-		VkCommandBuffer GetCurrentDrawCommandBuffer() { return GetDrawCommandBuffer(m_CurrentBufferIndex); }
+		uint32_t GetCurrentBufferIndex() const { return m_CurrentFrameIndex; }
+		VkCommandBuffer GetCurrentDrawCommandBuffer() { return GetDrawCommandBuffer(m_CurrentFrameIndex); }
 		VkCommandBuffer GetDrawCommandBuffer(uint32_t index) { IR_ASSERT(index < m_CommandBuffers.size(), "Index should be less then amount of commandbuffers"); return m_CommandBuffers[index].CommandBuffer; }
 
 		VkFormat GetColorFormat() const { return m_ColorFormat; }
@@ -79,19 +80,16 @@ namespace Iris {
 		};
 		std::vector<SwapchainCommandBuffer> m_CommandBuffers;
 
-		struct
-		{
-			// Swapchain (Signal that an image has been acquired from the swapchain and is ready to be rendered to)
-			VkSemaphore PresentComplete = nullptr;
-			// CommandBuffer (Signal that rendering has finished and the image is ready for presentation)
-			VkSemaphore RenderComplete = nullptr;
-		} m_Semaphores;
+		// Swapchain (Signal that an image has been acquired from the swapchain and is ready to be rendered to)
+		std::vector<VkSemaphore> m_ImageAvailableSemaphores;
+		// CommandBuffer (Signal that rendering has finished and the image is ready for presentation)
+		std::vector<VkSemaphore> m_RenderFinishedSemaphores;
 
 		// To ensure that only one frame is being presented at a time
 		std::vector<VkFence> m_WaitFences;
 
-		uint32_t m_CurrentBufferIndex = 0;
-		uint32_t m_CurrentImageIndex = 0;
+		uint32_t m_CurrentFrameIndex = 0; // Index of current frame (up to max of frames in flight)
+		uint32_t m_CurrentImageIndex = 0; // Index of current swapchain image
 
 		uint32_t m_QueueNodeIndex = UINT32_MAX;
 		uint32_t m_Width = 0;

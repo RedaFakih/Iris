@@ -4,6 +4,14 @@
 
 namespace Iris {
 
+	namespace RefUtils {
+
+		void AddToLiveReferences(void* instance);
+		void RemoveFromLiveReferences(void* instance);
+		bool IsLive(void* instance);
+
+	}
+
 	class RefCountedObject
 	{
 	public:
@@ -39,6 +47,20 @@ namespace Iris {
 			IncrementRef();
 		}
 
+		template<typename T2>
+		Ref(const Ref<T2>& other) noexcept
+			: m_Ptr(reinterpret_cast<T*>(other.m_Ptr))
+		{
+			IncrementRef();
+		}
+
+		template<typename T2>
+		Ref(Ref<T2>&& other) noexcept
+			: m_Ptr(reinterpret_cast<T*>(other.m_Ptr))
+		{
+			other.m_Ptr = nullptr;
+		}
+
 		Ref(const Ref<T>& other) noexcept
 			: m_Ptr(other.m_Ptr)
 		{
@@ -62,20 +84,6 @@ namespace Iris {
 
 			m_Ptr = other.m_Ptr;
 			return *this;
-		}
-
-		template<typename T2>
-		Ref(const Ref<T2>& other) noexcept
-			: m_Ptr(static_cast<T*>(other.m_Ptr))
-		{
-			IncrementRef();
-		}
-
-		template<typename T2>
-		Ref(Ref<T2>&& other) noexcept
-			: m_Ptr(static_cast<T*>(other.m_Ptr))
-		{
-			other.m_Ptr = nullptr;
 		}
 
 		template<typename T2>
@@ -121,7 +129,11 @@ namespace Iris {
 			m_Ptr = ptr;
 		}
 
-
+		template<typename T2>
+		Ref<T2> As() const
+		{
+			return Ref<T2>(*this);
+		}
 
 		bool operator==(const Ref<T>& other) const
 		{
@@ -139,6 +151,7 @@ namespace Iris {
 			if (m_Ptr)
 			{
 				m_Ptr->IncRefCount();
+				RefUtils::AddToLiveReferences(reinterpret_cast<void*>(m_Ptr));
 			}
 		}
 
@@ -151,6 +164,7 @@ namespace Iris {
 				if (m_Ptr->GetRefCount() == 0)
 				{
 					delete m_Ptr;
+					RefUtils::RemoveFromLiveReferences(reinterpret_cast<void*>(m_Ptr));
 					m_Ptr = nullptr;
 				}
 			}
@@ -169,5 +183,42 @@ namespace Iris {
 	{
 		return Ref<T>(new T(std::forward<Args>(args)...));
 	}
+
+	template<typename T>
+	class WeakRef
+	{
+	public:
+		constexpr WeakRef() noexcept = default;
+
+		constexpr WeakRef(Ref<T> ptr) noexcept
+		{
+			m_Ptr = ptr.Raw();
+		}
+
+		constexpr WeakRef(T* ptr) noexcept
+		{
+			m_Ptr = ptr;
+		}
+
+		bool IsValid() const { return m_Ptr ? RefUtils::IsLive(m_Ptr) : false; }
+
+		template<typename T2>
+		WeakRef<T2> As() const
+		{
+			return WeakRef<T2>(reinterpret_cast<T2*>(m_Ptr));
+		}
+
+		T* operator->() noexcept { return m_Ptr; }
+		const T* operator->() const noexcept { return m_Ptr; }
+
+		T& operator*() { return *m_Ptr; }
+		const T& operator*() const { return *m_Ptr; }
+
+		operator bool() const { return IsValid(); }
+
+	private:
+		T* m_Ptr = nullptr;
+
+	};
 
 }

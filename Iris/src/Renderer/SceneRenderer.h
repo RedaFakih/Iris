@@ -34,6 +34,10 @@ namespace Iris {
 	{
 		float RendererScale = 1.0f;
 		bool JumpFloodPass = true;
+
+		// Means application winow size
+		uint32_t ViewportWidth = 0;
+		uint32_t ViewportHeight = 0;
 	};
 
 	class SceneRenderer : public RefCountedObject

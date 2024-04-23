@@ -1,6 +1,7 @@
 #include "IrisPCH.h"
 #include "Renderer.h"
 
+#include "AssetManager/AssetManager.h"
 #include "IndexBuffer.h"
 #include "IndexBuffer.h"
 #include "Mesh/Material.h"
@@ -529,9 +530,11 @@ namespace Iris {
 		const auto& subMeshes = meshSource->GetSubMeshes();
 		const MeshUtils::SubMesh& subMesh = subMeshes[subMeshIndex];
 		Ref<MaterialTable> meshMaterialTable = staticMesh->GetMaterials();
-		Ref<MaterialAsset> materialAsset = materialTable->HasMaterial(subMesh.MaterialIndex) ?
+		AssetHandle materialAssetHandle = materialTable->HasMaterial(subMesh.MaterialIndex) ?
 										   materialTable->GetMaterial(subMesh.MaterialIndex) : 
 										   meshMaterialTable->GetMaterial(subMesh.MaterialIndex);
+
+		Ref<MaterialAsset> materialAsset = AssetManager::GetAsset<MaterialAsset>(materialAssetHandle);
 
 		Ref<Material> vulkanMaterial = materialAsset->GetMaterial();
 
@@ -545,46 +548,6 @@ namespace Iris {
 		vkCmdPushConstants(commandBuffer, layout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, static_cast<uint32_t>(uniformStorageBuffer.Size), uniformStorageBuffer.Data);
 
 		vkCmdDrawIndexed(commandBuffer, subMesh.IndexCount, instanceCount, subMesh.BaseIndex, subMesh.BaseVertex, 0);
-		s_Data->DrawCallCount++;
-	}
-
-	void Renderer::RenderStaticMesh(Ref<RenderCommandBuffer> renderCommandBuffer, Ref<Pipeline> pipeline, Ref<StaticMesh> staticMesh, Ref<MeshSource> meshSource, uint32_t subMeshIndex, Ref<MaterialTable> materialTable)
-	{
-		IR_VERIFY(staticMesh);
-		IR_VERIFY(meshSource);
-		IR_VERIFY(materialTable);
-
-		uint32_t frameIndex = Renderer::GetCurrentFrameIndex();
-		VkCommandBuffer commandBuffer = renderCommandBuffer->GetActiveCommandBuffer();
-
-		Ref<VertexBuffer> meshVB = meshSource->GetVertexBuffer();
-		VkBuffer vulkanMeshVB = meshVB->GetVulkanBuffer();
-		VkDeviceSize offsets[1] = { 0 };
-		vkCmdBindVertexBuffers(commandBuffer, 0, 1, &vulkanMeshVB, offsets);
-
-		Ref<IndexBuffer> meshIB = meshSource->GetIndexBuffer();
-		VkBuffer vulkanMeshIB = meshIB->GetVulkanBuffer();
-		vkCmdBindIndexBuffer(commandBuffer, vulkanMeshIB, 0, VK_INDEX_TYPE_UINT32);
-
-		const auto& subMeshes = meshSource->GetSubMeshes();
-		const MeshUtils::SubMesh& subMesh = subMeshes[subMeshIndex];
-		Ref<MaterialTable> meshMaterialTable = staticMesh->GetMaterials();
-		Ref<MaterialAsset> materialAsset = materialTable->HasMaterial(subMesh.MaterialIndex) ?
-			materialTable->GetMaterial(subMesh.MaterialIndex) :
-			meshMaterialTable->GetMaterial(subMesh.MaterialIndex);
-
-		Ref<Material> vulkanMaterial = materialAsset->GetMaterial();
-
-		VkPipelineLayout layout = pipeline->GetVulkanPipelineLayout();
-
-		VkDescriptorSet descriptorSet = vulkanMaterial->GetDescriptorSet(frameIndex);
-		if (descriptorSet)
-			vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, layout, vulkanMaterial->GetFirstSetIndex(), 1, &descriptorSet, 0, nullptr);
-
-		Buffer uniformStorageBuffer = vulkanMaterial->GetUniformStorageBuffer();
-		vkCmdPushConstants(commandBuffer, layout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, static_cast<uint32_t>(uniformStorageBuffer.Size), uniformStorageBuffer.Data);
-
-		vkCmdDrawIndexed(commandBuffer, subMesh.IndexCount, 1, subMesh.BaseIndex, subMesh.BaseVertex, 0);
 		s_Data->DrawCallCount++;
 	}
 

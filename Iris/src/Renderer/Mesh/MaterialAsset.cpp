@@ -1,6 +1,7 @@
 #include "IrisPCH.h"
 #include "MaterialAsset.h"
 
+#include "AssetManager/AssetManager.h"
 #include "Renderer/Renderer.h"
 #include "Renderer/Shaders/Shader.h"
 #include "Renderer/Texture.h"
@@ -13,6 +14,7 @@ namespace Iris {
 	static const std::string s_MetalnessUniform = "u_MaterialUniforms.Metalness";
 	static const std::string s_EmissionUniform = "u_MaterialUniforms.Emission";
 	static const std::string s_UseNormalMapUniform = "u_MaterialUniforms.UseNormalMap";
+	static const std::string s_TransparencyUniform = "u_MaterialUniforms.Transparency";
 
 	static const std::string s_AlbedoMapUniform = "u_AlbedoTexture";
 	static const std::string s_NormalMapUniform = "u_NormalTexture";
@@ -32,10 +34,11 @@ namespace Iris {
 	MaterialAsset::MaterialAsset(bool isTransparent)
 		: m_Transparent(isTransparent)
 	{
-		// TODO:
-		//if (isTransparent)
-		//	m_Material = Material::Create(Renderer::GetShadersLibrary()->Get("PlaygroundStaticTransparent"));
-		//else
+		Handle = {};
+
+		if (isTransparent)
+			m_Material = Material::Create(Renderer::GetShadersLibrary()->Get("PlaygroundStaticTransparent"));
+		else
 			m_Material = Material::Create(Renderer::GetShadersLibrary()->Get("IrisPBRStatic"));
 
 		SetDefaults();
@@ -43,11 +46,41 @@ namespace Iris {
 
 	MaterialAsset::MaterialAsset(Ref<Material> material)
 	{
+		Handle = {};
+
 		m_Material = Material::Create(material);
 	}
 
 	MaterialAsset::~MaterialAsset()
 	{
+	}
+
+	void MaterialAsset::OnDependencyUpdated(AssetHandle handle)
+	{
+		if (handle == m_Maps.AlbedoMap)
+		{
+			Ref<Texture2D> texture = AssetManager::GetAsset<Texture2D>(handle);
+			IR_VERIFY(texture);
+			m_Material->Set(s_AlbedoMapUniform, texture);
+		}
+		else if (handle == m_Maps.NormalMap)
+		{
+			Ref<Texture2D> texture = AssetManager::GetAsset<Texture2D>(handle);
+			IR_VERIFY(texture);
+			m_Material->Set(s_NormalMapUniform, texture);
+		}
+		else if (handle == m_Maps.RoughnessMap)
+		{
+			Ref<Texture2D> texture = AssetManager::GetAsset<Texture2D>(handle);
+			IR_VERIFY(texture);
+			m_Material->Set(s_RoughnessMapUniform, texture);
+		}
+		else if(handle == m_Maps.MetalnessMap)
+		{
+			Ref<Texture2D> texture = AssetManager::GetAsset<Texture2D>(handle);
+			IR_VERIFY(texture);
+			m_Material->Set(s_MetalnessMapUniform, texture);
+		}
 	}
 
 	glm::vec3& MaterialAsset::GetAlbedoColor()
@@ -100,14 +133,35 @@ namespace Iris {
 		m_Material->Set(s_EmissionUniform, emission);
 	}
 
+	float& MaterialAsset::GetTransparency()
+	{
+		return m_Material->GetFloat(s_TransparencyUniform);
+	}
+
+	void MaterialAsset::SetTransparency(float transparency)
+	{
+		m_Material->Set(s_TransparencyUniform, transparency);
+	}
+
 	Ref<Texture2D> MaterialAsset::GetAlbedoMap()
 	{
 		return m_Material->GetTexture2D(s_AlbedoMapUniform);
 	}
 
-	void MaterialAsset::SetAlbedoMap(Ref<Texture2D> albedoMap)
+	void MaterialAsset::SetAlbedoMap(AssetHandle albedoMap)
 	{
-		m_Material->Set(s_AlbedoMapUniform, albedoMap);
+		m_Maps.AlbedoMap = albedoMap;
+
+		if (albedoMap)
+		{
+			Ref<Texture2D> texture = AssetManager::GetAsset<Texture2D>(albedoMap);
+			m_Material->Set(s_AlbedoMapUniform, texture);
+			AssetManager::RegisterDependency(albedoMap, Handle);
+		}
+		else
+		{
+			ClearAlbedoMap();
+		}
 	}
 
 	void MaterialAsset::ClearAlbedoMap()
@@ -120,9 +174,20 @@ namespace Iris {
 		return m_Material->GetTexture2D(s_NormalMapUniform);
 	}
 
-	void MaterialAsset::SetNormalMap(Ref<Texture2D> normalMap)
+	void MaterialAsset::SetNormalMap(AssetHandle normalMap)
 	{
-		m_Material->Set(s_NormalMapUniform, normalMap);
+		m_Maps.NormalMap = normalMap;
+
+		if (normalMap)
+		{
+			Ref<Texture2D> texture = AssetManager::GetAsset<Texture2D>(normalMap);
+			m_Material->Set(s_NormalMapUniform, texture);
+			AssetManager::RegisterDependency(normalMap, Handle);
+		}
+		else
+		{
+			ClearNormalMap();
+		}
 	}
 
 	void MaterialAsset::ClearNormalMap()
@@ -135,9 +200,20 @@ namespace Iris {
 		return m_Material->GetTexture2D(s_RoughnessMapUniform);
 	}
 
-	void MaterialAsset::SetRoughnessMap(Ref<Texture2D> roughnessMap)
+	void MaterialAsset::SetRoughnessMap(AssetHandle roughnessMap)
 	{
-		m_Material->Set(s_RoughnessMapUniform, roughnessMap);
+		m_Maps.RoughnessMap = roughnessMap;
+
+		if (roughnessMap)
+		{
+			Ref<Texture2D> texture = AssetManager::GetAsset<Texture2D>(roughnessMap);
+			m_Material->Set(s_RoughnessMapUniform, texture);
+			AssetManager::RegisterDependency(roughnessMap, Handle);
+		}
+		else
+		{
+			ClearRoughnessMap();
+		}
 	}
 
 	void MaterialAsset::ClearRoughnessMap()
@@ -150,9 +226,20 @@ namespace Iris {
 		return m_Material->GetTexture2D(s_MetalnessMapUniform);
 	}
 
-	void MaterialAsset::SetMetalnessMap(Ref<Texture2D> metalnessMap)
+	void MaterialAsset::SetMetalnessMap(AssetHandle metalnessMap)
 	{
-		m_Material->Set(s_MetalnessMapUniform, metalnessMap);
+		m_Maps.MetalnessMap = metalnessMap;
+
+		if (metalnessMap)
+		{
+			Ref<Texture2D> texture = AssetManager::GetAsset<Texture2D>(metalnessMap);
+			m_Material->Set(s_MetalnessMapUniform, texture);
+			AssetManager::RegisterDependency(metalnessMap, Handle);
+		}
+		else
+		{
+			ClearMetalnessMap();
+		}
 	}
 
 	void MaterialAsset::ClearMetalnessMap()
@@ -162,16 +249,27 @@ namespace Iris {
 
 	void MaterialAsset::SetDefaults()
 	{
-		SetAlbedoColor(glm::vec3(0.8f));
-		SetRoughness(0.4f);
-		SetMetalness(0.0f);
-		SetEmission(0.0f);
-		SetUseNormalMap(false);
+		if (m_Transparent)
+		{
+			// Set defaults
+			SetAlbedoColor(glm::vec3(0.8f));
 
-		SetAlbedoMap(Renderer::GetWhiteTexture());
-		SetNormalMap(Renderer::GetWhiteTexture());
-		SetRoughnessMap(Renderer::GetWhiteTexture());
-		SetMetalnessMap(Renderer::GetWhiteTexture());
+			// Maps
+			ClearAlbedoMap();
+		}
+		else
+		{
+			SetAlbedoColor(glm::vec3(0.8f));
+			SetRoughness(0.4f);
+			SetMetalness(0.0f);
+			SetEmission(0.0f);
+			SetUseNormalMap(false);
+
+			ClearAlbedoMap();
+			ClearNormalMap();
+			ClearRoughnessMap();
+			ClearMetalnessMap();
+		}
 	}
 
 	Ref<MaterialTable> MaterialTable::Create(uint32_t materialCount)
@@ -195,7 +293,7 @@ namespace Iris {
 		for (auto [index, material] : other->GetMaterials())
 			SetMaterial(index, material);
 	}
-	void MaterialTable::SetMaterial(uint32_t index, Ref<MaterialAsset> material)
+	void MaterialTable::SetMaterial(uint32_t index, AssetHandle material)
 	{
 		m_Materials[index] = material;
 		if (index >= m_MaterialCount)

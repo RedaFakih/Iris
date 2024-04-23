@@ -1,8 +1,9 @@
 #include "IrisPCH.h"
 #include "Application.h"
 
-#include "Renderer/Renderer.h"
 #include "Input/Input.h"
+#include "Project/Project.h"
+#include "Renderer/Renderer.h"
 
 #include <glfw/glfw3.h>
 #include <nfd.hpp>
@@ -61,6 +62,8 @@ namespace Iris {
 			layer->OnDetach();
 			delete layer;
 		}
+
+		Project::SetActive(nullptr);
 
 		Renderer::Shutdown();
 

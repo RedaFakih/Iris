@@ -4,9 +4,11 @@
 #include "Core/Input/Input.h"
 #include "Core/Ray.h"
 #include "Editor/EditorResources.h"
+#include "Editor/Panels/ECSDebugPanel.h"
 #include "Editor/Panels/SceneHierarchyPanel.h"
 #include "Editor/Panels/ShadersPanel.h"
-#include "Editor/Panels/ECSDebugPanel.h"
+#include "ImGui/ImGuizmo.h"
+#include "Project/ProjectSerializer.h"
 #include "Renderer/Core/RenderCommandBuffer.h"
 #include "Renderer/Framebuffer.h"
 #include "Renderer/IndexBuffer.h"
@@ -17,7 +19,7 @@
 #include "Renderer/RenderPass.h"
 #include "Renderer/UniformBufferSet.h"
 #include "Renderer/VertexBuffer.h"
-#include "ImGui/ImGuizmo.h"
+#include "Scene/SceneSerializer.h"
 #include "Utils/FileSystem.h"
 
 #include "ImGui/ImGuiUtils.h"
@@ -35,10 +37,11 @@
 
 namespace Iris {
 
-	// TODO: REMOVE
-	static Ref<Texture2D> s_BillBoardTexture;
-	static Ref<MeshSource> s_MeshSource;
-	static Ref<StaticMesh> s_Mesh;
+	constexpr int c_MAX_PROJECT_NAME_LENGTH = 255;
+	constexpr int c_MAX_PROJECT_FILEPATH_LENGTH = 512;
+	static char* s_ProjectNameBuffer = new char[c_MAX_PROJECT_NAME_LENGTH];
+	static char* s_OpenProjectFilePathBuffer = new char[c_MAX_PROJECT_FILEPATH_LENGTH];
+	static char* s_NewProjectFilePathBuffer = new char[c_MAX_PROJECT_FILEPATH_LENGTH];
 
 	EditorLayer::EditorLayer()
 		: Layer("EditorLayer"), m_EditorCamera(45.0f, 1280.0f, 720.0f, 0.1f, 10000.0f)
@@ -47,15 +50,11 @@ namespace Iris {
 		s_EditorLayerInstance = this;
 
 		m_TitleBarPreviousColor = Colors::Theme::TitlebarRed;
-		m_TitleBarTargetColor   = Colors::Theme::TitlebarGreen;
+		m_TitleBarTargetColor   = Colors::Theme::TitlebarCyan;
 	}
 
 	EditorLayer::~EditorLayer()
 	{
-		// TODO: REMOVE
-		s_BillBoardTexture = nullptr;
-		s_MeshSource = nullptr;
-		s_Mesh = nullptr;
 	}
 
 	void EditorLayer::OnAttach()
@@ -69,6 +68,9 @@ namespace Iris {
 
 		m_PanelsManager->AddPanel<ShadersPanel>(PanelCategory::View, "ShadersPanel", "Shaders", false);
 
+		if (!Project::GetActive())
+			EmptyProject();
+
 		// TODO: REMOVE since this should be handled by NewScene and all that stuff
 		m_EditorScene = Scene::Create("Editor Scene");
 		m_CurrentScene = m_EditorScene;
@@ -80,53 +82,12 @@ namespace Iris {
 		m_ViewportRenderer->SetLineWidth(m_LineWidth);
 		m_Renderer2D = Renderer2D::Create();
 		m_Renderer2D->SetLineWidth(m_LineWidth);
-
-		// AssimpMeshImporter importer("Resources/assets/meshes/LowPolySponza/Sponza.gltf");
-		AssimpMeshImporter importer("Resources/assets/meshes/stormtrooper/stormtrooper.gltf");
-		s_MeshSource = importer.ImportToMeshSource();
-		s_Mesh = StaticMesh::Create(s_MeshSource);
-
-		TextureSpecification textureSpec = {
-			.DebugName = "Qiyana",
-			.GenerateMips = true
-		};
-		s_BillBoardTexture = Texture2D::Create(textureSpec, "Resources/assets/textures/qiyana.png");
-
-		// TODO: REMOVE When we have Editor UI
-		Entity meshEntity = m_CurrentScene->CreateEntity("MeshEntity");
-		auto& staticMeshComponent = meshEntity.AddComponent<StaticMeshComponent>();
-		staticMeshComponent.StaticMesh = s_Mesh;
-		staticMeshComponent.MaterialTable = s_Mesh->GetMaterials();
-
-		Entity spriteEntity = m_CurrentScene->CreateEntity("Sprite");
-		spriteEntity.SetParent(meshEntity);
-		auto& spriteRC = spriteEntity.AddComponent<SpriteRendererComponent>();
-		spriteRC.Color = { 1.0f, 0.5f, 0.0f, 1.0f };
-		auto& transform = spriteEntity.GetComponent<TransformComponent>();
-		transform.SetTransform(transform.GetTransform() * glm::translate(glm::mat4(1.0f), { 1.0f, 0.0f, 0.0f }));
-		
-		Entity spriteEntity2 = m_CurrentScene->CreateEntity("Sprite2");
-		spriteEntity2.SetParent(spriteEntity);
-		auto& spriteRC2 = spriteEntity2.AddComponent<SpriteRendererComponent>();
-		spriteRC2.Color = { 1.0f, 0.5f, 1.0f, 1.0f };
-		spriteRC2.TilingFactor = 3.0f;
-		spriteRC2.Texture = s_BillBoardTexture;
-		auto& transform2 = spriteEntity2.GetComponent<TransformComponent>();
-		transform2.SetTransform(transform2.GetTransform() * glm::translate(glm::mat4(1.0f), { 0.0f, 0.0f, 1.0f }));
 	}
 
 	void EditorLayer::OnDetach()
 	{
 		EditorResources::Shutdown();
-
-		m_ViewportRenderer->SetScene(nullptr);
-		m_CurrentScene = nullptr;
-
-		m_PanelsManager->SetSceneContext(nullptr);
-
-		// Check that m_EditorScene is the last one (so setting it null here will destroy the scene)
-		IR_ASSERT(m_EditorScene->GetRefCount() == 1, "Scene will not be destroyed after project is closed - something is still holding scene refs!");
-		m_EditorScene = nullptr;
+		CloseProject(true);
 	}
 
 	void EditorLayer::OnUpdate(TimeStep ts)
@@ -192,14 +153,15 @@ namespace Iris {
 					const auto& staticMeshComponent = entity.TryGetComponent<StaticMeshComponent>();
 					if (staticMeshComponent)
 					{
-						if (staticMeshComponent->StaticMesh)
+						Ref<StaticMesh> staticMesh = AssetManager::GetAsset<StaticMesh>(staticMeshComponent->StaticMesh);
+						if (staticMesh)
 						{
-							Ref<MeshSource> meshSource = staticMeshComponent->StaticMesh->GetMeshSource();
+							Ref<MeshSource> meshSource = AssetManager::GetAsset<MeshSource>(staticMesh->GetMeshSource());
 							if (meshSource)
 							{
 								if (m_ShowBoundingBoxSubMeshes)
 								{
-									const auto& subMeshIndices = staticMeshComponent->StaticMesh->GetSubMeshes();
+									const auto& subMeshIndices = staticMesh->GetSubMeshes();
 									const auto& subMeshes = meshSource->GetSubMeshes();
 
 									for (uint32_t subMeshIndex : subMeshIndices)
@@ -227,10 +189,10 @@ namespace Iris {
 				{
 					Entity entity = { e, m_CurrentScene.Raw() };
 					glm::mat4 transform = m_CurrentScene->GetWorldSpaceTransformMatrix(entity);
-					Ref<StaticMesh> staticMesh = entity.GetComponent<StaticMeshComponent>().StaticMesh;
+					Ref<StaticMesh> staticMesh = AssetManager::GetAsset<StaticMesh>(entity.GetComponent<StaticMeshComponent>().StaticMesh);
 					if (staticMesh)
 					{
-						Ref<MeshSource> meshSource = staticMesh->GetMeshSource();
+						Ref<MeshSource> meshSource = AssetManager::GetAsset<MeshSource>(staticMesh->GetMeshSource());
 						if (meshSource)
 						{
 							const AABB& aabb = meshSource->GetBoundingBox();
@@ -984,11 +946,7 @@ namespace Iris {
 		m_EditorScene->SetViewportSize(static_cast<uint32_t>(viewportSize.x), static_cast<uint32_t>(viewportSize.y));
 		m_EditorCamera.SetViewportSize(static_cast<uint32_t>(viewportSize.x), static_cast<uint32_t>(viewportSize.y));
 
-		// Here we get the output from the rendering pass since the screen pass is there in case there was no imgui in the
-		// application and we have to render directly to the screen...
-		// Ref<Texture2D> texture = m_RenderingPass->GetOutput(0);
-		Ref<Texture2D> texture = m_ViewportRenderer->GetFinalPassImage();
-		UI::Image(texture, viewportSize, { 0, 1 }, { 1, 0 });
+		UI::Image(m_ViewportRenderer->GetFinalPassImage(), viewportSize, { 0, 1 }, { 1, 0 });
 
 		m_ViewportRect = UI::GetWindowRect();
 
@@ -997,9 +955,7 @@ namespace Iris {
 		// TODO: Toolbars.. settings...
 
 		if (m_ShowGizmos)
-		{
 			UI_DrawGizmos();
-		}
 
 		ImGui::End();
 		ImGui::PopStyleVar();
@@ -1207,9 +1163,10 @@ namespace Iris {
 				Entity entity = { e, m_CurrentScene.Raw()};
 				auto& mc = entity.GetComponent<StaticMeshComponent>();
 			
-				if (mc.StaticMesh)
+				Ref<StaticMesh> staticMesh = AssetManager::GetAsset<StaticMesh>(mc.StaticMesh);
+				if (staticMesh)
 				{
-					Ref<MeshSource> meshSource = mc.StaticMesh->GetMeshSource();
+					Ref<MeshSource> meshSource = AssetManager::GetAsset<MeshSource>(staticMesh->GetMeshSource());
 					if (meshSource)
 					{
 						auto& subMeshes = meshSource->GetSubMeshes();
@@ -1308,6 +1265,194 @@ namespace Iris {
 		m_TitleBarTargetColor = e.GetTargetColor();
 
 		return true;
+	}
+
+	void EditorLayer::OpenProject()
+	{
+		std::filesystem::path filePath = FileSystem::OpenFileDialog({ { "Iris Project (*.Iproj)", "Iproj" } });
+		if (filePath.empty())
+			return;
+
+		// stash the filepath away.  Actual opening of project is deferred until it is "safe" to do so.
+		strcpy(s_OpenProjectFilePathBuffer, filePath.string().data());
+	}
+
+	void EditorLayer::OpenProject(std::filesystem::path& filePath)
+	{
+		if (!FileSystem::Exists(filePath))
+		{
+			IR_CORE_ERROR("Tried to open a project that does not exist. Project Path: {0}", filePath);
+			memset(s_OpenProjectFilePathBuffer, 0, c_MAX_PROJECT_FILEPATH_LENGTH);
+			return;
+		}
+
+		if (Project::GetActive())
+			CloseProject();
+
+		Ref<Project> project = Project::Create();
+		ProjectSerializer::Deserialize(project, filePath);
+		Project::SetActive(project);
+
+		m_PanelsManager->OnProjectChanged(project);
+
+		bool hasScene = !project->GetConfig().StartScene.empty();
+		if (hasScene)
+			hasScene = OpenScene((Project::GetAssetDirectory() / project->GetConfig().StartScene).string());
+		else
+			NewScene();
+
+		SelectionManager::DeselectAll();
+
+		m_EditorCamera = EditorCamera(45.0f, 1280.0f, 720.0f, 0.1f, 1000.0f);
+
+		memset(s_ProjectNameBuffer, 0, c_MAX_PROJECT_NAME_LENGTH);
+		memset(s_OpenProjectFilePathBuffer, 0, c_MAX_PROJECT_FILEPATH_LENGTH);
+		memset(s_NewProjectFilePathBuffer, 0, c_MAX_PROJECT_FILEPATH_LENGTH);
+	}
+
+	void EditorLayer::CreateProject(std::filesystem::path projectPath)
+	{
+	}
+
+	void EditorLayer::EmptyProject()
+	{
+		if (Project::GetActive())
+			CloseProject();
+
+		Ref<Project> project = Project::Create();
+		Project::SetActive(project);
+
+		m_PanelsManager->OnProjectChanged(project);
+		NewScene();
+
+		SelectionManager::DeselectAll();
+
+		m_EditorCamera = EditorCamera(45.0f, 1280.0f, 720.0f, 0.1f, 1000.0f);
+	}
+
+	void EditorLayer::SaveProject()
+	{
+		if (!Project::GetActive())
+			IR_VERIFY(false); 
+
+		auto project = Project::GetActive();
+		ProjectSerializer::Serialize(project, project->GetConfig().ProjectDirectory + "/" + project->GetConfig().ProjectFileName);
+
+		m_PanelsManager->Serialize();
+	}
+
+	void EditorLayer::CloseProject(bool unloadProject)
+	{
+		SaveProject();
+
+		// There are several things holding references to the scene.
+		// These all need to be set back to nullptr so that you end up with a zero reference count and the scene is destroyed.
+		// If you do not do this, then after opening the new project (and possibly loading script assemblies that are un-related to the old scene)
+		// you still have the old scene kicking around => Not ideal.
+		// Of course you could just wait until all of these things (eventually) get pointed to the new scene, and then when the old scene is
+		// finally decref'd to zero it will be destroyed.  However, that will be after the project has been closed, and the new project has
+		// been opened, which is out of order.  Seems safter to make sure the old scene is cleaned up before closing project.
+		m_PanelsManager->SetSceneContext(nullptr);
+		m_ViewportRenderer->SetScene(nullptr);
+		m_CurrentScene = nullptr;
+
+		// Check that m_EditorScene is the last one (so setting it null here will destroy the scene)
+		IR_ASSERT(m_EditorScene->GetRefCount() == 1, "Scene will not be destroyed after project is closed - something is still holding scene refs!");
+		m_EditorScene = nullptr;
+
+		if (unloadProject)
+			Project::SetActive(nullptr);
+	}
+
+	void EditorLayer::NewScene(const std::string& name)
+	{
+		SelectionManager::DeselectAll();
+
+		m_EditorScene = Scene::Create(name, true);
+
+		m_PanelsManager->SetSceneContext(m_EditorScene);
+
+		m_SceneFilePath = std::string();
+
+		m_EditorCamera = EditorCamera(45.0f, 1280.0f, 720.0f, 0.1f, 1000.0f);
+		m_CurrentScene = m_EditorScene;
+
+		if (m_ViewportRenderer)
+			m_ViewportRenderer->SetScene(m_CurrentScene);
+	}
+
+	bool EditorLayer::OpenScene()
+	{
+		std::filesystem::path filepath = FileSystem::OpenFileDialog({ { "Iris Scene (*.Iscene)", "Iscene" } });
+		if (!filepath.empty())
+			return OpenScene(filepath);
+
+		return false;
+	}
+
+	bool EditorLayer::OpenScene(const std::filesystem::path filePath)
+	{
+		if (!FileSystem::Exists(filePath))
+		{
+			IR_CORE_ERROR("Tried loading a non-existing scene: {0}", filePath);
+			return false;
+		}
+
+		Ref<Scene> newScene = Scene::Create("New Scene", true);
+		SceneSerializer::Deserialize(newScene, filePath);
+
+		m_EditorScene = newScene;
+		m_SceneFilePath = filePath.string();
+
+		std::replace(m_SceneFilePath.begin(), m_SceneFilePath.end(), '\\', '/');
+		if ((m_SceneFilePath.size() >= 5) && (m_SceneFilePath.substr(m_SceneFilePath.size() - 5) == ".auto"))
+			m_SceneFilePath = m_SceneFilePath.substr(0, m_SceneFilePath.size() - 5);
+
+		m_PanelsManager->SetSceneContext(m_EditorScene);
+
+		SelectionManager::DeselectAll();
+
+		m_CurrentScene = m_EditorScene;
+
+		if (m_ViewportRenderer)
+			m_ViewportRenderer->SetScene(m_CurrentScene);
+
+		return true;
+	}
+
+	bool EditorLayer::OpenScene(const AssetMetaData& metaData)
+	{
+		std::filesystem::path workingDirPath = Project::GetAssetDirectory() / metaData.FilePath;
+		return OpenScene(workingDirPath.string());
+	}
+
+	void EditorLayer::SaveScene()
+	{
+		if (!m_SceneFilePath.empty())
+		{
+			SceneSerializer::Serialize(m_EditorScene, std::filesystem::path(m_SceneFilePath));
+		}
+		else
+		{
+			SaveSceneAs();
+		}
+	}
+
+	void EditorLayer::SaveSceneAs()
+	{
+		std::filesystem::path filepath = FileSystem::SaveFileDialog({ { "Iris Scene (*.Iscene)", "Iscene" } });
+
+		if (filepath.empty())
+			return;
+
+		if (!filepath.has_extension())
+			filepath += ".Iscene";
+
+		SceneSerializer::Serialize(m_EditorScene, filepath);
+
+		std::filesystem::path path = filepath;
+		m_SceneFilePath = filepath.string();
+		std::replace(m_SceneFilePath.begin(), m_SceneFilePath.end(), '\\', '/');
 	}
 
 }

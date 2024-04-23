@@ -7,6 +7,7 @@
 #include "Core/Layer.h"
 #include "Editor/EditorCamera.h"
 #include "Editor/PanelsManager.h"
+#include "Project/Project.h"
 #include "Renderer/Renderer2D.h"
 #include "Renderer/SceneRenderer.h"
 #include "Scene/Scene.h"
@@ -14,13 +15,6 @@
 #include <imgui/imgui_internal.h>
 
 namespace Iris {
-
-	class UniformBufferSet;
-	class RenderPass;
-	class Material;
-	class VertexBuffer;
-	class IndexBuffer;
-	class RenderCommandBuffer;
 
 	class EditorLayer : public Layer
 	{
@@ -41,6 +35,22 @@ namespace Iris {
 		bool OnKeyPressed(Events::KeyPressedEvent& e);
 		bool OnMouseButtonPressed(Events::MouseButtonPressedEvent& e);
 		bool OnTitleBarColorChange(Events::TitleBarColorChangeEvent& e);
+
+		// Project
+		void OpenProject();
+		void OpenProject(std::filesystem::path& filePath);
+		void CreateProject(std::filesystem::path projectPath);
+		void EmptyProject();
+		void SaveProject();
+		void CloseProject(bool unloadProject = true);
+
+		// Scene
+		void NewScene(const std::string& name = "UntitledScene");
+		bool OpenScene();
+		bool OpenScene(const std::filesystem::path filePath);
+		bool OpenScene(const AssetMetaData& metaData);
+		void SaveScene();
+		void SaveSceneAs();
 
 		void SceneHierarchySetEditorCameraTransform(Entity entity);
 
@@ -84,6 +94,8 @@ namespace Iris {
 		Ref<Renderer2D> m_Renderer2D;
 
 		Scope<PanelsManager> m_PanelsManager;
+
+		std::string m_SceneFilePath;
 
 		EditorCamera m_EditorCamera;
 

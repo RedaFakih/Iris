@@ -8,10 +8,6 @@ bool g_WireFrame = false;
 
 namespace Iris {
 
-	static Ref<Texture2D> s_BillBoardTexture;
-	static Ref<MeshSource> s_MeshSource;
-	static Ref<StaticMesh> s_Mesh;
-
 	RuntimeLayer::RuntimeLayer()
 		: m_EditorCamera(45.0f, 1280.0f, 720.0f, 0.1f, 1000.0f)
 	{
@@ -19,16 +15,13 @@ namespace Iris {
 
 	RuntimeLayer::~RuntimeLayer()
 	{
-		s_BillBoardTexture = nullptr;
-		s_MeshSource = nullptr;
-		s_Mesh = nullptr;
 	}
 
 	void RuntimeLayer::OnAttach()
 	{
 		m_RuntimeScene = Scene::Create("Runtime Scene");
 
-		m_ViewportRenderer = SceneRenderer::Create(m_RuntimeScene, { .RendererScale = 1.0f });
+		m_ViewportRenderer = SceneRenderer::Create(m_RuntimeScene, { .RendererScale = 1.0f, .JumpFloodPass = false });
 		m_ViewportRenderer->SetLineWidth(m_LineWidth);
 		m_Renderer2D = Renderer2D::Create();
 		m_Renderer2D->SetLineWidth(m_LineWidth);
@@ -64,25 +57,6 @@ namespace Iris {
 		m_SwapChainMaterial = Material::Create(pipelineSpec.Shader, "SwapChainMaterial");
 
 		m_CommandBuffer = RenderCommandBuffer::CreateFromSwapChain("RuntimeLayer");
-
-		// AssimpMeshImporter importer("Resources/assets/meshes/LowPolySponza/Sponza.gltf");
-		AssimpMeshImporter importer("Resources/assets/meshes/stormtrooper/stormtrooper.gltf");
-		// AssimpMeshImporter importer("Resources/assets/meshes/Cube.gltf");
-		s_MeshSource = importer.ImportToMeshSource();
-		s_Mesh = StaticMesh::Create(s_MeshSource);
-
-		TextureSpecification textureSpec = {
-			.DebugName = "Qiyana",
-			.GenerateMips = true
-		};
-		s_BillBoardTexture = Texture2D::Create(textureSpec, "Resources/assets/textures/qiyana.png");
-
-		// TODO: REMOVE When we have Editor UI
-		Entity meshEntity = m_RuntimeScene->CreateEntity("MeshEntity");
-		auto& staticMeshComponent = meshEntity.AddComponent<StaticMeshComponent>();
-		staticMeshComponent.StaticMesh = s_Mesh;
-		staticMeshComponent.MaterialTable = s_Mesh->GetMaterials();
-
 	}
 
 	void RuntimeLayer::OnDetach()

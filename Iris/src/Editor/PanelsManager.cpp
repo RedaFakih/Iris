@@ -59,6 +59,17 @@ namespace Iris {
         }
     }
 
+    void PanelsManager::OnProjectChanged(Ref<Project> project)
+    {
+        for (auto& panelMap : m_Panels)
+        {
+            for (auto& [id, panelData] : panelMap)
+                panelData.Panel->OnProjectChanged(project);
+        }
+
+        Deserialize();
+    }
+
     void PanelsManager::Serialize()
     {
         YAML::Emitter out;

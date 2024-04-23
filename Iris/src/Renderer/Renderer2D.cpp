@@ -195,13 +195,12 @@ namespace Iris {
 		}
 	}
 
-	void Renderer2D::BeginScene(const glm::mat4& viewProj, const glm::mat4& view, bool depthTest)
+	void Renderer2D::BeginScene(const glm::mat4& viewProj, const glm::mat4& view)
 	{
 		uint32_t frameIndex = Renderer::GetCurrentFrameIndex();
 
 		m_CameraViewProj = viewProj;
 		m_CameraView = view;
-		m_DepthTest = depthTest;
 
 		m_UBSCamera->Get()->SetData(&viewProj, sizeof(UBCamera));
 

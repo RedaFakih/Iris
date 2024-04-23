@@ -94,7 +94,7 @@ namespace Iris {
 	struct SpriteRendererComponent
 	{
 		glm::vec4 Color = glm::vec4{ 1.0f };
-		Ref<Texture2D> Texture;
+		AssetHandle Texture = 0;
 		float TilingFactor = 1.0f;
 		glm::vec2 UV0 = { 0.0f, 0.0f };
 		glm::vec2 UV1 = { 1.0f, 1.0f };
@@ -105,8 +105,8 @@ namespace Iris {
 
 	struct StaticMeshComponent
 	{
-		Ref<StaticMesh> StaticMesh;
-		Ref<MaterialTable> MaterialTable;
+		AssetHandle StaticMesh = 0;
+		Ref<MaterialTable> MaterialTable = MaterialTable::Create();
 		bool Visible = true;
 	};
 

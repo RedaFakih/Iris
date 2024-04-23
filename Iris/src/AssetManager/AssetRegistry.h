@@ -22,6 +22,7 @@ namespace Iris {
 		AssetMetaData& Get(const AssetHandle handle);
 		const AssetMetaData& Get(const AssetHandle handle) const;
 		AssetMetaData& operator[](const AssetHandle handle);
+		const AssetMetaData& operator[](const AssetHandle handle) const;
 
 	private:
 		std::unordered_map<AssetHandle, AssetMetaData> m_AssetRegistry;

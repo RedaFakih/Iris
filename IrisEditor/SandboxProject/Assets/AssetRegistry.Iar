@@ -1,0 +1,88 @@
+Assets:
+  - Handle: 342484570667800992
+    FilePath: Meshes/Default/Cone.Ismesh
+    Type: StaticMesh
+  - Handle: 1201183239045361707
+    FilePath: Textures/output.jpg
+    Type: Texture
+  - Handle: 1605926159532914677
+    FilePath: Meshes/football.glb
+    Type: MeshSource
+  - Handle: 1664901113170334642
+    FilePath: Meshes/Galio/textures/Galio_Mat_baseColor.png
+    Type: Texture
+  - Handle: 2732277024539045285
+    FilePath: Meshes/Default/Plane.Ismesh
+    Type: StaticMesh
+  - Handle: 3157465373486071481
+    FilePath: Meshes/Jhin/textures/base_mat_baseColor.png
+    Type: Texture
+  - Handle: 3672382589150585071
+    FilePath: Meshes/Evelynn/scene.gltf
+    Type: MeshSource
+  - Handle: 4179027730210378084
+    FilePath: Textures/sara.jpg
+    Type: Texture
+  - Handle: 5433480370181260501
+    FilePath: Textures/Hadi.jpg
+    Type: Texture
+  - Handle: 5599009649531054923
+    FilePath: Meshes/Evelynn/textures/DefaultMaterial_baseColor.jpeg
+    Type: Texture
+  - Handle: 6635010935587349841
+    FilePath: Meshes/Default/Source/Plane.gltf
+    Type: MeshSource
+  - Handle: 8499499654652707041
+    FilePath: Meshes/Default/Source/Cube.gltf
+    Type: MeshSource
+  - Handle: 8602806748587412089
+    FilePath: Textures/qiyana.png
+    Type: Texture
+  - Handle: 8800642274478896328
+    FilePath: Textures/cap.jpg
+    Type: Texture
+  - Handle: 9521122861929777337
+    FilePath: Meshes/Illaio/scene.gltf
+    Type: MeshSource
+  - Handle: 11068582820902967403
+    FilePath: Meshes/Illaio/textures/base_mat_baseColor.png
+    Type: Texture
+  - Handle: 11387665200471896179
+    FilePath: Meshes/stormtrooper/stormtrooper.gltf
+    Type: MeshSource
+  - Handle: 13164229695691519330
+    FilePath: Meshes/Default/Cube.Ismesh
+    Type: StaticMesh
+  - Handle: 13498394338625944309
+    FilePath: Meshes/Default/Source/Cone.gltf
+    Type: MeshSource
+  - Handle: 13633336069324386861
+    FilePath: Textures/output1.jpg
+    Type: Texture
+  - Handle: 13686750258206424161
+    FilePath: Meshes/Galio/scene.gltf
+    Type: MeshSource
+  - Handle: 15076150349112954122
+    FilePath: Meshes/stormtrooper/Stormtrooper_D.png
+    Type: Texture
+  - Handle: 15151709436528180103
+    FilePath: Meshes/Evelynn/textures/DefaultMaterial_metallicRoughness.png
+    Type: Texture
+  - Handle: 15945537429572738622
+    FilePath: Meshes/Illaio/textures/Tentacle_Mat_baseColor.png
+    Type: Texture
+  - Handle: 15983319347866920412
+    FilePath: Meshes/Jhin/scene.gltf
+    Type: MeshSource
+  - Handle: 17190243853805597308
+    FilePath: Meshes/Default/Source/Sphere.gltf
+    Type: MeshSource
+  - Handle: 17444303624668688037
+    FilePath: Meshes/Evelynn/textures/DefaultMaterial_normal.png
+    Type: Texture
+  - Handle: 18007974031415154891
+    FilePath: Meshes/BloomText.glb
+    Type: MeshSource
+  - Handle: 18398963716275400970
+    FilePath: Meshes/Default/Sphere.Ismesh
+    Type: StaticMesh

@@ -39,6 +39,9 @@ namespace Iris {
 			.RendererConfig = {.FramesInFlight = 3 }
 		};
 
+		appSpec.WindowDecorated = !appSpec.FullScreen;
+		appSpec.Resizable = !appSpec.FullScreen;
+
 		return new Runtime(appSpec, projectPath);
 	}
 

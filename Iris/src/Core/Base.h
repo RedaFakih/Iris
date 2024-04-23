@@ -6,6 +6,7 @@
 #include <memory>
 
 #define IR_DEBUG_BREAK() __debugbreak()
+#define IR_FORCE_INLINE __forceinline
 
 #include "Assert.h"
 

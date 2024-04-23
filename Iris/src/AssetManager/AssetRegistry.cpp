@@ -61,4 +61,12 @@ namespace Iris {
 		return m_AssetRegistry[handle];
 	}
 
+	const AssetMetaData& AssetRegistry::operator[](const AssetHandle handle) const
+	{
+		std::scoped_lock<std::mutex> lock(s_AssetRegistryMutex);
+
+		ASSET_LOG("Retrieving handle {}", handle);
+		return m_AssetRegistry.at(handle);
+	}
+
 }

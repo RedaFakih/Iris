@@ -15,7 +15,6 @@ namespace Iris {
 
 	using EntityMap = std::unordered_map<UUID, Entity>;
 
-	// TODO: This is an asset
 	class Scene : public Asset
 	{
 	public:
@@ -98,6 +97,9 @@ namespace Iris {
 			srcScene->CopyComponentIfExists<TComponent>((entt::entity)dst, dstScene->m_Registry, (entt::entity)src);
 		}
 
+		static AssetType GetStaticType() { return AssetType::Scene; }
+		virtual AssetType GetAssetType() const override { return GetStaticType(); }
+
 	private:
 		void SortEntities();
 
@@ -117,6 +119,7 @@ namespace Iris {
 
 		friend class Entity;
 		friend class ECSDebugPanel;
+		friend struct SceneSerializer;
 
 	};
 

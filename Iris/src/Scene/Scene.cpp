@@ -1,6 +1,7 @@
 #include "IrisPCH.h"
 #include "Scene.h"
 
+#include "AssetManager/AssetManager.h"
 #include "Editor/SelectionManager.h"
 #include "Renderer/SceneRenderer.h"
 #include "Renderer/Shaders/Shader.h"
@@ -61,12 +62,15 @@ namespace Iris {
 				if (!staticMeshComponenet.Visible)
 					continue;
 
-				Ref<StaticMesh> staticMesh = staticMeshComponenet.StaticMesh;
-				if (staticMesh)
+				AsyncAssetResult<StaticMesh> staticMeshResult = AssetManager::GetAssetAsync<StaticMesh>(staticMeshComponenet.StaticMesh);
+				if (staticMeshResult.IsReady)
 				{
-					Ref<MeshSource> meshSource = staticMesh->GetMeshSource();
-					if (meshSource)
+					Ref<StaticMesh> staticMesh = staticMeshResult;
+					AsyncAssetResult<MeshSource> meshSourceResult = AssetManager::GetAssetAsync<MeshSource>(staticMesh->GetMeshSource());
+					if (meshSourceResult.IsReady)
 					{
+						Ref<MeshSource> meshSource = meshSourceResult;
+
 						Entity e = { entity, this };
 						glm::mat4 transform = GetWorldSpaceTransformMatrix(e);
 
@@ -96,16 +100,21 @@ namespace Iris {
 						Entity e = { entity, this };
 
 						const auto& [transformComponent, spriteRendererComponent] = view.get<TransformComponent, SpriteRendererComponent>(entity);
-						if(spriteRendererComponent.Texture)
+						if (spriteRendererComponent.Texture)
 						{
-							renderer2D->DrawQuad(
-								GetWorldSpaceTransformMatrix(e),
-								spriteRendererComponent.Texture,
-								spriteRendererComponent.TilingFactor,
-								spriteRendererComponent.Color,
-								spriteRendererComponent.UV0,
-								spriteRendererComponent.UV1
-							);
+							if (AssetManager::IsAssetHandleValid(spriteRendererComponent.Texture))
+							{
+								// TODO: Maybe switch to async?
+								Ref<Texture2D> texture = AssetManager::GetAsset<Texture2D>(spriteRendererComponent.Texture);
+								renderer2D->DrawQuad(
+									GetWorldSpaceTransformMatrix(e),
+									texture,
+									spriteRendererComponent.TilingFactor,
+									spriteRendererComponent.Color,
+									spriteRendererComponent.UV0,
+									spriteRendererComponent.UV1
+								);
+							}
 						}
 						else
 						{

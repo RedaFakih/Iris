@@ -487,7 +487,7 @@ namespace Iris {
 	{
 		if (m_InvalidatedInputResources.contains(set))
 		{
-			const auto& resource = m_InvalidatedInputResources.at(binding);
+			const auto& resource = m_InvalidatedInputResources.at(set);
 			return resource.contains(binding);
 		}
 

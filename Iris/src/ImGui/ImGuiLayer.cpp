@@ -228,8 +228,8 @@ namespace Iris {
 
 		// Tabs
 		colors[ImGuiCol_Tab] = ImGui::ColorConvertU32ToFloat4(Colors::Theme::Titlebar);
-		colors[ImGuiCol_TabHovered] = ImColor(255, 225, 135, 30);
-		colors[ImGuiCol_TabActive] = ImColor(255, 225, 135, 60);
+		colors[ImGuiCol_TabHovered] = ImColor(135, 225, 255, 30);
+		colors[ImGuiCol_TabActive] = ImColor(135, 225, 255, 60);
 		colors[ImGuiCol_TabUnfocused] = ImGui::ColorConvertU32ToFloat4(Colors::Theme::Titlebar);
 		colors[ImGuiCol_TabUnfocusedActive] = colors[ImGuiCol_TabHovered];
 

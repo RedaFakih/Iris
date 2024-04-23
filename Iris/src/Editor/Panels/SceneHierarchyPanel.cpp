@@ -1,13 +1,14 @@
 #include "IrisPCH.h"
 #include "SceneHierarchyPanel.h"
 
-#include "AssetManager/Importers/MeshImporter.h" // TODO: REMOVE
+#include "AssetManager/AssetManager.h"
 #include "Core/Application.h"
 #include "Core/Events/KeyEvents.h"
 #include "Core/Input/Input.h"
 #include "ImGui/CustomTreeNode.h"
-#include "ImGui/ImGuiUtils.h"
 #include "ImGui/FontAwesome.h"
+#include "ImGui/ImGuiUtils.h"
+#include "Project/Project.h"
 
 #include <imgui/imgui.h>
 #include <imgui/imgui_internal.h>
@@ -280,37 +281,55 @@ namespace Iris {
 
 		if (ImGui::BeginMenu("3D"))
 		{
-			auto create3DEntity = [this](const char* entityName, const char* targetAssetName)
+			auto create3DEntity = [this](const char* entityName, const char* targetAssetName, const char* sourceAssetName)
 			{
 				Entity entity = m_Context->CreateEntity(entityName);
-				StaticMeshComponent& comp = entity.AddComponent<StaticMeshComponent>();
 
-				AssimpMeshImporter importer(fmt::format("Resources/assets/meshes/Defualt/{0}", targetAssetName));
-				Ref<MeshSource> meshSource = importer.ImportToMeshSource();
-				comp.StaticMesh = StaticMesh::Create(meshSource);
-				comp.MaterialTable = comp.StaticMesh->GetMaterials(); // TODO: Remove?
+				std::filesystem::path sourcePath = "Meshes/Default/Source";
+				std::filesystem::path targetPath = "Meshes/Default";
+
+				// Check if we have loaded the mesh before and serialized the Iris mesh file
+				AssetHandle mesh = Project::GetEditorAssetManager()->GetAssetHandleFromFilePath(targetPath / targetAssetName);
+				if (mesh != 0)
+				{
+					// Load mesh from Iris mesh file
+					entity.AddComponent<StaticMeshComponent>(mesh);
+				}
+				else
+				{
+					// Load mesh from source file
+					if (FileSystem::Exists(Project::GetAssetDirectory() / sourcePath / sourceAssetName))
+					{
+						AssetHandle handle = Project::GetEditorAssetManager()->GetAssetHandleFromFilePath(sourcePath / sourceAssetName);
+						if (AssetManager::GetAssetAsync<StaticMesh>(handle).Asset)
+						{
+							Ref<StaticMesh> staticMesh = Project::GetEditorAssetManager()->CreateNewAsset<StaticMesh>(targetAssetName, (Project::GetAssetDirectory() / targetPath).string(), handle);
+							entity.AddComponent<StaticMeshComponent>(staticMesh->Handle);
+						}
+					}
+				}
 
 				return entity;
 			};
 
 			if (ImGui::MenuItem("Cube"))
 			{
-				newEntity = create3DEntity("Cube", "Cube.gltf");
+				newEntity = create3DEntity("Cube", "Cube.Ismesh", "Cube.gltf");
 			}
 
 			if (ImGui::MenuItem("Sphere"))
 			{
-				newEntity = create3DEntity("Sphere", "Sphere.gltf");
+				newEntity = create3DEntity("Sphere", "Sphere.Ismesh", "Sphere.gltf");
 			}
 
 			if (ImGui::MenuItem("Plane"))
 			{
-				newEntity = create3DEntity("Plane", "Plane.gltf");
+				newEntity = create3DEntity("Plane", "Plane.Ismesh", "Plane.gltf");
 			}
 
 			if (ImGui::MenuItem("Cone"))
 			{
-				newEntity = create3DEntity("Cone", "Cone.gltf");
+				newEntity = create3DEntity("Cone", "Cone.Ismesh", "Cone.gltf");
 			}
 
 			ImGui::EndMenu();
@@ -764,6 +783,142 @@ namespace Iris {
 				ImGui::CloseCurrentPopup();
 			}
 		}
+
+		template<typename T>
+		void DrawMaterialTable(SceneHierarchyPanel* panel, const std::vector<UUID>& entities, Ref<MaterialTable> matTable, Ref<MaterialTable> localMatTable)
+		{
+			ImGuiTreeNodeFlags treeNodeFlags = ImGuiTreeNodeFlags_Framed | ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_FramePadding | ImGuiTreeNodeFlags_DefaultOpen;
+			if (ImGui::TreeNodeEx("Materials", treeNodeFlags))
+			{
+				UI::BeginPropertyGrid();
+
+				if (localMatTable->GetMaterialCount() != matTable->GetMaterialCount())
+					localMatTable->SetMaterialCount(matTable->GetMaterialCount());
+
+				for (uint32_t i = 0; i < localMatTable->GetMaterialCount(); i++)
+				{
+					if (i == matTable->GetMaterialCount())
+						ImGui::Separator();
+
+					bool hasLocalMaterial = localMatTable->HasMaterial(i);
+					bool hasMeshMaterial = matTable->HasMaterial(i);
+
+					std::string label = std::format("[Material {0}]", i);
+
+					std::string id = std::format("{0}-{1}", label, i);
+					ImGui::PushID(id.c_str());
+
+					UI::PropertyAssetReferenceSettings settings;
+					if (hasMeshMaterial && !hasLocalMaterial)
+					{
+						AssetHandle meshMaterialAssetHandle = matTable->GetMaterial(i);
+						Ref<MaterialAsset> meshMaterialAsset = AssetManager::GetAsset<MaterialAsset>(meshMaterialAssetHandle);
+
+						std::string meshMaterialName = meshMaterialAsset->GetMaterial()->GetName();
+						if (meshMaterialName.empty())
+							meshMaterialName = "Unnamed Material";
+
+						ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, entities.size() > 1 && panel->IsInconsistentPrimitive<AssetHandle, T>([i](const T& component)
+						{
+							Ref<MaterialTable> materialTable = nullptr;
+							materialTable = AssetManager::GetAsset<StaticMesh>(component.StaticMesh)->GetMaterials();
+
+							if (!materialTable || i >= materialTable->GetMaterialCount())
+								return static_cast<AssetHandle>(0);
+
+							return materialTable->GetMaterial(i);
+						}));
+
+						AssetHandle materialAssetHandle = meshMaterialAsset->Handle;
+						UI::PropertyAssetReferenceTarget<MaterialAsset>(label.c_str(), meshMaterialName.c_str(), materialAssetHandle, [panel, &entities, i, localMatTable](Ref<MaterialAsset> materialAsset) mutable
+						{
+							Ref<Scene> context = panel->GetSceneContext();
+
+							for (auto entityID : entities)
+							{
+								Entity entity = context->GetEntityWithUUID(entityID);
+								auto& component = entity.GetComponent<T>();
+
+								if (materialAsset == UUID(0))
+									component.MaterialTable->ClearMaterial(i);
+								else
+									component.MaterialTable->SetMaterial(i, materialAsset->Handle);
+							}
+						}, "", settings);
+
+						ImGui::PopItemFlag();
+					}
+					else
+					{
+						AssetHandle materialAssetHandle = 0;
+						if (hasLocalMaterial)
+						{
+							materialAssetHandle = localMatTable->GetMaterial(i);
+							settings.AdvanceToNextColumn = false;
+							settings.WidthOffset = ImGui::GetStyle().ItemSpacing.x + 28.0f;
+						}
+
+						ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, entities.size() > 1 && panel->IsInconsistentPrimitive<AssetHandle, T>([i, localMatTable](const T& component)
+						{
+							Ref<MaterialTable> materialTable = component.MaterialTable;
+
+							if (!materialTable || i >= materialTable->GetMaterialCount())
+								return static_cast<AssetHandle>(0);
+
+							if (!materialTable->HasMaterial(i))
+								return static_cast<AssetHandle>(0);
+
+							return materialTable->GetMaterial(i);
+						}));
+
+						UI::PropertyAssetReferenceTarget<MaterialAsset>(label.c_str(), nullptr, materialAssetHandle, [panel, &entities, i, localMatTable](Ref<MaterialAsset> materialAsset) mutable
+						{
+							Ref<Scene> context = panel->GetSceneContext();
+
+							for (auto entityID : entities)
+							{
+								Entity entity = context->GetEntityWithUUID(entityID);
+								auto& component = entity.GetComponent<T>();
+
+								if (materialAsset == UUID(0))
+									component.MaterialTable->ClearMaterial(i);
+								else
+									component.MaterialTable->SetMaterial(i, materialAsset->Handle);
+							}
+						}, "", settings);
+
+						ImGui::PopItemFlag();
+					}
+
+					if (hasLocalMaterial)
+					{
+						ImGui::SameLine();
+
+						float prevItemHeight = ImGui::GetItemRectSize().x;
+						if (ImGui::Button(UI::GenerateLabelID("X"), { prevItemHeight, prevItemHeight }))
+						{
+							Ref<Scene> context = panel->GetSceneContext();
+
+							for (auto entityID : entities)
+							{
+								Entity entity = context->GetEntityWithUUID(entityID);
+								auto& component = entity.GetComponent<T>();
+
+								component.MaterialTable->ClearMaterial(i);
+							}
+						}
+
+						ImGui::NextColumn();
+					}
+
+					ImGui::PopID();
+				}
+
+				UI::EndPropertyGrid();
+				ImGui::TreePop();
+			}
+		}
+
 	}
 
 	void SceneHierarchyPanel::DrawComponents(const std::vector<UUID>& entities)
@@ -1173,54 +1328,19 @@ namespace Iris {
 
 			ImGui::PopItemFlag();
 
-			// TODO: Change for when we have asset manager Texture
 			{
-				bool textureSet = spriteComponent.Texture != nullptr;
+				UI::PropertyAssetReferenceSettings settings;
+				bool textureSet = spriteComponent.Texture != 0;
+				if (textureSet)
+				{
+					settings.AdvanceToNextColumn = false;
+					settings.WidthOffset = ImGui::GetStyle().ItemSpacing.x + 28.0f;
+				}
 
-				const bool inconsistentTexture = IsInconsistentPrimitive<Ref<Texture2D>, SpriteRendererComponent>([](const SpriteRendererComponent& other) { return other.Texture; });
+				const bool inconsistentTexture = IsInconsistentPrimitive<AssetHandle, SpriteRendererComponent>([](const SpriteRendererComponent& other) { return other.Texture; });
 				ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && inconsistentTexture);
 
-				// If button pressed open dialog and select path and load
-				static std::string assetPath = "Null";
-				auto getTextureAsset = [](const char* label, Ref<Texture2D>& outHandle, bool advanceToNextColumn = true) -> bool
-				{
-					bool modified = false;
-
-					UI::ShiftCursor(10.0f, 9.0f);
-					ImGui::Text(label);
-
-					ImGui::NextColumn();
-					UI::ShiftCursorY(4.0f);
-					ImGui::PushItemWidth(-1);
-
-					float width = ImGui::GetContentRegionAvail().x - (advanceToNextColumn ? 0.0f : 35.0f);
-					float itemHeight = 28.0f;
-					
-					if (ImGui::Button(assetPath.c_str(), {width, itemHeight}))
-					{
-						assetPath = FileSystem::OpenFileDialog().string();
-
-						if (!assetPath.empty())
-						{
-							outHandle = Texture2D::Create({}, assetPath);
-							modified = true;
-						}
-					}
-
-					if (!UI::IsItemDisabled())
-						UI::DrawItemActivityOutline();
-
-					ImGui::PopItemWidth();
-					if (advanceToNextColumn)
-					{
-						ImGui::NextColumn();
-						UI::UnderLine();
-					}
-
-					return modified;
-				};
-
-				if (getTextureAsset("Texture", spriteComponent.Texture, textureSet ? false : true))
+				if (UI::PropertyAssetReference<Texture2D>("Texture", spriteComponent.Texture, "", settings))
 				{
 					for (auto& entityID : entities)
 					{
@@ -1236,7 +1356,6 @@ namespace Iris {
 					float prevItemHeight = ImGui::GetItemRectSize().y;
 					if (ImGui::Button("X", { prevItemHeight, prevItemHeight }))
 					{
-						assetPath = "Null";
 						for (auto& entityID : entities)
 						{
 							Entity entity = m_Context->GetEntityWithUUID(entityID);
@@ -1291,60 +1410,23 @@ namespace Iris {
 	
 		DrawComponent<StaticMeshComponent>("StaticMesh", [&](StaticMeshComponent& meshComp, const std::vector<UUID>& entities, const bool isMultiSelect)
 		{
-			Ref<StaticMesh> mesh = meshComp.StaticMesh;
+			AssetHandle meshHandle = meshComp.StaticMesh;
+			Ref<StaticMesh> mesh = AssetManager::GetAsset<StaticMesh>(meshHandle);
 
 			UI::BeginPropertyGrid();
 
 			{
-				const bool inconsistentMesh = IsInconsistentPrimitive<Ref<StaticMesh>, StaticMeshComponent>([](const StaticMeshComponent& other) { return other.StaticMesh; });
+				const bool inconsistentMesh = IsInconsistentPrimitive<AssetHandle, StaticMeshComponent>([](const StaticMeshComponent& other) { return other.StaticMesh; });
 				ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && inconsistentMesh);
 
-				// If button pressed open dialog and select path and load
-				static std::string assetPath = "Null";
-				auto getMeshAsset = [](const char* label, Ref<StaticMesh>& outHandle) -> bool
+				if (UI::PropertyAssetReference<StaticMesh>("Static Mesh", meshHandle))
 				{
-					bool modified = false;
+					mesh = AssetManager::GetAsset<StaticMesh>(meshHandle);
 
-					UI::ShiftCursor(10.0f, 9.0f);
-					ImGui::Text(label);
-
-					ImGui::NextColumn();
-					UI::ShiftCursorY(4.0f);
-					ImGui::PushItemWidth(-1);
-
-					float width = ImGui::GetContentRegionAvail().x;
-					float itemHeight = 28.0f;
-
-					if (ImGui::Button(assetPath.c_str(), { width, itemHeight }))
-					{
-						assetPath = FileSystem::OpenFileDialog().string();
-
-						if (!assetPath.empty())
-						{
-							AssimpMeshImporter importer(assetPath);
-							Ref<MeshSource> meshSource = importer.ImportToMeshSource();
-							outHandle = StaticMesh::Create(meshSource);
-							modified = true;
-						}
-					}
-
-					if (!UI::IsItemDisabled())
-						UI::DrawItemActivityOutline();
-
-					ImGui::PopItemWidth();
-					ImGui::NextColumn();
-					UI::UnderLine();
-
-					return modified;
-				};
-
-				if (getMeshAsset("StaticMesh", meshComp.StaticMesh))
-				{
 					for (auto& entityID : entities)
 					{
 						Entity entity = m_Context->GetEntityWithUUID(entityID);
 						entity.GetComponent<StaticMeshComponent>().StaticMesh = meshComp.StaticMesh;
-						entity.GetComponent<StaticMeshComponent>().MaterialTable = meshComp.StaticMesh->GetMaterials();
 					}
 				}
 				ImGui::PopItemFlag();
@@ -1366,7 +1448,8 @@ namespace Iris {
 
 			UI::EndPropertyGrid();
 
-			// TODO: Draw Material Table
+			if (mesh)
+				Utils::DrawMaterialTable<StaticMeshComponent>(this, entities, mesh->GetMaterials(), meshComp.MaterialTable);
 		}, EditorResources::StaticMeshIcon);
 	}
 

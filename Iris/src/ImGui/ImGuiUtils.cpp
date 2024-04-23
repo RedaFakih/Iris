@@ -1607,4 +1607,252 @@ namespace Iris::UI {
 		return result;
 	}
 
+	bool AssetSearchPopup(const char* ID, AssetType type, AssetHandle& outHandle, bool* cleared, const char* hint, ImVec2 size)
+	{
+		UI::ImGuiScopedColor popupBG(ImGuiCol_PopupBg, UI::ColorWithMultipliedValue(Colors::Theme::Background, 1.6f).Value);
+
+		bool modified = false;
+
+		const AssetRegistry& assetRegistry = Project::GetEditorAssetManager()->GetAssetRegistry();
+		AssetHandle current = outHandle;
+
+		ImGui::SetNextWindowSize({ size.x, 0.0f });
+
+		static bool grabFocus = true;
+
+		if (UI::BeginPopup(ID, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize))
+		{
+			static std::string searchString;
+
+			if (ImGui::GetCurrentWindow()->Appearing)
+			{
+				grabFocus = true;
+				searchString.clear();
+			}
+
+			// Search widget
+			UI::ShiftCursor(3.0f, 2.0f);
+			ImGui::SetNextItemWidth(ImGui::GetWindowWidth() - ImGui::GetCursorPosX() * 2.0f);
+			UI::SearchWidget(searchString, hint, &grabFocus);
+
+			const bool searching = !searchString.empty();
+
+			// Clear property button
+			if (cleared != nullptr)
+			{
+				UI::ImGuiScopedColor buttonColours(ImGuiCol_Button, UI::ColorWithMultipliedValue(Colors::Theme::Background, 1.0f).Value);
+				UI::ImGuiScopedColor buttonHovered(ImGuiCol_ButtonHovered, UI::ColorWithMultipliedValue(Colors::Theme::Background, 1.2f).Value);
+				UI::ImGuiScopedColor buttonActive(ImGuiCol_ButtonActive, UI::ColorWithMultipliedValue(Colors::Theme::Background, 0.9f).Value);
+				UI::ImGuiScopedStyle border(ImGuiStyleVar_FrameBorderSize, 0.0f);
+
+				ImGui::SetCursorPosX(0);
+
+				ImGui::PushItemFlag(ImGuiItemFlags_NoNav, searching);
+
+				if (ImGui::Button("CLEAR", { ImGui::GetWindowWidth(), 0.0f }))
+				{
+					*cleared = true;
+					modified = true;
+				}
+
+				ImGui::PopItemFlag();
+			}
+
+			// List of assets
+			{
+				UI::ImGuiScopedColor listBoxBg(ImGuiCol_FrameBg, IM_COL32_DISABLE);
+				UI::ImGuiScopedColor listBoxBorder(ImGuiCol_Border, IM_COL32_DISABLE);
+
+				ImGuiID listID = ImGui::GetID("##SearchListBox");
+				if (ImGui::BeginListBox("##SearchListBox", ImVec2(-FLT_MIN, 0.0f)))
+				{
+					bool forwardFocus = false;
+
+					ImGuiContext& g = *GImGui;
+					if (g.NavJustMovedToId != 0)
+					{
+						if (g.NavJustMovedToId == listID)
+						{
+							forwardFocus = true;
+							// ActivateItem moves keyboard navigation focuse inside of the window
+							ImGui::ActivateItem(listID);
+							ImGui::SetKeyboardFocusHere(1);
+						}
+					}
+
+					for (const auto& [path, metaData] : assetRegistry)
+					{
+						if (metaData.Type != type)
+							continue;
+
+						if (metaData.IsMemoryAsset)
+							continue;
+
+						const std::string assetName = metaData.FilePath.stem().string();
+
+						if (!searchString.empty() && !UI::IsMatchingSearch(assetName, searchString))
+							continue;
+
+						bool isSelected = (current == metaData.Handle);
+						if (ImGui::Selectable(assetName.c_str(), isSelected))
+						{
+							current = metaData.Handle;
+							outHandle = metaData.Handle;
+							modified = true;
+						}
+
+						if (forwardFocus)
+							forwardFocus = false;
+						else if (isSelected)
+							ImGui::SetItemDefaultFocus();
+					}
+
+					ImGui::EndListBox();
+				}
+			}
+
+			if (modified)
+				ImGui::CloseCurrentPopup();
+
+			UI::EndPopup();
+		}
+
+		return modified;
+	}
+
+	bool AssetSearchPopup(const char* ID, AssetType type, AssetHandle& outHandle, bool allowMemoryOnlyAssets, bool* cleared, const char* hint, ImVec2 size)
+	{
+		UI::ImGuiScopedColor popupBG(ImGuiCol_PopupBg, UI::ColorWithMultipliedValue(Colors::Theme::Background, 1.6f).Value);
+
+		bool modified = false;
+
+		const AssetRegistry& assetRegistry = Project::GetEditorAssetManager()->GetAssetRegistry();
+		AssetHandle current = outHandle;
+
+		ImGui::SetNextWindowSize({ size.x, 0.0f });
+
+		static bool grabFocus = true;
+
+		if (UI::BeginPopup(ID, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize))
+		{
+			static std::string searchString;
+
+			if (ImGui::GetCurrentWindow()->Appearing)
+			{
+				grabFocus = true;
+				searchString.clear();
+			}
+
+			// Search widget
+			UI::ShiftCursor(3.0f, 2.0f);
+			ImGui::SetNextItemWidth(ImGui::GetWindowWidth() - ImGui::GetCursorPosX() * 2.0f);
+			UI::SearchWidget(searchString, hint, &grabFocus);
+
+			const bool searching = !searchString.empty();
+
+			// Clear property button
+			if (cleared != nullptr)
+			{
+				UI::ImGuiScopedColor buttonColours(ImGuiCol_Button, UI::ColorWithMultipliedValue(Colors::Theme::Background, 1.0f).Value);
+				UI::ImGuiScopedColor buttonHovered(ImGuiCol_ButtonHovered, UI::ColorWithMultipliedValue(Colors::Theme::Background, 1.2f).Value);
+				UI::ImGuiScopedColor buttonActive(ImGuiCol_ButtonActive, UI::ColorWithMultipliedValue(Colors::Theme::Background, 0.9f).Value);
+				UI::ImGuiScopedStyle border(ImGuiStyleVar_FrameBorderSize, 0.0f);
+
+				ImGui::SetCursorPosX(0);
+
+				ImGui::PushItemFlag(ImGuiItemFlags_NoNav, searching);
+
+				if (ImGui::Button("CLEAR", { ImGui::GetWindowWidth(), 0.0f }))
+				{
+					*cleared = true;
+					modified = true;
+				}
+
+				ImGui::PopItemFlag();
+			}
+
+			// List of assets
+			{
+				UI::ImGuiScopedColor listBoxBg(ImGuiCol_FrameBg, IM_COL32_DISABLE);
+				UI::ImGuiScopedColor listBoxBorder(ImGuiCol_Border, IM_COL32_DISABLE);
+
+				ImGuiID listID = ImGui::GetID("##SearchListBox");
+				if (ImGui::BeginListBox("##SearchListBox", ImVec2(-FLT_MIN, 0.0f)))
+				{
+					bool forwardFocus = false;
+
+					ImGuiContext& g = *GImGui;
+					if (g.NavJustMovedToId != 0)
+					{
+						if (g.NavJustMovedToId == listID)
+						{
+							forwardFocus = true;
+							// ActivateItem moves keyboard navigation focuse inside of the window
+							ImGui::ActivateItem(listID);
+							ImGui::SetKeyboardFocusHere(1);
+						}
+					}
+
+					for (const auto& [path, metaData] : assetRegistry)
+					{
+						if (metaData.Type != type)
+							continue;
+
+						if (allowMemoryOnlyAssets != metaData.IsMemoryAsset)
+							continue;
+
+						const std::string assetName = metaData.IsMemoryAsset ? metaData.FilePath.string() : metaData.FilePath.stem().string();
+
+						if (!searchString.empty() && !UI::IsMatchingSearch(assetName, searchString))
+							continue;
+
+						bool isSelected = (current == metaData.Handle);
+						if (ImGui::Selectable(assetName.c_str(), isSelected))
+						{
+							current = metaData.Handle;
+							outHandle = metaData.Handle;
+							modified = true;
+						}
+
+						if (forwardFocus)
+							forwardFocus = false;
+						else if (isSelected)
+							ImGui::SetItemDefaultFocus();
+					}
+
+					ImGui::EndListBox();
+				}
+			}
+
+			if (modified)
+				ImGui::CloseCurrentPopup();
+
+			UI::EndPopup();
+		}
+
+		return modified;
+	}
+
+	std::pair<bool, std::string> AssetValidityAndName(AssetHandle handle, const PropertyAssetReferenceSettings& settings)
+	{
+		std::string name = "Null";
+
+		bool valid = AssetManager::IsAssetHandleValid(handle);
+		if (valid)
+		{
+			if (settings.ShowFulLFilePath)
+				name = Project::GetEditorAssetManager()->GetMetaData(handle).FilePath.string();
+			else
+				name = Project::GetEditorAssetManager()->GetMetaData(handle).FilePath.stem().string();
+
+			if (AssetManager::IsAssetMissing(handle))
+			{
+				valid = false;
+				name += "(Missing)";
+			}
+		}
+
+		return { valid, name };
+	}
+
 }

@@ -1,6 +1,7 @@
 #include "IrisPCH.h"
 #include "SceneRenderer.h"
 
+#include "AssetManager/AssetManager.h"
 #include "Renderer/Renderer.h"
 #include "Shaders/Shader.h"
 #include "Texture.h"
@@ -28,8 +29,13 @@ namespace Iris {
 	{
 		IR_CORE_WARN_TAG("Renderer", "Initializing Scene Renderer for scene: {0}", m_Scene->GetName());
 
+		m_ViewportWidth = m_Specification.ViewportWidth;
+		m_ViewportHeight = m_Specification.ViewportHeight;
+		if (m_ViewportWidth > 0 && m_ViewportHeight > 0)
+			m_NeedsResize = true;
+
 		// NOTE: For now we do not want any multisampling...
-		constexpr uint32_t g_Samples = 1;
+		constexpr uint32_t c_Samples = 1;
 
 		m_CommandBuffer = RenderCommandBuffer::Create(0, "SceneRenderer");
 
@@ -62,7 +68,7 @@ namespace Iris {
 				// Linear depth, reversed depth buffer
 				.DepthClearValue = 0.0f,
 				.Attachments = { { ImageFormat::DEPTH32F, AttachmentPassThroughUsage::Input } },
-				.Samples = g_Samples
+				.Samples = c_Samples
 			};
 
 			PipelineSpecification preDepthPipelineSpec = {
@@ -98,7 +104,7 @@ namespace Iris {
 				// TODO: The first attachment has to load... Since the skybox (when we have it...) pass writes to it before
 				// NOTE: The second attachment does not blend since we do not want to blend with luminance in the alpha channel
 				.Attachments = { { ImageFormat::RGBA32F, AttachmentLoadOp::Clear } , { ImageFormat::RGBA16F, false }, ImageFormat::RGBA, { ImageFormat::DEPTH32F, AttachmentPassThroughUsage::Input } },
-				.Samples = g_Samples
+				.Samples = c_Samples
 			};
 			geometryFBSpec.ExistingImages[3] = m_PreDepthPass->GetDepthOutput(true); // Ignore the resolve image if the buffer is multisampeld
 
@@ -135,7 +141,7 @@ namespace Iris {
 				.ClearDepthOnLoad = true,
 				.DepthClearValue = 1.0f,
 				.Attachments = { ImageFormat::RGBA32F, ImageFormat::DEPTH32F },
-				.Samples = 1
+				.Samples = c_Samples
 			};
 
 			PipelineSpecification selectedGeoPipeline = {
@@ -281,7 +287,7 @@ namespace Iris {
 				.ClearColorOnLoad = true,
 				.ClearColor = { 0.1f, 0.1f, 0.5f, 1.0f },
 				.Attachments = { ImageFormat::RGBA32F },
-				.Samples = 1,
+				.Samples = c_Samples,
 				.BlendMode = FramebufferBlendMode::OneZero
 			};
 			m_JumpFloodFramebuffers[0] = Framebuffer::Create(jFFramebuffersSpec);
@@ -343,7 +349,6 @@ namespace Iris {
 			// Composite... We check this bool since we do not usualy want to do this in runtime... Unless otherwise specified
 			if (m_Specification.JumpFloodPass)
 			{
-				// TODO: Handle image layouts here
 				FramebufferSpecification jumpFloodCompositeFB = {
 					.DebugName = "JumpFloodCompositeFB",
 					.ClearColorOnLoad = false,
@@ -513,7 +518,7 @@ namespace Iris {
 	void SceneRenderer::SubmitStaticMesh(Ref<StaticMesh> staticMesh, Ref<MeshSource> meshSource, Ref<MaterialTable> materialTable, const glm::mat4& transform, Ref<Material> overrideMaterial)
 	{
 		const std::vector<MeshUtils::SubMesh>& subMeshData = meshSource->GetSubMeshes();
-		for(uint32_t subMeshIndex : staticMesh->GetSubMeshes())
+		for (uint32_t subMeshIndex : staticMesh->GetSubMeshes())
 		{
 			const MeshUtils::SubMesh& subMesh = subMeshData[subMeshIndex];
 
@@ -521,7 +526,9 @@ namespace Iris {
 
 			uint32_t materialIndex = subMesh.MaterialIndex;
 
-			Ref<MaterialAsset> materialAsset = materialTable->HasMaterial(materialIndex) ? materialTable->GetMaterial(materialIndex) : staticMesh->GetMaterials()->GetMaterial(materialIndex);
+			AssetHandle materialAssetHandle = materialTable->HasMaterial(materialIndex) ? materialTable->GetMaterial(materialIndex) : staticMesh->GetMaterials()->GetMaterial(materialIndex);
+			IR_VERIFY(materialAssetHandle);
+			Ref<MaterialAsset> materialAsset = AssetManager::GetAsset<MaterialAsset>(materialAssetHandle);
 
 			MeshKey meshKey = { staticMesh, materialAsset, subMeshIndex, false };
 			TransformVertexData& transformStorage = m_MeshTransformMap[meshKey].Transforms.emplace_back();
@@ -556,7 +563,8 @@ namespace Iris {
 
 			uint32_t materialIndex = subMesh.MaterialIndex;
 
-			Ref<MaterialAsset> materialAsset = materialTable->HasMaterial(materialIndex) ? materialTable->GetMaterial(materialIndex) : staticMesh->GetMaterials()->GetMaterial(materialIndex);
+			AssetHandle materialAssetHandle = materialTable->HasMaterial(materialIndex) ? materialTable->GetMaterial(materialIndex) : staticMesh->GetMaterials()->GetMaterial(materialIndex);
+			Ref<MaterialAsset> materialAsset = AssetManager::GetAsset<MaterialAsset>(materialAssetHandle);
 
 			MeshKey meshKey = { staticMesh, materialAsset, subMeshIndex, true };
 			TransformVertexData& transformStorage = m_MeshTransformMap[meshKey].Transforms.emplace_back();

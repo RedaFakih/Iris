@@ -1,16 +1,16 @@
 #pragma once
 
-#include "AssetManager/Asset/AssetTypes.h"
+#include "AssetTypes.h"
 
 #include <unordered_map>
 
 namespace Iris {
 
 	inline static std::unordered_map<std::string, AssetType> s_AssetExtensionMap = {
-		// Iris types
-		{ ".Iscene", AssetType::Scene },
-		{ ".Ismesh", AssetType::StaticMesh },
-		{ ".Imaterial", AssetType::Material },
+		// Iris types (Here they are in lower case since the AssetManager lowers the extension characters before processing it
+		{ ".iscene", AssetType::Scene },
+		{ ".ismesh", AssetType::StaticMesh },
+		{ ".imaterial", AssetType::Material },
 	
 		// meshSource types
 		{ ".gltf", AssetType::MeshSource },

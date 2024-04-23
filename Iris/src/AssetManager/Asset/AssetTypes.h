@@ -34,7 +34,6 @@ namespace Iris {
 			if (assetType == "Texture")             return AssetType::Texture;
 			if (assetType == "EnvironmentMap")      return AssetType::EnvironmentMap;
 
-			IR_VERIFY(false, "Unknown Asset Type");
 			return AssetType::None;
 		}
 

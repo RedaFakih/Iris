@@ -2,6 +2,7 @@
 
 #include "Core/Hash.h"
 #include "EditorPanel.h"
+#include "Project/Project.h"
 
 namespace Iris {
 
@@ -31,6 +32,7 @@ namespace Iris {
 		void OnImGuiRender();
 		void OnEvent(Events::Event& e);
 		void SetSceneContext(const Ref<Scene> scene);
+		void OnProjectChanged(Ref<Project> project);
 
 		void Serialize();
 		void Deserialize();

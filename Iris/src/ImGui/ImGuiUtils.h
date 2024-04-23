@@ -1,5 +1,6 @@
 #pragma once
 
+#include "AssetManager/AssetManager.h"
 #include "Editor/EditorResources.h"
 #include "Renderer/Texture.h"
 #include "Themes.h"
@@ -66,6 +67,21 @@ namespace Iris::UI {
 		ImGuiScopedID(const ImGuiScopedID&) = delete;
 		ImGuiScopedID& operator=(const ImGuiScopedID&) = delete;
 	};
+
+	struct PropertyAssetReferenceSettings
+	{
+		bool AdvanceToNextColumn = true;
+		bool NoItemSpacing = false;
+		float WidthOffset = 0.0f;
+		bool AllowMemoryOnlyAssets = false;
+		ImVec4 ButtonLabelColor = ImGui::ColorConvertU32ToFloat4(Colors::Theme::Text);
+		ImVec4 ButtonLabelColorError = ImGui::ColorConvertU32ToFloat4(Colors::Theme::TextError);
+		bool ShowFulLFilePath = false;
+	};
+
+	// NOTE: Move somewhere better?
+	// This is for knowing what the currently referenced asset is so that if we want to modify/know what it is in other functions...
+	static AssetHandle s_PropertyAssetReferenceAssetHandle;
 
 	// Generates an ID using a simple incrementing counter
 	const char* GenerateID();
@@ -219,7 +235,7 @@ namespace Iris::UI {
 	};
 
 	// Draw an outline for the last item
-	void DrawItemActivityOutline(OutlineFlags flags = OutlineFlags_All, ImColor colorHighlight = Colors::Theme::Accent, float rounding = GImGui->Style.FrameRounding);
+	void DrawItemActivityOutline(OutlineFlags flags = OutlineFlags_All, ImColor colorHighlight = Colors::Theme::NiceBlue, float rounding = GImGui->Style.FrameRounding);
 
 	void UnderLine(bool fullWidth = false, float offsetX = 0.0f, float offsetY = -1.0f);
 
@@ -800,6 +816,214 @@ namespace Iris::UI {
 		ImGui::EndHorizontal();
 		UI::ShiftCursorY(-1.0f);
 		PopID();
+
+		return modified;
+	}
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	/// AssetProperties...
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+	bool AssetSearchPopup(const char* ID, AssetType type, AssetHandle& outHandle, bool* cleared = nullptr, const char* hint = "Search Assets", ImVec2 size = { 250.0f, 350.0f });
+
+	bool AssetSearchPopup(const char* ID, AssetType type, AssetHandle& outHandle, bool allowMemoryOnlyAssets, bool* cleared = nullptr, const char* hint = "Search Assets", ImVec2 size = { 250.0f, 350.0f });
+
+	std::pair<bool, std::string> AssetValidityAndName(AssetHandle handle, const PropertyAssetReferenceSettings& settings);
+
+	template<typename T>
+	inline static bool PropertyAssetReference(const char* label, AssetHandle& outHandle, const char* helpText = "", const PropertyAssetReferenceSettings& settings = {})
+	{
+		bool modified = false;
+
+		ShiftCursor(10.0f, 9.0f);
+		ImGui::Text(label);
+
+		if (std::strlen(helpText) != 0)
+		{
+			ImGui::SameLine();
+			ShowHelpMarker(helpText);
+		}
+
+		ImGui::NextColumn();
+		ShiftCursorY(4.0f);
+
+		ImGui::PushItemWidth(-1);
+
+		ImVec2 originalButtonTextAlign = ImGui::GetStyle().ButtonTextAlign;
+		{
+			ImGui::GetStyle().ButtonTextAlign = { 0.0f, 0.5f };
+			float width = ImGui::GetContentRegionAvail().x - settings.WidthOffset;
+			constexpr float itemHeight = 28.0f;
+
+			auto [valid, buttonText] = AssetValidityAndName(outHandle, settings);
+
+			if ((GImGui->CurrentItemFlags & ImGuiItemFlags_MixedValue) != 0)
+				buttonText = "----";
+
+			// PropertyAssetReference could be called multiple times in same "context"
+			// and so we need a unique id for the asset search popup each time.
+			// notes
+			// - don't use GenerateID(), that's inviting id clashes, which would be super confusing.
+			// - don't store return from GenerateLabelId in a const char* here. Because its pointing to an internal
+			//   buffer which may get overwritten by the time you want to use it later on.
+			std::string assetSearchPopupID = GenerateLabelID("ARSP");
+			{
+				UI::ImGuiScopedColor buttonLabelColor(ImGuiCol_Text, valid ? settings.ButtonLabelColor : settings.ButtonLabelColorError);
+				ImGui::Button(GenerateLabelID(buttonText), { width, itemHeight });
+
+				const bool isHovered = ImGui::IsItemHovered();
+
+				if (isHovered)
+				{
+					if (ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+						ImGui::OpenPopup(assetSearchPopupID.c_str());
+				}
+			}
+
+			ImGui::GetStyle().ButtonTextAlign = originalButtonTextAlign;
+
+			bool clear = false;
+			if (UI::AssetSearchPopup(assetSearchPopupID.c_str(), T::GetStaticType(), outHandle, settings.AllowMemoryOnlyAssets, &clear))
+			{
+				if (clear)
+					outHandle = 0;
+				modified = true;
+				s_PropertyAssetReferenceAssetHandle = outHandle;
+			}
+		}
+
+		// Implement drag/drop from other places
+		if (!IsItemDisabled())
+		{
+			if (ImGui::BeginDragDropTarget())
+			{
+				const ImGuiPayload* data = ImGui::AcceptDragDropPayload("asset_payload");
+				if (data)
+				{
+					AssetHandle assetHandle = *reinterpret_cast<AssetHandle*>(data->Data);
+					s_PropertyAssetReferenceAssetHandle = assetHandle;
+					Ref<Asset> asset = AssetManager::GetAsset<Asset>(assetHandle);
+					if (asset && asset->GetAssetType() == T::GetStaticType())
+					{
+						outHandle = assetHandle;
+						modified = true;
+					}
+				}
+
+				ImGui::EndDragDropTarget();
+			}
+		}
+
+		ImGui::PopItemWidth();
+		if (settings.AdvanceToNextColumn)
+		{
+			ImGui::NextColumn();
+			UI::UnderLine();
+		}
+
+		return modified;
+	}
+
+	template<typename T, typename Fn>
+	inline static bool PropertyAssetReferenceTarget(const char* label, const char* assetName, AssetHandle& outHandle, Fn&& targetFn, const char* helpText = "", const PropertyAssetReferenceSettings& settings = {})
+	{
+		bool modified = false;
+
+		ShiftCursor(10.0f, 9.0f);
+		ImGui::Text(label);
+
+		if (std::strlen(helpText) != 0)
+		{
+			ImGui::SameLine();
+			ShowHelpMarker(helpText);
+		}
+
+		ImGui::NextColumn();
+		ShiftCursorY(4.0f);
+
+		ImGui::PushItemWidth(-1);
+		if (settings.NoItemSpacing)
+			ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, { 0.0f, 0.0f });
+
+		ImVec2 originalButtonTextAlign = ImGui::GetStyle().ButtonTextAlign;
+		{
+			ImGui::GetStyle().ButtonTextAlign = { 0.0f, 0.5f };
+			float width = ImGui::GetContentRegionAvail().x - settings.WidthOffset;
+			constexpr float itemHeight = 28.0f;
+			
+			UI::PushID();
+
+			auto [valid, buttonText] = AssetValidityAndName(outHandle, settings);
+
+			if ((GImGui->CurrentItemFlags & ImGuiItemFlags_MixedValue) != 0)
+				buttonText = "----";
+
+			// PropertyAssetReference could be called multiple times in same "context"
+			// and so we need a unique id for the asset search popup each time.
+			// notes
+			// - don't use GenerateID(), that's inviting id clashes, which would be super confusing.
+			// - don't store return from GenerateLabelId in a const char* here. Because its pointing to an internal
+			//   buffer which may get overwritten by the time you want to use it later on.
+			std::string assetSearchPopupID = GenerateLabelID("ARTSP");
+			{
+				UI::ImGuiScopedColor buttonLabelColor(ImGuiCol_Text, valid ? settings.ButtonLabelColor : settings.ButtonLabelColorError);
+				ImGui::Button(GenerateLabelID(buttonText), { width, itemHeight });
+
+				const bool isHovered = ImGui::IsItemHovered();
+
+				if (isHovered)
+				{
+					if (ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+						ImGui::OpenPopup(assetSearchPopupID.c_str());
+				}
+			}
+
+			ImGui::GetStyle().ButtonTextAlign = originalButtonTextAlign;
+
+			bool clear = false;
+			if (UI::AssetSearchPopup(assetSearchPopupID.c_str(), T::GetStaticType(), outHandle, &clear))
+			{
+				if (clear)
+					outHandle = 0;
+
+				targetFn(AssetManager::GetAsset<T>(outHandle));
+				modified = true;
+			}
+
+			UI::PopID();
+		}
+
+		// Implement drag/drop from other places
+		if (!IsItemDisabled())
+		{
+			if (ImGui::BeginDragDropTarget())
+			{
+				const ImGuiPayload* data = ImGui::AcceptDragDropPayload("asset_payload");
+				if (data)
+				{
+					AssetHandle assetHandle = *reinterpret_cast<AssetHandle*>(data->Data);
+					s_PropertyAssetReferenceAssetHandle = assetHandle;
+					Ref<Asset> asset = AssetManager::GetAsset<Asset>(assetHandle);
+					if (asset && asset->GetAssetType() == T::GetStaticType())
+					{
+						targetFn(asset.As<T>());
+						modified = true;
+					}
+				}
+
+				ImGui::EndDragDropTarget();
+			}
+		}
+
+		ImGui::PopItemWidth();
+		if (settings.AdvanceToNextColumn)
+		{
+			ImGui::NextColumn();
+			UI::UnderLine();
+		}
+
+		if (settings.NoItemSpacing)
+			ImGui::PopStyleVar();
 
 		return modified;
 	}

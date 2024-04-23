@@ -55,7 +55,7 @@ namespace Iris {
 		inline ImGuiLayer* GetImGuiLayer() { return m_ImGuiLayer; }
 
 		template<typename Func>
-		inline void QueueEvent(Func&& func) { m_EventQueue.push(std::forward<Func>(func)); }
+		inline void QueueEvent(Func&& func) { std::scoped_lock<std::mutex> lock(m_EventQueueMutex); m_EventQueue.push(std::forward<Func>(func)); }
 		template<typename TEvent, bool TDispatchImmediatly = false, typename... Args>
 		void DispatchEvent(Args&&... args)
 		{
@@ -68,7 +68,6 @@ namespace Iris {
 			}
 			else
 			{
-				std::scoped_lock<std::mutex> lock(m_EventQueueMutex);
 				QueueEvent([event]() { Application::Get().OnEvent(*event); });
 			}
 		}

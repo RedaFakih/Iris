@@ -54,7 +54,7 @@ namespace Iris {
 		void Init();
 		void Shutdown();
 
-		void BeginScene(const glm::mat4& viewProj, const glm::mat4& view, bool depthTest = true);
+		void BeginScene(const glm::mat4& viewProj, const glm::mat4& view);
 		void EndScene(bool prepareForRendering = false);
 
 		void SetTargetFramebuffer(Ref<Framebuffer> framebuffer);
@@ -171,7 +171,6 @@ namespace Iris {
 
 		glm::mat4 m_CameraViewProj;
 		glm::mat4 m_CameraView;
-		bool m_DepthTest = true;
 
 		float m_LineWidth = 2.0f;
 
