@@ -1,9 +1,36 @@
 Assets:
+  - Handle: 167085463644803830
+    FilePath: Meshes/LowPolySponza/5061699253647017043.png
+    Type: Texture
   - Handle: 342484570667800992
     FilePath: Meshes/Default/Cone.Ismesh
     Type: StaticMesh
+  - Handle: 447747407154374391
+    FilePath: Meshes/LowPolySponza/6667038893015345571.jpg
+    Type: Texture
+  - Handle: 688171819269982210
+    FilePath: Meshes/LowPolySponza/17556969131407844942.jpg
+    Type: Texture
+  - Handle: 772782506611890279
+    FilePath: Meshes/LowPolySponza/2969916736137545357.jpg
+    Type: Texture
+  - Handle: 813646528574874411
+    FilePath: Meshes/LowPolySponza/7268504077753552595.jpg
+    Type: Texture
+  - Handle: 1004083127057183663
+    FilePath: Meshes/LowPolySponza/3455394979645218238.jpg
+    Type: Texture
+  - Handle: 1125107410041696214
+    FilePath: Meshes/LowPolySponza/332936164838540657.jpg
+    Type: Texture
+  - Handle: 1154596752267064862
+    FilePath: Meshes/LowPolySponza/759203620573749278.jpg
+    Type: Texture
   - Handle: 1201183239045361707
     FilePath: Textures/output.jpg
+    Type: Texture
+  - Handle: 1292639928559906373
+    FilePath: Meshes/LowPolySponza/9288698199695299068.jpg
     Type: Texture
   - Handle: 1605926159532914677
     FilePath: Meshes/football.glb
@@ -11,17 +38,56 @@ Assets:
   - Handle: 1664901113170334642
     FilePath: Meshes/Galio/textures/Galio_Mat_baseColor.png
     Type: Texture
+  - Handle: 1717806874258157729
+    FilePath: Meshes/LowPolySponza/16275776544635328252.png
+    Type: Texture
+  - Handle: 1826124855224857516
+    FilePath: Meshes/LowPolySponza/12501374198249454378.jpg
+    Type: Texture
+  - Handle: 1915884720197252136
+    FilePath: Meshes/LowPolySponza/10388182081421875623.jpg
+    Type: Texture
+  - Handle: 1933339498514422201
+    FilePath: Meshes/LowPolySponza/15295713303328085182.jpg
+    Type: Texture
+  - Handle: 2148552209505028990
+    FilePath: Meshes/LowPolySponza/8114461559286000061.jpg
+    Type: Texture
   - Handle: 2732277024539045285
     FilePath: Meshes/Default/Plane.Ismesh
     Type: StaticMesh
+  - Handle: 2996722834544417821
+    FilePath: Meshes/LowPolySponza/4675343432951571524.jpg
+    Type: Texture
   - Handle: 3157465373486071481
     FilePath: Meshes/Jhin/textures/base_mat_baseColor.png
+    Type: Texture
+  - Handle: 3654689400500837972
+    FilePath: Meshes/LowPolySponza/17876391417123941155.jpg
     Type: Texture
   - Handle: 3672382589150585071
     FilePath: Meshes/Evelynn/scene.gltf
     Type: MeshSource
+  - Handle: 3710849897997395590
+    FilePath: Meshes/LowPolySponza/2051777328469649772.jpg
+    Type: Texture
+  - Handle: 3940274146037626887
+    FilePath: Meshes/LowPolySponza/13196865903111448057.jpg
+    Type: Texture
+  - Handle: 4166739070440988600
+    FilePath: Meshes/LowPolySponza/14267839433702832875.jpg
+    Type: Texture
   - Handle: 4179027730210378084
     FilePath: Textures/sara.jpg
+    Type: Texture
+  - Handle: 4680852554536855250
+    FilePath: Meshes/LowPolySponza/3827035219084910048.jpg
+    Type: Texture
+  - Handle: 5003918072871864288
+    FilePath: Meshes/LowPolySponza/2185409758123873465.jpg
+    Type: Texture
+  - Handle: 5122936489871140821
+    FilePath: Meshes/LowPolySponza/5823059166183034438.jpg
     Type: Texture
   - Handle: 5433480370181260501
     FilePath: Textures/Hadi.jpg
@@ -29,30 +95,129 @@ Assets:
   - Handle: 5599009649531054923
     FilePath: Meshes/Evelynn/textures/DefaultMaterial_baseColor.jpeg
     Type: Texture
+  - Handle: 6439264742179415899
+    FilePath: Meshes/LowPolySponza/4871783166746854860.jpg
+    Type: Texture
+  - Handle: 6462026432718398838
+    FilePath: Meshes/LowPolySponza/white.png
+    Type: Texture
+  - Handle: 6543044600572362908
+    FilePath: Meshes/LowPolySponza/8747919177698443163.jpg
+    Type: Texture
+  - Handle: 6614232650599439220
+    FilePath: Meshes/LowPolySponza/8481240838833932244.jpg
+    Type: Texture
   - Handle: 6635010935587349841
     FilePath: Meshes/Default/Source/Plane.gltf
     Type: MeshSource
+  - Handle: 6891289486316599420
+    FilePath: Meshes/LowPolySponza/7815564343179553343.jpg
+    Type: Texture
+  - Handle: 7069206364899171493
+    FilePath: Meshes/LowPolySponza/15722799267630235092.jpg
+    Type: Texture
+  - Handle: 7088163104103516360
+    FilePath: Meshes/LowPolySponza/2299742237651021498.jpg
+    Type: Texture
+  - Handle: 7459097309434600429
+    FilePath: Meshes/LowPolySponza/6047387724914829168.jpg
+    Type: Texture
+  - Handle: 7576152064026614879
+    FilePath: Meshes/LowPolySponza/11968150294050148237.jpg
+    Type: Texture
+  - Handle: 7722858925363812736
+    FilePath: Meshes/LowPolySponza/3628158980083700836.jpg
+    Type: Texture
+  - Handle: 7753955177452529007
+    FilePath: Meshes/LowPolySponza/4601176305987539675.jpg
+    Type: Texture
+  - Handle: 8191843487888922107
+    FilePath: Meshes/LowPolySponza/4910669866631290573.jpg
+    Type: Texture
+  - Handle: 8306874852910074311
+    FilePath: Meshes/LowPolySponza/5792855332885324923.jpg
+    Type: Texture
+  - Handle: 8356286198642734227
+    FilePath: Meshes/LowPolySponza/6593109234861095314.jpg
+    Type: Texture
   - Handle: 8499499654652707041
     FilePath: Meshes/Default/Source/Cube.gltf
     Type: MeshSource
   - Handle: 8602806748587412089
     FilePath: Textures/qiyana.png
     Type: Texture
+  - Handle: 8785672408660764747
+    FilePath: Meshes/LowPolySponza/11474523244911310074.jpg
+    Type: Texture
   - Handle: 8800642274478896328
     FilePath: Textures/cap.jpg
+    Type: Texture
+  - Handle: 8953378177400249397
+    FilePath: Meshes/LowPolySponza/14170708867020035030.jpg
+    Type: Texture
+  - Handle: 8980841913569508585
+    FilePath: Meshes/LowPolySponza/8773302468495022225.jpg
+    Type: Texture
+  - Handle: 8995406122497898274
+    FilePath: Meshes/LowPolySponza/11872827283454512094.jpg
+    Type: Texture
+  - Handle: 9477776448957584059
+    FilePath: Meshes/LowPolySponza/4477655471536070370.jpg
     Type: Texture
   - Handle: 9521122861929777337
     FilePath: Meshes/Illaio/scene.gltf
     Type: MeshSource
+  - Handle: 9891509226969151992
+    FilePath: Meshes/LowPolySponza/2374361008830720677.jpg
+    Type: Texture
+  - Handle: 10458728352753821727
+    FilePath: Meshes/LowPolySponza/8783994986360286082.jpg
+    Type: Texture
+  - Handle: 10523551605547087683
+    FilePath: Meshes/LowPolySponza/8503262930880235456.jpg
+    Type: Texture
+  - Handle: 10871116200707608900
+    FilePath: Meshes/LowPolySponza/3371964815757888145.jpg
+    Type: Texture
+  - Handle: 11008370699087193783
+    FilePath: Meshes/LowPolySponza/2775690330959970771.jpg
+    Type: Texture
   - Handle: 11068582820902967403
     FilePath: Meshes/Illaio/textures/base_mat_baseColor.png
+    Type: Texture
+  - Handle: 11079752218480321585
+    FilePath: Meshes/LowPolySponza/13824894030729245199.jpg
+    Type: Texture
+  - Handle: 11354832327799582001
+    FilePath: Meshes/LowPolySponza/8006627369776289000.png
     Type: Texture
   - Handle: 11387665200471896179
     FilePath: Meshes/stormtrooper/stormtrooper.gltf
     Type: MeshSource
+  - Handle: 11579347592044811175
+    FilePath: Meshes/LowPolySponza/4975155472559461469.jpg
+    Type: Texture
+  - Handle: 12062500036675514477
+    FilePath: Meshes/LowPolySponza/7441062115984513793.jpg
+    Type: Texture
+  - Handle: 12237675157703731561
+    FilePath: Meshes/LowPolySponza/16885566240357350108.jpg
+    Type: Texture
+  - Handle: 12439773889847316040
+    FilePath: Meshes/LowPolySponza/1219024358953944284.jpg
+    Type: Texture
+  - Handle: 12658435369977053664
+    FilePath: Meshes/LowPolySponza/755318871556304029.jpg
+    Type: Texture
   - Handle: 13164229695691519330
     FilePath: Meshes/Default/Cube.Ismesh
     Type: StaticMesh
+  - Handle: 13185725162571231150
+    FilePath: Meshes/LowPolySponza/715093869573992647.jpg
+    Type: Texture
+  - Handle: 13357592797938815638
+    FilePath: Meshes/LowPolySponza/14650633544276105767.jpg
+    Type: Texture
   - Handle: 13498394338625944309
     FilePath: Meshes/Default/Source/Cone.gltf
     Type: MeshSource
@@ -62,27 +227,72 @@ Assets:
   - Handle: 13686750258206424161
     FilePath: Meshes/Galio/scene.gltf
     Type: MeshSource
+  - Handle: 15031040429962181583
+    FilePath: Meshes/LowPolySponza/7645212358685992005.jpg
+    Type: Texture
   - Handle: 15076150349112954122
     FilePath: Meshes/stormtrooper/Stormtrooper_D.png
+    Type: Texture
+  - Handle: 15148717719636680777
+    FilePath: Meshes/LowPolySponza/6772804448157695701.jpg
     Type: Texture
   - Handle: 15151709436528180103
     FilePath: Meshes/Evelynn/textures/DefaultMaterial_metallicRoughness.png
     Type: Texture
+  - Handle: 15234478160944648528
+    FilePath: Meshes/LowPolySponza/466164707995436622.jpg
+    Type: Texture
+  - Handle: 15493729770200428798
+    FilePath: Meshes/LowPolySponza/Sponza.gltf
+    Type: MeshSource
+  - Handle: 15653375001284254537
+    FilePath: Meshes/LowPolySponza/8750083169368950601.jpg
+    Type: Texture
+  - Handle: 15810676132377391369
+    FilePath: Meshes/LowPolySponza/6151467286084645207.jpg
+    Type: Texture
+  - Handle: 15844988434658076977
+    FilePath: Meshes/LowPolySponza/10381718147657362067.jpg
+    Type: Texture
   - Handle: 15945537429572738622
     FilePath: Meshes/Illaio/textures/Tentacle_Mat_baseColor.png
+    Type: Texture
+  - Handle: 15957812164639027816
+    FilePath: Meshes/LowPolySponza/7056944414013900257.jpg
     Type: Texture
   - Handle: 15983319347866920412
     FilePath: Meshes/Jhin/scene.gltf
     Type: MeshSource
+  - Handle: 16718102206980168666
+    FilePath: Meshes/LowPolySponza/16299174074766089871.jpg
+    Type: Texture
+  - Handle: 16894688211854888310
+    FilePath: Meshes/LowPolySponza/13982482287905699490.jpg
+    Type: Texture
+  - Handle: 16954551515293048064
+    FilePath: Meshes/LowPolySponza/9916269861720640319.jpg
+    Type: Texture
   - Handle: 17190243853805597308
     FilePath: Meshes/Default/Source/Sphere.gltf
     Type: MeshSource
   - Handle: 17444303624668688037
     FilePath: Meshes/Evelynn/textures/DefaultMaterial_normal.png
     Type: Texture
+  - Handle: 17762338661310433355
+    FilePath: Meshes/LowPolySponza/2411100444841994089.jpg
+    Type: Texture
+  - Handle: 17992829813532184049
+    FilePath: Meshes/LowPolySponza/11490520546946913238.jpg
+    Type: Texture
   - Handle: 18007974031415154891
     FilePath: Meshes/BloomText.glb
     Type: MeshSource
+  - Handle: 18066664370371676248
+    FilePath: Meshes/LowPolySponza/8051790464816141987.jpg
+    Type: Texture
+  - Handle: 18226836531349695761
+    FilePath: Meshes/LowPolySponza/14118779221266351425.jpg
+    Type: Texture
   - Handle: 18398963716275400970
     FilePath: Meshes/Default/Sphere.Ismesh
     Type: StaticMesh
