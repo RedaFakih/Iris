@@ -68,7 +68,8 @@ namespace Iris {
 	static RendererData* s_Data = nullptr;
 	
 	// We create 3 which is corresponding with the max number of frames in flight we might run... (3)
-	static RenderCommandQueue s_RendererResourceFreeQueue[3];
+	constexpr uint32_t c_ResourceFreeQueueCount = 3;
+	static RenderCommandQueue s_RendererResourceFreeQueue[c_ResourceFreeQueueCount];
 
 	void Renderer::Init()
 	{

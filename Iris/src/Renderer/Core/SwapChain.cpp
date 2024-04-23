@@ -563,10 +563,7 @@ namespace Iris {
 				VK_CHECK_RESULT(result);
 			}
 		}
-	}
 
-	uint32_t SwapChain::AcquireNextImage()
-	{
 		m_CurrentFrameIndex = (m_CurrentFrameIndex + 1) % Renderer::GetConfig().FramesInFlight;
 
 		{
@@ -576,7 +573,10 @@ namespace Iris {
 			// again.
 			VK_CHECK_RESULT(vkWaitForFences(m_Device->GetVulkanDevice(), 1, &m_WaitFences[m_CurrentFrameIndex], VK_TRUE, UINT64_MAX));
 		}
+	}
 
+	uint32_t SwapChain::AcquireNextImage()
+	{
 		uint32_t imageIndex; // This index will be used to pick the framebuffer we render too (and command buffer we submit commands to).
 		// NOTE: If for some reason we fail to acquire the next image according to some problem that is stated by the spec we invalidate
 		// the swapchain and try again!

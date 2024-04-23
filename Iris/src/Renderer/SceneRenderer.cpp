@@ -453,11 +453,11 @@ namespace Iris {
 			// NOTE: We are able to not resize the grid pass since it references the Compositing framebuffer whic is resized manually
 			// m_GridPass->GetTargetFramebuffer()->Resize(m_ViewportWidth, m_ViewportHeight);
 			
-			if (m_JumpFloodCompositePass)
-				m_JumpFloodCompositePass->GetTargetFramebuffer()->Resize(m_ViewportWidth, m_ViewportHeight);
-
 			for (auto& jumpFloodFB : m_JumpFloodFramebuffers)
 				jumpFloodFB->Resize(m_ViewportWidth, m_ViewportHeight);
+
+			if (m_JumpFloodCompositePass)
+				m_JumpFloodCompositePass->GetTargetFramebuffer()->Resize(m_ViewportWidth, m_ViewportHeight);
 
 			m_CompositingFramebuffer->Resize(m_ViewportWidth, m_ViewportHeight);
 		}
