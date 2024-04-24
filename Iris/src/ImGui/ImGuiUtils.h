@@ -854,6 +854,7 @@ namespace Iris::UI {
 			ImGui::GetStyle().ButtonTextAlign = { 0.0f, 0.5f };
 			float width = ImGui::GetContentRegionAvail().x - settings.WidthOffset;
 			constexpr float itemHeight = 28.0f;
+			UI::PushID();
 
 			auto [valid, buttonText] = AssetValidityAndName(outHandle, settings);
 
@@ -891,6 +892,7 @@ namespace Iris::UI {
 				s_PropertyAssetReferenceAssetHandle = outHandle;
 			}
 		}
+		UI::PopID();
 
 		// Implement drag/drop from other places
 		if (!IsItemDisabled())

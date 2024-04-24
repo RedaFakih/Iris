@@ -1426,7 +1426,7 @@ namespace Iris {
 					for (auto& entityID : entities)
 					{
 						Entity entity = m_Context->GetEntityWithUUID(entityID);
-						entity.GetComponent<StaticMeshComponent>().StaticMesh = meshComp.StaticMesh;
+						entity.GetComponent<StaticMeshComponent>().StaticMesh = meshHandle;
 					}
 				}
 				ImGui::PopItemFlag();

@@ -9,14 +9,13 @@
  * NEXT THING TO WORK ON:
  * - Runtime crashes on exit in Multithreaded mode
  * - Renderer2D quads are not rendering/flickering for some reason
- * - Bug in adding a mesh to the static mesh component popup (It is added for one frame and then deleted)
  * - Add Mesh panel that prompts the user to create the Iris Mesh file if they load a MeshSource
  * - If Mouse is pressed and moved in any other panel, the move mouse event is dispatched and then when we click in the viewport it is used which makes the flicker thing
- * - Swith the asset thread to sleep and wake based on a condition variable
+ * - Switch the asset thread to sleep and wake based on a condition variable
  * - Add compute passes to the engine so we can have environment maps and some IBL
  * - Add Filled Circles to Renderer2D? (Circle sprites)
  * - SceneRenderer continue building all the passes
- * - Maybe make the outline color user set?
+ * - Maybe make the outline color user set in global application settings?
  * - Handle renderer descriptor pool situation and come up with some solutions for it... Read note written in Renderer.cpp (line: 101)
  * - For runtime layer switch to using a main camera component and not the editor camera
  * - Add pipeline for double sided materials where you just disable culling... but it has its own drawlist

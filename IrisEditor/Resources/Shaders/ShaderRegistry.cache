@@ -1,0 +1,103 @@
+ShaderRegistry:
+  - Filepath: Resources/Shaders/Src/Compositing.glsl
+    Stages:
+      - Stage: Vertex
+        Hash: 384166942
+      - Stage: Fragment
+        Hash: 3305137171
+  - Filepath: Resources/Shaders/Src/Grid.glsl
+    Stages:
+      - Stage: Vertex
+        Hash: 1192762602
+      - Stage: Fragment
+        Hash: 1081382168
+  - Filepath: Resources/Shaders/Src/Grid2.glsl
+    Stages:
+      - Stage: Vertex
+        Hash: 2510768425
+      - Stage: Fragment
+        Hash: 63788692
+  - Filepath: Resources/Shaders/Src/IrisPBRStatic.glsl
+    Stages:
+      - Stage: Vertex
+        Hash: 2759639136
+      - Stage: Fragment
+        Hash: 3430771714
+  - Filepath: Resources/Shaders/Src/JumpFloodComposite.glsl
+    Stages:
+      - Stage: Vertex
+        Hash: 1496087526
+      - Stage: Fragment
+        Hash: 2787148933
+  - Filepath: Resources/Shaders/Src/JumpFloodInit.glsl
+    Stages:
+      - Stage: Vertex
+        Hash: 1496087526
+      - Stage: Fragment
+        Hash: 3374137404
+  - Filepath: Resources/Shaders/Src/JumpFloodPass.glsl
+    Stages:
+      - Stage: Vertex
+        Hash: 4269110465
+      - Stage: Fragment
+        Hash: 2417879620
+  - Filepath: Resources/Shaders/Src/PlaygroundStatic.glsl
+    Stages:
+      - Stage: Vertex
+        Hash: 2759639136
+      - Stage: Fragment
+        Hash: 3430771714
+  - Filepath: Resources/Shaders/Src/PlaygroundStatic1.glsl
+    Stages:
+      - Stage: Vertex
+        Hash: 1868194652
+      - Stage: Fragment
+        Hash: 3595892706
+  - Filepath: Resources/Shaders/Src/PreDepth.glsl
+    Stages:
+      - Stage: Vertex
+        Hash: 4107275365
+      - Stage: Fragment
+        Hash: 610503774
+  - Filepath: Resources/Shaders/Src/RayCastedGrid.glsl
+    Stages:
+      - Stage: Vertex
+        Hash: 694328716
+      - Stage: Fragment
+        Hash: 2294829712
+  - Filepath: Resources/Shaders/Src/Renderer2D_Line.glsl
+    Stages:
+      - Stage: Vertex
+        Hash: 3135395688
+      - Stage: Fragment
+        Hash: 4149287776
+  - Filepath: Resources/Shaders/Src/Renderer2D_Quad.glsl
+    Stages:
+      - Stage: Vertex
+        Hash: 2004115437
+      - Stage: Fragment
+        Hash: 976952416
+  - Filepath: Resources/Shaders/Src/SelectedGeometry.glsl
+    Stages:
+      - Stage: Vertex
+        Hash: 1503195096
+      - Stage: Fragment
+        Hash: 439562219
+  - Filepath: Resources/Shaders/Src/SimpleShader.glsl
+    Stages:
+      - Stage: Vertex
+        Hash: 3463907876
+      - Stage: Fragment
+        Hash: 669469368
+  - Filepath: Resources/Shaders/Src/TexturePass.glsl
+    Stages:
+      - Stage: Vertex
+        Hash: 2035607875
+      - Stage: Fragment
+        Hash: 1657808289
+  - Filepath: Resources/Shaders/Src/WireFrame.glsl
+    Stages:
+      - Stage: Vertex
+        Hash: 1503195096
+      - Stage: Fragment
+        Hash: 2355761050

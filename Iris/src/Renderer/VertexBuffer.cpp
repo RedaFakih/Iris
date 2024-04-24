@@ -110,7 +110,7 @@ namespace Iris {
 	void VertexBuffer::SetData(const void* data, uint32_t size, uint32_t offset)
 	{
 		IR_ASSERT(size <= m_LocalData.Size);
-		std::memcpy(m_LocalData.Data, data, size); // Copy all data here and then in the other function we account for the offset
+		std::memcpy(m_LocalData.Data, reinterpret_cast<const uint8_t*>(data) + offset, size);
 		Ref<VertexBuffer> instance = this;
 		Renderer::Submit([instance, size, offset]() mutable
 		{
