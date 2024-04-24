@@ -56,54 +56,57 @@ namespace Iris {
 		}
 		style.Colors[ImGuiCol_WindowBg] = ImVec4(0.15f, 0.15f, 0.15f, style.Colors[ImGuiCol_WindowBg].w);
 
-		Application& app = Application::Get();
-		GLFWwindow* window = app.GetWindow().GetNativeWindow();
-		VkDevice device = RendererContext::GetCurrentDevice()->GetVulkanDevice();
-
-		// This descriptor pool serves the purpose which is mainly allocating descriptor sets for the font textures of ImGui because other image descriptors
-		// will be handled by the Renderer's descriptor pool
-		// Create Descriptor Pool (vkGuide)
-		VkDescriptorPoolSize poolSizes[] =
+		Renderer::Submit([]()
 		{
-			{ VK_DESCRIPTOR_TYPE_SAMPLER, 100 },
-			{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 100 },
-			{ VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 100 },
-			{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 100 },
-			{ VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 100 }
-		};
+			Application& app = Application::Get();
+			GLFWwindow* window = app.GetWindow().GetNativeWindow();
+			VkDevice device = RendererContext::GetCurrentDevice()->GetVulkanDevice();
 
-		VkDescriptorPoolCreateInfo descPoolCI = {
-			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
-			.maxSets = 100 * IM_ARRAYSIZE(poolSizes),
-			.poolSizeCount = static_cast<uint32_t>(IM_ARRAYSIZE(poolSizes)),
-			.pPoolSizes = poolSizes
-		};
-		VK_CHECK_RESULT(vkCreateDescriptorPool(device, &descPoolCI, nullptr, &s_ImGuiDescriptorPool));
+			// This descriptor pool serves the purpose which is mainly allocating descriptor sets for the font textures of ImGui because other image descriptors
+			// will be handled by the Renderer's descriptor pool
+			// Create Descriptor Pool (vkGuide)
+			VkDescriptorPoolSize poolSizes[] =
+			{
+				{ VK_DESCRIPTOR_TYPE_SAMPLER, 100 },
+				{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 100 },
+				{ VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 100 },
+				{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 100 },
+				{ VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 100 }
+			};
 
-		ImGui_ImplGlfw_InitForVulkan(window, true);
-		ImGui_ImplVulkan_InitInfo initInfo = {
-			.Instance = RendererContext::GetInstance(),
-			.PhysicalDevice = RendererContext::GetCurrentDevice()->GetPhysicalDevice()->GetVulkanPhysicalDevice(),
-			.Device = device,
-			.QueueFamily = static_cast<uint32_t>(RendererContext::GetCurrentDevice()->GetPhysicalDevice()->GetQueueFamilyIndices().Graphics),
-			.Queue = RendererContext::GetCurrentDevice()->GetGraphicsQueue(),
-			.PipelineCache = VK_NULL_HANDLE,
-			.DescriptorPool = s_ImGuiDescriptorPool,
-			.MinImageCount = Renderer::GetConfig().FramesInFlight,
-			.ImageCount = app.GetWindow().GetSwapChain().GetImageCount(),
-			.Allocator = nullptr,
-			.CheckVkResultFn = Utils::VulkanCheckResult
-		};
-		ImGui_ImplVulkan_Init(&initInfo, app.GetWindow().GetSwapChain().GetRenderPass());
+			VkDescriptorPoolCreateInfo descPoolCI = {
+				.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
+				.maxSets = 100 * IM_ARRAYSIZE(poolSizes),
+				.poolSizeCount = static_cast<uint32_t>(IM_ARRAYSIZE(poolSizes)),
+				.pPoolSizes = poolSizes
+			};
+			VK_CHECK_RESULT(vkCreateDescriptorPool(device, &descPoolCI, nullptr, &s_ImGuiDescriptorPool));
 
-		// Upload fonts
-		{
-			VkCommandBuffer commandBuffer = RendererContext::GetCurrentDevice()->GetCommandBuffer(true);
-			ImGui_ImplVulkan_CreateFontsTexture(commandBuffer);
-			RendererContext::GetCurrentDevice()->FlushCommandBuffer(commandBuffer);
+			ImGui_ImplGlfw_InitForVulkan(window, true);
+			ImGui_ImplVulkan_InitInfo initInfo = {
+				.Instance = RendererContext::GetInstance(),
+				.PhysicalDevice = RendererContext::GetCurrentDevice()->GetPhysicalDevice()->GetVulkanPhysicalDevice(),
+				.Device = device,
+				.QueueFamily = static_cast<uint32_t>(RendererContext::GetCurrentDevice()->GetPhysicalDevice()->GetQueueFamilyIndices().Graphics),
+				.Queue = RendererContext::GetCurrentDevice()->GetGraphicsQueue(),
+				.PipelineCache = VK_NULL_HANDLE,
+				.DescriptorPool = s_ImGuiDescriptorPool,
+				.MinImageCount = Renderer::GetConfig().FramesInFlight,
+				.ImageCount = app.GetWindow().GetSwapChain().GetImageCount(),
+				.Allocator = nullptr,
+				.CheckVkResultFn = Utils::VulkanCheckResult
+			};
+			ImGui_ImplVulkan_Init(&initInfo, app.GetWindow().GetSwapChain().GetRenderPass());
 
-			ImGui_ImplVulkan_DestroyFontUploadObjects();
-		}
+			// Upload fonts
+			{
+				VkCommandBuffer commandBuffer = RendererContext::GetCurrentDevice()->GetCommandBuffer(true);
+				ImGui_ImplVulkan_CreateFontsTexture(commandBuffer);
+				RendererContext::GetCurrentDevice()->FlushCommandBuffer(commandBuffer);
+
+				ImGui_ImplVulkan_DestroyFontUploadObjects();
+			}
+		});
     }
 
     void ImGuiLayer::OnDetach()
@@ -115,10 +118,13 @@ namespace Iris {
 			vkDestroyDescriptorPool(device, descriptorPool, nullptr);
 		});
 
-        VK_CHECK_RESULT(vkDeviceWaitIdle(device));
-        ImGui_ImplVulkan_Shutdown();
-        ImGui_ImplGlfw_Shutdown();
-        ImGui::DestroyContext();
+		Renderer::Submit([device]()
+		{
+			VK_CHECK_RESULT(vkDeviceWaitIdle(device));
+			ImGui_ImplVulkan_Shutdown();
+			ImGui_ImplGlfw_Shutdown();
+			ImGui::DestroyContext();
+		});
     }
 
 	void ImGuiLayer::Begin()

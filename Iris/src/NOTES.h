@@ -7,8 +7,9 @@
  * NEXT STEP ON TUTORIAL: Compute Shaders
  *
  * NEXT THING TO WORK ON:
- * - Fix cleanup synchronization
- * - Build RenderThread interface and debug why the Renderer::Submit is not properly working with resource freeing and also rendering
+ * - Runtime crashes on exit in Multithreaded mode
+ * - Renderer2D quads are not rendering/flickering for some reason
+ * - Bug in adding a mesh to the static mesh component popup (It is added for one frame and then deleted)
  * - Add Mesh panel that prompts the user to create the Iris Mesh file if they load a MeshSource
  * - If Mouse is pressed and moved in any other panel, the move mouse event is dispatched and then when we click in the viewport it is used which makes the flicker thing
  * - Swith the asset thread to sleep and wake based on a condition variable

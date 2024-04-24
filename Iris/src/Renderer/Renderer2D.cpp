@@ -202,7 +202,11 @@ namespace Iris {
 		m_CameraViewProj = viewProj;
 		m_CameraView = view;
 
-		m_UBSCamera->Get()->SetData(&viewProj, sizeof(UBCamera));
+		Ref<Renderer2D> instance = this;
+		Renderer::Submit([instance, &viewProj]() mutable
+		{
+			instance->m_UBSCamera->RT_Get()->RT_SetData(&viewProj, sizeof(UBCamera));
+		});
 
 		// IR_CORE_TRACE_TAG("Renderer", "Renderer2D::BeginScene frame {}", frameIndex);
 
@@ -287,31 +291,35 @@ namespace Iris {
 
 	void Renderer2D::PrepareImagesForRendering()
 	{
-		// For rendering the color image
-		Renderer::InsertImageMemoryBarrier(
-			m_RenderCommandBuffer->GetActiveCommandBuffer(),
-			m_LinePass->GetOutput(0)->GetVulkanImage(),
-			VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
-			VK_ACCESS_SHADER_READ_BIT,
-			VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-			VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-			VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-			VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-			{ .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = 1 }
-		);
+		Ref<Renderer2D> instance = this;
+		Renderer::Submit([instance]() mutable
+		{
+			// For rendering the color image
+			Renderer::InsertImageMemoryBarrier(
+				instance->m_RenderCommandBuffer->GetActiveCommandBuffer(),
+				instance->m_LinePass->GetOutput(0)->GetVulkanImage(),
+				VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+				VK_ACCESS_SHADER_READ_BIT,
+				VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+				VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+				VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+				VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+				{ .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = 1 }
+			);
 
-		// For rendering the depth image
-		Renderer::InsertImageMemoryBarrier(
-			m_RenderCommandBuffer->GetActiveCommandBuffer(),
-			m_LinePass->GetDepthOutput()->GetVulkanImage(),
-			VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
-			VK_ACCESS_SHADER_READ_BIT,
-			VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-			VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL,
-			VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT,
-			VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-			{ .aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = 1 }
-		);
+			// For rendering the depth image
+			Renderer::InsertImageMemoryBarrier(
+				instance->m_RenderCommandBuffer->GetActiveCommandBuffer(),
+				instance->m_LinePass->GetDepthOutput()->GetVulkanImage(),
+				VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+				VK_ACCESS_SHADER_READ_BIT,
+				VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+				VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL,
+				VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT,
+				VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+				{ .aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = 1 }
+			);
+		});
 	}
 
 	void Renderer2D::SetTargetFramebuffer(Ref<Framebuffer> framebuffer)

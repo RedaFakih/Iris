@@ -20,12 +20,15 @@ namespace Iris {
 	EditorAssetThread::EditorAssetThread()
 		: m_Thread("Asset Thread")
 	{
+		s_AssetThreadID = m_Thread.GetID();
+
 		m_Thread.Dispatch([this]() {AssetThreadFunc(); });
 	}
 
 	EditorAssetThread::~EditorAssetThread()
 	{
 		StopAndWait();
+		s_AssetThreadID = std::thread::id();
 	}
 
 	void EditorAssetThread::QueueAssetLoad(const AssetLoadRequest& request)
@@ -100,6 +103,7 @@ namespace Iris {
 
 					IR_CORE_WARN_TAG("AssetManager", "[AssetThread]: Loading asset: {}", alr.MetaData.FilePath.string());
 
+					// TODO: Here we still can not load textures since it may clash with the other thread submitting to the same queue
 					bool success = AssetImporter::TryLoadData(alr.MetaData, alr.Asset);
 					if (success)
 					{

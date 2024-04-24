@@ -1,12 +1,13 @@
 #pragma once
 
 #include "Core/Base.h"
+#include "Core/Buffer.h"
 #include "Renderer/Core/VulkanAllocator.h"
 
 #include <vulkan/vulkan.h>
 
-#include <string>
 #include <initializer_list>
+#include <string>
 #include <vector>
 
 namespace Iris {
@@ -132,7 +133,7 @@ namespace Iris {
 	{
 	public:
 		// Create a buffer in DEVICE_LOCAL memory
-		VertexBuffer(void* data, uint32_t size, VertexBufferUsage usage = VertexBufferUsage::Static);
+		VertexBuffer(const void* data, uint32_t size, VertexBufferUsage usage = VertexBufferUsage::Static);
 		// Create a buffer in HOST_VISIBLE memory, usualy prefer to use the one on top
 		VertexBuffer(uint32_t size, VertexBufferUsage usage = VertexBufferUsage::Dynamic);
 		~VertexBuffer();
@@ -142,12 +143,14 @@ namespace Iris {
 
 		// NOTE: Does not work if you created the buffer without giving it data directly
 		void SetData(const void* data, uint32_t size, uint32_t offset = 0);
+		void RT_SetData(const void* data, uint32_t size, uint32_t offset = 0);
 
 		uint32_t GetSize() const { return m_Size; }
 		VkBuffer GetVulkanBuffer() const { return m_VulkanBuffer; }
 
 	private:
 		uint32_t m_Size = 0;
+		Buffer m_LocalData;
 
 		VkBuffer m_VulkanBuffer = nullptr;
 		VmaAllocation m_MemoryAllocation = nullptr;

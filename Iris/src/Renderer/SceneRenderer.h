@@ -267,6 +267,7 @@ namespace Iris {
 		bool m_NeedsResize = false;
 		bool m_Active = false;
 		bool m_ResourcesCreated = false;
+		bool m_ResourcesCreatedGPU = false;
 
 		float m_LineWidth = 2.0f;
 		float m_Opacity = 1.0f;

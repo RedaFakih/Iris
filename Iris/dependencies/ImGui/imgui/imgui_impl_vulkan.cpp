@@ -1036,7 +1036,7 @@ ImTextureID ImGui_ImplVulkan_AddTexture(VkSampler sampler, VkImageView image_vie
     alloc_info.pSetLayouts = &bd->DescriptorSetLayout;
 
     // Update the Descriptor Set:
-    VkDescriptorSet descriptor_set = Iris::Renderer::AllocateDescriptorSet(alloc_info);
+    VkDescriptorSet descriptor_set = Iris::Renderer::RT_AllocateDescriptorSet(alloc_info);
     ImGui_ImplVulkan_UpdateTextureInfo(descriptor_set, sampler, image_view, image_layout);
 
     return (ImTextureID)descriptor_set;

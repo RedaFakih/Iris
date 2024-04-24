@@ -8,6 +8,8 @@ namespace Iris {
 	UniformBuffer::UniformBuffer(size_t size)
 		: m_Size(size)
 	{
+		m_LocalData.Allocate(size);
+
 		VkBufferCreateInfo bufferInfo = {
 			.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
 			.pNext = nullptr,
@@ -30,6 +32,10 @@ namespace Iris {
 			VulkanAllocator allocator("UniformBuffer");
 			allocator.DestroyBuffer(alloc, buffer);
 		});
+
+		m_LocalData.Release();
+		m_MemoryAllocation = nullptr;
+		m_VulkanBuffer = nullptr;
 	}
 
 	Ref<UniformBuffer> UniformBuffer::Create(size_t size)
@@ -38,6 +44,16 @@ namespace Iris {
 	}
 
 	void UniformBuffer::SetData(const void* data, size_t size, size_t offset)
+	{
+		std::memcpy(m_LocalData.Data, data, size); // Copy all the data here and then in the other function account for the offset
+		Ref<UniformBuffer> instance = this;
+		Renderer::Submit([instance, size, offset]() mutable
+		{
+			instance->RT_SetData(instance->m_LocalData.Data, size, offset);
+		});
+	}
+
+	void UniformBuffer::RT_SetData(const void* data, size_t size, size_t offset)
 	{
 		VulkanAllocator allocator("UniformBuffer");
 

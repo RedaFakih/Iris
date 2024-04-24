@@ -67,6 +67,12 @@ namespace Iris {
 	static RendererConfiguration s_RendererConfig;
 	static RendererData* s_Data = nullptr;
 	
+	// Rendering Command Queue
+	constexpr uint32_t c_RenderCommandQueueCount = 2;
+	static RenderCommandQueue* s_CommandQueue[c_RenderCommandQueueCount];
+	static std::atomic<uint32_t> s_RenderCommandQueueSubmissionIndex = 0;
+
+	// Resource Release Queue
 	// We create 3 which is corresponding with the max number of frames in flight we might run... (3)
 	constexpr uint32_t c_ResourceFreeQueueCount = 3;
 	static RenderCommandQueue s_RendererResourceFreeQueue[c_ResourceFreeQueueCount];
@@ -75,6 +81,9 @@ namespace Iris {
 	{
 		s_Data = new RendererData();
 		
+		for (uint32_t i = 0; i < c_RenderCommandQueueCount; i++)
+			s_CommandQueue[i] = new RenderCommandQueue();
+
 		s_RendererConfig.FramesInFlight = glm::min<uint32_t>(s_RendererConfig.FramesInFlight, Application::Get().GetWindow().GetSwapChain().GetImageCount());
 
 		{
@@ -100,41 +109,45 @@ namespace Iris {
 		s_Data->DescriptorPools.resize(s_RendererConfig.FramesInFlight);
 		s_Data->DescriptorPoolAllocationCount.resize(s_RendererConfig.FramesInFlight);
 
-		// Create Descriptor Pool
-		// TODO: What is the situation here? Do we want to keep this? most probably yes since it allocates discriptors for imgui textures and also will allocate descriptors
-		// for stuff like environment maps...
-		// If for environment maps it does not really work then we should create two descriptor pools in the renderer... One that is global that allocates
-		// sets that are persistant across frames and another one that resets at the beginning of every frame kind of like the one we have right now
-		// And in case we switch to the 2 descriptor pool setup mentioned above we might want to just cancel the imgui descriptor pool and use the global renderer pool
-		VkDescriptorPoolSize poolSizes[] =
-		{
-			{ VK_DESCRIPTOR_TYPE_SAMPLER, 1000 },
-			{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000 },
-			{ VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000 },
-			{ VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000 },
-			{ VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1000 },
-			{ VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1000 },
-			{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000 },
-			{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000 },
-			{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000 },
-			{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000 },
-			{ VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000 }
-		};
 
-		VkDescriptorPoolCreateInfo poolInfo = {
-			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
-			.maxSets = 100000,
-			.poolSizeCount = (uint32_t)std::size(poolSizes),
-			.pPoolSizes = poolSizes
-		};
-
-		VkDevice device = RendererContext::GetCurrentDevice()->GetVulkanDevice();
-		uint32_t framesInFlight = Renderer::GetConfig().FramesInFlight;
-		for (uint32_t i = 0; i < framesInFlight; i++)
+		Renderer::Submit([]() mutable
 		{
-			VK_CHECK_RESULT(vkCreateDescriptorPool(device, &poolInfo, nullptr, &s_Data->DescriptorPools[i]));
-			s_Data->DescriptorPoolAllocationCount[i] = 0;
-		}
+			// Create Descriptor Pool
+			// TODO: What is the situation here? Do we want to keep this? most probably yes since it allocates discriptors for imgui textures and also will allocate descriptors
+			// for stuff like environment maps...
+			// If for environment maps it does not really work then we should create two descriptor pools in the renderer... One that is global that allocates
+			// sets that are persistant across frames and another one that resets at the beginning of every frame kind of like the one we have right now
+			// And in case we switch to the 2 descriptor pool setup mentioned above we might want to just cancel the imgui descriptor pool and use the global renderer pool
+			VkDescriptorPoolSize poolSizes[] =
+			{
+				{ VK_DESCRIPTOR_TYPE_SAMPLER, 1000 },
+				{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000 },
+				{ VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000 },
+				{ VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000 },
+				{ VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1000 },
+				{ VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1000 },
+				{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000 },
+				{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000 },
+				{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000 },
+				{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000 },
+				{ VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000 }
+			};
+
+			VkDescriptorPoolCreateInfo poolInfo = {
+				.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
+				.maxSets = 100000,
+				.poolSizeCount = (uint32_t)std::size(poolSizes),
+				.pPoolSizes = poolSizes
+			};
+
+			VkDevice device = RendererContext::GetCurrentDevice()->GetVulkanDevice();
+			uint32_t framesInFlight = Renderer::GetConfig().FramesInFlight;
+			for (uint32_t i = 0; i < framesInFlight; i++)
+			{
+				VK_CHECK_RESULT(vkCreateDescriptorPool(device, &poolInfo, nullptr, &s_Data->DescriptorPools[i]));
+				s_Data->DescriptorPoolAllocationCount[i] = 0;
+			}
+		});
 
 		// Create fullscreen quad
 		struct QuadVertex
@@ -200,6 +213,22 @@ namespace Iris {
 		VkDevice device = RendererContext::GetCurrentDevice()->GetVulkanDevice();
 		vkDeviceWaitIdle(device);
 
+		// Release renderer owned data
+		s_Data->ShaderLibrary.Reset();
+		s_Data->WhiteTexutre.Reset();
+		s_Data->ErrorTexture.Reset();
+		s_Data->BlackTexutre.Reset();
+		s_Data->QuadVertexBuffer.Reset();
+		s_Data->QuadIndexBuffer.Reset();
+
+		// Execute any remaining commands
+		for (uint32_t i = 0; i < c_RenderCommandQueueCount; i++)
+		{
+			RenderCommandQueue& resourceReleaseQueue = GetRenderCommandQueue();
+			resourceReleaseQueue.Execute();
+			SwapQueues();
+		}
+
 		for (VkDescriptorPool descriptorPool : s_Data->DescriptorPools)
 			vkDestroyDescriptorPool(device, descriptorPool, nullptr);
 
@@ -207,15 +236,15 @@ namespace Iris {
 
 		delete s_Data;
 
-		// Clean all resources that were queued for destruction in the last frame
-		for (uint32_t i = 0; i < 3; i++)
+		// Execute any remaining resource freeing that could be done
+		for (uint32_t i = 0; i < c_ResourceFreeQueueCount; i++)
 		{
 			RenderCommandQueue& resourceReleaseQueue = GetRendererResourceReleaseQueue(i);
 			resourceReleaseQueue.Execute();
 		}
 
-		// NOTE: Any more resource freeing will be here...
-		// TODO: Delete Render command queues
+		for (uint32_t i = 0; i < c_RenderCommandQueueCount; i++)
+			delete s_CommandQueue[i];
 	}
 
 	Ref<ShadersLibrary> Renderer::GetShadersLibrary()
@@ -243,19 +272,69 @@ namespace Iris {
 		s_RendererConfig = config;
 	}
 
+	void Renderer::SwapQueues()
+	{
+		s_RenderCommandQueueSubmissionIndex = (s_RenderCommandQueueSubmissionIndex + 1) % c_RenderCommandQueueCount;
+	}
+
+	void Renderer::WaitAndRender(RenderThread* renderThread)
+	{
+		{
+			Timer waitTimer;
+
+			renderThread->WaitAndSet(RenderThreadState::Kick, RenderThreadState::Busy);
+
+			waitTimer.ElapsedMillis();
+		}
+
+		Timer workTimer;
+
+		s_CommandQueue[GetRenderQueueIndex()]->Execute();
+		// Rendering complete, set state back to idle
+		renderThread->Set(RenderThreadState::Idle);
+
+		workTimer.ElapsedMillis();
+	}
+
+	void Renderer::RenderThreadFunc(RenderThread* renderThread)
+	{
+		while (renderThread->IsRunning())
+		{
+			Renderer::WaitAndRender(renderThread);
+		}
+	}
+
+	uint32_t Renderer::GetRenderQueueIndex()
+	{
+		return (s_RenderCommandQueueSubmissionIndex + 1) % c_RenderCommandQueueCount;
+	}
+
+	uint32_t Renderer::GetRenderQueueSubmissionIndex()
+	{
+		return s_RenderCommandQueueSubmissionIndex;
+	}
+
+	uint32_t Renderer::GetMainThreadResourceFreeingQueueIndex()
+	{
+		return (Renderer::GetCurrentFrameIndex() + 1) % c_ResourceFreeQueueCount;
+	}
+
 	void Renderer::BeginFrame()
 	{
-		Ref<VulkanDevice> logicalDevice = RendererContext::GetCurrentDevice();
-		VkDevice device = logicalDevice->GetVulkanDevice();
+		Renderer::Submit([]()
+		{
+			Ref<VulkanDevice> logicalDevice = RendererContext::GetCurrentDevice();
+			VkDevice device = logicalDevice->GetVulkanDevice();
 
-		// Reset the command pools of the temporary and secondary command buffers
-		logicalDevice->GetOrCreateThreadLocalCommandPool()->Reset();
+			// Reset the command pools of the temporary and secondary command buffers
+			logicalDevice->GetOrCreateThreadLocalCommandPool()->Reset();
 
-		uint32_t bufferIndex = Application::Get().GetWindow().GetSwapChain().GetCurrentBufferIndex();
-		vkResetDescriptorPool(device, s_Data->DescriptorPools[bufferIndex], 0);
-		std::memset(s_Data->DescriptorPoolAllocationCount.data(), 0, s_Data->DescriptorPoolAllocationCount.size() * sizeof(uint32_t));
+			uint32_t bufferIndex = Renderer::RT_GetCurrentFrameIndex();
+			vkResetDescriptorPool(device, s_Data->DescriptorPools[bufferIndex], 0);
+			std::memset(s_Data->DescriptorPoolAllocationCount.data(), 0, s_Data->DescriptorPoolAllocationCount.size() * sizeof(uint32_t));
 
-		s_Data->DrawCallCount = 0;
+			s_Data->DrawCallCount = 0;
+		});
 	}
 
 	void Renderer::EndFrame()
@@ -265,197 +344,206 @@ namespace Iris {
 
 	void Renderer::BeginRenderPass(Ref<RenderCommandBuffer> renderCommandBuffer, Ref<RenderPass> renderPass, bool explicitClear)
 	{
-		// IR_CORE_TRACE_TAG("Renderer", "BeginRenderPass - {}", renderPass->GetSpecification().DebugName);
-
-		VkCommandBuffer commandBuffer = renderCommandBuffer->GetActiveCommandBuffer();
-		uint32_t frameIndex = Renderer::GetCurrentFrameIndex();
-
-		VkDebugUtilsLabelEXT debugLabel = {
-			.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT,
-			.pLabelName = renderPass->GetSpecification().DebugName.c_str()
-		};
-		std::memcpy(&debugLabel.color, glm::value_ptr(renderPass->GetSpecification().MarkerColor), 4 * sizeof(float));
-		fpCmdBeginDebugUtilsLabelEXT(commandBuffer, &debugLabel);
-
-		Ref<Framebuffer> framebuffer = renderPass->GetTargetFramebuffer();
-		const FramebufferSpecification& fbSpec = framebuffer->GetSpecification();
-
-		uint32_t width = framebuffer->GetWidth();
-		uint32_t height = framebuffer->GetHeight();
-
-		VkViewport viewport = {
-			.minDepth = 0.0f,
-			.maxDepth = 1.0f
-		};
-
-		VkRenderPassBeginInfo renderPassBeginInfo = {
-			.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
-			.pNext = nullptr
-		};
-		if (fbSpec.SwapchainTarget == true)
+		Renderer::Submit([renderCommandBuffer, renderPass, explicitClear]() mutable
 		{
-			SwapChain& swapChain = Application::Get().GetWindow().GetSwapChain();
-			width = swapChain.GetWidth();
-			height = swapChain.GetHeight();
-			renderPassBeginInfo.renderPass = framebuffer->GetVulkanRenderPass();
-			renderPassBeginInfo.framebuffer = swapChain.GetCurrentFramebuffer();
-			renderPassBeginInfo.renderArea = {
-				.offset = { .x = 0, .y = 0 },
-				.extent = { .width = width, .height = height }
+			// IR_CORE_TRACE_TAG("Renderer", "BeginRenderPass - {}", renderPass->GetSpecification().DebugName);
+
+			VkCommandBuffer commandBuffer = renderCommandBuffer->GetActiveCommandBuffer();
+			uint32_t frameIndex = Renderer::RT_GetCurrentFrameIndex();
+
+			VkDebugUtilsLabelEXT debugLabel = {
+				.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT,
+				.pLabelName = renderPass->GetSpecification().DebugName.c_str()
+			};
+			std::memcpy(&debugLabel.color, glm::value_ptr(renderPass->GetSpecification().MarkerColor), 4 * sizeof(float));
+			fpCmdBeginDebugUtilsLabelEXT(commandBuffer, &debugLabel);
+
+			Ref<Framebuffer> framebuffer = renderPass->GetTargetFramebuffer();
+			const FramebufferSpecification& fbSpec = framebuffer->GetSpecification();
+
+			uint32_t width = framebuffer->GetWidth();
+			uint32_t height = framebuffer->GetHeight();
+
+			VkViewport viewport = {
+				.minDepth = 0.0f,
+				.maxDepth = 1.0f
 			};
 
-			// Here we flip the viewport so that the image to display is not flipped
-			viewport.x = 0.0f;
-			viewport.y = static_cast<float>(height);
-			// viewport.y = 0.0f;
-			viewport.width = static_cast<float>(width);
-			viewport.height = -static_cast<float>(height);
-			// viewport.height = static_cast<float>(height);
-		}
-		else
-		{
-			width = framebuffer->GetWidth();
-			height = framebuffer->GetHeight();
-			renderPassBeginInfo.renderPass = framebuffer->GetVulkanRenderPass();
-			renderPassBeginInfo.framebuffer = framebuffer->GetVulkanFramebuffer();
-			renderPassBeginInfo.renderArea = {
-				.offset = { .x = 0, .y = 0 },
-				.extent = { .width = width, .height = height }
+			VkRenderPassBeginInfo renderPassBeginInfo = {
+				.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
+				.pNext = nullptr
 			};
-
-			viewport.x = 0.0f;
-			viewport.y = 0.0f;
-			viewport.width = static_cast<float>(width);
-			viewport.height = static_cast<float>(height);
-		}
-
-		const std::vector<VkClearValue>& clearValues = framebuffer->GetVulkanClearValues();
-		renderPassBeginInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
-		renderPassBeginInfo.pClearValues = clearValues.data();
-
-		vkCmdBeginRenderPass(commandBuffer, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
-
-		if (explicitClear)
-		{
-			const uint32_t colorAttachmentCount = static_cast<uint32_t>(framebuffer->GetColorAttachmentCount());
-			const uint32_t totalAttachmentCount = colorAttachmentCount + (framebuffer->HasDepthAttachment() ? 1 : 0);
-			IR_ASSERT(clearValues.size() == totalAttachmentCount, "");
-
-			std::vector<VkClearAttachment> attachments(totalAttachmentCount);
-			std::vector<VkClearRect> clearRects(totalAttachmentCount);
-			for (uint32_t i = 0; i < colorAttachmentCount; i++)
+			if (fbSpec.SwapchainTarget == true)
 			{
-				attachments[i] = VkClearAttachment{
-					.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-					.colorAttachment = i,
-					.clearValue = clearValues[i]
+				SwapChain& swapChain = Application::Get().GetWindow().GetSwapChain();
+				width = swapChain.GetWidth();
+				height = swapChain.GetHeight();
+				renderPassBeginInfo.renderPass = framebuffer->GetVulkanRenderPass();
+				renderPassBeginInfo.framebuffer = swapChain.GetCurrentFramebuffer();
+				renderPassBeginInfo.renderArea = {
+					.offset = {.x = 0, .y = 0 },
+					.extent = {.width = width, .height = height }
 				};
 
-				clearRects[i] = VkClearRect{
-					.rect = {
-						.offset = { 0, 0 },
-						.extent = { .width = width, .height = height }
-					},
-					.baseArrayLayer = 0,
-					.layerCount = 1
+				// Here we flip the viewport so that the image to display is not flipped
+				viewport.x = 0.0f;
+				viewport.y = static_cast<float>(height);
+				// viewport.y = 0.0f;
+				viewport.width = static_cast<float>(width);
+				viewport.height = -static_cast<float>(height);
+				// viewport.height = static_cast<float>(height);
+			}
+			else
+			{
+				width = framebuffer->GetWidth();
+				height = framebuffer->GetHeight();
+				renderPassBeginInfo.renderPass = framebuffer->GetVulkanRenderPass();
+				renderPassBeginInfo.framebuffer = framebuffer->GetVulkanFramebuffer();
+				renderPassBeginInfo.renderArea = {
+					.offset = {.x = 0, .y = 0 },
+					.extent = {.width = width, .height = height }
 				};
+
+				viewport.x = 0.0f;
+				viewport.y = 0.0f;
+				viewport.width = static_cast<float>(width);
+				viewport.height = static_cast<float>(height);
 			}
 
-			if (framebuffer->HasDepthAttachment())
-			{
-				attachments[colorAttachmentCount] = VkClearAttachment{
-					// We do not need the stencil aspect since we are not using stencil buffers in our renderer
-					.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT /* | VK_IMAGE_ASPECT_STENCIL_BIT */,
-					.clearValue = clearValues[colorAttachmentCount]
-				};
+			const std::vector<VkClearValue>& clearValues = framebuffer->GetVulkanClearValues();
+			renderPassBeginInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
+			renderPassBeginInfo.pClearValues = clearValues.data();
 
-				clearRects[colorAttachmentCount] = VkClearRect{
-					.rect = {
-						.offset = { 0, 0 },
-						.extent = {.width = width, .height = height }
-					},
-					.baseArrayLayer = 0,
-					.layerCount = 1
-				};
+			vkCmdBeginRenderPass(commandBuffer, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+
+			if (explicitClear)
+			{
+				const uint32_t colorAttachmentCount = static_cast<uint32_t>(framebuffer->GetColorAttachmentCount());
+				const uint32_t totalAttachmentCount = colorAttachmentCount + (framebuffer->HasDepthAttachment() ? 1 : 0);
+				IR_ASSERT(clearValues.size() == totalAttachmentCount, "");
+
+				std::vector<VkClearAttachment> attachments(totalAttachmentCount);
+				std::vector<VkClearRect> clearRects(totalAttachmentCount);
+				for (uint32_t i = 0; i < colorAttachmentCount; i++)
+				{
+					attachments[i] = VkClearAttachment{
+						.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+						.colorAttachment = i,
+						.clearValue = clearValues[i]
+					};
+
+					clearRects[i] = VkClearRect{
+						.rect = {
+							.offset = { 0, 0 },
+							.extent = {.width = width, .height = height }
+						},
+						.baseArrayLayer = 0,
+						.layerCount = 1
+					};
+				}
+
+				if (framebuffer->HasDepthAttachment())
+				{
+					attachments[colorAttachmentCount] = VkClearAttachment{
+						// We do not need the stencil aspect since we are not using stencil buffers in our renderer
+						.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT /* | VK_IMAGE_ASPECT_STENCIL_BIT */,
+						.clearValue = clearValues[colorAttachmentCount]
+					};
+
+					clearRects[colorAttachmentCount] = VkClearRect{
+						.rect = {
+							.offset = { 0, 0 },
+							.extent = {.width = width, .height = height }
+						},
+						.baseArrayLayer = 0,
+						.layerCount = 1
+					};
+				}
+
+				vkCmdClearAttachments(commandBuffer, totalAttachmentCount, attachments.data(), totalAttachmentCount, clearRects.data());
 			}
 
-			vkCmdClearAttachments(commandBuffer, totalAttachmentCount, attachments.data(), totalAttachmentCount, clearRects.data());
-		}
+			// Update dynamic viewport and scissor state
+			vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
 
-		// Update dynamic viewport and scissor state
-		vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
+			VkRect2D scissor = {
+				.offset = { 0, 0 },
+				.extent = {.width = width, .height = height }
+			};
+			vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
-		VkRect2D scissor = {
-			.offset = { 0, 0 },
-			.extent = { .width = width, .height = height }
-		};
-		vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
+			Ref<Pipeline> pipeline = renderPass->GetPipeline();
+			VkPipeline vulkanPipeline = pipeline->GetVulkanPipeline();
+			vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkanPipeline);
 
-		Ref<Pipeline> pipeline = renderPass->GetPipeline();
-		VkPipeline vulkanPipeline = pipeline->GetVulkanPipeline();
-		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vulkanPipeline);
+			if (pipeline->IsDynamicLineWidth())
+				vkCmdSetLineWidth(commandBuffer, pipeline->GetSpecification().LineWidth);
 
-		if (pipeline->IsDynamicLineWidth())
-			vkCmdSetLineWidth(commandBuffer, pipeline->GetSpecification().LineWidth);
+			renderPass->Prepare();
+			if (renderPass->HasDescriptorSets())
+			{
+				const std::vector<VkDescriptorSet>& descriptorSets = renderPass->GetDescriptorSets(frameIndex);
 
-		renderPass->Prepare();
-		if (renderPass->HasDescriptorSets())
-		{
-			const std::vector<VkDescriptorSet>& descriptorSets = renderPass->GetDescriptorSets(frameIndex);
-
-			vkCmdBindDescriptorSets(
-				commandBuffer,
-				VK_PIPELINE_BIND_POINT_GRAPHICS,
-				pipeline->GetVulkanPipelineLayout(),
-				renderPass->GetFirstSetIndex(),
-				static_cast<uint32_t>(descriptorSets.size()),
-				descriptorSets.data(),
-				0, nullptr
-			);
-		}
+				vkCmdBindDescriptorSets(
+					commandBuffer,
+					VK_PIPELINE_BIND_POINT_GRAPHICS,
+					pipeline->GetVulkanPipelineLayout(),
+					renderPass->GetFirstSetIndex(),
+					static_cast<uint32_t>(descriptorSets.size()),
+					descriptorSets.data(),
+					0, nullptr
+				);
+			}
+		});
 	}
 
 	void Renderer::EndRenderPass(Ref<RenderCommandBuffer> renderCommandBuffer)
 	{
-		VkCommandBuffer commandBuffer = renderCommandBuffer->GetActiveCommandBuffer();
+		Renderer::Submit([renderCommandBuffer]()
+		{
+			VkCommandBuffer commandBuffer = renderCommandBuffer->GetActiveCommandBuffer();
 
-		vkCmdEndRenderPass(commandBuffer);
-		fpCmdEndDebugUtilsLabelEXT(commandBuffer);
+			vkCmdEndRenderPass(commandBuffer);
+			fpCmdEndDebugUtilsLabelEXT(commandBuffer);
+		});
 	}
 
 	void Renderer::SubmitFullScreenQuad(Ref<RenderCommandBuffer> renderCommandBuffer, Ref<Pipeline> pipeline, Ref<Material> material)
 	{
-		uint32_t frameIndex = Renderer::GetCurrentFrameIndex();
-		VkCommandBuffer vkCommandBuffer = renderCommandBuffer->GetActiveCommandBuffer();
-
-		VkPipelineLayout layout = pipeline->GetVulkanPipelineLayout();
-
-		VkBuffer vbQuadBuffer = s_Data->QuadVertexBuffer->GetVulkanBuffer();
-		VkDeviceSize offsets[1] = { 0 };
-		vkCmdBindVertexBuffers(vkCommandBuffer, 0, 1, &vbQuadBuffer, offsets);
-
-		VkBuffer ibQuadBuffer = s_Data->QuadIndexBuffer->GetVulkanBuffer();
-		vkCmdBindIndexBuffer(vkCommandBuffer, ibQuadBuffer, 0, VK_INDEX_TYPE_UINT32);
-
-		if (material)
+		Renderer::Submit([renderCommandBuffer, pipeline, material]() mutable
 		{
-			VkDescriptorSet descSet = material->GetDescriptorSet(frameIndex);
-			if (descSet)
-				vkCmdBindDescriptorSets(vkCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, layout, material->GetFirstSetIndex(), 1, &descSet, 0, nullptr);
+			uint32_t frameIndex = Renderer::RT_GetCurrentFrameIndex();
+			VkCommandBuffer vkCommandBuffer = renderCommandBuffer->GetActiveCommandBuffer();
 
-			Buffer uniformStorageBuffer = material->GetUniformStorageBuffer();
-			if (uniformStorageBuffer)
-				vkCmdPushConstants(
-					vkCommandBuffer,
-					layout,
-					VK_SHADER_STAGE_FRAGMENT_BIT,
-					0,
-					static_cast<uint32_t>(uniformStorageBuffer.Size),
-					uniformStorageBuffer.Data);
-		}
+			VkPipelineLayout layout = pipeline->GetVulkanPipelineLayout();
 
-		vkCmdDrawIndexed(vkCommandBuffer, s_Data->QuadIndexBuffer->GetCount(), 1, 0, 0, 0);
-		s_Data->DrawCallCount++;
+			VkBuffer vbQuadBuffer = s_Data->QuadVertexBuffer->GetVulkanBuffer();
+			VkDeviceSize offsets[1] = { 0 };
+			vkCmdBindVertexBuffers(vkCommandBuffer, 0, 1, &vbQuadBuffer, offsets);
+
+			VkBuffer ibQuadBuffer = s_Data->QuadIndexBuffer->GetVulkanBuffer();
+			vkCmdBindIndexBuffer(vkCommandBuffer, ibQuadBuffer, 0, VK_INDEX_TYPE_UINT32);
+
+			if (material)
+			{
+				VkDescriptorSet descSet = material->GetDescriptorSet(frameIndex);
+				if (descSet)
+					vkCmdBindDescriptorSets(vkCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, layout, material->GetFirstSetIndex(), 1, &descSet, 0, nullptr);
+
+				Buffer uniformStorageBuffer = material->GetUniformStorageBuffer();
+				if (uniformStorageBuffer)
+					vkCmdPushConstants(
+						vkCommandBuffer,
+						layout,
+						VK_SHADER_STAGE_FRAGMENT_BIT,
+						0,
+						static_cast<uint32_t>(uniformStorageBuffer.Size),
+						uniformStorageBuffer.Data);
+			}
+
+			vkCmdDrawIndexed(vkCommandBuffer, s_Data->QuadIndexBuffer->GetCount(), 1, 0, 0, 0);
+			s_Data->DrawCallCount++;
+		});
 	}
 
 	void Renderer::SubmitFullScreenQuadWithOverrides(Ref<RenderCommandBuffer> renderCommandBuffer, Ref<Pipeline> pipeline, Ref<Material> material, Buffer vertexShaderOverrides, Buffer fragmentShaderOverrides)
@@ -474,36 +562,39 @@ namespace Iris {
 			fragmentPushConstantBuffer.Write(fragmentShaderOverrides.Data, fragmentShaderOverrides.Size);
 		}
 
-		uint32_t frameIndex = Renderer::GetCurrentFrameIndex();
-		VkCommandBuffer vkCommandBuffer = renderCommandBuffer->GetActiveCommandBuffer();
-
-		VkPipelineLayout layout = pipeline->GetVulkanPipelineLayout();
-
-		VkBuffer vbQuadBuffer = s_Data->QuadVertexBuffer->GetVulkanBuffer();
-		VkDeviceSize offsets[1] = { 0 };
-		vkCmdBindVertexBuffers(vkCommandBuffer, 0, 1, &vbQuadBuffer, offsets);
-
-		VkBuffer ibQuadBuffer = s_Data->QuadIndexBuffer->GetVulkanBuffer();
-		vkCmdBindIndexBuffer(vkCommandBuffer, ibQuadBuffer, 0, VK_INDEX_TYPE_UINT32);
-
-		if (material)
+		Renderer::Submit([renderCommandBuffer, pipeline, material, vertexPushConstantBuffer, fragmentPushConstantBuffer]() mutable
 		{
-			VkDescriptorSet descSet = material->GetDescriptorSet(frameIndex);
-			if (descSet)
-				vkCmdBindDescriptorSets(vkCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, layout, material->GetFirstSetIndex(), 1, &descSet, 0, nullptr);
+			uint32_t frameIndex = Renderer::RT_GetCurrentFrameIndex();
+			VkCommandBuffer vkCommandBuffer = renderCommandBuffer->GetActiveCommandBuffer();
 
-			if (vertexPushConstantBuffer)
-				vkCmdPushConstants(vkCommandBuffer, layout, VK_SHADER_STAGE_VERTEX_BIT, 0, static_cast<uint32_t>(vertexPushConstantBuffer.Size), vertexPushConstantBuffer.Data);
+			VkPipelineLayout layout = pipeline->GetVulkanPipelineLayout();
 
-			if (fragmentPushConstantBuffer)
-				vkCmdPushConstants(vkCommandBuffer, layout, VK_SHADER_STAGE_FRAGMENT_BIT, static_cast<uint32_t>(vertexPushConstantBuffer.Size), static_cast<uint32_t>(fragmentPushConstantBuffer.Size), fragmentPushConstantBuffer.Data);
-		}
+			VkBuffer vbQuadBuffer = s_Data->QuadVertexBuffer->GetVulkanBuffer();
+			VkDeviceSize offsets[1] = { 0 };
+			vkCmdBindVertexBuffers(vkCommandBuffer, 0, 1, &vbQuadBuffer, offsets);
 
-		vkCmdDrawIndexed(vkCommandBuffer, s_Data->QuadIndexBuffer->GetCount(), 1, 0, 0, 0);
-		s_Data->DrawCallCount++;
+			VkBuffer ibQuadBuffer = s_Data->QuadIndexBuffer->GetVulkanBuffer();
+			vkCmdBindIndexBuffer(vkCommandBuffer, ibQuadBuffer, 0, VK_INDEX_TYPE_UINT32);
 
-		vertexPushConstantBuffer.Release();
-		fragmentPushConstantBuffer.Release();
+			if (material)
+			{
+				VkDescriptorSet descSet = material->GetDescriptorSet(frameIndex);
+				if (descSet)
+					vkCmdBindDescriptorSets(vkCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, layout, material->GetFirstSetIndex(), 1, &descSet, 0, nullptr);
+
+				if (vertexPushConstantBuffer)
+					vkCmdPushConstants(vkCommandBuffer, layout, VK_SHADER_STAGE_VERTEX_BIT, 0, static_cast<uint32_t>(vertexPushConstantBuffer.Size), vertexPushConstantBuffer.Data);
+
+				if (fragmentPushConstantBuffer)
+					vkCmdPushConstants(vkCommandBuffer, layout, VK_SHADER_STAGE_FRAGMENT_BIT, static_cast<uint32_t>(vertexPushConstantBuffer.Size), static_cast<uint32_t>(fragmentPushConstantBuffer.Size), fragmentPushConstantBuffer.Data);
+			}
+
+			vkCmdDrawIndexed(vkCommandBuffer, s_Data->QuadIndexBuffer->GetCount(), 1, 0, 0, 0);
+			s_Data->DrawCallCount++;
+
+			vertexPushConstantBuffer.Release();
+			fragmentPushConstantBuffer.Release();
+		});
 	}
 
 	void Renderer::RenderStaticMesh(Ref<RenderCommandBuffer> renderCommandBuffer, Ref<Pipeline> pipeline, Ref<StaticMesh> staticMesh, Ref<MeshSource> meshSource, uint32_t subMeshIndex, Ref<MaterialTable> materialTable, Ref<VertexBuffer> transformBuffer, uint32_t transformOffset, uint32_t instanceCount)
@@ -512,44 +603,47 @@ namespace Iris {
 		IR_VERIFY(meshSource);
 		IR_VERIFY(materialTable);
 
-		uint32_t frameIndex = Renderer::GetCurrentFrameIndex();
-		VkCommandBuffer commandBuffer = renderCommandBuffer->GetActiveCommandBuffer();
+		Renderer::Submit([renderCommandBuffer, pipeline, staticMesh, meshSource, subMeshIndex, materialTable, transformBuffer, transformOffset, instanceCount]() mutable
+		{
+			uint32_t frameIndex = Renderer::RT_GetCurrentFrameIndex();
+			VkCommandBuffer commandBuffer = renderCommandBuffer->GetActiveCommandBuffer();
 
-		Ref<VertexBuffer> meshVB = meshSource->GetVertexBuffer();
-		VkBuffer vulkanMeshVB = meshVB->GetVulkanBuffer();
-		VkDeviceSize offsets[1] = { 0 };
-		vkCmdBindVertexBuffers(commandBuffer, 0, 1, &vulkanMeshVB, offsets);
+			Ref<VertexBuffer> meshVB = meshSource->GetVertexBuffer();
+			VkBuffer vulkanMeshVB = meshVB->GetVulkanBuffer();
+			VkDeviceSize offsets[1] = { 0 };
+			vkCmdBindVertexBuffers(commandBuffer, 0, 1, &vulkanMeshVB, offsets);
 
-		VkBuffer vulkanTransformVB = transformBuffer->GetVulkanBuffer();
-		VkDeviceSize instanceOffset[1] = { transformOffset };
-		vkCmdBindVertexBuffers(commandBuffer, 1, 1, &vulkanTransformVB, instanceOffset);
+			VkBuffer vulkanTransformVB = transformBuffer->GetVulkanBuffer();
+			VkDeviceSize instanceOffset[1] = { transformOffset };
+			vkCmdBindVertexBuffers(commandBuffer, 1, 1, &vulkanTransformVB, instanceOffset);
 
-		Ref<IndexBuffer> meshIB = meshSource->GetIndexBuffer();
-		VkBuffer vulkanMeshIB = meshIB->GetVulkanBuffer();
-		vkCmdBindIndexBuffer(commandBuffer, vulkanMeshIB, 0, VK_INDEX_TYPE_UINT32);
+			Ref<IndexBuffer> meshIB = meshSource->GetIndexBuffer();
+			VkBuffer vulkanMeshIB = meshIB->GetVulkanBuffer();
+			vkCmdBindIndexBuffer(commandBuffer, vulkanMeshIB, 0, VK_INDEX_TYPE_UINT32);
 
-		const auto& subMeshes = meshSource->GetSubMeshes();
-		const MeshUtils::SubMesh& subMesh = subMeshes[subMeshIndex];
-		Ref<MaterialTable> meshMaterialTable = staticMesh->GetMaterials();
-		AssetHandle materialAssetHandle = materialTable->HasMaterial(subMesh.MaterialIndex) ?
-										   materialTable->GetMaterial(subMesh.MaterialIndex) : 
-										   meshMaterialTable->GetMaterial(subMesh.MaterialIndex);
+			const auto& subMeshes = meshSource->GetSubMeshes();
+			const MeshUtils::SubMesh& subMesh = subMeshes[subMeshIndex];
+			Ref<MaterialTable> meshMaterialTable = staticMesh->GetMaterials();
+			AssetHandle materialAssetHandle = materialTable->HasMaterial(subMesh.MaterialIndex) ?
+				materialTable->GetMaterial(subMesh.MaterialIndex) :
+				meshMaterialTable->GetMaterial(subMesh.MaterialIndex);
 
-		Ref<MaterialAsset> materialAsset = AssetManager::GetAsset<MaterialAsset>(materialAssetHandle);
+			Ref<MaterialAsset> materialAsset = AssetManager::GetAsset<MaterialAsset>(materialAssetHandle);
 
-		Ref<Material> vulkanMaterial = materialAsset->GetMaterial();
+			Ref<Material> vulkanMaterial = materialAsset->GetMaterial();
 
-		VkPipelineLayout layout = pipeline->GetVulkanPipelineLayout();
+			VkPipelineLayout layout = pipeline->GetVulkanPipelineLayout();
 
-		VkDescriptorSet descriptorSet = vulkanMaterial->GetDescriptorSet(frameIndex);
-		if (descriptorSet)
-			vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, layout, vulkanMaterial->GetFirstSetIndex(), 1, &descriptorSet, 0, nullptr);
+			VkDescriptorSet descriptorSet = vulkanMaterial->GetDescriptorSet(frameIndex);
+			if (descriptorSet)
+				vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, layout, vulkanMaterial->GetFirstSetIndex(), 1, &descriptorSet, 0, nullptr);
 
-		Buffer uniformStorageBuffer = vulkanMaterial->GetUniformStorageBuffer();
-		vkCmdPushConstants(commandBuffer, layout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, static_cast<uint32_t>(uniformStorageBuffer.Size), uniformStorageBuffer.Data);
+			Buffer uniformStorageBuffer = vulkanMaterial->GetUniformStorageBuffer();
+			vkCmdPushConstants(commandBuffer, layout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, static_cast<uint32_t>(uniformStorageBuffer.Size), uniformStorageBuffer.Data);
 
-		vkCmdDrawIndexed(commandBuffer, subMesh.IndexCount, instanceCount, subMesh.BaseIndex, subMesh.BaseVertex, 0);
-		s_Data->DrawCallCount++;
+			vkCmdDrawIndexed(commandBuffer, subMesh.IndexCount, instanceCount, subMesh.BaseIndex, subMesh.BaseVertex, 0);
+			s_Data->DrawCallCount++;
+		});
 	}
 
 	void Renderer::RenderStaticMeshWithMaterial(Ref<RenderCommandBuffer> renderCommandBuffer, Ref<Pipeline> pipeline, Ref<StaticMesh> staticMesh, Ref<MeshSource> meshSource, uint32_t subMeshIndex, Ref<Material> material, Ref<VertexBuffer> transformBuffer, uint32_t transformOffset, uint32_t instanceCount)
@@ -558,41 +652,44 @@ namespace Iris {
 		IR_VERIFY(meshSource);
 		IR_VERIFY(material);
 
-		uint32_t frameIndex = Renderer::GetCurrentFrameIndex();
-		VkCommandBuffer commandBuffer = renderCommandBuffer->GetActiveCommandBuffer();
-
-		Ref<VertexBuffer> meshVB = meshSource->GetVertexBuffer();
-		VkBuffer vulkanMeshVB = meshVB->GetVulkanBuffer();
-		VkDeviceSize offsets[1] = { 0 };
-		vkCmdBindVertexBuffers(commandBuffer, 0, 1, &vulkanMeshVB, offsets);
-
-		VkBuffer vulkanTrasformVB = transformBuffer->GetVulkanBuffer();
-		VkDeviceSize instanceOffset[1] = { transformOffset };
-		vkCmdBindVertexBuffers(commandBuffer, 1, 1, &vulkanTrasformVB, instanceOffset);
-
-		Ref<IndexBuffer> meshIB = meshSource->GetIndexBuffer();
-		VkBuffer vulkanMeshIB = meshIB->GetVulkanBuffer();
-		vkCmdBindIndexBuffer(commandBuffer, vulkanMeshIB, 0, VK_INDEX_TYPE_UINT32);
-
-		VkPipelineLayout layout = pipeline->GetVulkanPipelineLayout();
-
-		// We do not do this since the passes that use this method do not have descriptor sets.. only push constants
-		// VkDescriptorSet descriptorSet = material->GetDescriptorSet(frameIndex);
-		// if (descriptorSet)
-		// 	vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, layout, material->GetFirstSetIndex(), 1, &descriptorSet, 0, nullptr);
-
-		uint32_t pushConstantOffset = 0;
-		Buffer uniformStorageBuffer = material->GetUniformStorageBuffer();
-		if (uniformStorageBuffer)
+		Renderer::Submit([renderCommandBuffer, pipeline, staticMesh, meshSource, subMeshIndex, material, transformBuffer, transformOffset, instanceCount]() mutable
 		{
-			vkCmdPushConstants(commandBuffer, layout, VK_SHADER_STAGE_FRAGMENT_BIT, pushConstantOffset, static_cast<uint32_t>(uniformStorageBuffer.Size), uniformStorageBuffer.Data);
-		}
+			uint32_t frameIndex = Renderer::RT_GetCurrentFrameIndex();
+			VkCommandBuffer commandBuffer = renderCommandBuffer->GetActiveCommandBuffer();
 
-		const auto& subMeshes = meshSource->GetSubMeshes();
-		const auto& subMesh = subMeshes[subMeshIndex];
+			Ref<VertexBuffer> meshVB = meshSource->GetVertexBuffer();
+			VkBuffer vulkanMeshVB = meshVB->GetVulkanBuffer();
+			VkDeviceSize offsets[1] = { 0 };
+			vkCmdBindVertexBuffers(commandBuffer, 0, 1, &vulkanMeshVB, offsets);
 
-		vkCmdDrawIndexed(commandBuffer, subMesh.IndexCount, instanceCount, subMesh.BaseIndex, subMesh.BaseVertex, 0);
-		s_Data->DrawCallCount++;
+			VkBuffer vulkanTrasformVB = transformBuffer->GetVulkanBuffer();
+			VkDeviceSize instanceOffset[1] = { transformOffset };
+			vkCmdBindVertexBuffers(commandBuffer, 1, 1, &vulkanTrasformVB, instanceOffset);
+
+			Ref<IndexBuffer> meshIB = meshSource->GetIndexBuffer();
+			VkBuffer vulkanMeshIB = meshIB->GetVulkanBuffer();
+			vkCmdBindIndexBuffer(commandBuffer, vulkanMeshIB, 0, VK_INDEX_TYPE_UINT32);
+
+			VkPipelineLayout layout = pipeline->GetVulkanPipelineLayout();
+
+			// We do not do this since the passes that use this method do not have descriptor sets.. only push constants
+			// VkDescriptorSet descriptorSet = material->GetDescriptorSet(frameIndex);
+			// if (descriptorSet)
+			// 	vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, layout, material->GetFirstSetIndex(), 1, &descriptorSet, 0, nullptr);
+
+			uint32_t pushConstantOffset = 0;
+			Buffer uniformStorageBuffer = material->GetUniformStorageBuffer();
+			if (uniformStorageBuffer)
+			{
+				vkCmdPushConstants(commandBuffer, layout, VK_SHADER_STAGE_FRAGMENT_BIT, pushConstantOffset, static_cast<uint32_t>(uniformStorageBuffer.Size), uniformStorageBuffer.Data);
+			}
+
+			const auto& subMeshes = meshSource->GetSubMeshes();
+			const auto& subMesh = subMeshes[subMeshIndex];
+
+			vkCmdDrawIndexed(commandBuffer, subMesh.IndexCount, instanceCount, subMesh.BaseIndex, subMesh.BaseVertex, 0);
+			s_Data->DrawCallCount++;
+		});
 	}
 
 	void Renderer::RenderGeometry(Ref<RenderCommandBuffer> renderCommandBuffer, Ref<Pipeline> pipeline, Ref<Material> material, Ref<VertexBuffer> vertexBuffer, Ref<IndexBuffer> indexBuffer, const glm::mat4& transform, uint32_t indexCount)
@@ -600,35 +697,38 @@ namespace Iris {
 		if (indexCount == 0)
 			indexCount = indexBuffer->GetCount();
 
-		uint32_t frameIndex = Renderer::GetCurrentFrameIndex();
-		VkCommandBuffer commandbuffer = renderCommandBuffer->GetActiveCommandBuffer();
-		VkPipelineLayout layout = pipeline->GetVulkanPipelineLayout();
+		Renderer::Submit([renderCommandBuffer, pipeline, material, vertexBuffer, indexBuffer, transform, indexCount]() mutable
+		{
+			uint32_t frameIndex = Renderer::RT_GetCurrentFrameIndex();
+			VkCommandBuffer commandbuffer = renderCommandBuffer->GetActiveCommandBuffer();
+			VkPipelineLayout layout = pipeline->GetVulkanPipelineLayout();
 
-		VkBuffer vbBuffer = vertexBuffer->GetVulkanBuffer();
-		VkDeviceSize offset = 0;
-		vkCmdBindVertexBuffers(commandbuffer, 0, 1, &vbBuffer, &offset);
+			VkBuffer vbBuffer = vertexBuffer->GetVulkanBuffer();
+			VkDeviceSize offset = 0;
+			vkCmdBindVertexBuffers(commandbuffer, 0, 1, &vbBuffer, &offset);
 
-		VkBuffer ibBuffer = indexBuffer->GetVulkanBuffer();
-		vkCmdBindIndexBuffer(commandbuffer, ibBuffer, 0, VK_INDEX_TYPE_UINT32);
+			VkBuffer ibBuffer = indexBuffer->GetVulkanBuffer();
+			vkCmdBindIndexBuffer(commandbuffer, ibBuffer, 0, VK_INDEX_TYPE_UINT32);
 
-		VkDescriptorSet descSet = material->GetDescriptorSet(frameIndex);
-		if (descSet)
-			vkCmdBindDescriptorSets(commandbuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, layout, material->GetFirstSetIndex(), 1, &descSet, 0, nullptr);
+			VkDescriptorSet descSet = material->GetDescriptorSet(frameIndex);
+			if (descSet)
+				vkCmdBindDescriptorSets(commandbuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, layout, material->GetFirstSetIndex(), 1, &descSet, 0, nullptr);
 
-		vkCmdPushConstants(commandbuffer, layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &transform);
-		Buffer uniformStorageBuffer = material->GetUniformStorageBuffer();
-		if (uniformStorageBuffer)
-			vkCmdPushConstants(commandbuffer, layout, VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(glm::mat4), static_cast<uint32_t>(uniformStorageBuffer.Size), uniformStorageBuffer.Data);
+			vkCmdPushConstants(commandbuffer, layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &transform);
+			Buffer uniformStorageBuffer = material->GetUniformStorageBuffer();
+			if (uniformStorageBuffer)
+				vkCmdPushConstants(commandbuffer, layout, VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(glm::mat4), static_cast<uint32_t>(uniformStorageBuffer.Size), uniformStorageBuffer.Data);
 
-		vkCmdDrawIndexed(commandbuffer, indexCount, 1, 0, 0, 0);
-		// NOTE: Here we do not increase the DrawCallCount since this is only called in the Renderer2D for now and that has its own draw call counter
+			vkCmdDrawIndexed(commandbuffer, indexCount, 1, 0, 0, 0);
+			// NOTE: Here we do not increase the DrawCallCount since this is only called in the Renderer2D for now and that has its own draw call counter
+		});
 	}
 
-	VkDescriptorSet Renderer::AllocateDescriptorSet(VkDescriptorSetAllocateInfo& allocInfo)
+	VkDescriptorSet Renderer::RT_AllocateDescriptorSet(VkDescriptorSetAllocateInfo& allocInfo)
 	{
 		VkDescriptorSet result;
 
-		uint32_t bufferIndex = Renderer::GetCurrentFrameIndex();
+		uint32_t bufferIndex = Renderer::RT_GetCurrentFrameIndex();
 		allocInfo.descriptorPool = s_Data->DescriptorPools[bufferIndex];
 		VK_CHECK_RESULT(vkAllocateDescriptorSets(RendererContext::GetCurrentDevice()->GetVulkanDevice(), &allocInfo, &result));
 		s_Data->DescriptorPoolAllocationCount[bufferIndex] += allocInfo.descriptorSetCount;
@@ -649,6 +749,11 @@ namespace Iris {
 	Ref<Texture2D> Renderer::GetErrorTexture()
 	{
 		return s_Data->ErrorTexture;
+	}
+
+	RenderCommandQueue& Renderer::GetRenderCommandQueue()
+	{
+		return *s_CommandQueue[s_RenderCommandQueueSubmissionIndex];
 	}
 
 	RenderCommandQueue& Renderer::GetRendererResourceReleaseQueue(uint32_t index)
@@ -725,6 +830,11 @@ namespace Iris {
 	}
 
 	uint32_t Renderer::GetCurrentFrameIndex()
+	{
+		return Application::Get().GetCurrentFrameIndex();
+	}
+
+	uint32_t Renderer::RT_GetCurrentFrameIndex()
 	{
 		return Application::Get().GetWindow().GetSwapChain().GetCurrentBufferIndex();
 	}

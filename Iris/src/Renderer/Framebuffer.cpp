@@ -139,6 +139,15 @@ namespace Iris {
 
     void Framebuffer::Invalidate()
     {
+        Ref<Framebuffer> instance = this;
+        Renderer::Submit([instance]() mutable
+        {
+            instance->RT_Invalidate();
+        });
+    }
+
+    void Framebuffer::RT_Invalidate()
+    {
         VkDevice device = RendererContext::GetCurrentDevice()->GetVulkanDevice();
 
         Release();
@@ -302,8 +311,8 @@ namespace Iris {
                     .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
                     .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
                     .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-                    .finalLayout = m_Specification.Attachments.Attachments[attachmentDescriptionIndex].Sampled == AttachmentPassThroughUsage::Sampled ? 
-                                                VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL                                                              : 
+                    .finalLayout = m_Specification.Attachments.Attachments[attachmentDescriptionIndex].Sampled == AttachmentPassThroughUsage::Sampled ?
+                                                VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL :
                                                 attachmentDescriptions[attachmentDescriptionIndex].finalLayout
                 };
 
@@ -340,7 +349,7 @@ namespace Iris {
                     .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
                     .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
                     .finalLayout = m_Specification.Attachments.Attachments[attachmentDescriptionIndex].Sampled == AttachmentPassThroughUsage::Sampled ?
-                                                VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL                                                           :
+                                                VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL :
                                                 attachmentDescriptions[attachmentDescriptionIndex].finalLayout
                 };
 
@@ -509,21 +518,24 @@ namespace Iris {
         if (!forceRecreate && (m_Width == width && m_Height == height))
             return;
 
-        //m_Width = static_cast<uint32_t>(width * m_Specification.Scale);
-        //m_Height = static_cast<uint32_t>(height * m_Specification.Scale);
-        m_Width = width;
-        m_Height = height;
 
-        if (!m_Specification.SwapchainTarget)
-            Invalidate();
-        else
+        Ref<Framebuffer> instance = this;
+        Renderer::Submit([instance, width, height]() mutable
         {
-            SwapChain& swapChain = Application::Get().GetWindow().GetSwapChain();
-            m_VulkanRenderPass = swapChain.GetRenderPass();
+            instance->m_Width = width;
+            instance->m_Height = height;
 
-            m_ClearValues.clear();
-            m_ClearValues.emplace_back().color = { 0.0f, 0.0f, 0.0f, 1.0f };
-        }
+            if (!(instance->m_Specification.SwapchainTarget))
+                instance->RT_Invalidate();
+            else
+            {
+                SwapChain& swapChain = Application::Get().GetWindow().GetSwapChain();
+                instance->m_VulkanRenderPass = swapChain.GetRenderPass();
+
+                instance->m_ClearValues.clear();
+                instance->m_ClearValues.emplace_back().color = { 0.0f, 0.0f, 0.0f, 1.0f };
+            }
+        });
     }
 
     void Framebuffer::Release()

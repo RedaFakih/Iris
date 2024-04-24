@@ -5,6 +5,7 @@
 #include "Renderer/Core/GPUMemoryStats.h"
 #include "Renderer/Core/RenderCommandQueue.h"
 #include "Renderer/Core/RendererContext.h"
+#include "Renderer/Core/RenderThread.h"
 #include "RendererCapabilities.h"
 #include "RendererConfiguration.h"
 
@@ -40,8 +41,23 @@ namespace Iris {
 		static RendererConfiguration& GetConfig();
 		static void SetConfig(const RendererConfiguration& config);
 
-		// template<typename FuncT>
-		// static void Submit(FuncT&& func)
+		template<typename FuncT>
+		static void Submit(FuncT&& func)
+		{
+			auto renderCmd = [](void* ptr)
+			{
+				FuncT* pFunc = reinterpret_cast<FuncT*>(ptr);
+				(*pFunc)();
+
+				// NOTE: Instead of destroying we could try to ensure all items are trivially destructible
+				// however some items may contains std::string (uniforms).
+				// static_assert(std::is_trivially_destructible_v<FuncT>, "FuncT must be trivially destructible");
+				pFunc->~FuncT();
+			};
+
+			void* storageBuffer = Renderer::GetRenderCommandQueue().Allocate(renderCmd, sizeof(func));
+			new(storageBuffer) FuncT(std::forward<FuncT>((FuncT&&)func));
+		}
 
 		template<typename FuncT>
 		static void SubmitReseourceFree(FuncT&& func)
@@ -57,12 +73,30 @@ namespace Iris {
 				pFunc->~FuncT();
 			};
 
-			// TODO: Should be done on the render thread by wrapping it in an another Renderer::Submit(...); and then we wrap the execute call
-			// that is inside `SwapChain::BeginFrame` in a `Renderer::Submit`
-			const uint32_t index = Renderer::GetCurrentFrameIndex();
-			void* storageBuffer = Renderer::GetRendererResourceReleaseQueue(index).Allocate(renderCmd, sizeof(func));
-			new(storageBuffer) FuncT(std::forward<FuncT>((FuncT&&)func));
+			if (RenderThread::IsCurrentThreadRT())
+			{
+				const uint32_t index = Renderer::RT_GetCurrentFrameIndex();
+				void* storageBuffer = Renderer::GetRendererResourceReleaseQueue(index).Allocate(renderCmd, sizeof(func));
+				new(storageBuffer) FuncT(std::forward<FuncT>((FuncT&&)func));
+			}
+			else
+			{
+				const uint32_t index = Renderer::GetMainThreadResourceFreeingQueueIndex();
+				Submit([renderCmd, index, func]()
+				{
+					void* storageBuffer = Renderer::GetRendererResourceReleaseQueue(index).Allocate(renderCmd, sizeof(func));
+					new(storageBuffer) FuncT(std::forward<FuncT>((FuncT&&)func));
+				});
+			}
 		}
+
+		static void SwapQueues();
+		static void WaitAndRender(RenderThread* renderThread);
+
+		static void RenderThreadFunc(RenderThread* renderThread);
+		static uint32_t GetRenderQueueIndex();
+		static uint32_t GetRenderQueueSubmissionIndex();
+		static uint32_t GetMainThreadResourceFreeingQueueIndex();
 
 		static void BeginFrame();
 		static void EndFrame();
@@ -78,12 +112,13 @@ namespace Iris {
 		static void RenderStaticMeshWithMaterial(Ref<RenderCommandBuffer> renderCommandBuffer, Ref<Pipeline> pipeline, Ref<StaticMesh> staticMesh, Ref<MeshSource> meshSource, uint32_t subMeshIndex, Ref<Material> material, Ref<VertexBuffer> transformBuffer, uint32_t transformOffset, uint32_t instanceCount);
 		static void RenderGeometry(Ref<RenderCommandBuffer> renderCommandBuffer, Ref<Pipeline> pipeline, Ref<Material> material, Ref<VertexBuffer> vertexBuffer, Ref<IndexBuffer> indexBuffer, const glm::mat4& transform, uint32_t indexCount = 0);
 
-		static VkDescriptorSet AllocateDescriptorSet(VkDescriptorSetAllocateInfo& allocInfo);
+		static VkDescriptorSet RT_AllocateDescriptorSet(VkDescriptorSetAllocateInfo& allocInfo);
 
 		static Ref<Texture2D> GetWhiteTexture();
 		static Ref<Texture2D> GetBlackTexture();
 		static Ref<Texture2D> GetErrorTexture();
 
+		static RenderCommandQueue& GetRenderCommandQueue();
 		static RenderCommandQueue& GetRendererResourceReleaseQueue(uint32_t index);
 
 		// TODO: Register all the dependencies (Compute Pipelines)
@@ -111,8 +146,7 @@ namespace Iris {
 		);
 
 		static uint32_t GetCurrentFrameIndex();
-
-	private:
+		static uint32_t RT_GetCurrentFrameIndex();
 
 	};
 

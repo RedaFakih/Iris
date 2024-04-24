@@ -10,50 +10,56 @@ namespace Iris {
 	 * TODO: Look at the IMPORTANT NOTE written in Renderer/Core/Device.h about using StagingBuffers in a better more sophisticated way
 	 */
 
-	IndexBuffer::IndexBuffer(void* data, uint32_t size)
+	IndexBuffer::IndexBuffer(const void* data, uint32_t size)
 		: m_Size(size)
 	{
-		Ref<VulkanDevice> device = RendererContext::GetCurrentDevice();
-		VulkanAllocator allocator("IndexBuffer");
+		m_LocalData = Buffer::Copy(reinterpret_cast<const uint8_t*>(data), size);
 
-		VkBuffer stagingBuffer;
-		VkBufferCreateInfo stagingBufferInfo = {
-			.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
-			.size = size,
-			.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-			.sharingMode = VK_SHARING_MODE_EXCLUSIVE
-		};
-		VmaAllocation stagingBufferAllocation = allocator.AllocateBuffer(&stagingBufferInfo, VMA_MEMORY_USAGE_CPU_TO_GPU, &stagingBuffer);
+		Ref<IndexBuffer> instance = this;
+		Renderer::Submit([instance]() mutable
+		{
+			Ref<VulkanDevice> device = RendererContext::GetCurrentDevice();
+			VulkanAllocator allocator("IndexBuffer");
 
-		uint8_t* dstData = allocator.MapMemory<uint8_t>(stagingBufferAllocation);
-		std::memcpy(dstData, data, size);
-		allocator.UnmapMemory(stagingBufferAllocation);
+			VkBuffer stagingBuffer;
+			VkBufferCreateInfo stagingBufferInfo = {
+				.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+				.size = instance->m_Size,
+				.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+				.sharingMode = VK_SHARING_MODE_EXCLUSIVE
+			};
+			VmaAllocation stagingBufferAllocation = allocator.AllocateBuffer(&stagingBufferInfo, VMA_MEMORY_USAGE_CPU_TO_GPU, &stagingBuffer);
 
-		// We need to copy now
-		VkBufferCreateInfo indexBufferInfo = {
-			.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
-			.size = size,
-			.usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-			.sharingMode = VK_SHARING_MODE_EXCLUSIVE // Exclusive to a single queue family
-		};
-		m_MemoryAllocation = allocator.AllocateBuffer(&indexBufferInfo, VMA_MEMORY_USAGE_GPU_ONLY, &m_VulkanBuffer);
+			uint8_t* dstData = allocator.MapMemory<uint8_t>(stagingBufferAllocation);
+			std::memcpy(dstData, instance->m_LocalData.Data, instance->m_LocalData.Size);
+			allocator.UnmapMemory(stagingBufferAllocation);
 
-		// TODO: Refer to the note in Renderer/Core/Device.h since maybe we could just begin and return a pre-allocated buffer?
-		VkCommandBuffer commandBuffer = device->GetCommandBuffer(true);
+			// We need to copy now
+			VkBufferCreateInfo indexBufferInfo = {
+				.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+				.size = instance->m_Size,
+				.usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+				.sharingMode = VK_SHARING_MODE_EXCLUSIVE // Exclusive to a single queue family
+			};
+			instance->m_MemoryAllocation = allocator.AllocateBuffer(&indexBufferInfo, VMA_MEMORY_USAGE_GPU_ONLY, &(instance->m_VulkanBuffer));
 
-		VkBufferCopy copyRegion = {
-			.srcOffset = 0,
-			.dstOffset = 0,
-			.size = size
-		};
-		vkCmdCopyBuffer(commandBuffer, stagingBuffer, m_VulkanBuffer, 1, &copyRegion);
+			// TODO: Refer to the note in Renderer/Core/Device.h since maybe we could just begin and return a pre-allocated buffer?
+			VkCommandBuffer commandBuffer = device->GetCommandBuffer(true);
 
-		// TODO: Refer to the note in Renderer/Core/Device.h since we do not want to do this really...
-		device->FlushCommandBuffer(commandBuffer);
+			VkBufferCopy copyRegion = {
+				.srcOffset = 0,
+				.dstOffset = 0,
+				.size = instance->m_Size
+			};
+			vkCmdCopyBuffer(commandBuffer, stagingBuffer, instance->m_VulkanBuffer, 1, &copyRegion);
 
-		// NOTE: If we implement the note written in Device.h we would defer this cleanup to the beginning of the next frame.
-		// Renderer::SubmitResourceFree
-		allocator.DestroyBuffer(stagingBufferAllocation, stagingBuffer);
+			// TODO: Refer to the note in Renderer/Core/Device.h since we do not want to do this really...
+			device->FlushCommandBuffer(commandBuffer);
+
+			// NOTE: If we implement the note written in Device.h we would defer this cleanup to the beginning of the next frame.
+			// Renderer::SubmitResourceFree
+			allocator.DestroyBuffer(stagingBufferAllocation, stagingBuffer);
+		});
 	}
 
 	IndexBuffer::IndexBuffer(uint32_t size)
@@ -81,6 +87,8 @@ namespace Iris {
 			VulkanAllocator allocator("IndexBuffer");
 			allocator.DestroyBuffer(allocation, indexBuffer);
 		});
+
+		m_LocalData.Release();
 	}
 
 	Ref<IndexBuffer> IndexBuffer::Create(void* data, uint32_t size)

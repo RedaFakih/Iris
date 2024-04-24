@@ -415,7 +415,11 @@ namespace Iris {
         m_Specification.Width = width;
         m_Specification.Height = height;
 
-        Invalidate();
+        Ref<Texture2D> instance = this;
+        Renderer::Submit([instance]() mutable
+        {
+            instance->Invalidate();
+        });
     }
 
     void Texture2D::GenerateMips()

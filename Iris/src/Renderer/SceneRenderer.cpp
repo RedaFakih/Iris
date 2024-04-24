@@ -393,7 +393,8 @@ namespace Iris {
 			m_MeshTransformBuffers[i].Data = new TransformVertexData[TransformBufferCount];
 		}
 
-		m_ResourcesCreated = true;
+		Ref<SceneRenderer> instance = this;
+		Renderer::Submit([instance]() mutable { instance->m_ResourcesCreatedGPU = true; });
 	}
 
 	void SceneRenderer::Shutdown()
@@ -434,6 +435,9 @@ namespace Iris {
 
 		m_Active = true;
 
+		if (m_ResourcesCreatedGPU)
+			m_ResourcesCreated = true;
+
 		if (!m_ResourcesCreated)
 			return;
 
@@ -444,6 +448,7 @@ namespace Iris {
 		{
 			m_NeedsResize = false;
 
+			
 			// PreDepth and Geometry framebuffers need to be resized first since other framebuffers reference images in them
 			m_PreDepthPass->GetTargetFramebuffer()->Resize(m_ViewportWidth, m_ViewportHeight);
 			m_GeometryPass->GetTargetFramebuffer()->Resize(m_ViewportWidth, m_ViewportHeight);
@@ -452,7 +457,7 @@ namespace Iris {
 
 			// NOTE: We are able to not resize the grid pass since it references the Compositing framebuffer whic is resized manually
 			// m_GridPass->GetTargetFramebuffer()->Resize(m_ViewportWidth, m_ViewportHeight);
-			
+
 			for (auto& jumpFloodFB : m_JumpFloodFramebuffers)
 				jumpFloodFB->Resize(m_ViewportWidth, m_ViewportHeight);
 
@@ -490,7 +495,11 @@ namespace Iris {
 
 			cameraData.DepthUnpackConsts = { depthLinearMul, depthLinearizeAdd };
 
-			m_UBSCamera->Get()->SetData(&cameraData, sizeof(UBCamera));
+			Ref<SceneRenderer> instance = this;
+			Renderer::Submit([instance, &cameraData]() mutable
+			{
+				instance->m_UBSCamera->RT_Get()->RT_SetData(&cameraData, sizeof(UBCamera));
+			});
 		}
 
 		// Screen Data uniform buffer (set = 1, binding = 1)
@@ -502,7 +511,11 @@ namespace Iris {
 			screenData.HalfResolution = { m_ViewportWidth / 2, m_ViewportHeight / 2 };
 			screenData.InverseHalfResolution = { m_InverseViewportWidth / 2, m_InverseViewportHeight / 2 };
 
-			m_UBSScreenData->Get()->SetData(&screenData, sizeof(UBScreenData));
+			Ref<SceneRenderer> instance = this;
+			Renderer::Submit([instance, &screenData]() mutable
+			{
+				instance->m_UBSScreenData->Get()->SetData(&screenData, sizeof(UBScreenData));
+			});
 		}
 	}
 

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Core/Base.h"
+#include "Core/Buffer.h"
 #include "Renderer/Core/VulkanAllocator.h"
 
 #include <vulkan/vulkan.h>
@@ -11,7 +12,7 @@ namespace Iris {
 	{
 	public:
 		// Create a buffer in DEVICE_LOCAL memory
-		IndexBuffer(void* data, uint32_t size);
+		IndexBuffer(const void* data, uint32_t size);
 		// Create a buffer in HOST_VISIBLE memory which is not really usable for index buffers since index buffer are usually created once!
 		IndexBuffer(uint32_t size);
 		~IndexBuffer();
@@ -29,6 +30,7 @@ namespace Iris {
 
 	private:
 		uint32_t m_Size = 0;
+		Buffer m_LocalData;
 
 		VkBuffer m_VulkanBuffer = nullptr;
 		VmaAllocation m_MemoryAllocation = nullptr;

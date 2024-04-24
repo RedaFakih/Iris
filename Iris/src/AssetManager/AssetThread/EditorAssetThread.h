@@ -50,6 +50,8 @@ namespace Iris {
 		float m_AssetUpdateTimer = 0.2f;
 		float m_AssetUpdatePerf = 0.0f;
 
+		inline static std::thread::id s_AssetThreadID;
+
 	};
 
 }

@@ -62,8 +62,15 @@ namespace Iris {
 
 	void Shader::Reload()
 	{
-		// This has to be done on the render thread...
-		// Renderer::Submit([]() {});
+		Ref<Shader> instance = this;
+		Renderer::Submit([instance]() mutable
+		{
+			instance->RT_Reload();
+		});
+	}
+
+	void Shader::RT_Reload()
+	{
 		if (!ShaderCompiler::TryRecompile(this))
 		{
 			IR_CORE_FATAL_TAG("Shader", "Failed to recompile shader!");

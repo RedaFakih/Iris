@@ -35,7 +35,8 @@ namespace Iris {
 			.StartMaximized = true,
 			.Resizable = true,
 			.EnableImGui = true,
-			.RendererConfig = { .FramesInFlight = 3 }
+			.RendererConfig = { .FramesInFlight = 3 },
+			.CoreThreadingPolicy = ThreadingPolicy::SingleThreaded
 		};
 
 		return new Editor(appSpec, projectPath);

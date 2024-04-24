@@ -11,10 +11,14 @@
 namespace Iris {
 
 	Application::Application(const ApplicationSpecification& spec)
-		: m_Specification(spec)
+		: m_Specification(spec), m_RenderThread(spec.CoreThreadingPolicy)
 	{
 		IR_VERIFY(!s_Instance, "No more than 1 application can be created!");
 		s_Instance = this;
+
+		s_MainThreadID = std::this_thread::get_id();
+
+		m_RenderThread.Run();
 
 		if (!spec.WorkingDirectory.empty())
 			std::filesystem::current_path(spec.WorkingDirectory);
@@ -49,6 +53,9 @@ namespace Iris {
 			m_ImGuiLayer = ImGuiLayer::Create();
 			PushOverlay(m_ImGuiLayer);
 		}
+
+		// Render one frame
+		m_RenderThread.Pump();
 	}
 
 	Application::~Application()
@@ -56,6 +63,8 @@ namespace Iris {
 		NFD::Quit();
 
 		m_Window->SetEventCallbackFunction([](Events::Event& e) {});
+
+		m_RenderThread.Terminate();
 
 		for (Layer* layer : m_LayerStack)
 		{
@@ -77,13 +86,31 @@ namespace Iris {
 		OnInit();
 		while (m_Running)
 		{
+			// Wait for render completion
+			{
+				Timer timer;
+
+				m_RenderThread.BlockUntilRenderComplete();
+
+				timer.ElapsedMillis();
+			}
+
 			// static uint64_t frameCounter = 0;
 
 			ProcessEvents();
 
+			m_RenderThread.NextFrame();
+
+			// Start rendering previous frame
+			m_RenderThread.Kick();
+
 			if (!m_Minimized)
 			{
-				m_Window->GetSwapChain().BeginFrame();
+				Application* app = this;
+				Renderer::Submit([app]()
+				{
+					app->m_Window->GetSwapChain().BeginFrame();
+				});
 
 				Renderer::BeginFrame();
 
@@ -94,12 +121,18 @@ namespace Iris {
 
 				if (m_Specification.EnableImGui)
 				{
-					RenderImGui();
+					Renderer::Submit([app]()
+					{
+						app->RenderImGui();
+					});
 				}
 
 				Renderer::EndFrame();
 
-				m_Window->SwapBuffers();
+				Renderer::Submit([app]()
+				{
+					app->m_Window->SwapBuffers();
+				});
 
 				m_CurrentFrameIndex = (m_CurrentFrameIndex + 1) % Renderer::GetConfig().FramesInFlight;
 			}
@@ -201,7 +234,11 @@ namespace Iris {
 			return false;
 		}
 
-		m_Window->GetSwapChain().OnResize(width, height);
+		Application* app = this;
+		Renderer::Submit([app, width, height]()
+		{
+			app->m_Window->GetSwapChain().OnResize(width, height);
+		});
 
 		return false;
 	}

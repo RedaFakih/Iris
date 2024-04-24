@@ -323,7 +323,7 @@ namespace Iris {
 	void DescriptorSetManager::InvalidateAndUpdate()
 	{
 		VkDevice device = RendererContext::GetCurrentDevice()->GetVulkanDevice();
-		uint32_t currentFrameIndex = Renderer::GetCurrentFrameIndex();
+		uint32_t currentFrameIndex = Renderer::RT_GetCurrentFrameIndex();
 
 		// Check for invalidated resources...
 		for (const auto& [set, inputs] : m_InputResources)

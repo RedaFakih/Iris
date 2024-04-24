@@ -30,13 +30,14 @@ namespace Iris {
 			.Name = "Iris - Runtime",
 			.WindowWidth = 1280,
 			.WindowHeight = 720,
-			.FullScreen = true,
+			.FullScreen = false,
 			.VSync = true,
 			.WorkingDirectory = "../IrisEditor",
 			.StartMaximized = false,
 			.Resizable = true,
 			.EnableImGui = false,
-			.RendererConfig = {.FramesInFlight = 3 }
+			.RendererConfig = {.FramesInFlight = 3 },
+			.CoreThreadingPolicy = ThreadingPolicy::MultiThreaded
 		};
 
 		appSpec.WindowDecorated = !appSpec.FullScreen;

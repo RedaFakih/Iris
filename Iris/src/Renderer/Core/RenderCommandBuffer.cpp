@@ -135,41 +135,49 @@ namespace Iris {
 
 	void RenderCommandBuffer::Begin()
 	{
-		uint32_t commandBufferIndex = Renderer::GetCurrentFrameIndex();
-		if (!m_OwnedBySwapChain)
-			commandBufferIndex = commandBufferIndex % m_CommandBuffers.size();
-		VkDevice device = RendererContext::GetCurrentDevice()->GetVulkanDevice();
+		Ref<RenderCommandBuffer> instance = this;
+		Renderer::Submit([instance]() mutable
+		{
+			uint32_t commandBufferIndex = Renderer::RT_GetCurrentFrameIndex();
+			if (!(instance->m_OwnedBySwapChain))
+				commandBufferIndex = commandBufferIndex % instance->m_CommandBuffers.size();
+			VkDevice device = RendererContext::GetCurrentDevice()->GetVulkanDevice();
 
-		if (m_CommandBuffers.size())
-			VK_CHECK_RESULT(vkResetCommandPool(device, m_CommandBuffers[commandBufferIndex].CommandPool, 0));
+			if (instance->m_CommandBuffers.size())
+				VK_CHECK_RESULT(vkResetCommandPool(device, instance->m_CommandBuffers[commandBufferIndex].CommandPool, 0));
 
-		VkCommandBufferBeginInfo beginInfo = {
-			.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-			.pNext = nullptr,
-			.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT
-		};
+			VkCommandBufferBeginInfo beginInfo = {
+				.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+				.pNext = nullptr,
+				.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT
+			};
 
-		if (m_OwnedBySwapChain)
-			m_ActiveCommandBuffer = Application::Get().GetWindow().GetSwapChain().GetDrawCommandBuffer(commandBufferIndex);
-		else
-			m_ActiveCommandBuffer = m_CommandBuffers[commandBufferIndex].CommandBuffer;
+			if (instance->m_OwnedBySwapChain)
+				instance->m_ActiveCommandBuffer = Application::Get().GetWindow().GetSwapChain().GetDrawCommandBuffer(commandBufferIndex);
+			else
+				instance->m_ActiveCommandBuffer = instance->m_CommandBuffers[commandBufferIndex].CommandBuffer;
 
-		VK_CHECK_RESULT(vkBeginCommandBuffer(m_ActiveCommandBuffer, &beginInfo));
+			VK_CHECK_RESULT(vkBeginCommandBuffer(instance->m_ActiveCommandBuffer, &beginInfo));
 
-		// Pipeline Statistics
-		vkCmdResetQueryPool(m_ActiveCommandBuffer, m_PipelineStatisticsQueryPools[commandBufferIndex], 0, m_PipelineQueryCount);
-		vkCmdBeginQuery(m_ActiveCommandBuffer, m_PipelineStatisticsQueryPools[commandBufferIndex], 0, 0);
+			// Pipeline Statistics
+			vkCmdResetQueryPool(instance->m_ActiveCommandBuffer, instance->m_PipelineStatisticsQueryPools[commandBufferIndex], 0, instance->m_PipelineQueryCount);
+			vkCmdBeginQuery(instance->m_ActiveCommandBuffer, instance->m_PipelineStatisticsQueryPools[commandBufferIndex], 0, 0);
+		});
 	}
 
 	void RenderCommandBuffer::End()
 	{
-		uint32_t commandBufferIndex = Renderer::GetCurrentFrameIndex();
-		if (!m_OwnedBySwapChain)
-			commandBufferIndex = commandBufferIndex % m_CommandBuffers.size();
-		vkCmdEndQuery(m_ActiveCommandBuffer, m_PipelineStatisticsQueryPools[commandBufferIndex], 0);
-		VK_CHECK_RESULT(vkEndCommandBuffer(m_ActiveCommandBuffer));
+		Ref<RenderCommandBuffer> instance = this;
+		Renderer::Submit([instance]() mutable
+		{
+			uint32_t commandBufferIndex = Renderer::RT_GetCurrentFrameIndex();
+			if (!(instance->m_OwnedBySwapChain))
+				commandBufferIndex = commandBufferIndex % instance->m_CommandBuffers.size();
+			vkCmdEndQuery(instance->m_ActiveCommandBuffer, instance->m_PipelineStatisticsQueryPools[commandBufferIndex], 0);
+			VK_CHECK_RESULT(vkEndCommandBuffer(instance->m_ActiveCommandBuffer));
 
-		m_ActiveCommandBuffer = nullptr;
+			instance->m_ActiveCommandBuffer = nullptr;
+		});
 	}
 
 	void RenderCommandBuffer::Submit()
@@ -177,33 +185,37 @@ namespace Iris {
 		if (m_OwnedBySwapChain)
 			return;
 
-		Ref<VulkanDevice> logicalDevice = RendererContext::GetCurrentDevice();
-		VkDevice device = logicalDevice->GetVulkanDevice();
-		uint32_t commandBufferIndex = Renderer::GetCurrentFrameIndex() % m_CommandBuffers.size();
+		Ref<RenderCommandBuffer> instance = this;
+		Renderer::Submit([instance]() mutable
+		{
+			Ref<VulkanDevice> logicalDevice = RendererContext::GetCurrentDevice();
+			VkDevice device = logicalDevice->GetVulkanDevice();
+			uint32_t commandBufferIndex = Renderer::RT_GetCurrentFrameIndex() % instance->m_CommandBuffers.size();
 
-		VkSubmitInfo submitInfo = {
-			.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-			.commandBufferCount = 1,
-			.pCommandBuffers = &m_CommandBuffers[commandBufferIndex].CommandBuffer
-		};
-		VK_CHECK_RESULT(vkWaitForFences(device, 1, &m_WaitFences[commandBufferIndex], VK_TRUE, UINT64_MAX));
-		VK_CHECK_RESULT(vkResetFences(device, 1, &m_WaitFences[commandBufferIndex]));
+			VkSubmitInfo submitInfo = {
+				.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+				.commandBufferCount = 1,
+				.pCommandBuffers = &(instance->m_CommandBuffers[commandBufferIndex].CommandBuffer)
+			};
+			VK_CHECK_RESULT(vkWaitForFences(device, 1, &(instance->m_WaitFences[commandBufferIndex]), VK_TRUE, UINT64_MAX));
+			VK_CHECK_RESULT(vkResetFences(device, 1, &(instance->m_WaitFences[commandBufferIndex])));
 
-		// PG_CORE_TRACE_TAG("Renderer", "Submitting Render Command Buffer {}", m_DebugName);
+			// PG_CORE_TRACE_TAG("Renderer", "Submitting Render Command Buffer {}", m_DebugName);
 
-		VK_CHECK_RESULT(vkQueueSubmit(logicalDevice->GetGraphicsQueue(), 1, &submitInfo, m_WaitFences[commandBufferIndex]));
+			VK_CHECK_RESULT(vkQueueSubmit(logicalDevice->GetGraphicsQueue(), 1, &submitInfo, instance->m_WaitFences[commandBufferIndex]));
 
-		// Retrieve pipeline statistics results
-		vkGetQueryPoolResults(
-			device, 
-			m_PipelineStatisticsQueryPools[commandBufferIndex],
-			0, 
-			1, 
-			sizeof(PipelineStatistics), 
-			&m_PipelineStatisticsQueryResults[commandBufferIndex],
-			sizeof(uint64_t),
-			VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WAIT_BIT
-		);
+			// Retrieve pipeline statistics results
+			vkGetQueryPoolResults(
+				device,
+				instance->m_PipelineStatisticsQueryPools[commandBufferIndex],
+				0,
+				1,
+				sizeof(PipelineStatistics),
+				&(instance->m_PipelineStatisticsQueryResults[commandBufferIndex]),
+				sizeof(uint64_t),
+				VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WAIT_BIT
+			);
+		});
 	}
 
 }

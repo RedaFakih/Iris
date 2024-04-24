@@ -1,12 +1,13 @@
 #pragma once
 
 #include "Base.h"
-#include "LayerStack.h"
 #include "Events/Events.h"
+#include "ImGui/ImGuiLayer.h"
+#include "LayerStack.h"
+#include "Renderer/Core/RenderThread.h"
 #include "Renderer/RendererConfiguration.h"
 #include "TimeStep.h"
 #include "Window.h"
-#include "ImGui/ImGuiLayer.h"
 
 #include <vulkan/vulkan.h>
 
@@ -27,6 +28,7 @@ namespace Iris {
 		bool Resizable = true;
 		bool EnableImGui = false;
 		RendererConfiguration RendererConfig;
+		ThreadingPolicy CoreThreadingPolicy = ThreadingPolicy::MultiThreaded;
 		std::filesystem::path IconPath;
 	};
 
@@ -99,6 +101,8 @@ namespace Iris {
 		LayerStack m_LayerStack;
 		ImGuiLayer* m_ImGuiLayer = nullptr;
 
+		RenderThread m_RenderThread;
+
 		TimeStep m_FrameTime;
 		TimeStep m_TimeStep;
 		float m_LastFrameTime = 0.0f;
@@ -108,6 +112,7 @@ namespace Iris {
 		std::mutex m_EventQueueMutex; // In case we want to have an event queue thread
 		std::queue<std::function<void()>> m_EventQueue;
 
+		inline static std::thread::id s_MainThreadID;
 		inline static Application* s_Instance = nullptr;
 
 	};

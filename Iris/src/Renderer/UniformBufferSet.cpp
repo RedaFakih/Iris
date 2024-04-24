@@ -20,4 +20,10 @@ namespace Iris {
 		return Get(frame);
 	}
 
+	Ref<UniformBuffer> UniformBufferSet::RT_Get()
+	{
+		uint32_t frame = Renderer::RT_GetCurrentFrameIndex();
+		return Get(frame);
+	}
+
 }

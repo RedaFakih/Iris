@@ -14,7 +14,6 @@ namespace Iris {
 	{
 	public:
 		UniformBufferSet(size_t size, uint32_t framesInFlight);
-
 		~UniformBufferSet() = default;
 
 		[[nodiscard]] inline static Ref<UniformBufferSet> Create(size_t size, uint32_t frame = 0)
@@ -23,6 +22,7 @@ namespace Iris {
 		}
 
 		Ref<UniformBuffer> Get();
+		Ref<UniformBuffer> RT_Get();
 
 		inline Ref<UniformBuffer> Get(uint32_t frame)
 		{
@@ -39,6 +39,7 @@ namespace Iris {
 		// NOTE: Maybe could be just a vector of pairs? instead of being a map? Since we won't have that much UBOs so searching for the index
 		// will not require alot of computation cycles since n will be relatively small
 		std::map<uint32_t, Ref<UniformBuffer>> m_UniformBuffers;
+
 	};
 
 }

@@ -33,6 +33,7 @@ namespace Iris {
 
 		// Returns whether reloading failed or not
 		void Reload();
+		void RT_Reload();
 
 		void Release();
 

@@ -57,6 +57,10 @@ namespace Iris {
 		m_SwapChainMaterial = Material::Create(pipelineSpec.Shader, "SwapChainMaterial");
 
 		m_CommandBuffer = RenderCommandBuffer::CreateFromSwapChain("RuntimeLayer");
+
+		Entity mesh = m_RuntimeScene->CreateEntity();
+		auto& src = mesh.AddComponent<SpriteRendererComponent>();
+		src.Color = { 1.0f, 0.0f, 1.0f, 1.0f };
 	}
 
 	void RuntimeLayer::OnDetach()
