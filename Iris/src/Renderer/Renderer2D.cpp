@@ -203,7 +203,7 @@ namespace Iris {
 		m_CameraView = view;
 
 		Ref<Renderer2D> instance = this;
-		Renderer::Submit([instance, &viewProj]() mutable
+		Renderer::Submit([instance, viewProj]() mutable
 		{
 			instance->m_UBSCamera->RT_Get()->RT_SetData(&viewProj, sizeof(UBCamera));
 		});

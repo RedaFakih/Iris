@@ -34,7 +34,7 @@ namespace Iris {
 		if (m_ViewportWidth > 0 && m_ViewportHeight > 0)
 			m_NeedsResize = true;
 
-		// NOTE: For now we do not want any multisampling...
+		// NOTE: We do not want any multisampling...
 		constexpr uint32_t c_Samples = 1;
 
 		m_CommandBuffer = RenderCommandBuffer::Create(0, "SceneRenderer");
@@ -141,7 +141,7 @@ namespace Iris {
 				.ClearDepthOnLoad = true,
 				.DepthClearValue = 1.0f,
 				.Attachments = { ImageFormat::RGBA32F, ImageFormat::DEPTH32F },
-				.Samples = c_Samples
+				.Samples = 1
 			};
 
 			PipelineSpecification selectedGeoPipeline = {
@@ -352,7 +352,8 @@ namespace Iris {
 				FramebufferSpecification jumpFloodCompositeFB = {
 					.DebugName = "JumpFloodCompositeFB",
 					.ClearColorOnLoad = false,
-					.Attachments = { { ImageFormat::RGBA32F, AttachmentPassThroughUsage::Input } }
+					.Attachments = { { ImageFormat::RGBA32F, AttachmentPassThroughUsage::Input } },
+					.Samples = 1
 				};
 				jumpFloodCompositeFB.ExistingImages[0] = m_CompositePass->GetOutput(0);
 
@@ -496,7 +497,7 @@ namespace Iris {
 			cameraData.DepthUnpackConsts = { depthLinearMul, depthLinearizeAdd };
 
 			Ref<SceneRenderer> instance = this;
-			Renderer::Submit([instance, &cameraData]() mutable
+			Renderer::Submit([instance, cameraData]() mutable
 			{
 				instance->m_UBSCamera->RT_Get()->RT_SetData(&cameraData, sizeof(UBCamera));
 			});
@@ -512,7 +513,7 @@ namespace Iris {
 			screenData.InverseHalfResolution = { m_InverseViewportWidth / 2, m_InverseViewportHeight / 2 };
 
 			Ref<SceneRenderer> instance = this;
-			Renderer::Submit([instance, &screenData]() mutable
+			Renderer::Submit([instance, screenData]() mutable
 			{
 				instance->m_UBSScreenData->Get()->SetData(&screenData, sizeof(UBScreenData));
 			});

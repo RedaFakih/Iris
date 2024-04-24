@@ -8,9 +8,7 @@
  *
  * NEXT THING TO WORK ON:
  * - Runtime crashes on exit in Multithreaded mode
- * - Renderer2D quads are not rendering/flickering for some reason
  * - Add Mesh panel that prompts the user to create the Iris Mesh file if they load a MeshSource
- * - If Mouse is pressed and moved in any other panel, the move mouse event is dispatched and then when we click in the viewport it is used which makes the flicker thing
  * - Switch the asset thread to sleep and wake based on a condition variable
  * - Add compute passes to the engine so we can have environment maps and some IBL
  * - Add Filled Circles to Renderer2D? (Circle sprites)

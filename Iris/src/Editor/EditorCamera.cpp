@@ -51,12 +51,14 @@ namespace Iris {
 	{
 		const auto& [x, y] = Input::GetMousePosition();
 		const glm::vec2& mouse{ x, y };
-		const glm::vec2 delta = (mouse - m_InitialMousePosition) * 0.002f;
 
 		if (!m_IsActive)
 		{
+			m_InitialMousePosition = mouse;
 			return;
 		}
+
+		const glm::vec2 delta = (mouse - m_InitialMousePosition) * 0.002f;
 
 		if (Input::IsKeyDown(KeyCode::LeftAlt))
 		{
