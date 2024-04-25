@@ -258,6 +258,18 @@ namespace Iris {
 		vkDestroyDevice(m_LogicalDevice, nullptr);
 	}
 
+	void VulkanDevice::LockQueue(/* bool compute */)
+	{
+		// TODO: For compute also
+		m_GraphicsQueueMutex.lock();
+	}
+
+	void VulkanDevice::UnlockQueue(/* bool compute */)
+	{
+		// TODO: For compute also
+		m_GraphicsQueueMutex.unlock();
+	}
+
 	VkCommandBuffer VulkanDevice::GetCommandBuffer(bool begin/* , bool compute */)
 	{
 		return GetOrCreateThreadLocalCommandPool()->AllocateCommandBuffer(begin/* , compute */);
@@ -377,7 +389,9 @@ namespace Iris {
 
 	void VulkanCommandPool::FlushCommandBuffer(VkCommandBuffer commandBuffer, VkQueue queue)
 	{
-		VkDevice device = RendererContext::GetCurrentDevice()->GetVulkanDevice();
+		Ref<VulkanDevice> device = RendererContext::GetCurrentDevice();
+		IR_VERIFY(queue == device->GetGraphicsQueue());
+		VkDevice vulkanDevice = device->GetVulkanDevice();
 		uint32_t frameIndex = Renderer::GetCurrentFrameIndex();
 
 		IR_ASSERT(commandBuffer != VK_NULL_HANDLE, "Can't flush a null buffer");
@@ -392,19 +406,19 @@ namespace Iris {
 
 		VkFenceCreateInfo fenceInfo = { .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO };
 		VkFence fence;
-		VK_CHECK_RESULT(vkCreateFence(device, &fenceInfo, nullptr, &fence));
+		VK_CHECK_RESULT(vkCreateFence(vulkanDevice, &fenceInfo, nullptr, &fence));
 
 		// Not more than one thread can submit to the SAME queue at the same time since that is UB
 		{
-			static std::mutex submissionLock;
-			std::scoped_lock<std::mutex> lock(submissionLock);
+			device->LockQueue();
 
 			VK_CHECK_RESULT(vkQueueSubmit(queue, 1, &submitInfo, fence));
+
+			device->UnlockQueue();
 		}
 
-		VK_CHECK_RESULT(vkWaitForFences(device, 1, &fence, VK_TRUE, UINT64_MAX));
+		VK_CHECK_RESULT(vkWaitForFences(vulkanDevice, 1, &fence, VK_TRUE, UINT64_MAX));
 
-		vkDestroyFence(device, fence, nullptr);
-		vkFreeCommandBuffers(device, m_GraphicsCommandPools[frameIndex], 1, &commandBuffer);
+		vkDestroyFence(vulkanDevice, fence, nullptr);
 	}
 }

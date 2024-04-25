@@ -22,7 +22,7 @@ namespace Iris {
 	{
 		s_AssetThreadID = m_Thread.GetID();
 
-		m_Thread.Dispatch([this]() {AssetThreadFunc(); });
+		m_Thread.Dispatch([this]() { AssetThreadFunc(); });
 	}
 
 	EditorAssetThread::~EditorAssetThread()
@@ -81,22 +81,20 @@ namespace Iris {
 		{
 			AssetMonitorUpdate();
 
-			bool loadingAssets = false;
-			if (!m_AssetLoadingQueue.empty())
-			{
-				loadingAssets = true;
-				Application::Get().DispatchEvent<Events::TitleBarColorChangeEvent>(Colors::Theme::TitlebarOrange);
-			}
-
 			// Go through the asset loding request queue if we have any
 			if (!m_AssetLoadingQueue.empty())
 			{
+				m_LoadingAssets = true;
+				Application::Get().DispatchEvent<Events::TitleBarColorChangeEvent, true>(Colors::Theme::TitlebarRed);
+
 				m_AssetLoadingQueueMutex.lock();
 				// Copy the queue and clear the original one so that it does not stay locked through out the whole asset loading
 				std::queue<AssetLoadRequest> assetLoadQeuue = m_AssetLoadingQueue;
 				m_AssetLoadingQueue = {};
 				m_AssetLoadingQueueMutex.unlock();
 
+				std::vector<AssetLoadRequest> loadedAssetsCopy(assetLoadQeuue.size());
+				uint32_t index = 0;
 				while (!assetLoadQeuue.empty())
 				{
 					AssetLoadRequest& alr = assetLoadQeuue.front();
@@ -109,8 +107,7 @@ namespace Iris {
 					{
 						auto absolutePath = GetFileSystemPath(alr.MetaData);
 
-						std::scoped_lock<std::mutex> lock(m_LoadedAssetsVectorMutex);
-						m_LoadedAssets.emplace_back(alr);
+						loadedAssetsCopy[index++] = alr;
 						IR_CORE_INFO_TAG("AssetManager", "[AssetThread]: Finished loading asset: {}", alr.MetaData.FilePath.string());
 					}
 					else
@@ -118,14 +115,18 @@ namespace Iris {
 
 					assetLoadQeuue.pop();
 				}
-			}
 
-			if (loadingAssets)
+				std::scoped_lock<std::mutex> lock(m_LoadedAssetsVectorMutex);
+				m_LoadedAssets = loadedAssetsCopy;
+
+				Application::Get().DispatchEvent<Events::TitleBarColorChangeEvent, true>(Colors::Theme::TitlebarCyan);
+			}
+			else
 			{
-				Application::Get().DispatchEvent<Events::TitleBarColorChangeEvent>(Colors::Theme::TitlebarCyan);
+				m_LoadingAssets = false;
 			}
 
-			// TEMP (replace with condition var)
+			// TODO: Replace with condition variable
 			using namespace std::chrono_literals;
 			std::this_thread::sleep_for(5ms);
 		}

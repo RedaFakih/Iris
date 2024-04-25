@@ -202,7 +202,9 @@ namespace Iris {
 
 			// PG_CORE_TRACE_TAG("Renderer", "Submitting Render Command Buffer {}", m_DebugName);
 
+			logicalDevice->LockQueue();
 			VK_CHECK_RESULT(vkQueueSubmit(logicalDevice->GetGraphicsQueue(), 1, &submitInfo, instance->m_WaitFences[commandBufferIndex]));
+			logicalDevice->UnlockQueue();
 
 			// Retrieve pipeline statistics results
 			vkGetQueryPoolResults(

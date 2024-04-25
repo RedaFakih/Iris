@@ -66,6 +66,11 @@ namespace Iris {
 
 		m_RenderThread.Terminate();
 
+		// Execute any remaining commands from before we clear the layers... then we do that again after we submit commands from the layer clearing
+		Renderer::ExecuteAllRenderCommandQueues();
+
+		vkDeviceWaitIdle(RendererContext::GetCurrentDevice()->GetVulkanDevice());
+
 		for (Layer* layer : m_LayerStack)
 		{
 			layer->OnDetach();

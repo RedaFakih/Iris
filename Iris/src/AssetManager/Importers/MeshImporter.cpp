@@ -1,6 +1,7 @@
 #include "IrisPCH.h"
 #include "MeshImporter.h"
 
+#include "AssetManager/AssetManager.h"
 #include "ImGui/Themes.h"
 #include "Renderer/Mesh/Mesh.h"
 #include "Renderer/Renderer.h"
@@ -63,6 +64,7 @@ namespace Iris {
 		if (!scene)
 		{
 			IR_CORE_ERROR_TAG("Mesh", "Failed to load mesh file: {0}", m_AssetPath);
+			meshSource->SetFlag(AssetFlag::Invalid);
 			return nullptr;
 		}
 
@@ -181,7 +183,11 @@ namespace Iris {
 				aiMaterial* aiMaterial = scene->mMaterials[i];
 				aiString aiMaterialName = aiMaterial->GetName();
 				Ref<Material> material = Material::Create(Renderer::GetShadersLibrary()->Get("IrisPBRStatic"), aiMaterialName.C_Str());
-				meshSource->m_Materials[i] = material;
+
+				AssetHandle materialAssetHandle = AssetManager::CreateMemoryOnlyAsset<MaterialAsset>(material);
+				meshSource->m_Materials[i] = materialAssetHandle;
+
+				Ref<MaterialAsset> ma = AssetManager::GetAsset<MaterialAsset>(materialAssetHandle);
 
 				IR_CORE_TRACE_TAG("Mesh", "\t   {0} (index = {1})", aiMaterialName.data, i);
 
@@ -197,6 +203,9 @@ namespace Iris {
 				if (aiMaterial->Get(AI_MATKEY_COLOR_EMISSIVE, aiColor) == AI_SUCCESS)
 					emission = static_cast<float>(aiEmission.r);
 
+				ma->SetAlbedoColor(albedoColor);
+				ma->SetEmission(emission);
+
 				float roughness, metalness;
 				if (aiMaterial->Get(AI_MATKEY_ROUGHNESS_FACTOR, roughness) != AI_SUCCESS)
 					roughness = 0.5f; // Default value
@@ -207,9 +216,6 @@ namespace Iris {
 
 				// Physically realistic materials are either metals or they are not
 				metalness = (metalness < 0.9f) ? 0.0f : 1.0f;
-
-				material->Set("u_MaterialUniforms.AlbedoColor", albedoColor);
-				material->Set("u_MaterialUniforms.Emission", emission);
 
 				IR_CORE_TRACE_TAG("Mesh", "\t   COLOR = {0} - {1} - {2}", aiColor.r, aiColor.g, aiColor.b);
 				IR_CORE_TRACE_TAG("Mesh", "\t   ROUGHNESS = {0}", roughness);
@@ -223,10 +229,9 @@ namespace Iris {
 					hasAlbedoMap = aiMaterial->GetTexture(aiTextureType_DIFFUSE, 0, &aiTexPath) == AI_SUCCESS;
 				}
 
-				bool fallback = !hasAlbedoMap;
 				if (hasAlbedoMap)
 				{
-					Ref<Texture2D> albedoTexture;
+					AssetHandle textureHandle = 0;
 					TextureSpecification spec = {
 						.DebugName = aiTexPath.C_Str(),
 						.Format = ImageFormat::SRGBA
@@ -237,42 +242,31 @@ namespace Iris {
 						spec.Width = aiTexEmbedded->mWidth;
 						spec.Height = aiTexEmbedded->mHeight;
 
-						albedoTexture = Texture2D::Create(spec, Buffer(reinterpret_cast<uint8_t*>(aiTexEmbedded->pcData), 1));
+						textureHandle = AssetManager::CreateMemoryOnlyRendererAsset<Texture2D>(spec, Buffer(reinterpret_cast<uint8_t*>(aiTexEmbedded->pcData), 1));
 					}
 					else
 					{
 						auto parentPath = m_AssetPath.parent_path();
-						parentPath /= std::string(aiTexPath.data);
-						std::string texturePath(parentPath.string());
-						IR_CORE_TRACE_TAG("Mesh", "\t   Albedo map path: {0}", texturePath);
-
-						albedoTexture = Texture2D::Create(spec, texturePath);
+						auto texturePath = parentPath / aiTexPath.C_Str();
+						if (!FileSystem::Exists(texturePath))
+						{
+							IR_CORE_WARN_TAG("Mesh", "\t   Albedo map path: {0} --> NOT FOUND!", texturePath);
+							texturePath = parentPath / texturePath.filename();
+						}
+						IR_CORE_TRACE_TAG("Mesh", "\t   Albedo map path: {0}{1}", texturePath, FileSystem::Exists(texturePath) ? "" : "--> NOT FOUND!");
+						
+						textureHandle = AssetManager::CreateMemoryOnlyRendererAsset<Texture2D>(spec, texturePath);
 					}
 
-					if (albedoTexture)
-					{
-						material->Set("u_AlbedoTexture", albedoTexture);
-						material->Set("u_MaterialUniforms.AlbedoColor", glm::vec3(1.0f));
-					}
-					else
-					{
-						fallback = true;
-						IR_CORE_ERROR_TAG("Mesh", "\t   Could not load texture: {0}", aiTexPath.C_Str());
-					}
-				}
-
-				if (fallback)
-				{
-					IR_CORE_TRACE_TAG("Mesh", "\t   No albedo map");
-					material->Set("u_AlbedoTexture", whiteTexture);
+					ma->SetAlbedoMap(textureHandle);
+					ma->SetAlbedoColor(glm::vec3{ 1.0f });
 				}
 
 				// Normal maps
 				bool hasNormalMap = aiMaterial->GetTexture(aiTextureType_NORMALS, 0, &aiTexPath) == AI_SUCCESS;
-				fallback = !hasNormalMap;
 				if (hasNormalMap)
 				{
-					Ref<Texture2D> normalMap;
+					AssetHandle textureHandle = 0;
 					TextureSpecification spec = {
 						.DebugName = aiTexPath.C_Str(),
 						.Format = ImageFormat::RGBA
@@ -283,35 +277,25 @@ namespace Iris {
 						spec.Width = aiTexEmbedded->mWidth;
 						spec.Height = aiTexEmbedded->mHeight;
 
-						normalMap = Texture2D::Create(spec, Buffer(reinterpret_cast<uint8_t*>(aiTexEmbedded->pcData), 1));
+						textureHandle = AssetManager::CreateMemoryOnlyRendererAsset<Texture2D>(spec, Buffer(reinterpret_cast<uint8_t*>(aiTexEmbedded->pcData), 1));
 					}
 					else
 					{
 						auto parentPath = m_AssetPath.parent_path();
-						parentPath /= std::string(aiTexPath.data);
-						std::string texturePath(parentPath.string());
-						IR_CORE_TRACE_TAG("Mesh", "\t   Normal map path: {0}", texturePath);
+						auto texturePath = parentPath / aiTexPath.C_Str();
+						if (!FileSystem::Exists(texturePath))
+						{
+							IR_CORE_WARN_TAG("Mesh", "\t   Normal map path: {0} --> NOT FOUND!", texturePath);
+							texturePath = parentPath / texturePath.filename();
+						}
+						IR_CORE_TRACE_TAG("Mesh", "\t   Normal map path: {0}{1}", texturePath, FileSystem::Exists(texturePath) ? "" : "--> NOT FOUND!");
 
-						normalMap = Texture2D::Create(spec, texturePath);
+						textureHandle = AssetManager::CreateMemoryOnlyRendererAsset<Texture2D>(spec, texturePath);
 					}
 
-					if (normalMap)
-					{
-						material->Set("u_NormalTexture", normalMap);
-						material->Set("u_MaterialUniforms.UseNormalMap", true);
-					}
-					else
-					{
-						fallback = true;
-						IR_CORE_ERROR_TAG("Mesh", "\t   Could not load texture: {0}", aiTexPath.C_Str());
-					}
-				}
-
-				if (fallback)
-				{
-					IR_CORE_TRACE_TAG("Mesh", "\t   No normal map");
-					material->Set("u_NormalTexture", whiteTexture);
-					material->Set("u_MaterialUniforms.UseNormalMap", false);
+					ma->SetNormalMap(textureHandle);
+					// TODO: Needs to be false if we were not able to load the normal map?
+					ma->SetUseNormalMap(true);
 				}
 
 				// Roughness maps
@@ -324,10 +308,9 @@ namespace Iris {
 					invertRoughness = true;
 				}
 
-				fallback = !hasRoughnessMap;
 				if (hasRoughnessMap)
 				{
-					Ref<Texture2D> roughnessMap;
+					AssetHandle textureHandle = 0;
 					TextureSpecification spec = {
 						.DebugName = aiTexPath.C_Str(),
 						.Format = ImageFormat::RGBA
@@ -356,16 +339,20 @@ namespace Iris {
 							}
 						}
 
-						roughnessMap = Texture2D::Create(spec, Buffer(reinterpret_cast<uint8_t*>(texels), 1));
+						textureHandle = AssetManager::CreateMemoryOnlyRendererAsset<Texture2D>(spec, Buffer(reinterpret_cast<uint8_t*>(texels), 1));
 					}
 					else
 					{
 						auto parentPath = m_AssetPath.parent_path();
-						parentPath /= std::string(aiTexPath.data);
-						std::string texturePath = parentPath.string();
-						IR_CORE_TRACE_TAG("Mesh", "\t   Roughness map path: {0}", texturePath);
+						auto texturePath = parentPath / aiTexPath.C_Str();
+						if (!FileSystem::Exists(texturePath))
+						{
+							IR_CORE_WARN_TAG("Mesh", "\t   Roughness map path: {0} --> NOT FOUND!", texturePath);
+							texturePath = parentPath / texturePath.filename();
+						}
+						IR_CORE_TRACE_TAG("Mesh", "\t   Roughness map path: {0}{1}", texturePath, FileSystem::Exists(texturePath) ? "" : "--> NOT FOUND!");
 
-						Buffer buffer = Utils::TextureImporter::LoadImageFromFile(texturePath, spec.Format, spec.Width, spec.Height);
+						Buffer buffer = Utils::TextureImporter::LoadImageFromFile(texturePath.string(), spec.Format, spec.Width, spec.Height);
 
 						aiTexel* texels = reinterpret_cast<aiTexel*>(buffer.Data);
 						if (invertRoughness)
@@ -379,35 +366,18 @@ namespace Iris {
 							}
 						}
 
-						roughnessMap = Texture2D::Create(spec, buffer);
+						textureHandle = AssetManager::CreateMemoryOnlyRendererAsset<Texture2D>(spec, buffer);
 					}
 
-					if (roughnessMap)
-					{
-						material->Set("u_RoughnessTexture", roughnessMap);
-						material->Set("u_MaterialUniforms.Roughness", 1.0f);
-					}
-					else
-					{
-						fallback = true;
-						IR_CORE_ERROR_TAG("Mesh", "\t   Could not load texture: {0}", aiTexPath.C_Str());
-					}
-				}
-
-				if (fallback)
-				{
-					IR_CORE_TRACE_TAG("Mesh", "\t   No roughness map");
-					material->Set("u_RoughnessTexture", whiteTexture);
-					material->Set("u_MaterialUniforms.Roughness", roughness);
+					ma->SetRoughnessMap(textureHandle);
+					ma->SetRoughness(1.0f);
 				}
 
 				// Metalness maps
 				bool hasMetalnessMap = aiMaterial->GetTexture(AI_MATKEY_METALLIC_TEXTURE, &aiTexPath) == AI_SUCCESS;
-				fallback = !hasMetalnessMap;
-
 				if (hasMetalnessMap)
 				{
-					Ref<Texture2D> metalnessMap;
+					AssetHandle textureHandle = 0;
 					TextureSpecification spec = {
 						.DebugName = aiTexPath.C_Str(),
 						.Format = ImageFormat::RGBA
@@ -418,35 +388,24 @@ namespace Iris {
 						spec.Width = aiTexEmbedded->mWidth;
 						spec.Height = aiTexEmbedded->mHeight;
 
-						metalnessMap = Texture2D::Create(spec, Buffer(reinterpret_cast<uint8_t*>(aiTexEmbedded->pcData), 1));
+						textureHandle = AssetManager::CreateMemoryOnlyRendererAsset<Texture2D>(spec, Buffer(reinterpret_cast<uint8_t*>(aiTexEmbedded->pcData), 1));
 					}
 					else
 					{
 						auto parentPath = m_AssetPath.parent_path();
-						parentPath /= std::string(aiTexPath.data);
-						std::string texturePath = parentPath.string();
-						IR_CORE_TRACE_TAG("Mesh", "\t   Metalness map path: {0}", texturePath);
+						auto texturePath = parentPath / aiTexPath.C_Str();
+						if (!FileSystem::Exists(texturePath))
+						{
+							IR_CORE_WARN_TAG("Mesh", "\t   Metalness map path: {0} --> NOT FOUND!", texturePath);
+							texturePath = parentPath / texturePath.filename();
+						}
+						IR_CORE_TRACE_TAG("Mesh", "\t   Metalness map path: {0}{1}", texturePath, FileSystem::Exists(texturePath) ? "" : "--> NOT FOUND!");
 
-						metalnessMap = Texture2D::Create(spec, texturePath);
+						textureHandle = AssetManager::CreateMemoryOnlyRendererAsset<Texture2D>(spec, texturePath);
 					}
 
-					if (metalnessMap)
-					{
-						material->Set("u_MetalnessTexture", metalnessMap);
-						material->Set("u_MaterialUniforms.Metalness", 1.0f);
-					}
-					else
-					{
-						fallback = true;
-						IR_CORE_ERROR_TAG("Mesh", "\t   Could not load texture: {0}", aiTexPath.C_Str());
-					}
-				}
-
-				if (fallback)
-				{
-					IR_CORE_TRACE_TAG("Mesh", "\t   No metalness map");
-					material->Set("u_MetalnessTexture", whiteTexture);
-					material->Set("u_MaterialUniforms.Metalness", metalness);
+					ma->SetMetalnessMap(textureHandle);
+					ma->SetMetalness(1.0f);
 				}
 			}
 
@@ -456,18 +415,9 @@ namespace Iris {
 		{
 			if (scene->HasMeshes())
 			{
-				Ref<Material> material = Material::Create(Renderer::GetShadersLibrary()->Get("IrisPBRStatic"), "PlaygroundDefault");
-				material->Set("u_MaterialUniforms.AlbedoColor", glm::vec3(0.8f));
-				material->Set("u_MaterialUniforms.Emission", 0.0f);
-				material->Set("u_MaterialUniforms.Roughness", 0.8f);
-				material->Set("u_MaterialUniforms.Metalness", 0.0f);
-				material->Set("u_MaterialUniforms.UseNormalMap", false);
-
-				material->Set("u_AlbedoTexture", whiteTexture);
-				material->Set("u_RoughnessTexture", whiteTexture);
-				material->Set("u_MetalnessTexture", whiteTexture);
-
-				meshSource->m_Materials.push_back(material);
+				Ref<Material> material = Material::Create(Renderer::GetShadersLibrary()->Get("IrisPBRStatic"), "IrisDefault");
+				AssetHandle materialAssetHandle = AssetManager::CreateMemoryOnlyAsset<MaterialAsset>(material);
+				meshSource->m_Materials.push_back(materialAssetHandle);
 			}
 		}
 

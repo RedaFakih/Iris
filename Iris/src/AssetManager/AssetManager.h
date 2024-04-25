@@ -34,6 +34,8 @@ namespace Iris {
 
 		static void SyncWithAssetThread() { Project::GetAssetManager()->SyncWithAssetThread(); }
 
+		static bool IsAssetThreadCurrentlyLoadingAssets() { return Project::GetAssetManager()->IsAssetThreadCurrentlyLoadingAssets(); }
+
 		static Ref<Asset> GetPlaceHolderAsset(AssetType type);
 
 		template<typename T>

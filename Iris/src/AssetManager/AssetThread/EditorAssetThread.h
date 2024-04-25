@@ -16,6 +16,9 @@ namespace Iris {
 
 		[[nodiscard]] static Ref<EditorAssetThread> Create();
 
+		bool IsRunning() const { return m_Running; }
+		bool IsCurrentlyLoadingAssets() const { return m_LoadingAssets; }
+
 		void QueueAssetLoad(const AssetLoadRequest& request);
 		bool RetrieveReadyAssets(std::vector<AssetLoadRequest>& outAssetList);
 		void UpdateAssetManagerLoadedAssetList(const std::unordered_map<AssetHandle, Ref<Asset>>& loadedAssets);
@@ -34,6 +37,7 @@ namespace Iris {
 	private:
 		Thread m_Thread;
 		bool m_Running = false;
+		bool m_LoadingAssets = true;
 
 		std::queue<AssetLoadRequest> m_AssetLoadingQueue;
 		std::mutex m_AssetLoadingQueueMutex;

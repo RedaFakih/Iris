@@ -117,6 +117,9 @@ namespace Iris {
 
 		void Destroy();
 
+		void LockQueue(/* bool compute = false */);
+		void UnlockQueue(/* bool compute = false */);
+
 		VkQueue GetGraphicsQueue() { return m_GraphicsQueue; }
 		// TODO: VkQueue GetComputeQueue() { return m_ComputeQueue; }
 
@@ -140,6 +143,8 @@ namespace Iris {
 		// TODO: VkQueue m_ComputeQueue;
 
 		std::map<std::thread::id, Ref<VulkanCommandPool>> m_CommandPools;
+
+		std::mutex m_GraphicsQueueMutex;
 
 		friend class Renderer;
 	};

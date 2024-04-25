@@ -45,7 +45,7 @@ namespace Iris {
 
 	void UniformBuffer::SetData(const void* data, size_t size, size_t offset)
 	{
-		std::memcpy(m_LocalData.Data, data, size); // Copy all the data here and then in the other function account for the offset
+		std::memcpy(m_LocalData.Data, reinterpret_cast<const uint8_t*>(data) + offset, size); // Copy all the data here and then in the other function account for the offset
 		Ref<UniformBuffer> instance = this;
 		Renderer::Submit([instance, size, offset]() mutable
 		{

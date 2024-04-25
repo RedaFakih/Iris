@@ -92,11 +92,11 @@ namespace Iris {
 		{
 			SetSubMeshes({}, meshSourceAsset);
 
-			const std::vector<Ref<Material>>& meshMaterials = meshSourceAsset->GetMaterials();
+			const std::vector<AssetHandle>& meshMaterials = meshSourceAsset->GetMaterials();
 			m_MaterialTable = MaterialTable::Create(static_cast<uint32_t>(meshMaterials.size()));
 
 			for (uint32_t i = 0; i < static_cast<uint32_t>(meshMaterials.size()); i++)
-				m_MaterialTable->SetMaterial(i, AssetManager::CreateMemoryOnlyAsset<MaterialAsset>(meshMaterials[i]));
+				m_MaterialTable->SetMaterial(i, meshMaterials[i]);
 			// Memory only since the material table is just in memory and is not an asset
 		}
 	}
@@ -111,11 +111,11 @@ namespace Iris {
 		{
 			SetSubMeshes(subMeshes, meshSourceAsset);
 
-			const std::vector<Ref<Material>>& meshMaterials = meshSourceAsset->GetMaterials();
+			const std::vector<AssetHandle>& meshMaterials = meshSourceAsset->GetMaterials();
 			m_MaterialTable = MaterialTable::Create(static_cast<uint32_t>(meshMaterials.size()));
 
 			for (uint32_t i = 0; i < static_cast<uint32_t>(meshMaterials.size()); i++)
-				m_MaterialTable->SetMaterial(i, AssetManager::CreateMemoryOnlyAsset<MaterialAsset>(meshMaterials[i]));
+				m_MaterialTable->SetMaterial(i, meshMaterials[i]);
 		}
 	}
 

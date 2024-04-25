@@ -222,12 +222,7 @@ namespace Iris {
 		s_Data->QuadIndexBuffer.Reset();
 
 		// Execute any remaining commands
-		for (uint32_t i = 0; i < c_RenderCommandQueueCount; i++)
-		{
-			RenderCommandQueue& resourceReleaseQueue = GetRenderCommandQueue();
-			resourceReleaseQueue.Execute();
-			SwapQueues();
-		}
+		Renderer::ExecuteAllRenderCommandQueues();
 
 		for (VkDescriptorPool descriptorPool : s_Data->DescriptorPools)
 			vkDestroyDescriptorPool(device, descriptorPool, nullptr);
@@ -270,6 +265,16 @@ namespace Iris {
 	void Renderer::SetConfig(const RendererConfiguration& config)
 	{
 		s_RendererConfig = config;
+	}
+
+	void Renderer::ExecuteAllRenderCommandQueues()
+	{
+		for (uint32_t i = 0; i < c_RenderCommandQueueCount; i++)
+		{
+			RenderCommandQueue& resourceReleaseQueue = GetRenderCommandQueue();
+			resourceReleaseQueue.Execute();
+			SwapQueues();
+		}
 	}
 
 	void Renderer::SwapQueues()

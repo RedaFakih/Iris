@@ -36,7 +36,7 @@ namespace Iris {
 			.StartMaximized = false,
 			.Resizable = true,
 			.EnableImGui = false,
-			.RendererConfig = {.FramesInFlight = 3 },
+			.RendererConfig = { .FramesInFlight = 3 },
 			.CoreThreadingPolicy = ThreadingPolicy::MultiThreaded
 		};
 

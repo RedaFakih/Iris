@@ -111,6 +111,7 @@ namespace Iris {
 
 		// NOTE: If CreateNull is used then an Invalidate call should follow to get a valid image
 		[[nodiscard]] static Ref<Texture2D> CreateNull(const TextureSpecification& spec);
+		[[nodiscard]] static Ref<Texture2D> Create(const TextureSpecification& spec, const std::filesystem::path& filePath);
 		[[nodiscard]] static Ref<Texture2D> Create(const TextureSpecification& spec, const std::string& filePath);
 		[[nodiscard]] static Ref<Texture2D> Create(const TextureSpecification& spec, Buffer imageData = Buffer());
 

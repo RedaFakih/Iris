@@ -7,22 +7,16 @@
  * NEXT STEP ON TUTORIAL: Compute Shaders
  *
  * NEXT THING TO WORK ON:
- * - Runtime crashes on exit in Multithreaded mode
  * - Add Mesh panel that prompts the user to create the Iris Mesh file if they load a MeshSource
  * - Switch the asset thread to sleep and wake based on a condition variable
  * - Add compute passes to the engine so we can have environment maps and some IBL
  * - Add Filled Circles to Renderer2D? (Circle sprites)
- * - SceneRenderer continue building all the passes
- * - Maybe make the outline color user set in global application settings?
  * - Handle renderer descriptor pool situation and come up with some solutions for it... Read note written in Renderer.cpp (line: 101)
  * - For runtime layer switch to using a main camera component and not the editor camera
  * - Add pipeline for double sided materials where you just disable culling... but it has its own drawlist
  * - Make the place where the scene names are rendered in the titlebar act as scene `TABS` that way you could have multiple scenes open at the same time and you switch between them by just pressing the scene name in the titlebar
  * - For raycasting grids we need to fix that the grid is not fixed in place and it moves as the camera moves so it is not useful as a reference grid
  * - OIT? With Weighted Blended technique using info provided from learnopengl.com <https://learnopengl.com/Guest-Articles/2020/OIT/Weighted-Blended> <https://github.com/nvpro-samples/vk_order_independent_transparency>
- * 
- * - When we have an AssetManager:
- *   - Switch all the stuff that references assets in the Properties panel (Textures, meshes, materials...)
  * 
  * TO BE EXPANDED: (constant expansion)
  * - DescriptorSetManager (Constant Expansion with shader reflection)
@@ -56,9 +50,9 @@
  *		- Some assets may have an Iris specific middle file (YAML) that links the asset with its source asset file (ex. StaticMesh links the asset to MeshSource)
  *			- In case of these assets, the corresponding AssetSerializer derived class will handle Loading and Serializing of that YAML file
  *  - AssetThread:
- *		- How it works with the asset manager?
- *      - How dependecy between assets work and dependency changing (OnDependencyChanged)?
- *		- Stuff it uses for waiting and all that
+ *		- The asset manager can submit to the AssetThread an asset load request via the GetAssetAsync function, the AssetThread will then go through the
+ *		  the asset loading requests queue and start loading the assets one by one. At the start of the next frame we sync the asset manager with the
+ *		  AssetThread and retrieve any new loaded assets and queue and dependcy changes...
  * 
  * Future Plans:
  *	- Add meshoptimizer? <https://github.com/zeux/meshoptimizer/tree/master>

@@ -90,6 +90,8 @@ namespace Iris {
 			}
 		}
 
+		static void ExecuteAllRenderCommandQueues();
+
 		static void SwapQueues();
 		static void WaitAndRender(RenderThread* renderThread);
 

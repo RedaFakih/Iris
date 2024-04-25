@@ -104,8 +104,7 @@ namespace Iris {
 						{
 							if (AssetManager::IsAssetHandleValid(spriteRendererComponent.Texture))
 							{
-								// TODO: Maybe switch to async?
-								Ref<Texture2D> texture = AssetManager::GetAsset<Texture2D>(spriteRendererComponent.Texture);
+								Ref<Texture2D> texture = AssetManager::GetAssetAsync<Texture2D>(spriteRendererComponent.Texture);
 								renderer2D->DrawQuad(
 									GetWorldSpaceTransformMatrix(e),
 									texture,

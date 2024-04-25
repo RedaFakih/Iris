@@ -530,6 +530,7 @@ namespace Iris {
 			.pSignalSemaphores = &m_RenderFinishedSemaphores[m_CurrentFrameIndex]
 		};
 
+		m_Device->LockQueue();
 		VK_CHECK_RESULT(vkQueueSubmit(m_Device->GetGraphicsQueue(), 1, &submitInfo, m_WaitFences[m_CurrentFrameIndex]));
 
 		// Presentation
@@ -551,6 +552,8 @@ namespace Iris {
 
 			result = vkQueuePresentKHR(m_Device->GetGraphicsQueue(), &presentInfo);
 		}
+
+		m_Device->UnlockQueue();
 
 		if (result != VK_SUCCESS)
 		{

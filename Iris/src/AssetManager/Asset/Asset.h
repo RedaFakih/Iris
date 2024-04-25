@@ -57,7 +57,7 @@ namespace Iris {
 	template<typename T>
 	struct AsyncAssetResult
 	{
-		Ref<T> Asset;
+		Ref<T> Asset = nullptr;
 		bool IsReady = false;
 
 		AsyncAssetResult() = default;

@@ -1411,7 +1411,7 @@ namespace Iris {
 		DrawComponent<StaticMeshComponent>("StaticMesh", [&](StaticMeshComponent& meshComp, const std::vector<UUID>& entities, const bool isMultiSelect)
 		{
 			AssetHandle meshHandle = meshComp.StaticMesh;
-			Ref<StaticMesh> mesh = AssetManager::GetAsset<StaticMesh>(meshHandle);
+			Ref<StaticMesh> mesh = AssetManager::GetAssetAsync<StaticMesh>(meshHandle);
 
 			UI::BeginPropertyGrid();
 
@@ -1421,7 +1421,7 @@ namespace Iris {
 
 				if (UI::PropertyAssetReference<StaticMesh>("Static Mesh", meshHandle))
 				{
-					mesh = AssetManager::GetAsset<StaticMesh>(meshHandle);
+					mesh = AssetManager::GetAssetAsync<StaticMesh>(meshHandle);
 
 					for (auto& entityID : entities)
 					{

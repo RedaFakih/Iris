@@ -34,6 +34,7 @@ namespace Iris {
 		virtual void RegisterDependency(AssetHandle handle, AssetHandle dependency) override;
 
 		virtual void SyncWithAssetThread() override;
+		virtual bool IsAssetThreadCurrentlyLoadingAssets() const override { return m_AssetThread->IsCurrentlyLoadingAssets(); }
 
 		virtual std::unordered_set<AssetHandle> GetAllAssetsWithType(AssetType type) const override;
 		virtual const std::unordered_map<AssetHandle, Ref<Asset>>& GetLoadedAssets() const override { return m_LoadedAssets; }

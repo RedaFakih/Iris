@@ -100,8 +100,8 @@ namespace Iris {
 		const std::vector<MeshUtils::Vertex>& GetVertices() const { return m_Vertices; }
 		const std::vector<MeshUtils::Index>& GetIndices() const { return m_Indices; }
 
-		std::vector<Ref<Material>>& GetMaterials() { return m_Materials; }
-		const std::vector<Ref<Material>>& GetMaterials() const { return m_Materials; }
+		std::vector<AssetHandle>& GetMaterials() { return m_Materials; }
+		const std::vector<AssetHandle>& GetMaterials() const { return m_Materials; }
 
 		const std::vector<MeshUtils::Triangle>& GetTriangleCache(uint32_t index) const { IR_ASSERT(m_TriangleCache.contains(index)); return m_TriangleCache.at(index); }
 
@@ -127,7 +127,7 @@ namespace Iris {
 		std::vector<MeshUtils::Vertex> m_Vertices;
 		std::vector<MeshUtils::Index> m_Indices;
 
-		std::vector<Ref<Material>> m_Materials;
+		std::vector<AssetHandle> m_Materials;
 
 		std::unordered_map<uint32_t, std::vector<MeshUtils::Triangle>> m_TriangleCache;
 

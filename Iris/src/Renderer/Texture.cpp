@@ -71,6 +71,11 @@ namespace Iris {
         return CreateRef<Texture2D>(spec);
     }
 
+    Ref<Texture2D> Texture2D::Create(const TextureSpecification& spec, const std::filesystem::path& filePath)
+    {
+        return Texture2D::Create(spec, filePath.string());
+    }
+
     Ref<Texture2D> Texture2D::Create(const TextureSpecification& spec, const std::string& filePath)
     {
         return CreateRef<Texture2D>(spec, filePath);

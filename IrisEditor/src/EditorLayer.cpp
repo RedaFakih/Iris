@@ -92,6 +92,8 @@ namespace Iris {
 
 	void EditorLayer::OnUpdate(TimeStep ts)
 	{
+		AssetManager::SyncWithAssetThread();
+
 		m_PanelsManager->SetSceneContext(m_EditorScene);
 
 		// Set jump flood pass on or off based on if we have selected something in the past frame...
@@ -209,6 +211,8 @@ namespace Iris {
 
 	void EditorLayer::OnImGuiRender()
 	{
+		// IR_CORE_FATAL("Main thread still running...");
+		
 		UI_StartDocking();
 
 		// ImGui::ShowDemoWindow(); // Testing imgui stuff
@@ -1150,6 +1154,10 @@ namespace Iris {
 			return false;
 
 		ImGui::ClearActiveID();
+
+		// NOTE: If currently loading an asset then we do not do this anything regarding selection since it will brick the editor layer until asset loading is done
+		if (AssetManager::IsAssetThreadCurrentlyLoadingAssets())
+			return false;
 
 		std::vector<SelectionData> selectionData;
 		auto [mouseX, mouseY] = GetMouseInViewportSpace();
