@@ -12,6 +12,14 @@
 
 namespace Iris {
 
+	struct AssetThreadData
+	{
+		CRITICAL_SECTION CriticalSection;
+		CONDITION_VARIABLE ConditionVariable;
+
+		ThreadState State = ThreadState::Idle;
+	};
+
 	Ref<EditorAssetThread> EditorAssetThread::Create()
 	{
 		return CreateRef<EditorAssetThread>();
@@ -22,13 +30,23 @@ namespace Iris {
 	{
 		s_AssetThreadID = m_Thread.GetID();
 
-		m_Thread.Dispatch([this]() { AssetThreadFunc(); });
+		m_Data = new AssetThreadData();
+		InitializeCriticalSection(&m_Data->CriticalSection);
+		InitializeConditionVariable(&m_Data->ConditionVariable);
 	}
 
 	EditorAssetThread::~EditorAssetThread()
 	{
-		StopAndWait();
+		if (m_Data->State != ThreadState::Joined)
+			StopAndWait(true);
+
+		DeleteCriticalSection(&m_Data->CriticalSection);
 		s_AssetThreadID = std::thread::id();
+	}
+
+	bool EditorAssetThread::IsCurrentlyLoadingAssets() const
+	{
+		return m_Data->State == ThreadState::Busy;
 	}
 
 	void EditorAssetThread::QueueAssetLoad(const AssetLoadRequest& request)
@@ -55,15 +73,31 @@ namespace Iris {
 		m_AMLoadedAssets = loadedAssets;
 	}
 
+	void EditorAssetThread::Run()
+	{
+		m_Running = true;
+		m_Thread.Dispatch([this]() { AssetThreadFunc(); });
+	}
+
 	void EditorAssetThread::Stop()
 	{
 		m_Running = false;
 	}
 
-	void EditorAssetThread::StopAndWait()
+	void EditorAssetThread::StopAndWait(bool terminateThread)
 	{
 		Stop();
-		m_Thread.Join();
+
+		Set(ThreadState::Kick);
+		Wait(ThreadState::Idle);
+
+		if (terminateThread)
+		{
+			Set(ThreadState::Joined);
+			m_Thread.Join();
+
+			s_AssetThreadID = std::thread::id();
+		}
 	}
 
 	void EditorAssetThread::AssetMonitorUpdate()
@@ -74,17 +108,67 @@ namespace Iris {
 		m_AssetUpdatePerf = timer.ElapsedMillis();
 	}
 
+	void EditorAssetThread::Wait(ThreadState stateToWait)
+	{
+		// Nothing to wait for
+		if (m_Data->State == stateToWait)
+			return;
+
+		EnterCriticalSection(&m_Data->CriticalSection);
+		while (m_Data->State != stateToWait)
+		{
+			SleepConditionVariableCS(&m_Data->ConditionVariable, &m_Data->CriticalSection, INFINITE);
+		}
+		LeaveCriticalSection(&m_Data->CriticalSection);
+	}
+
+	void EditorAssetThread::Set(ThreadState stateToSet)
+	{
+		// Already set
+		if (m_Data->State == stateToSet)
+			return;
+
+		EnterCriticalSection(&m_Data->CriticalSection);
+		m_Data->State = stateToSet;
+		WakeAllConditionVariable(&m_Data->ConditionVariable);
+		LeaveCriticalSection(&m_Data->CriticalSection);
+	}
+
+	void EditorAssetThread::WaitAndSet(ThreadState stateToWait, ThreadState stateToSet)
+	{
+		// Nothing to wait for
+		if (m_Data->State == stateToWait)
+			return;
+
+		EnterCriticalSection(&m_Data->CriticalSection);
+		while (m_Data->State != stateToWait)
+		{
+			SleepConditionVariableCS(&m_Data->ConditionVariable, &m_Data->CriticalSection, INFINITE);
+		}
+		m_Data->State = stateToSet;
+		WakeAllConditionVariable(&m_Data->ConditionVariable);
+		LeaveCriticalSection(&m_Data->CriticalSection);
+	}
+
 	void EditorAssetThread::AssetThreadFunc()
 	{
-		m_Running = true;
 		while (m_Running)
 		{
+			// Here we wait untill the Kick state is set, then we set state to Busy
+			{
+				Timer assetThreadWaitTimer;
+
+				WaitAndSet(ThreadState::Kick, ThreadState::Busy);
+
+				assetThreadWaitTimer.ElapsedMillis();
+			}
+
 			AssetMonitorUpdate();
 
 			// Go through the asset loding request queue if we have any
-			if (!m_AssetLoadingQueue.empty())
+			// We use a while loop in case the user queues asset loads during an asset is being loaded
+			while (!m_AssetLoadingQueue.empty())
 			{
-				m_LoadingAssets = true;
 				Application::Get().DispatchEvent<Events::TitleBarColorChangeEvent, true>(Colors::Theme::TitlebarRed);
 
 				m_AssetLoadingQueueMutex.lock();
@@ -101,34 +185,38 @@ namespace Iris {
 
 					IR_CORE_WARN_TAG("AssetManager", "[AssetThread]: Loading asset: {}", alr.MetaData.FilePath.string());
 
-					// TODO: Here we still can not load textures since it may clash with the other thread submitting to the same queue
 					bool success = AssetImporter::TryLoadData(alr.MetaData, alr.Asset);
 					if (success)
 					{
 						auto absolutePath = GetFileSystemPath(alr.MetaData);
-
-						loadedAssetsCopy[index++] = alr;
 						IR_CORE_INFO_TAG("AssetManager", "[AssetThread]: Finished loading asset: {}", alr.MetaData.FilePath.string());
 					}
 					else
+					{
+						alr.MetaData.Status = AssetStatus::Invalid;
 						IR_CORE_INFO_TAG("AssetManager", "[AssetThread]: Failed to load asset: {} ({})", alr.MetaData.FilePath.string(), alr.MetaData.Handle);
+					}
+
+					// NOTE: In case the asset failed we still want to know what its meta data is... so we set the status to invalid
+					// And if the loading failed then the asset flags will most probably say the asset is invalid/missing
+					loadedAssetsCopy[index++] = alr;
 
 					assetLoadQeuue.pop();
 				}
 
 				std::scoped_lock<std::mutex> lock(m_LoadedAssetsVectorMutex);
-				m_LoadedAssets = loadedAssetsCopy;
+				// Extend the vector to hold the extra assets
+				m_LoadedAssets.reserve(m_LoadedAssets.size() +  loadedAssetsCopy.size());
+				for (uint32_t i = 0; i < loadedAssetsCopy.size(); i++)
+				{
+					m_LoadedAssets.push_back(loadedAssetsCopy[i]);
+				}
 
 				Application::Get().DispatchEvent<Events::TitleBarColorChangeEvent, true>(Colors::Theme::TitlebarCyan);
 			}
-			else
-			{
-				m_LoadingAssets = false;
-			}
 
-			// TODO: Replace with condition variable
-			using namespace std::chrono_literals;
-			std::this_thread::sleep_for(5ms);
+			// Return the thread state back to idle since we finished work
+			Set(ThreadState::Idle);
 		}
 	}
 

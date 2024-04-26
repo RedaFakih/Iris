@@ -53,15 +53,18 @@ namespace Iris {
 	/// MeshSource
 	/////////////////////////////////////////
 
-	bool MeshSourceSerializer::TryLoadData(const AssetMetaData& metadata, Ref<Asset>& asset) const
+	bool MeshSourceSerializer::TryLoadData(const AssetMetaData& metaData, Ref<Asset>& asset) const
 	{
-		AssimpMeshImporter importer(Project::GetEditorAssetManager()->GetFileSystemPathString(metadata));
+		AssimpMeshImporter importer(Project::GetEditorAssetManager()->GetFileSystemPathString(metaData));
 		Ref<MeshSource> meshSource = importer.ImportToMeshSource();
 		if (!meshSource)
+		{
+			asset->SetFlag(AssetFlag::Invalid);
 			return false;
+		}
 
 		asset = meshSource;
-		asset->Handle = metadata.Handle;
+		asset->Handle = metaData.Handle;
 		return true;
 	}
 
@@ -69,34 +72,40 @@ namespace Iris {
 	/// StaticMesh
 	/////////////////////////////////////////
 
-	void StaticMeshSerializer::Serialize(const AssetMetaData& metadata, const Ref<Asset>& asset) const
+	void StaticMeshSerializer::Serialize(const AssetMetaData& metaData, const Ref<Asset>& asset) const
 	{
 		Ref<StaticMesh> staticMesh = asset.As<StaticMesh>();
 
 		std::string yamlString = SerializeToYAML(staticMesh);
 
-		auto serializePath = Project::GetActive()->GetAssetDirectory() / metadata.FilePath;
+		auto serializePath = Project::GetActive()->GetAssetDirectory() / metaData.FilePath;
 		std::ofstream fout(serializePath);
 		IR_VERIFY(fout.good());
 		fout << yamlString;
 	}
 
-	bool StaticMeshSerializer::TryLoadData(const AssetMetaData& metadata, Ref<Asset>& asset) const
+	bool StaticMeshSerializer::TryLoadData(const AssetMetaData& metaData, Ref<Asset>& asset) const
 	{
-		// TODO: this needs to open up a Hazel Mesh file and make sure the MeshSource file is also loaded
-
-		auto filepath = Project::GetAssetDirectory() / metadata.FilePath;
+		auto filepath = Project::GetAssetDirectory() / metaData.FilePath;
 		std::ifstream stream(filepath);
 		IR_ASSERT(stream);
+		if (!stream)
+		{
+			asset->SetFlag(AssetFlag::Missing);
+			return false;
+		}
 		std::stringstream strStream;
 		strStream << stream.rdbuf();
 
 		Ref<StaticMesh> staticMesh;
 		bool success = DeserializeFromYAML(strStream.str(), staticMesh);
 		if (!success)
+		{
+			asset->SetFlag(AssetFlag::Invalid);
 			return false;
+		}
 
-		staticMesh->Handle = metadata.Handle;
+		staticMesh->Handle = metaData.Handle;
 		asset = staticMesh;
 		return true;
 	}

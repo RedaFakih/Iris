@@ -155,10 +155,10 @@ namespace Iris {
 					const auto& staticMeshComponent = entity.TryGetComponent<StaticMeshComponent>();
 					if (staticMeshComponent)
 					{
-						Ref<StaticMesh> staticMesh = AssetManager::GetAsset<StaticMesh>(staticMeshComponent->StaticMesh);
+						Ref<StaticMesh> staticMesh = AssetManager::GetAssetAsync<StaticMesh>(staticMeshComponent->StaticMesh);
 						if (staticMesh)
 						{
-							Ref<MeshSource> meshSource = AssetManager::GetAsset<MeshSource>(staticMesh->GetMeshSource());
+							Ref<MeshSource> meshSource = AssetManager::GetAssetAsync<MeshSource>(staticMesh->GetMeshSource());
 							if (meshSource)
 							{
 								if (m_ShowBoundingBoxSubMeshes)
@@ -191,10 +191,10 @@ namespace Iris {
 				{
 					Entity entity = { e, m_CurrentScene.Raw() };
 					glm::mat4 transform = m_CurrentScene->GetWorldSpaceTransformMatrix(entity);
-					Ref<StaticMesh> staticMesh = AssetManager::GetAsset<StaticMesh>(entity.GetComponent<StaticMeshComponent>().StaticMesh);
+					Ref<StaticMesh> staticMesh = AssetManager::GetAssetAsync<StaticMesh>(entity.GetComponent<StaticMeshComponent>().StaticMesh);
 					if (staticMesh)
 					{
-						Ref<MeshSource> meshSource = AssetManager::GetAsset<MeshSource>(staticMesh->GetMeshSource());
+						Ref<MeshSource> meshSource = AssetManager::GetAssetAsync<MeshSource>(staticMesh->GetMeshSource());
 						if (meshSource)
 						{
 							const AABB& aabb = meshSource->GetBoundingBox();
@@ -942,7 +942,7 @@ namespace Iris {
 		ImGui::Begin("Viewport", 0, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoScrollbar);
 
 		m_ViewportPanelMouseOver = ImGui::IsWindowHovered();
-		m_ViewportPanelFocused = ImGui::IsWindowFocused();
+		m_ViewportPanelFocused = ImGui::IsWindowFocused();	
 
 		ImVec2 viewportOffset = ImGui::GetCursorPos(); // Includes tab bar
 		ImVec2 viewportSize = ImGui::GetContentRegionAvail();
@@ -1007,6 +1007,10 @@ namespace Iris {
 			m_ShowBoundingBoxes = m_ShowBoundingBoxSelectedMeshOnly == true ? true : m_ShowBoundingBoxes;
 		if (ImGui::Checkbox("SubMeshesBoundingBox", &m_ShowBoundingBoxSubMeshes))
 			m_ShowBoundingBoxes = m_ShowBoundingBoxSubMeshes == true ? true : m_ShowBoundingBoxes;
+
+		static bool allowAxisFlip = false;
+		if (ImGui::Checkbox("AllowAxisFlip", &allowAxisFlip))
+			ImGuizmo::AllowAxisFlip(allowAxisFlip);
 
 		// TODO: Move into application settings panel
 		static float renderScale = m_ViewportRenderer->GetSpecification().RendererScale;
@@ -1155,10 +1159,6 @@ namespace Iris {
 
 		ImGui::ClearActiveID();
 
-		// NOTE: If currently loading an asset then we do not do this anything regarding selection since it will brick the editor layer until asset loading is done
-		if (AssetManager::IsAssetThreadCurrentlyLoadingAssets())
-			return false;
-
 		std::vector<SelectionData> selectionData;
 		auto [mouseX, mouseY] = GetMouseInViewportSpace();
 		if (mouseX > -1.0f && mouseX < 1.0f && mouseY > -1.0f && mouseY < 1.0f)
@@ -1171,10 +1171,12 @@ namespace Iris {
 				Entity entity = { e, m_CurrentScene.Raw()};
 				auto& mc = entity.GetComponent<StaticMeshComponent>();
 			
-				Ref<StaticMesh> staticMesh = AssetManager::GetAsset<StaticMesh>(mc.StaticMesh);
+				// We get it async so that if we are loading asset we do not block the main thread
+				Ref<StaticMesh> staticMesh = AssetManager::GetAssetAsync<StaticMesh>(mc.StaticMesh);
 				if (staticMesh)
 				{
-					Ref<MeshSource> meshSource = AssetManager::GetAsset<MeshSource>(staticMesh->GetMeshSource());
+					// We get it async so that if we are loading asset we do not block the main thread
+					Ref<MeshSource> meshSource = AssetManager::GetAssetAsync<MeshSource>(staticMesh->GetMeshSource());
 					if (meshSource)
 					{
 						auto& subMeshes = meshSource->GetSubMeshes();

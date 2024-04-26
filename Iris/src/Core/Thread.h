@@ -4,6 +4,14 @@
 
 namespace Iris {
 
+	enum class ThreadState : uint8_t
+	{
+		Idle = 0,
+		Busy,
+		Kick,
+		Joined
+	};
+
 	class Thread
 	{
 	public:

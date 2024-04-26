@@ -77,9 +77,18 @@ namespace Iris {
 			meshSource->m_BoundingBox.Min = { FLT_MAX, FLT_MAX, FLT_MAX };
 			meshSource->m_BoundingBox.Max = { -FLT_MAX, -FLT_MAX, -FLT_MAX };
 
-			meshSource->m_SubMeshes.reserve(scene->mNumMeshes);
+			// TODO:
+			// const std::vector<uint32_t>& subMeshIndices = StaticMesh::GetCurrentlyLoadingMeshSourceIndices();
+			// bool loadAllSubMeshes = subMeshIndices.empty();
+			// IR_VERIFY(subMeshIndices.size() <= scene->mNumMeshes); // TODO: Or equal?
+
+			//meshSource->m_SubMeshes.reserve(scene->mNumMeshes);
 			for (uint32_t m = 0; m < scene->mNumMeshes; m++)
 			{
+				// TODO: Skip if we do not want to load it... TODO: Optimize?
+				// if (!loadAllSubMeshes && std::find(subMeshIndices.begin(), subMeshIndices.end(), m) == subMeshIndices.end())
+				// 	continue;
+
 				aiMesh* mesh = scene->mMeshes[m];
 
 				if (!mesh->HasPositions())
@@ -294,7 +303,7 @@ namespace Iris {
 					}
 
 					ma->SetNormalMap(textureHandle);
-					// TODO: Needs to be false if we were not able to load the normal map?
+					// NOTE: Needs to be false if we were not able to load the normal map?
 					ma->SetUseNormalMap(true);
 				}
 

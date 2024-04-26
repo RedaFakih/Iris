@@ -124,7 +124,6 @@ namespace Iris {
 		void OnAssetDeleted(AssetHandle handle);
 
 	private:
-		// TODO: Move to AssetSystem
 		std::unordered_map<AssetHandle, Ref<Asset>> m_LoadedAssets;
 		std::unordered_map<AssetHandle, Ref<Asset>> m_MemoryAssets;
 

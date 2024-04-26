@@ -743,7 +743,7 @@ namespace ImGuizmo
 		int mEditingID = -1;
 		OPERATION mOperation = OPERATION(-1);
 
-		bool mAllowAxisFlip = true;
+		bool mAllowAxisFlip = false;
 		float mGizmoSizeClipSpace = 0.1f;
 	};
 

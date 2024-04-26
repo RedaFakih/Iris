@@ -7,8 +7,9 @@
  * NEXT STEP ON TUTORIAL: Compute Shaders
  *
  * NEXT THING TO WORK ON:
+ * - Do the note that is noted on Device.h:68 for staging upload buffers and transfering data
+ * - Selecting what submeshes to load through the mesh importer since in the Iris Mesh file we already know what submesh indices we want so just do not load them with assimp
  * - Add Mesh panel that prompts the user to create the Iris Mesh file if they load a MeshSource
- * - Switch the asset thread to sleep and wake based on a condition variable
  * - Add compute passes to the engine so we can have environment maps and some IBL
  * - Add Filled Circles to Renderer2D? (Circle sprites)
  * - Handle renderer descriptor pool situation and come up with some solutions for it... Read note written in Renderer.cpp (line: 101)

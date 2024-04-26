@@ -59,6 +59,16 @@ namespace Iris {
 		std::vector<VkDescriptorPool> DescriptorPools;
 		std::vector<uint32_t> DescriptorPoolAllocationCount;
 
+		// Rendering Command Queue
+		constexpr static uint32_t c_RenderCommandQueueCount = 2;
+		RenderCommandQueue CommandQueue[c_RenderCommandQueueCount];
+		std::atomic<uint32_t> RenderCommandQueueSubmissionIndex = 0;
+
+		// Resource Release Queue
+		// We create 3 which is corresponding with the max number of frames in flight we might run... (3)
+		constexpr static uint32_t c_ResourceFreeQueueCount = 3;
+		RenderCommandQueue RendererResourceFreeQueue[c_ResourceFreeQueueCount];
+
 		uint32_t DrawCallCount = 0;
 
 		RendererCapabilities RendererCaps;
@@ -67,23 +77,10 @@ namespace Iris {
 	static RendererConfiguration s_RendererConfig;
 	static RendererData* s_Data = nullptr;
 	
-	// Rendering Command Queue
-	constexpr uint32_t c_RenderCommandQueueCount = 2;
-	static RenderCommandQueue* s_CommandQueue[c_RenderCommandQueueCount];
-	static std::atomic<uint32_t> s_RenderCommandQueueSubmissionIndex = 0;
-
-	// Resource Release Queue
-	// We create 3 which is corresponding with the max number of frames in flight we might run... (3)
-	constexpr uint32_t c_ResourceFreeQueueCount = 3;
-	static RenderCommandQueue s_RendererResourceFreeQueue[c_ResourceFreeQueueCount];
-
 	void Renderer::Init()
 	{
 		s_Data = new RendererData();
 		
-		for (uint32_t i = 0; i < c_RenderCommandQueueCount; i++)
-			s_CommandQueue[i] = new RenderCommandQueue();
-
 		s_RendererConfig.FramesInFlight = glm::min<uint32_t>(s_RendererConfig.FramesInFlight, Application::Get().GetWindow().GetSwapChain().GetImageCount());
 
 		{
@@ -229,17 +226,14 @@ namespace Iris {
 
 		ShaderCompiler::ClearUniformAndStorageBuffers();
 
-		delete s_Data;
-
 		// Execute any remaining resource freeing that could be done
-		for (uint32_t i = 0; i < c_ResourceFreeQueueCount; i++)
+		for (uint32_t i = 0; i < RendererData::c_ResourceFreeQueueCount; i++)
 		{
 			RenderCommandQueue& resourceReleaseQueue = GetRendererResourceReleaseQueue(i);
 			resourceReleaseQueue.Execute();
 		}
 
-		for (uint32_t i = 0; i < c_RenderCommandQueueCount; i++)
-			delete s_CommandQueue[i];
+		delete s_Data;
 	}
 
 	Ref<ShadersLibrary> Renderer::GetShadersLibrary()
@@ -269,7 +263,7 @@ namespace Iris {
 
 	void Renderer::ExecuteAllRenderCommandQueues()
 	{
-		for (uint32_t i = 0; i < c_RenderCommandQueueCount; i++)
+		for (uint32_t i = 0; i < RendererData::c_RenderCommandQueueCount; i++)
 		{
 			RenderCommandQueue& resourceReleaseQueue = GetRenderCommandQueue();
 			resourceReleaseQueue.Execute();
@@ -279,7 +273,7 @@ namespace Iris {
 
 	void Renderer::SwapQueues()
 	{
-		s_RenderCommandQueueSubmissionIndex = (s_RenderCommandQueueSubmissionIndex + 1) % c_RenderCommandQueueCount;
+		s_Data->RenderCommandQueueSubmissionIndex = (s_Data->RenderCommandQueueSubmissionIndex + 1) % RendererData::c_RenderCommandQueueCount;
 	}
 
 	void Renderer::WaitAndRender(RenderThread* renderThread)
@@ -287,16 +281,16 @@ namespace Iris {
 		{
 			Timer waitTimer;
 
-			renderThread->WaitAndSet(RenderThreadState::Kick, RenderThreadState::Busy);
+			renderThread->WaitAndSet(ThreadState::Kick, ThreadState::Busy);
 
 			waitTimer.ElapsedMillis();
 		}
 
 		Timer workTimer;
 
-		s_CommandQueue[GetRenderQueueIndex()]->Execute();
+		s_Data->CommandQueue[GetRenderQueueIndex()].Execute();
 		// Rendering complete, set state back to idle
-		renderThread->Set(RenderThreadState::Idle);
+		renderThread->Set(ThreadState::Idle);
 
 		workTimer.ElapsedMillis();
 	}
@@ -311,17 +305,17 @@ namespace Iris {
 
 	uint32_t Renderer::GetRenderQueueIndex()
 	{
-		return (s_RenderCommandQueueSubmissionIndex + 1) % c_RenderCommandQueueCount;
+		return (s_Data->RenderCommandQueueSubmissionIndex + 1) % RendererData::c_RenderCommandQueueCount;
 	}
 
 	uint32_t Renderer::GetRenderQueueSubmissionIndex()
 	{
-		return s_RenderCommandQueueSubmissionIndex;
+		return s_Data->RenderCommandQueueSubmissionIndex;
 	}
 
 	uint32_t Renderer::GetMainThreadResourceFreeingQueueIndex()
 	{
-		return (Renderer::GetCurrentFrameIndex() + 1) % c_ResourceFreeQueueCount;
+		return (Renderer::GetCurrentFrameIndex() + 1) % RendererData::c_ResourceFreeQueueCount;
 	}
 
 	void Renderer::BeginFrame()
@@ -758,12 +752,12 @@ namespace Iris {
 
 	RenderCommandQueue& Renderer::GetRenderCommandQueue()
 	{
-		return *s_CommandQueue[s_RenderCommandQueueSubmissionIndex];
+		return s_Data->CommandQueue[s_Data->RenderCommandQueueSubmissionIndex];
 	}
 
 	RenderCommandQueue& Renderer::GetRendererResourceReleaseQueue(uint32_t index)
 	{
-		return s_RendererResourceFreeQueue[index];
+		return s_Data->RendererResourceFreeQueue[index];
 	}
 
 	void Renderer::RegisterShaderDependency(Ref<Shader> shader, Ref<Pipeline> pipeline)

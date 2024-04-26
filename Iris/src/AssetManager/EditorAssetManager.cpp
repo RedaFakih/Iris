@@ -24,6 +24,7 @@ namespace Iris {
 	EditorAssetManager::EditorAssetManager()
 	{
 		m_AssetThread = EditorAssetThread::Create();
+		m_AssetThread->Run();
 
 		AssetImporter::Init();
 
@@ -33,12 +34,13 @@ namespace Iris {
 
 	EditorAssetManager::~EditorAssetManager()
 	{
-		Shutdown();
+		// NOTE: Called manually
+		// Shutdown();
 	}
 
 	void EditorAssetManager::Shutdown()
 	{
-		m_AssetThread->StopAndWait();
+		m_AssetThread->StopAndWait(true);
 		SerializeRegistry();
 	}
 
@@ -63,7 +65,7 @@ namespace Iris {
 
 		auto& metaData = GetMetaDataInternal(handle);
 		if (!metaData.IsValid())
-			return { nullptr, false }; // TODO: Return special error asset
+			return { nullptr, false }; // TODO: Return special error asset?
 
 		if (metaData.IsDataLoaded)
 		{
@@ -77,6 +79,7 @@ namespace Iris {
 		{
 			metaData.Status = AssetStatus::Loading;
 			m_AssetThread->QueueAssetLoad({ .MetaData = metaData });
+			m_AssetThread->Set(ThreadState::Kick);
 		}
 
 		return { AssetManager::GetPlaceHolderAsset(metaData.Type), false };
@@ -167,7 +170,7 @@ namespace Iris {
 			return false;
 
 		AssetMetaData& metaData = GetMetaDataInternal(handle);
-		return !FileSystem::Exists(Project::GetActive()->GetAssetDirectory() / metaData.FilePath); // TODO: Get Asset directory
+		return !FileSystem::Exists(Project::GetActive()->GetAssetDirectory() / metaData.FilePath);
 	}
 
 	void EditorAssetManager::RemoveAsset(AssetHandle handle)
@@ -195,9 +198,16 @@ namespace Iris {
 		for (const auto& alr : freshAssets)
 		{
 			m_LoadedAssets[alr.Asset->Handle] = alr.Asset;
+
 			AssetMetaData metaData = alr.MetaData;
-			metaData.Status = AssetStatus::Ready;
-			metaData.IsDataLoaded = true;
+			if (metaData.Status != AssetStatus::Invalid)
+			{
+				metaData.Status = AssetStatus::Ready;
+				metaData.IsDataLoaded = true;
+			}
+			else
+				metaData.IsDataLoaded = false;
+
 			m_AssetRegistry[alr.Asset->Handle] = metaData;
 
 			if (alr.Reloaded)

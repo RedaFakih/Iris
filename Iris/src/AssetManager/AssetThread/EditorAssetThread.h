@@ -6,7 +6,15 @@
 
 #include <queue>
 
+/*
+ * Asset thread waits a kick from the asset manager generally to load assets
+ * TODO: When having ContentBrowserPanel, we may have to kick the asset thread from there to infom the thread of any asset changes in the current directory
+ * so that we can trigger a reload
+ */
+
 namespace Iris {
+
+	struct AssetThreadData;
 
 	class EditorAssetThread : public RefCountedObject
 	{
@@ -17,15 +25,20 @@ namespace Iris {
 		[[nodiscard]] static Ref<EditorAssetThread> Create();
 
 		bool IsRunning() const { return m_Running; }
-		bool IsCurrentlyLoadingAssets() const { return m_LoadingAssets; }
+		bool IsCurrentlyLoadingAssets() const;
 
 		void QueueAssetLoad(const AssetLoadRequest& request);
 		bool RetrieveReadyAssets(std::vector<AssetLoadRequest>& outAssetList);
 		void UpdateAssetManagerLoadedAssetList(const std::unordered_map<AssetHandle, Ref<Asset>>& loadedAssets);
 
+		void Run();
 		void Stop();
-		void StopAndWait();
+		void StopAndWait(bool terminateThread = false);
 		void AssetMonitorUpdate();
+
+		void Wait(ThreadState stateToWait);
+		void Set(ThreadState stateToSet);
+		void WaitAndSet(ThreadState stateToWait, ThreadState stateToSet);
 
 	private:
 		void AssetThreadFunc();
@@ -36,8 +49,9 @@ namespace Iris {
 
 	private:
 		Thread m_Thread;
+		AssetThreadData* m_Data;
+
 		bool m_Running = false;
-		bool m_LoadingAssets = true;
 
 		std::queue<AssetLoadRequest> m_AssetLoadingQueue;
 		std::mutex m_AssetLoadingQueueMutex;

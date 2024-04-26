@@ -36,7 +36,10 @@ namespace Iris {
 		friend class EditorAssetManager;
 		friend class RuntimeAssetManager;
 		friend class AssimpMeshImporter;
+		friend struct MeshSourceSerializer;
+		friend struct StaticMeshSerializer;
 		friend struct TextureSerializer;
+		friend struct MaterialAssetSerializer;
 
 		bool IsValid() const { return ((Flags & static_cast<uint8_t>(AssetFlag::Missing))| (Flags & static_cast<uint8_t>(AssetFlag::Invalid))) == 0; }
 

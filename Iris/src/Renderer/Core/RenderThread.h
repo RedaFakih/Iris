@@ -13,13 +13,6 @@ namespace Iris {
 		MultiThreaded // Creates a render thread
 	};
 
-	enum class RenderThreadState : uint8_t
-	{
-		Idle = 0,
-		Busy,
-		Kick
-	};
-
 	class RenderThread
 	{
 	public:
@@ -29,9 +22,9 @@ namespace Iris {
 		void Run();
 		void Terminate();
 
-		void Wait(RenderThreadState waitForState);
-		void Set(RenderThreadState stateToSet);
-		void WaitAndSet(RenderThreadState waitForState, RenderThreadState stateToSet);
+		void Wait(ThreadState waitForState);
+		void Set(ThreadState stateToSet);
+		void WaitAndSet(ThreadState waitForState, ThreadState stateToSet);
 
 		void NextFrame();
 		void Kick();

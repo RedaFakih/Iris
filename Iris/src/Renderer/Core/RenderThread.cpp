@@ -10,7 +10,7 @@ namespace Iris {
 		CRITICAL_SECTION CriticalSection;
 		CONDITION_VARIABLE ConditionVariable;
 
-		RenderThreadState State = RenderThreadState::Idle;
+		ThreadState State = ThreadState::Idle;
 	};
 
 	RenderThread::RenderThread(ThreadingPolicy policy)
@@ -56,7 +56,7 @@ namespace Iris {
 		s_RenderThreadID = std::thread::id();
 	}
 
-	void RenderThread::Wait(RenderThreadState waitForState)
+	void RenderThread::Wait(ThreadState waitForState)
 	{
 		if (m_Policy == ThreadingPolicy::SingleThreaded)
 			return;
@@ -64,13 +64,13 @@ namespace Iris {
 		EnterCriticalSection(&m_Data->CriticalSection);
 		while (m_Data->State != waitForState)
 		{
-			// This release the CS so that another thread can wake it
+			// This releases the CS so that another thread can wake it
 			SleepConditionVariableCS(&m_Data->ConditionVariable, &m_Data->CriticalSection, INFINITE);
 		}
 		LeaveCriticalSection(&m_Data->CriticalSection);
 	}
 
-	void RenderThread::Set(RenderThreadState stateToSet)
+	void RenderThread::Set(ThreadState stateToSet)
 	{
 		if (m_Policy == ThreadingPolicy::SingleThreaded)
 			return;
@@ -81,7 +81,7 @@ namespace Iris {
 		LeaveCriticalSection(&m_Data->CriticalSection);
 	}
 
-	void RenderThread::WaitAndSet(RenderThreadState waitForState, RenderThreadState stateToSet)
+	void RenderThread::WaitAndSet(ThreadState waitForState, ThreadState stateToSet)
 	{
 		if (m_Policy == ThreadingPolicy::SingleThreaded)
 			return;
@@ -106,7 +106,7 @@ namespace Iris {
 	{
 		if (m_Policy == ThreadingPolicy::MultiThreaded)
 		{
-			Set(RenderThreadState::Kick);
+			Set(ThreadState::Kick);
 		}
 		else
 		{
@@ -119,7 +119,7 @@ namespace Iris {
 		if (m_Policy == ThreadingPolicy::SingleThreaded)
 			return;
 
-		Wait(RenderThreadState::Idle);
+		Wait(ThreadState::Idle);
 	}
 
 	void RenderThread::Pump()

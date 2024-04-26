@@ -9,20 +9,20 @@ namespace Iris {
 
 	struct AssetSerializer
 	{
-		virtual void Serialize(const AssetMetaData& metadata, const Ref<Asset>& asset) const = 0;
-		virtual bool TryLoadData(const AssetMetaData& metadata, Ref<Asset>& asset) const = 0;
+		virtual void Serialize(const AssetMetaData& metaData, const Ref<Asset>& asset) const = 0;
+		virtual bool TryLoadData(const AssetMetaData& metaData, Ref<Asset>& asset) const = 0;
 	};
 
 	struct TextureSerializer : public AssetSerializer
 	{
-		virtual void Serialize(const AssetMetaData& metadata, const Ref<Asset>& asset) const override {}
-		virtual bool TryLoadData(const AssetMetaData& metadata, Ref<Asset>& asset) const override;
+		virtual void Serialize(const AssetMetaData& metaData, const Ref<Asset>& asset) const override {}
+		virtual bool TryLoadData(const AssetMetaData& metaData, Ref<Asset>& asset) const override;
 	};
 
 	struct MaterialAssetSerializer : public AssetSerializer
 	{
-		virtual void Serialize(const AssetMetaData& metadata, const Ref<Asset>& asset) const override;
-		virtual bool TryLoadData(const AssetMetaData& metadata, Ref<Asset>& asset) const override;
+		virtual void Serialize(const AssetMetaData& metaData, const Ref<Asset>& asset) const override;
+		virtual bool TryLoadData(const AssetMetaData& metaData, Ref<Asset>& asset) const override;
 
 	private:
 		std::string SerializeToYAML(Ref<MaterialAsset> materialAsset) const;
@@ -32,15 +32,15 @@ namespace Iris {
 	// TODO:
 	// struct EnvironmentSerializer : public AssetSerializer
 	// {
-	// 	virtual void Serialize(const AssetMetaData& metadata, const Ref<Asset>& asset) const override {}
-	// 	virtual bool TryLoadData(const AssetMetaData& metadata, Ref<Asset>& asset) const override;
+	// 	virtual void Serialize(const AssetMetaData& metaData, const Ref<Asset>& asset) const override {}
+	// 	virtual bool TryLoadData(const AssetMetaData& metaData, Ref<Asset>& asset) const override;
 	// };
 
 	// TODO:
 	// struct SceneAssetSerializer : public AssetSerializer
 	// {
-	// 	virtual void Serialize(const AssetMetaData& metadata, const Ref<Asset>& asset) const override;
-	// 	virtual bool TryLoadData(const AssetMetaData& metadata, Ref<Asset>& asset) const override;
+	// 	virtual void Serialize(const AssetMetaData& metaData, const Ref<Asset>& asset) const override;
+	// 	virtual bool TryLoadData(const AssetMetaData& metaData, Ref<Asset>& asset) const override;
 	// };
 
 }

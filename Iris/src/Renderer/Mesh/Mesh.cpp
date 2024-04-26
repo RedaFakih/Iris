@@ -10,6 +10,10 @@
 
 namespace Iris {
 
+	///////////////////////////////////////////////////////////////////////////////////////////////////
+	/// MeshSource
+	///////////////////////////////////////////////////////////////////////////////////////////////////
+
 	Ref<MeshSource> MeshSource::Create()
 	{
 		return CreateRef<MeshSource>();
@@ -72,6 +76,12 @@ namespace Iris {
 		IR_CORE_DEBUG_TAG("Mesh", "-------------------------------------------------");
 	}
 
+	///////////////////////////////////////////////////////////////////////////////////////////////////
+	/// StaticMesh
+	///////////////////////////////////////////////////////////////////////////////////////////////////
+
+	static std::vector<uint32_t> s_CurrentlyLoadingMeshSourceIndices;
+
 	Ref<StaticMesh> StaticMesh::Create(AssetHandle meshSource)
 	{
 		return CreateRef<StaticMesh>(meshSource);
@@ -106,7 +116,9 @@ namespace Iris {
 	{
 		Handle = {};
 
+		s_CurrentlyLoadingMeshSourceIndices = subMeshes;
 		Ref<MeshSource> meshSourceAsset = AssetManager::GetAsset<MeshSource>(meshSource);
+		s_CurrentlyLoadingMeshSourceIndices = {}; // Clear after the meshSource if loaded
 		if (meshSourceAsset)
 		{
 			SetSubMeshes(subMeshes, meshSourceAsset);
@@ -133,5 +145,9 @@ namespace Iris {
 			for (uint32_t i = 0; i < subMeshes.size(); i++)
 				m_SubMeshes[i] = i;
 		}
+	}
+	const std::vector<uint32_t>& StaticMesh::GetCurrentlyLoadingMeshSourceIndices()
+	{
+		return s_CurrentlyLoadingMeshSourceIndices;
 	}
 }

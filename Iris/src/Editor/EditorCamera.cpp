@@ -34,7 +34,7 @@ namespace Iris {
 
 	void EditorCamera::Init()
 	{
-		const glm::vec3 position = { -5, 5, 5 };
+		constexpr glm::vec3 position = { -5.0f, 5.0f, 5.0f };
 		m_Distance = glm::distance(position, m_FocalPoint);
 
 		m_Yaw = 3.0f * glm::pi<float>() / 4.0f;
@@ -125,7 +125,7 @@ namespace Iris {
 		}
 
 		m_InitialMousePosition = mouse;
-		constexpr float smoothing = 0.9f; // Decrease the smoothing a bit
+		constexpr float smoothing = 0.82f; // Decrease the smoothing a bit
 		m_Position += m_PositionDelta * smoothing;
 		m_Yaw += m_YawDelta * smoothing;
 		m_Pitch += m_PitchDelta * smoothing;
@@ -186,7 +186,7 @@ namespace Iris {
 		m_Distance = glm::distance(m_Position, m_FocalPoint);
 		m_ViewMatrix = glm::lookAt(m_Position, lookAt, glm::vec3{ 0.0f, yawSign, 0.0f });
 
-		//damping for smooth camera
+		// damping for smooth camera
 		constexpr float damping = 0.82f;
 		m_YawDelta *= damping;
 		m_PitchDelta *= damping;

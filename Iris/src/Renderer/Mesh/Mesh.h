@@ -160,6 +160,8 @@ namespace Iris {
 		static AssetType GetStaticType() { return AssetType::StaticMesh; }
 		virtual AssetType GetAssetType() const override { return GetStaticType(); }
 
+		static const std::vector<uint32_t>& GetCurrentlyLoadingMeshSourceIndices();
+
 	private:
 		AssetHandle m_MeshSource;
 		std::vector<uint32_t> m_SubMeshes;
