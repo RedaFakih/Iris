@@ -48,6 +48,8 @@ namespace Iris {
 		void DestroyEntity(Entity entity, bool excludeChildren = false, bool first = true);
 		void DestroyEntity(UUID entityID, bool excludeChildren = false, bool first = true);
 
+		Entity DuplicateEntity(Entity entity);
+
 		template<typename... Componenets>
 		auto GetAllEntitiesWith()
 		{

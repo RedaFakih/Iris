@@ -264,6 +264,47 @@ namespace Iris {
 		DestroyEntity(it->second);
 	}
 
+	Entity Scene::DuplicateEntity(Entity entity)
+	{
+		auto parentNewEntity = [&entity, scene = this](Entity newEntity)
+		{
+			auto parent = entity.GetParent();
+			if (parent)
+			{
+				newEntity.SetParentUUID(parent.GetUUID());
+				parent.Children().push_back(newEntity.GetUUID());
+			}
+		};
+
+		Entity newEntity;
+		if (entity.HasComponent<TagComponent>())
+			newEntity = CreateEntity(entity.GetComponent<TagComponent>().Tag);
+		else
+			newEntity = CreateEntity();
+
+		CopyComponentIfExists<TransformComponent>(newEntity.m_EntityHandle, m_Registry, entity);
+		CopyComponentIfExists<StaticMeshComponent>(newEntity.m_EntityHandle, m_Registry, entity);
+		CopyComponentIfExists<CameraComponent>(newEntity.m_EntityHandle, m_Registry, entity);
+		CopyComponentIfExists<SpriteRendererComponent>(newEntity.m_EntityHandle, m_Registry, entity);
+
+		// Need to copy the children here because the collection is mutated below
+		std::vector<UUID> childIDs = entity.Children();
+		for (auto childID : childIDs)
+		{
+			Entity childDuplicate = DuplicateEntity(GetEntityWithUUID(childID));
+
+			// Here childDuplicate is a child of entity, we need to remove it from that entity and change its parent
+			UnparentEntity(childDuplicate, false);
+
+			childDuplicate.SetParentUUID(newEntity.GetUUID());
+			newEntity.Children().push_back(childDuplicate.GetUUID());
+		}
+
+		parentNewEntity(newEntity);
+
+		return newEntity;
+	}
+
 	void Scene::ConvertToLocalSpace(Entity entity)
 	{
 		Entity parent = TryGetEntityWithUUID(entity.GetParentUUID());
