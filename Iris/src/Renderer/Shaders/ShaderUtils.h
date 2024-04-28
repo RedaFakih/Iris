@@ -7,17 +7,6 @@
 
 namespace Iris::ShaderUtils {
 
-	// TODO: Do we need this?
-	// inline static VkShaderStageFlagBits StageToVKShaderStage(const std::string_view stage)
-	// {
-	// 	if (stage == "vert") return VK_SHADER_STAGE_VERTEX_BIT;
-	// 	if (stage == "frag") return VK_SHADER_STAGE_FRAGMENT_BIT;
-	// 	if (stage == "comp") return VK_SHADER_STAGE_COMPUTE_BIT;
-	// 
-	// 	PG_ASSERT(false, "Unknown shader stage.");
-	// 	return VK_SHADER_STAGE_ALL;
-	// }
-
 	inline static constexpr const char* VkShaderStageToMacroString(const VkShaderStageFlagBits stage)
 	{
 		switch (stage)

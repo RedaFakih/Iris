@@ -8,7 +8,7 @@
 namespace Iris {
 
 	/*
-	 * This material object handles objects and any resource found in set = 3
+	 * This material object handles objects and any resource found in set = 3 in the shaders
 	 */
 
 	enum class MaterialFlag
@@ -74,6 +74,9 @@ namespace Iris {
 
 		Ref<Texture2D> GetTexture2D(std::string_view name);
 		Ref<Texture2D> TryGetTexture2D(std::string_view name);
+
+		Ref<TextureCube> GetTextureCube(std::string_view name);
+		Ref<TextureCube> TryGetTextureCube(std::string_view name);
 
 		template<typename T>
 		T& Get(std::string_view name)

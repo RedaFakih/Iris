@@ -111,7 +111,7 @@ namespace Iris {
 		{
 			VkDeviceQueueCreateInfo qCreateInfo = {
 				.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
-				.queueFamilyIndex = (uint32_t)m_QueueFamilyIndices.Graphics,
+				.queueFamilyIndex = static_cast<uint32_t>(m_QueueFamilyIndices.Graphics),
 				.queueCount = 1,
 				.pQueuePriorities = &DefaultQueuePriority
 			};
@@ -121,13 +121,33 @@ namespace Iris {
 		// Dedicated Compute queue
 		if (requestedQueueTypes & VK_QUEUE_COMPUTE_BIT)
 		{
-			// TODO:
+			// If compute family index differs, we need an additional queue create info for the compute queue
+			if (m_QueueFamilyIndices.Compute != m_QueueFamilyIndices.Graphics)
+			{
+				VkDeviceQueueCreateInfo qCI = {
+					.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+					.queueFamilyIndex = static_cast<uint32_t>(m_QueueFamilyIndices.Compute),
+					.queueCount = 1,
+					.pQueuePriorities = &DefaultQueuePriority
+				};
+				m_QueueCreateInfos.push_back(qCI);
+			}
 		}
 
 		// Dedicated Transfer queue
 		if (requestedQueueTypes & VK_QUEUE_TRANSFER_BIT)
 		{
-			// TODO:
+			// If transfer family index differs from both compute and graphics, we need an additional queue for the transfer queue
+			if ((m_QueueFamilyIndices.Transfer != m_QueueFamilyIndices.Compute) && (m_QueueFamilyIndices.Transfer != m_QueueFamilyIndices.Graphics))
+			{
+				VkDeviceQueueCreateInfo qCI = {
+					.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+					.queueFamilyIndex = static_cast<uint32_t>(m_QueueFamilyIndices.Transfer),
+					.queueCount = 1,
+					.pQueuePriorities = &DefaultQueuePriority
+				};
+				m_QueueCreateInfos.push_back(qCI);
+			}
 		}
 
 		m_DepthFormat = FindDepthFormat();
@@ -147,7 +167,6 @@ namespace Iris {
 	{
 		QueueFamilyIndices result;
 
-		// TODO: For now not looking for completely separate queues (transfer, compute)
 		// finds the first queue that supports the requested flags and returns it...
 		
 		if (requestedIndices & VK_QUEUE_GRAPHICS_BIT)
@@ -161,7 +180,57 @@ namespace Iris {
 			}
 		}
 
-		// TODO: Do the same for the other VK_QUEUE_XXX_BIT (Transfer, Compute)
+		// Dedicated queue for compute
+		// Try to find a queue family index that supports compute but not graphics
+		if (requestedIndices & VK_QUEUE_COMPUTE_BIT)
+		{
+			for (uint32_t i = 0; i < m_QueueFamilyProperties.size(); i++)
+			{
+				auto& queueFamilyProps = m_QueueFamilyProperties[i];
+				if ((queueFamilyProps.queueFlags & VK_QUEUE_COMPUTE_BIT) && ((queueFamilyProps.queueFlags & VK_QUEUE_GRAPHICS_BIT) == 0))
+				{
+					result.Compute = i;
+					break;
+				}
+			}
+		}
+
+		// Dedicated queue for transfer
+		// Try to find a queue family index that supports transfer but not graphics or compute
+		if (requestedIndices & VK_QUEUE_TRANSFER_BIT)
+		{
+			for (uint32_t i = 0; i < m_QueueFamilyProperties.size(); i++)
+			{
+				auto& queueFamilyProps = m_QueueFamilyProperties[i];
+				if ((queueFamilyProps.queueFlags & VK_QUEUE_TRANSFER_BIT) && ((queueFamilyProps.queueFlags & VK_QUEUE_GRAPHICS_BIT) == 0) && ((queueFamilyProps.queueFlags & VK_QUEUE_COMPUTE_BIT) == 0))
+				{
+					result.Transfer = i;
+					break;
+				}
+			}
+		}
+
+		// For other queue types or if no separate queue is present, return the first one to support the requested flags
+		for (uint32_t i = 0; i < m_QueueFamilyProperties.size(); i++)
+		{
+			if ((requestedIndices & VK_QUEUE_TRANSFER_BIT) && result.Transfer == -1)
+			{
+				if (m_QueueFamilyProperties[i].queueFlags & VK_QUEUE_TRANSFER_BIT)
+					result.Transfer = i;
+			}
+
+			if ((requestedIndices & VK_QUEUE_COMPUTE_BIT) && result.Compute == -1)
+			{
+				if (m_QueueFamilyProperties[i].queueFlags & VK_QUEUE_COMPUTE_BIT)
+					result.Compute = i;
+			}
+
+			if (requestedIndices & VK_QUEUE_GRAPHICS_BIT)
+			{
+				if (m_QueueFamilyProperties[i].queueFlags & VK_QUEUE_GRAPHICS_BIT)
+					result.Graphics = i;
+			}
+		}
 
 		return result;
 	}
@@ -258,21 +327,25 @@ namespace Iris {
 		vkDestroyDevice(m_LogicalDevice, nullptr);
 	}
 
-	void VulkanDevice::LockQueue(/* bool compute */)
+	void VulkanDevice::LockQueue(bool compute)
 	{
-		// TODO: For compute also
-		m_GraphicsQueueMutex.lock();
+		if (compute)
+			m_ComputeQueueMutex.lock();
+		else
+			m_GraphicsQueueMutex.lock();
 	}
 
-	void VulkanDevice::UnlockQueue(/* bool compute */)
+	void VulkanDevice::UnlockQueue(bool compute)
 	{
-		// TODO: For compute also
-		m_GraphicsQueueMutex.unlock();
+		if (compute)
+			m_ComputeQueueMutex.unlock();
+		else
+			m_GraphicsQueueMutex.unlock();
 	}
 
-	VkCommandBuffer VulkanDevice::GetCommandBuffer(bool begin/* , bool compute */)
+	VkCommandBuffer VulkanDevice::GetCommandBuffer(bool begin, bool compute)
 	{
-		return GetOrCreateThreadLocalCommandPool()->AllocateCommandBuffer(begin/* , compute */);
+		return GetOrCreateThreadLocalCommandPool()->AllocateCommandBuffer(begin, compute);
 	}
 
 	void VulkanDevice::FlushCommandBuffer(VkCommandBuffer commandBuffer)
@@ -326,17 +399,20 @@ namespace Iris {
 		for (uint32_t i = 0; i < framesInFlight; i++)
 			VK_CHECK_RESULT(vkCreateCommandPool(vulkanDevice, &commandPoolInfo, nullptr, &m_GraphicsCommandPools[i]));
 
-		// TODO: Also for m_ComputeCommandPool
+		m_ComputeCommandPools.resize(framesInFlight);
+		for (uint32_t i = 0; i < framesInFlight; i++)
+			VK_CHECK_RESULT(vkCreateCommandPool(vulkanDevice, &commandPoolInfo, nullptr, &m_ComputeCommandPools[i]));
 	}
 
 	VulkanCommandPool::~VulkanCommandPool()
 	{
 		VkDevice device = RendererContext::GetCurrentDevice()->GetVulkanDevice();
 
-		for(uint32_t i = 0; i < m_GraphicsCommandPools.size(); i++)
+		for (uint32_t i = 0; i < m_GraphicsCommandPools.size(); i++)
 			vkDestroyCommandPool(device, m_GraphicsCommandPools[i], nullptr);
 
-		// TODO: Also for m_ComputeCommandPool
+		for (uint32_t i = 0; i < m_GraphicsCommandPools.size(); i++)
+			vkDestroyCommandPool(device, m_ComputeCommandPools[i], nullptr);
 	}
 
 	Ref<VulkanCommandPool> VulkanCommandPool::Create()
@@ -350,18 +426,17 @@ namespace Iris {
 		uint32_t frameIndex = Renderer::GetCurrentFrameIndex();
 
 		vkResetCommandPool(device, m_GraphicsCommandPools[frameIndex], 0);
-
-		// TODO: For compute command pool
+		vkResetCommandPool(device, m_ComputeCommandPools[frameIndex], 0);
 	}
 
-	VkCommandBuffer VulkanCommandPool::AllocateCommandBuffer(bool begin/* , bool compute */)
+	VkCommandBuffer VulkanCommandPool::AllocateCommandBuffer(bool begin, bool compute)
 	{
 		VkDevice device = RendererContext::GetCurrentDevice()->GetVulkanDevice();
 		uint32_t frameIndex = Renderer::GetCurrentFrameIndex();
 
 		VkCommandBufferAllocateInfo allocateInfo = {
 			.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
-			.commandPool = m_GraphicsCommandPools[frameIndex], // compute ? m_ComputeCommandPool : m_GraphicsCommandPool
+			.commandPool = compute ? m_ComputeCommandPools[frameIndex] : m_GraphicsCommandPools[frameIndex],
 			.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
 			.commandBufferCount = 1
 		};

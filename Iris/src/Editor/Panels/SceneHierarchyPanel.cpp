@@ -894,7 +894,7 @@ namespace Iris {
 					{
 						ImGui::SameLine();
 
-						float prevItemHeight = ImGui::GetItemRectSize().x;
+						float prevItemHeight = ImGui::GetItemRectSize().y;
 						if (ImGui::Button(UI::GenerateLabelID("X"), { prevItemHeight, prevItemHeight }))
 						{
 							Ref<Scene> context = panel->GetSceneContext();

@@ -189,7 +189,17 @@ namespace Iris {
 
 	Ref<Texture2D> Material::TryGetTexture2D(std::string_view name)
 	{
-		return Ref<Texture2D>();
+		return TryGetResource<Texture2D>(name);
+	}
+
+	Ref<TextureCube> Material::GetTextureCube(std::string_view name)
+	{
+		return TryGetResource<TextureCube>(name);
+	}
+
+	Ref<TextureCube> Material::TryGetTextureCube(std::string_view name)
+	{
+		return TryGetResource<TextureCube>(name);
 	}
 
 	void Material::Init(bool triggerCopy, const std::map<uint32_t, std::map<uint32_t, RenderPassInput>>& inputResources)

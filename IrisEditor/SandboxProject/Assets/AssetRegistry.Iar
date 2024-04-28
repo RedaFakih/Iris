@@ -83,6 +83,9 @@ Assets:
   - Handle: 4680852554536855250
     FilePath: Meshes/LowPolySponza/3827035219084910048.jpg
     Type: Texture
+  - Handle: 4786713185340225801
+    FilePath: Materials/GreenMaterial.Imaterial
+    Type: Material
   - Handle: 5003918072871864288
     FilePath: Meshes/LowPolySponza/2185409758123873465.jpg
     Type: Texture
@@ -94,6 +97,9 @@ Assets:
     Type: Texture
   - Handle: 5599009649531054923
     FilePath: Meshes/Evelynn/textures/DefaultMaterial_baseColor.jpeg
+    Type: Texture
+  - Handle: 6298352931551980823
+    FilePath: EnvironmentMaps/pink_sunrise_4k.hdr
     Type: Texture
   - Handle: 6439264742179415899
     FilePath: Meshes/LowPolySponza/4871783166746854860.jpg
@@ -223,6 +229,9 @@ Assets:
     Type: Texture
   - Handle: 13498394338625944309
     FilePath: Meshes/Default/Source/Cone.gltf
+    Type: MeshSource
+  - Handle: 13538445094272898156
+    FilePath: Meshes/Evelynn/scene.gltf
     Type: MeshSource
   - Handle: 13633336069324386861
     FilePath: Textures/output1.jpg

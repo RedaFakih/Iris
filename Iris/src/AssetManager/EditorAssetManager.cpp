@@ -426,6 +426,7 @@ namespace Iris {
 					{
 						// TODO: How do we handle this?
 						// Probably prompt the user at this point?
+						IR_VERIFY(false);
 					}
 
 					if (score <= bestScore)

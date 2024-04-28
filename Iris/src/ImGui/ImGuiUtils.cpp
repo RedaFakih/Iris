@@ -486,14 +486,13 @@ namespace Iris::UI {
 		return open;
 	}
 
-	void BeginPropertyGrid(uint32_t columns, bool defaultWidth)
+	void BeginPropertyGrid(uint32_t columns, float width)
 	{
 		PushID();
 		ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2{ 8.0f, 8.0f });
 		ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2{ 4.0f, 4.0f });
 		ImGui::Columns(columns);
-		if (defaultWidth)
-			ImGui::SetColumnWidth(0, 140.0f);
+		ImGui::SetColumnWidth(0, width == 0.0f ? 140.0f : width);
 	}
 
 	void EndPropertyGrid()

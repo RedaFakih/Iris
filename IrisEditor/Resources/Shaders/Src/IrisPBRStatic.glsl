@@ -102,8 +102,8 @@ layout(push_constant) uniform Materials
     bool UseNormalMap;
 } u_MaterialUniforms;
 
-vec3 s_LightColor = vec3(1.0f);
-vec3 s_LightPos = vec3(-20.2f, 6.0f, -5.0f);
+vec3 s_LightColor = vec3(0.6f, 0.6f, 1.0f);
+vec3 s_LightPos = vec3(-120.2f, 180.0f, -5.0f);
 
 void main()
 {

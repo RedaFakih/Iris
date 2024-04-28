@@ -10,12 +10,6 @@
 
 namespace Iris {
 
-	/*
-	 * TODO: When implementing mouse picking:
-	 *	- If we implement using ray casting: Use mesh triangle cache
-	 *	- If we implement using read back from UUID image then we dont need triangle caches and we should remove them since they provide alot of memory overhead
-	 */
-
 	namespace MeshUtils {
 
 		struct Vertex

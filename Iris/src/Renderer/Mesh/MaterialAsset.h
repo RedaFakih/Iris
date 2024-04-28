@@ -81,6 +81,8 @@ namespace Iris {
 			AssetHandle MetalnessMap = 0;
 		} m_Maps;
 
+		friend class MaterialEditor;
+
 	};
 
 	class MaterialTable : public RefCountedObject

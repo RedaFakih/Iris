@@ -61,7 +61,7 @@ namespace Iris {
 					input.Input.resize(writeDescriptor.descriptorCount);
 
 					// Set default textures
-					if (inputDeclaration.Type == RenderPassInputType::ImageSampler1D)
+					if (inputDeclaration.Type == RenderPassInputType::ImageSampler2D)
 					{
 						for (std::size_t i = 0; i < input.Input.size(); i++)
 						{
@@ -381,7 +381,6 @@ namespace Iris {
 
 		// Returns the sets that contain a UniformBufferSet/StorageBufferSet resource
 		std::set<uint32_t> bufferSets = HasBufferSets();
-		uint32_t descriptorSetCount = Renderer::GetConfig().FramesInFlight;
 
 		for (const auto& [set, setData] : m_InvalidatedInputResources)
 		{

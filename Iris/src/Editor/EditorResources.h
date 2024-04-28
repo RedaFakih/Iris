@@ -28,6 +28,8 @@ namespace Iris {
 		inline static Ref<Texture2D> PencilIcon = nullptr;
 		inline static Ref<Texture2D> PlusIcon = nullptr;
 
+		inline static Ref<Texture2D> CheckerboardTexture = nullptr;
+
 		static void Init()
 		{
 			TextureSpecification spec;
@@ -51,6 +53,8 @@ namespace Iris {
 			GearIcon = LoadTexture("Generic/Gear.png", "GearIcon", spec);
 			PencilIcon = LoadTexture("Generic/Pencil.png", "PencilIcon", spec);
 			PlusIcon = LoadTexture("Generic/Plus.png", "PlusIcon", spec);
+
+			CheckerboardTexture = LoadTexture("Generic/Checkerboard.png", spec);
 		}
 
 		static void Shutdown()
@@ -73,6 +77,8 @@ namespace Iris {
 			GearIcon.Reset();
 			PencilIcon.Reset();
 			PlusIcon.Reset();
+
+			CheckerboardTexture.Reset();
 		}
 
 	private:

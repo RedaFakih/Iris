@@ -348,7 +348,7 @@ namespace Iris {
 
 	bool ShaderCompiler::TryReadCachedReflectionData()
 	{
-		char header[6] = { 'V', 'K', 'P', 'G', 'S', 'R' };
+		char header[4] = { 'I', 'R', 'S', 'R' };
 
 		std::filesystem::path cacheDir = Utils::CreateCacheDirIfNeeded();
 		const std::filesystem::path filePathPath = m_FilePath;
@@ -360,7 +360,7 @@ namespace Iris {
 
 		reader.ReadRaw(header);
 
-		bool validHeader = memcmp(header, "VKPGSR", 6) == 0;
+		bool validHeader = memcmp(header, "IRSR", 4) == 0;
 		IR_VERIFY(validHeader, "Header is not valid!");
 		if (!validHeader)
 			return false;
@@ -386,7 +386,7 @@ namespace Iris {
 
 	void ShaderCompiler::SerializeReflectinoData()
 	{
-		char header[6] = { 'V', 'K', 'P', 'G', 'S', 'R' };
+		char header[4] = { 'I', 'R', 'S', 'R' };
 
 		std::filesystem::path cacheDir = Utils::CreateCacheDirIfNeeded();
 		const std::filesystem::path filePathPath = m_FilePath;
@@ -449,11 +449,11 @@ namespace Iris {
 			{
 				const std::string& name = res.name;
 				const spirv_cross::SPIRType& bufferType = compiler.get_type(res.base_type_id);
-				uint32_t memberCount = (uint32_t)bufferType.member_types.size();
+				uint32_t memberCount = static_cast<uint32_t>(bufferType.member_types.size());
 
 				uint32_t descriptorSet = compiler.get_decoration(res.id, spv::DecorationDescriptorSet);
 				uint32_t binding = compiler.get_decoration(res.id, spv::DecorationBinding);
-				uint32_t bufferSize = (uint32_t)compiler.get_declared_struct_size(bufferType);
+				uint32_t bufferSize = static_cast<uint32_t>(compiler.get_declared_struct_size(bufferType));
 
 				// Create/cache the resource in case other shaders reference the same resource that way it is readily available
 				if (descriptorSet >= m_ReflectionData.ShaderDescriptorSets.size())
@@ -547,7 +547,7 @@ namespace Iris {
 			if (arraySize == 0)
 				arraySize = 1;
 			if (descriptorSet >= m_ReflectionData.ShaderDescriptorSets.size())
-				m_ReflectionData.ShaderDescriptorSets.resize(static_cast<uint32_t>(descriptorSet + 1));
+				m_ReflectionData.ShaderDescriptorSets.resize(descriptorSet + 1);
 
 			ShaderResources::ShaderDescriptorSet& shaderDescriptorSet = m_ReflectionData.ShaderDescriptorSets[descriptorSet];
 			shaderDescriptorSet.ImageSamplers[binding] = ShaderResources::ImageSampler{

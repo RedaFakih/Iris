@@ -16,7 +16,8 @@ namespace Iris {
 		struct QueueFamilyIndices
 		{
 			int32_t Graphics = -1;
-			// TODO: Compute, Transfer
+			int32_t Compute = -1;
+			int32_t Transfer = -1;
 		};
 
 	public:
@@ -70,7 +71,7 @@ namespace Iris {
 	 * 
 	 * TODO(IMPORTANT): `This is especially for Staging Buffers and handling them`
 	 *   The note mentioned above is actually very NOT optimal and NOT good since it calls a `vkQueueSubmit` on a small commandbuffer
-	 *	 And as for Staging Buffers we currently allocate a command buffers, record copy command and then `vkQueueSubmit` which, as mentioned,
+	 *	 And as for Staging Buffers we currently allocate a command buffer, record copy command and then `vkQueueSubmit` which, as mentioned,
 	 *	 is NOT that good of a thing concerning performance.
 	 *	 To fix that we can(should): Create a command buffer (beginning of application maybe?) that records copy commands for staging buffers
 	 *	 mainly (and maybe other stuff like that) and then at the next call for `vkQueueSubmit`, whether that is at the end of the frame or
@@ -93,17 +94,17 @@ namespace Iris {
 
 		void Reset();
 
-		VkCommandBuffer AllocateCommandBuffer(bool begin /* , bool compute = false */);
+		VkCommandBuffer AllocateCommandBuffer(bool begin, bool compute = false);
 		void FlushCommandBuffer(VkCommandBuffer commandBuffer);
 		void FlushCommandBuffer(VkCommandBuffer commandBuffer, VkQueue queue);
 
 		VkCommandPool GetGraphicsCommandPool(uint32_t frameIndex) const { IR_ASSERT(frameIndex < m_GraphicsCommandPools.size()); return m_GraphicsCommandPools[frameIndex]; }
-		// TODO: VkCommandPool GetComputeCommandPool(uint32_t frameIndex) const { IR_ASSERT(frameIndex < m_GraphicsCommandPools.size(), ""); return m_ComputeCommandPools[frameIndex]; }
+		VkCommandPool GetComputeCommandPool(uint32_t frameIndex) const { IR_ASSERT(frameIndex < m_GraphicsCommandPools.size(), ""); return m_ComputeCommandPools[frameIndex]; }
 
 	private:
 		// Per-frame command pools to get better perf
 		std::vector<VkCommandPool> m_GraphicsCommandPools;
-		// TODO: std::vector<VkCommandPool> m_ComputeCommandPools;
+		std::vector<VkCommandPool> m_ComputeCommandPools;
 	};
 
 	// Vulkan Logical Device
@@ -117,13 +118,13 @@ namespace Iris {
 
 		void Destroy();
 
-		void LockQueue(/* bool compute = false */);
-		void UnlockQueue(/* bool compute = false */);
+		void LockQueue(bool compute = false);
+		void UnlockQueue(bool compute = false);
 
 		VkQueue GetGraphicsQueue() { return m_GraphicsQueue; }
-		// TODO: VkQueue GetComputeQueue() { return m_ComputeQueue; }
+		VkQueue GetComputeQueue() { return m_ComputeQueue; }
 
-		VkCommandBuffer GetCommandBuffer(bool begin /* , bool compute = false */);
+		VkCommandBuffer GetCommandBuffer(bool begin, bool compute = false);
 		void FlushCommandBuffer(VkCommandBuffer commandBuffer); // Defaults to the Graphics queue
 		void FlushCommandBuffer(VkCommandBuffer commandBuffer, VkQueue queue);
 
@@ -140,11 +141,12 @@ namespace Iris {
 		VkPhysicalDeviceFeatures m_Features;
 
 		VkQueue m_GraphicsQueue;
-		// TODO: VkQueue m_ComputeQueue;
+		VkQueue m_ComputeQueue;
 
 		std::map<std::thread::id, Ref<VulkanCommandPool>> m_CommandPools;
 
 		std::mutex m_GraphicsQueueMutex;
+		std::mutex m_ComputeQueueMutex;
 
 		friend class Renderer;
 	};

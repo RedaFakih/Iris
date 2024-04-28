@@ -145,6 +145,14 @@ namespace Iris {
 			return !(*this == other);
 		}
 
+		bool EqualsObject(const Ref<T>& other)
+		{
+			if (!m_Ptr || !other.m_Ptr)
+				return false;
+
+			return *m_Ptr == *other.m_Ptr;
+		}
+
 	private:
 		void IncrementRef() const noexcept
 		{

@@ -3,6 +3,7 @@
 #include "AssetManager/Importers/MeshImporter.h"
 #include "Core/Input/Input.h"
 #include "Core/Ray.h"
+#include "Editor/AssetEditorPanel.h"
 #include "Editor/EditorResources.h"
 #include "Editor/Panels/ECSDebugPanel.h"
 #include "Editor/Panels/SceneHierarchyPanel.h"
@@ -82,12 +83,15 @@ namespace Iris {
 		m_ViewportRenderer->SetLineWidth(m_LineWidth);
 		m_Renderer2D = Renderer2D::Create();
 		m_Renderer2D->SetLineWidth(m_LineWidth);
+
+		AssetEditorPanel::RegisterDefaultEditors();
 	}
 
 	void EditorLayer::OnDetach()
 	{
 		EditorResources::Shutdown();
 		CloseProject(true);
+		AssetEditorPanel::UnregisterAllEditors();
 	}
 
 	void EditorLayer::OnUpdate(TimeStep ts)
@@ -127,6 +131,8 @@ namespace Iris {
 		bool NotRightAndNOTLeftAltANDLeftOrMiddle = !Input::IsMouseButtonDown(MouseButton::Right) && !(Input::IsKeyDown(KeyCode::LeftAlt) && (Input::IsMouseButtonDown(MouseButton::Left) || Input::IsMouseButtonDown(MouseButton::Middle)));
 		if (NotRightAndNOTLeftAltANDLeftOrMiddle)
 			m_StartedCameraClickInViewport = false;
+
+		AssetEditorPanel::OnUpdate(ts);
 	}
 
 	void EditorLayer::OnEntityDeleted(Entity e)
@@ -239,6 +245,8 @@ namespace Iris {
 		// TODO: PanelManager
 		UI_ShowShadersPanel();
 		UI_ShowFontsPanel();
+
+		AssetEditorPanel::OnImGuiRender();
 
 		UI_EndDocking();
 	}
@@ -1063,6 +1071,7 @@ namespace Iris {
 
 	void EditorLayer::OnEvent(Events::Event& e)
 	{
+		AssetEditorPanel::OnEvent(e);
 		m_PanelsManager->OnEvent(e);
 
 		if (m_AllowViewportCameraEvents)
@@ -1121,7 +1130,7 @@ namespace Iris {
 				}
 				case KeyCode::Delete:
 				{
-					auto selectedEntities = SelectionManager::GetSelections(SelectionContext::Scene);
+					std::vector<UUID> selectedEntities = SelectionManager::GetSelections(SelectionContext::Scene);
 					for (auto entity : selectedEntities)
 						DeleteEntity(m_CurrentScene->TryGetEntityWithUUID(entity));
 					break;
@@ -1129,13 +1138,31 @@ namespace Iris {
 			}
 		}
 
-		if (Input::IsKeyDown(KeyCode::LeftControl) && !Input::IsMouseButtonDown(MouseButton::Left))
+		if (Input::IsKeyDown(KeyCode::LeftControl) && !Input::IsMouseButtonDown(MouseButton::Right))
 		{
 			switch (e.GetKeyCode())
 			{
 				// Toggle Grid
 				case KeyCode::G:
 					m_ViewportRenderer->GetOptions().ShowGrid = !m_ViewportRenderer->GetOptions().ShowGrid;
+					break;
+				// Toggle Bounding Boxes
+				case KeyCode::B:
+					m_ShowBoundingBoxes = !m_ShowBoundingBoxes;
+					break;
+				// Duplicate Selected Entities
+				case KeyCode::D:
+				{
+					std::vector<UUID> selectedEntities = SelectionManager::GetSelections(SelectionContext::Scene);
+					for (const auto& entityID : selectedEntities)
+					{
+						Entity entity = m_CurrentScene->TryGetEntityWithUUID(entityID);
+
+						Entity duplicate = m_CurrentScene->DuplicateEntity(entity);
+						SelectionManager::Deselect(SelectionContext::Scene, entity.GetUUID());
+						SelectionManager::Select(SelectionContext::Scene, duplicate.GetUUID());
+					}
+				}
 			}
 		}
 
@@ -1363,6 +1390,7 @@ namespace Iris {
 		// finally decref'd to zero it will be destroyed.  However, that will be after the project has been closed, and the new project has
 		// been opened, which is out of order.  Seems safter to make sure the old scene is cleaned up before closing project.
 		m_PanelsManager->SetSceneContext(nullptr);
+		AssetEditorPanel::SetSceneContext(nullptr);
 		m_ViewportRenderer->SetScene(nullptr);
 		m_CurrentScene = nullptr;
 
@@ -1381,6 +1409,7 @@ namespace Iris {
 		m_EditorScene = Scene::Create(name, true);
 
 		m_PanelsManager->SetSceneContext(m_EditorScene);
+		AssetEditorPanel::SetSceneContext(m_EditorScene);
 
 		m_SceneFilePath = std::string();
 
@@ -1419,6 +1448,7 @@ namespace Iris {
 			m_SceneFilePath = m_SceneFilePath.substr(0, m_SceneFilePath.size() - 5);
 
 		m_PanelsManager->SetSceneContext(m_EditorScene);
+		AssetEditorPanel::SetSceneContext(m_EditorScene);
 
 		SelectionManager::DeselectAll();
 

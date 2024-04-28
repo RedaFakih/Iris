@@ -4,13 +4,24 @@
  * TODO LATER:
  *  - Fix assimp copying the dll to the exe dir for the runtime if we need to do that... because the runtime should not be using assimp it should be using an assetpack
  * 
- * NEXT STEP ON TUTORIAL: Compute Shaders
- *
+ * LATEST UPDATES:
+ * - Added TextureCube but needs ALOT of debugging for image layouts
+ * - Added StorageBuffers and they should be okay...
+ * - Adding StorageImages...
+ * - Added SceneEnvirontment
+ * 
  * NEXT THING TO WORK ON:
- * - Do the note that is noted on Device.h:68 for staging upload buffers and transfering data
+ * - DescriptorSetManager needs to have a semi re-write since it does not correctly handle all the cases were the image is a textureCube and storage image
+ *		- There is confusion between cube textures and storage images... A cube texture input.Type is being set as DescriptorResourceType::StorageImage
+ *        eventhough it is a cube texture... see we need a way to detect that and handle it accordingly. (Most probably separate those two cases from the
+ *		  switch statement and handle them separatly, or leave the normal cases in the switch and if check after to handle accordingly so that we do not 
+ *		  break any behaviour for 2D stuff)
+ * - Finish writing the TextureCube class
+ * - Cube textures (Need testing, change the layout in the descriptor image info)
+ * - Storage Images (Need testing and writing)
+ * - Add compute passes to the engine so we can have environment maps and some IBL
  * - Selecting what submeshes to load through the mesh importer since in the Iris Mesh file we already know what submesh indices we want so just do not load them with assimp
  * - Add Mesh panel that prompts the user to create the Iris Mesh file if they load a MeshSource
- * - Add compute passes to the engine so we can have environment maps and some IBL
  * - Add Filled Circles to Renderer2D? (Circle sprites)
  * - Handle renderer descriptor pool situation and come up with some solutions for it... Read note written in Renderer.cpp (line: 101)
  * - For runtime layer switch to using a main camera component and not the editor camera
@@ -20,8 +31,8 @@
  * - OIT? With Weighted Blended technique using info provided from learnopengl.com <https://learnopengl.com/Guest-Articles/2020/OIT/Weighted-Blended> <https://github.com/nvpro-samples/vk_order_independent_transparency>
  * 
  * TO BE EXPANDED: (constant expansion)
- * - DescriptorSetManager (Constant Expansion with shader reflection)
  * - Shader reflection to get descriptor data
+ * - DescriptorSetManager (Constant Expansion with shader reflection)
  * - DecriptorSetManager expansion to other types
  * - Remember to clear stuff that need to be cleared most importantly renderer related stuff
  * - RenderPassInputTypes...

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "AssetManager/AssetManager.h"
+#include "Editor/AssetEditorPanel.h"
 #include "Editor/EditorResources.h"
 #include "Renderer/Texture.h"
 #include "Themes.h"
@@ -255,7 +256,7 @@ namespace Iris::UI {
 	void EndMenuBar();
 
 	bool PropertyGridHeader(const std::string& name, bool openByDefault = true);
-	void BeginPropertyGrid(uint32_t columns = 2, bool defaultWidth = true);
+	void BeginPropertyGrid(uint32_t columns = 2, float width = 0.0f);
 	void EndPropertyGrid();
 
 	bool TreeNodeWithIcon(const std::string& label, const Ref<Texture2D>& icon, const ImVec2& size, bool openByDefault = true);
@@ -876,7 +877,11 @@ namespace Iris::UI {
 
 				if (isHovered)
 				{
-					if (ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+					if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
+					{
+						AssetEditorPanel::OpenEditor(AssetManager::GetAsset<T>(outHandle));
+					}
+					else if (ImGui::IsMouseClicked(ImGuiMouseButton_Left))
 						ImGui::OpenPopup(assetSearchPopupID.c_str());
 				}
 			}
@@ -955,7 +960,29 @@ namespace Iris::UI {
 			
 			UI::PushID();
 
-			auto [valid, buttonText] = AssetValidityAndName(outHandle, settings);
+			std::string buttonText = "Null";
+			bool valid = true;
+
+			if (AssetManager::IsAssetHandleValid(outHandle))
+			{
+				// It is okay to get the asset here since it will most probably be a loaded asset already
+				Ref<T> source = AssetManager::GetAsset<T>(outHandle);
+				valid = (source != nullptr);
+				if (source)
+				{
+					if (assetName)
+						buttonText = assetName;
+					else
+					{
+						buttonText = Project::GetEditorAssetManager()->GetMetaData(outHandle).FilePath.stem().string();
+						assetName = buttonText.c_str();
+					}
+				}
+				else if (AssetManager::IsAssetMissing(outHandle))
+				{
+					buttonText = "Missing";
+				}
+			}
 
 			if ((GImGui->CurrentItemFlags & ImGuiItemFlags_MixedValue) != 0)
 				buttonText = "----";
@@ -975,7 +1002,11 @@ namespace Iris::UI {
 
 				if (isHovered)
 				{
-					if (ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+					if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
+					{
+						AssetEditorPanel::OpenEditor(AssetManager::GetAsset<T>(outHandle));
+					}
+					else if (ImGui::IsMouseClicked(ImGuiMouseButton_Left))
 						ImGui::OpenPopup(assetSearchPopupID.c_str());
 				}
 			}
