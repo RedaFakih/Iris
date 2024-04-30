@@ -121,7 +121,7 @@ namespace Iris {
 
 		friend class Entity;
 		friend class ECSDebugPanel;
-		friend struct SceneSerializer;
+		friend class SceneSerializer;
 
 	};
 

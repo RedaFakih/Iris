@@ -72,6 +72,7 @@ namespace Iris {
 		void UI_DrawMainMenuBar();
 		float GetSnapValue();
 		void UI_DrawGizmos();
+		void UI_ShowNewSceneModal();
 
 		void DeleteEntity(Entity entity);
 
@@ -118,6 +119,8 @@ namespace Iris {
 		bool m_ShowBoundingBoxes = false;
 		bool m_ShowBoundingBoxSelectedMeshOnly = false;
 		bool m_ShowBoundingBoxSubMeshes = false;
+
+		bool m_ShowNewSceneModal = false;
 
 		bool m_ShowGizmos = true;
 

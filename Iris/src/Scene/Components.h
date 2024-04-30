@@ -81,6 +81,8 @@ namespace Iris {
 				RotationEuler.z = originalEuler.z;
 			}
 		}
+
+		friend class SceneSerializer;
 	};
 
 	struct CameraComponent

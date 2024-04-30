@@ -248,6 +248,9 @@ namespace Iris {
 
 		AssetEditorPanel::OnImGuiRender();
 
+		if (m_ShowNewSceneModal)
+			UI_ShowNewSceneModal();
+
 		UI_EndDocking();
 	}
 
@@ -598,24 +601,24 @@ namespace Iris {
 
 					if (ImGui::MenuItem("New Scene...", "Ctrl + N"))
 					{
-						// TODO:
+						m_ShowNewSceneModal = !m_ShowNewSceneModal;
 					}
 
 					if (ImGui::MenuItem("Open Scene...", "Ctrl + O"))
 					{
-						// TODO:
+						OpenScene();
 					}
 
 					ImGui::Separator();
 
 					if (ImGui::MenuItem("Save Scene", "Ctrl + S"))
 					{
-						// TODO:
+						SaveScene();
 					}
 
 					if (ImGui::MenuItem("Save Scene As...", "Ctrl + Shift + S"))
 					{
-						// TODO:
+						SaveSceneAs();
 					}
 
 					ImGui::Separator();
@@ -936,6 +939,40 @@ namespace Iris {
 		}
 	}
 
+	void EditorLayer::UI_ShowNewSceneModal()
+	{
+		ImGui::OpenPopup("Set Scene Name");
+
+		// Always center this window when appearing
+		ImVec2 center = ImGui::GetMainViewport()->GetCenter();
+		ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+
+		if (ImGui::BeginPopupModal("Set Scene Name", 0, ImGuiWindowFlags_AlwaysAutoResize))
+		{
+			static std::string sceneName;
+			ImGui::InputTextWithHint("##scene_name_label", "Name...", &sceneName);
+
+			ImGui::Separator();
+
+			if (ImGui::Button("Create"))
+			{
+				NewScene(sceneName);
+				m_ShowNewSceneModal = false;
+				ImGui::CloseCurrentPopup();
+			}
+
+			ImGui::SameLine();
+
+			if (ImGui::Button("Cancel"))
+			{
+				m_ShowNewSceneModal = false;
+				ImGui::CloseCurrentPopup();
+			}
+
+			ImGui::EndPopup();
+		}
+	}
+
 	void EditorLayer::DeleteEntity(Entity entity)
 	{
 		if (!entity)
@@ -1158,10 +1195,39 @@ namespace Iris {
 					{
 						Entity entity = m_CurrentScene->TryGetEntityWithUUID(entityID);
 
+						if (entity.GetParent())
+							continue;
+
 						Entity duplicate = m_CurrentScene->DuplicateEntity(entity);
 						SelectionManager::Deselect(SelectionContext::Scene, entity.GetUUID());
 						SelectionManager::Select(SelectionContext::Scene, duplicate.GetUUID());
 					}
+
+					break;
+				}
+				case KeyCode::S:
+					SaveScene();
+					break;
+				case KeyCode::N:
+				{
+					m_ShowNewSceneModal = true;
+					NewScene();
+					break;
+				}
+				case KeyCode::O:
+				{
+					OpenScene();
+					break;
+				}
+			}
+
+			if (Input::IsKeyDown(KeyCode::LeftShift))
+			{
+				switch (e.GetKeyCode())
+				{
+					case KeyCode::S:
+						SaveSceneAs();
+						break;
 				}
 			}
 		}
