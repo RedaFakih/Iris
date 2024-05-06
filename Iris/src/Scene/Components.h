@@ -66,20 +66,57 @@ namespace Iris {
 		}
 
 		void SetRotation(const glm::quat& rotation)
-		{
+		{	
+			// wrap given euler angles to range [-pi, pi]
+			auto wrapToPi = [](glm::vec3 v) constexpr
+			{
+				return glm::mod(v + glm::pi<float>(), 2.0f * glm::pi<float>()) - glm::pi<float>();
+			};
+
 			glm::vec3 originalEuler = RotationEuler;
 			Rotation = rotation;
 			RotationEuler = glm::eulerAngles(Rotation);
 
-			if (
-				(fabs(RotationEuler.x - originalEuler.x) == glm::pi<float>()) &&
-				(fabs(RotationEuler.z - originalEuler.z) == glm::pi<float>())
-			)
+			// A given quat can be represented by many Euler angles (technically infinitely many),
+			// and glm::eulerAngles() can only give us one of them which may or may not be the one we want.
+			// Here we have a look at some likely alternatives and pick the one that is closest to the original Euler angles.
+			// This is an attempt to avoid sudden 180deg flips in the Euler angles when we SetRotation(quat).
+
+			glm::vec3 alternate1 = { RotationEuler.x - glm::pi<float>(), glm::pi<float>() - RotationEuler.y, RotationEuler.z - glm::pi<float>() };
+			glm::vec3 alternate2 = { RotationEuler.x + glm::pi<float>(), glm::pi<float>() - RotationEuler.y, RotationEuler.z - glm::pi<float>() };
+			glm::vec3 alternate3 = { RotationEuler.x + glm::pi<float>(), glm::pi<float>() - RotationEuler.y, RotationEuler.z + glm::pi<float>() };
+			glm::vec3 alternate4 = { RotationEuler.x - glm::pi<float>(), glm::pi<float>() - RotationEuler.y, RotationEuler.z + glm::pi<float>() };
+
+			// We pick the alternative that is closest to the original value.
+			float distance0 = glm::length2(wrapToPi(RotationEuler - originalEuler));
+			float distance1 = glm::length2(wrapToPi(alternate1 - originalEuler));
+			float distance2 = glm::length2(wrapToPi(alternate2 - originalEuler));
+			float distance3 = glm::length2(wrapToPi(alternate3 - originalEuler));
+			float distance4 = glm::length2(wrapToPi(alternate4 - originalEuler));
+
+			float best = distance0;
+			if (distance1 < best)
 			{
-				RotationEuler.x = originalEuler.x;
-				RotationEuler.y = glm::pi<float>() - RotationEuler.y;
-				RotationEuler.z = originalEuler.z;
+				best = distance1;
+				RotationEuler = alternate1;
 			}
+			if (distance2 < best)
+			{
+				best = distance2;
+				RotationEuler = alternate2;
+			}
+			if (distance3 < best)
+			{
+				best = distance3;
+				RotationEuler = alternate3;
+			}
+			if (distance4 < best)
+			{
+				best = distance4;
+				RotationEuler = alternate4;
+			}
+
+			RotationEuler = wrapToPi(RotationEuler);
 		}
 
 		friend class SceneSerializer;

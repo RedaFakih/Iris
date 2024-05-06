@@ -30,7 +30,9 @@ namespace Iris {
 	{
 		if (ImGui::Begin("ECS Debug", &open) && m_Context)
 		{
-			for (auto e : m_Context->m_Registry.view<IDComponent>())
+			auto view = m_Context->m_Registry.view<IDComponent>();
+			ImGui::Text("Entities: %i", view.size());
+			for (auto e : view)
 			{
 				Entity entity = { e, m_Context.Raw() };
 				const auto& name = entity.Name();

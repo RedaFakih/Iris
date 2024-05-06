@@ -24,7 +24,7 @@ namespace Iris {
 		[[nodiscard]] static Ref<SceneHierarchyPanel> Create();
 		[[nodiscard]] static Ref<SceneHierarchyPanel> Create(const Ref<Scene> scene, SelectionContext selectionContext, bool isWindow = true);
 
-		virtual void SetSceneContext(Ref<Scene> scene) override;
+		virtual void SetSceneContext(const Ref<Scene>& scene) override;
 		virtual void OnImGuiRender(bool& isOpen) override;
 		virtual void OnEvent(Events::Event& e) override;
 

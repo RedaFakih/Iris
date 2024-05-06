@@ -598,6 +598,12 @@ namespace Iris {
 
 	void SwapChain::FindImageFormatAndColorSpace()
 	{
+		/*
+		 * _SRGB treats all graphics op writes as if they are linear (and vice versa for reads) 
+		 * and automatically converts them to sRGB nonlinear
+		 * _UNORM doesn't do any conversions, and expects you to write in nonlinear already
+		 */
+
 		VkPhysicalDevice physicalDevice = m_Device->GetPhysicalDevice()->GetVulkanPhysicalDevice();
 
 		// Get the list of supported surface formats...

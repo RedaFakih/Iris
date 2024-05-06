@@ -39,7 +39,7 @@ namespace Iris {
 		m_ComponentCopyEntity = m_ComponentCopyScene->CreateEntity();
 	}
 
-	void SceneHierarchyPanel::SetSceneContext(Ref<Scene> scene)
+	void SceneHierarchyPanel::SetSceneContext(const Ref<Scene>& scene)
 	{
 		m_Context = scene;
 		if (m_Context)
