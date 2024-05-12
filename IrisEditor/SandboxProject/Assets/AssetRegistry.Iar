@@ -47,6 +47,9 @@ Assets:
   - Handle: 1915884720197252136
     FilePath: Meshes/LowPolySponza/10388182081421875623.jpg
     Type: Texture
+  - Handle: 1931116799415808873
+    FilePath: Scenes/LebanesesFlag.Iscene
+    Type: Scene
   - Handle: 1933339498514422201
     FilePath: Meshes/LowPolySponza/15295713303328085182.jpg
     Type: Texture
@@ -218,6 +221,9 @@ Assets:
   - Handle: 12658435369977053664
     FilePath: Meshes/LowPolySponza/755318871556304029.jpg
     Type: Texture
+  - Handle: 12675536551984449533
+    FilePath: Scenes/TestingScene.Iscene
+    Type: Scene
   - Handle: 13164229695691519330
     FilePath: Meshes/Default/Cube.Ismesh
     Type: StaticMesh

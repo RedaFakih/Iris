@@ -229,9 +229,11 @@ namespace Iris {
 
 		if (!excludeChildren)
 		{
-			for (std::size_t i = 0; i < entity.Children().size(); i++)
+			// Copy here since if we do not then we will have entity leaks
+			auto children = entity.Children();
+			for (std::size_t i = 0; i < children.size(); i++)
 			{
-				auto childID = entity.Children()[i];
+				auto childID = children[i];
 				Entity child = GetEntityWithUUID(childID);
 				DestroyEntity(childID, excludeChildren, false);
 			}
@@ -303,6 +305,17 @@ namespace Iris {
 		parentNewEntity(newEntity);
 
 		return newEntity;
+	}
+
+	Entity Scene::InstantiateStaticMesh(Ref<StaticMesh> staticMesh)
+	{
+		AssetMetaData& assetMetaData = Project::GetEditorAssetManager()->GetMetaData(staticMesh->Handle);
+		Entity rootEntity = CreateEntity(assetMetaData.FilePath.stem().string());
+		Ref<MeshSource> meshSource = AssetManager::GetAssetAsync<MeshSource>(staticMesh->GetMeshSource());
+		if (meshSource)
+			BuildMeshEntityHierarchy(rootEntity, staticMesh, meshSource->GetRootNode());
+
+		return rootEntity;
 	}
 
 	void Scene::ConvertToLocalSpace(Entity entity)
@@ -444,6 +457,45 @@ namespace Iris {
 			auto rhsEntity = m_EntityIDMap.find(rhs.ID);
 			return static_cast<uint32_t>(lhsEntity->second) < static_cast<uint32_t>(rhsEntity->second);
 		});
+	}
+
+	void Scene::BuildMeshEntityHierarchy(Entity parent, Ref<StaticMesh> staticMesh, const MeshUtils::MeshNode& node)
+	{
+		Ref<MeshSource> meshSource = AssetManager::GetAsset<MeshSource>(staticMesh->GetMeshSource());
+		const std::vector<MeshUtils::MeshNode>& nodes = meshSource->GetNodes();
+
+		// Skip empty root node
+		if (node.IsRoot() && node.SubMeshes.size() == 0)
+		{
+			for (uint32_t child : node.Children)
+				BuildMeshEntityHierarchy(parent, staticMesh, nodes[child]);
+
+			return;
+		}
+
+		Entity nodeEntity = CreateChildEntity(parent, node.Name);
+		nodeEntity.Transform().SetTransform(node.LocalTransform);
+
+		if (node.SubMeshes.size() == 1)
+		{
+			// Node = StaticMesh in this case
+			uint32_t subMeshIndex = node.SubMeshes[0];
+			auto& mc = nodeEntity.AddComponent<StaticMeshComponent>(staticMesh->Handle, subMeshIndex);
+		}
+		else if (node.SubMeshes.size() > 1)
+		{
+			// Create one entity per child mesh, parented under node
+			for (uint32_t i = 0; i < node.SubMeshes.size(); i++)
+			{
+				uint32_t subMeshIndex = node.SubMeshes[i];
+
+				Entity childEntity = CreateChildEntity(nodeEntity, node.Name);
+				childEntity.AddComponent<StaticMeshComponent>(staticMesh->Handle, subMeshIndex);
+			}
+		}
+
+		for (uint32_t child : node.Children)
+			BuildMeshEntityHierarchy(nodeEntity, staticMesh, nodes[child]);
 	}
 
 }

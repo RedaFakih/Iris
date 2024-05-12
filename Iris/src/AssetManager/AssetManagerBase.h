@@ -25,7 +25,7 @@ namespace Iris {
 		virtual bool IsAssetHandleValid(AssetHandle handle) const = 0; // Asset Handle being valid... (Says nothing about the asset itself)
 		virtual bool IsMemoryAsset(AssetHandle handle) const = 0; // Asset exists in memory only, there is no file backing it
 		virtual bool IsAssetLoaded(AssetHandle handle) = 0; // Asset has been loaded from file (it could be invalid though)
-		virtual bool IsAssetValid(AssetHandle handle) = 0;  // Asset file was loaded, but is invalid for some reason
+		virtual bool IsAssetValid(AssetHandle handle, bool loadAsync) = 0;  // Asset file was loaded, but is invalid for some reason
 		virtual bool IsAssetMissing(AssetHandle handle) = 0; // asset file is missing
 		virtual void RemoveAsset(AssetHandle handle) = 0;
 

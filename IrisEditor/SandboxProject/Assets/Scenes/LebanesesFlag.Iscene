@@ -1,0 +1,112 @@
+Scene: LebaneseFlag
+Entities:
+  - Entity: 6596867744506666010
+    TagComponent:
+      Tag: Sprite
+    Parent: 0
+    Children:
+      []
+    TransformComponent:
+      Position: [0.00742740324, -0.00736990198, -0.000976554817]
+      Rotation: [0, 0, 0]
+      Scale: [11.4347353, 6.35999966, 6.35999966]
+    SpriteRendererComponent:
+      Color: [1, 1, 1, 1]
+      Texture: 0
+      TilingFactor: 1
+      UV0: [0, 0]
+      UV1: [1, 1]
+  - Entity: 8063934033943453547
+    TagComponent:
+      Tag: Cone
+    Parent: 9437040199373342934
+    Children:
+      []
+    TransformComponent:
+      Position: [0, 0.533604562, 0.108591437]
+      Rotation: [0, -0, 0]
+      Scale: [2.92651296, 1.37951922, 2.76731563]
+    StaticMeshComponent:
+      AssetID: 342484570667800992
+      MaterialTable:
+        0: 4786713185340225801
+      Visible: true
+  - Entity: 9437040199373342934
+    TagComponent:
+      Tag: Empty Entity
+    Parent: 0
+    Children:
+      - Handle: 18029242700988701211
+      - Handle: 8063934033943453547
+      - Handle: 10359428075851095568
+    TransformComponent:
+      Position: [0, -0.240831882, -0.759334743]
+      Rotation: [0, -0, 0]
+      Scale: [1.04867244, 1.24266779, 0.619475603]
+    StaticMeshComponent:
+      AssetID: 13164229695691519330
+      MaterialTable:
+        0: 0
+      Visible: true
+  - Entity: 10359428075851095568
+    TagComponent:
+      Tag: Cone
+    Parent: 9437040199373342934
+    Children:
+      []
+    TransformComponent:
+      Position: [0, 0.932735384, 0.108591437]
+      Rotation: [0, -0, 0]
+      Scale: [2.37047553, 1.11741066, 2.24152565]
+    StaticMeshComponent:
+      AssetID: 342484570667800992
+      MaterialTable:
+        0: 4786713185340225801
+      Visible: true
+  - Entity: 11714213851647813222
+    TagComponent:
+      Tag: Sprite
+    Parent: 0
+    Children:
+      []
+    TransformComponent:
+      Position: [-0.00514116883, -2.12270856, -1.4129988]
+      Rotation: [0, 0, 0]
+      Scale: [9.38045406, 1, 1]
+    SpriteRendererComponent:
+      Color: [1, 0, 0, 1]
+      Texture: 0
+      TilingFactor: 1
+      UV0: [0, 0]
+      UV1: [1, 1]
+  - Entity: 14135159219428033186
+    TagComponent:
+      Tag: Sprite
+    Parent: 0
+    Children:
+      []
+    TransformComponent:
+      Position: [-0.00514116883, 2.62680006, -1.4129988]
+      Rotation: [0, 0, 0]
+      Scale: [9.38045406, 1, 1]
+    SpriteRendererComponent:
+      Color: [1, 0, 0, 1]
+      Texture: 0
+      TilingFactor: 1
+      UV0: [0, 0]
+      UV1: [1, 1]
+  - Entity: 18029242700988701211
+    TagComponent:
+      Tag: Cone
+    Parent: 9437040199373342934
+    Children:
+      []
+    TransformComponent:
+      Position: [-0.025758367, 1.29477382, 0.108591437]
+      Rotation: [0, -0, 0]
+      Scale: [1.77785659, 0.838057995, 1.68114412]
+    StaticMeshComponent:
+      AssetID: 342484570667800992
+      MaterialTable:
+        0: 4786713185340225801
+      Visible: true

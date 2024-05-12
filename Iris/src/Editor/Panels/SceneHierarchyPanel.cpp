@@ -273,10 +273,17 @@ namespace Iris {
 			ImGui::EndMenu();
 		}
 
-		if (ImGui::MenuItem("Sprite"))
+		if (ImGui::BeginMenu("2D"))
 		{
-			newEntity = m_Context->CreateEntity("Sprite");
-			newEntity.AddComponent<SpriteRendererComponent>();
+			// TODO: Add lines and circles
+
+			if (ImGui::MenuItem("Sprite"))
+			{
+				newEntity = m_Context->CreateEntity("Sprite");
+				newEntity.AddComponent<SpriteRendererComponent>();
+			}
+
+			ImGui::EndMenu();
 		}
 
 		if (ImGui::BeginMenu("3D"))
@@ -480,6 +487,16 @@ namespace Iris {
 		if (isSelected)
 			ImGui::PushStyleColor(ImGuiCol_Text, Colors::Theme::BackgroundDark);
 
+		bool isMeshValid = true;
+		// NOTE: We always highlight unset meshes
+		{
+			if (entity.HasComponent<StaticMeshComponent>())
+				isMeshValid = AssetManager::IsAssetValid(entity.GetComponent<StaticMeshComponent>().StaticMesh, true);
+
+			if (!isMeshValid)
+				ImGui::PushStyleColor(ImGuiCol_Text, Colors::Theme::MeshNotSet);
+		}
+
 		// Tree Node...
 		ImGuiContext& g = *GImGui;
 		auto& style = ImGui::GetStyle();
@@ -610,6 +627,8 @@ namespace Iris {
 		}
 
 		if (isSelected)
+			ImGui::PopStyleColor();
+		if (!isMeshValid)
 			ImGui::PopStyleColor();
 
 		// Drag Drop
@@ -1412,6 +1431,7 @@ namespace Iris {
 		{
 			AssetHandle meshHandle = meshComp.StaticMesh;
 			Ref<StaticMesh> mesh = AssetManager::GetAssetAsync<StaticMesh>(meshHandle);
+			Ref<MeshSource> meshSource = mesh ? AssetManager::GetAssetAsync<MeshSource>(mesh->GetMeshSource()).Asset : nullptr;
 
 			UI::BeginPropertyGrid();
 
@@ -1427,6 +1447,24 @@ namespace Iris {
 					{
 						Entity entity = m_Context->GetEntityWithUUID(entityID);
 						entity.GetComponent<StaticMeshComponent>().StaticMesh = meshHandle;
+					}
+				}
+				ImGui::PopItemFlag();
+			}
+
+			// TODO: For now this does nothing however when we have submesh selection it will have an effect
+			if (meshSource)
+			{
+				uint32_t subMeshIndex = meshComp.SubMeshIndex;
+				const bool inconsistentSubMeshIndex = IsInconsistentPrimitive<uint32_t, StaticMeshComponent>([](const StaticMeshComponent& other) { return other.SubMeshIndex; });
+				ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && inconsistentSubMeshIndex);
+				if (UI::PropertyUInt("Submesh Index", subMeshIndex, 1, 0, static_cast<uint32_t>(meshSource->GetSubMeshes().size()) - 1))
+				{
+					for (auto& entityID : entities)
+					{
+						Entity entity = m_Context->GetEntityWithUUID(entityID);
+						auto& mc = entity.GetComponent<StaticMeshComponent>();
+						mc.SubMeshIndex = subMeshIndex;
 					}
 				}
 				ImGui::PopItemFlag();

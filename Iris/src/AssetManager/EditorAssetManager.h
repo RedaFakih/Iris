@@ -27,7 +27,7 @@ namespace Iris {
 		virtual bool IsAssetHandleValid(AssetHandle handle) const override { return IsMemoryAsset(handle) || GetMetaData(handle).IsValid(); }
 		virtual bool IsMemoryAsset(AssetHandle handle) const override { return m_MemoryAssets.contains(handle); }
 		virtual bool IsAssetLoaded(AssetHandle handle) override { return m_LoadedAssets.contains(handle); }
-		virtual bool IsAssetValid(AssetHandle handle) override;
+		virtual bool IsAssetValid(AssetHandle handle, bool loadAsync = false) override;
 		virtual bool IsAssetMissing(AssetHandle handle) override;
 		virtual void RemoveAsset(AssetHandle handle) override;
 

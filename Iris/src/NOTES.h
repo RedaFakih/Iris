@@ -1,14 +1,44 @@
 #pragma once
 
 /*
+ * GLOBAL IRIS SETTINGS:
+ * - 1 Unit = 1 Meter in the scale so setting the grid scale to 1 shows the 1 meter we just need to add suffixes to the values displayed
+ * 
  * TODO LATER:
  *  - Fix assimp copying the dll to the exe dir for the runtime if we need to do that... because the runtime should not be using assimp it should be using an assetpack
  * 
+ * TODO Creative Ideas:
+ * - Submesh selection when we have a content browser Both static and dynamic meshes will support submesh selection
+ * - When pressing translation gizmo axis draw infinite lines just like in blender for those axes
+ * - Fix the grid highlighting for Z and X axes
+ * - For extra viewport settings:
+ *		- For Scene Camera: otho views and all that
+ * - Add a way to adjust the first person editor camera speed even if that requires changing the system of how to change between the 2 camera modes...
+ * - Look into auto exposure because its SO COOL
+ *		- 1: https://bruop.github.io/exposure/
+ *		- 2: https://mynameismjp.wordpress.com/2011/08/10/average-luminance-compute-shader/
+ *		- 3: https://www.google.com/url?sa=t&source=web&rct=j&opi=89978449&url=https://resources.mpi-inf.mpg.de/tmo/logmap/logmap.pdf&ved=2ahUKEwiIrqjRtv2FAxVih_0HHZVMBK84ChAWegQIBRAB&usg=AOvVaw2PQ0E5hUTrfiVHLXDvpYKR
+ * 
  * LATEST UPDATES:
+ *  ** 05/05/2024 **
+ * - DescriptorSetManager problem is MAYBE fixed but we still need to check for that when we write TextureCube properly
+ * - We still get pipeline layout not matching validation errors (Maybe has to do something with DescriptorSetManager)
+ * - We need to write TextureCube properly
+ *	 - For that we can make the following assumptions:
+ *         - Cubemaps in Iris are always going to be hdr maps so, the cube images will always be filled from a compute shader so we will never have data
+ *			 when we are creating the resource so we can remove all the code that takes care of "If we had data to fill the image with"
+ * 
+ *  ** 01/05/2024 **
  * - Added TextureCube but needs ALOT of debugging for image layouts
  * - Added StorageBuffers and they should be okay...
  * - Adding StorageImages...
  * - Added SceneEnvirontment
+ * - Currently working on to continue:
+ *	- Writing textureCube
+ *	- Fixing DescriptorSetManager
+ *  - Writing StorageImages
+ *  - Creating the compute pipeline and passes and validating them in Renderer.cpp
+ *	- Computing environment maps and transforming them
  * 
  * NEXT THING TO WORK ON:
  * - DescriptorSetManager needs to have a semi re-write since it does not correctly handle all the cases were the image is a textureCube and storage image
@@ -16,16 +46,18 @@
  *        eventhough it is a cube texture... see we need a way to detect that and handle it accordingly. (Most probably separate those two cases from the
  *		  switch statement and handle them separatly, or leave the normal cases in the switch and if check after to handle accordingly so that we do not 
  *		  break any behaviour for 2D stuff)
+ *		- We can know the dimension of the image from shader reflection and using that we can cast back to the original type to know if its a cubeTexture or not
  * - Finish writing the TextureCube class
  * - Cube textures (Need testing, change the layout in the descriptor image info)
  * - Storage Images (Need testing and writing)
  * - Add compute passes to the engine so we can have environment maps and some IBL
  * - Selecting what submeshes to load through the mesh importer since in the Iris Mesh file we already know what submesh indices we want so just do not load them with assimp
  * - Add Mesh panel that prompts the user to create the Iris Mesh file if they load a MeshSource
+ * - Renderer2D problem with rendering ALOT of lines... (Vertexbuffer not resizing / no extra buffer is being createad)
  * - Add Filled Circles to Renderer2D? (Circle sprites)
  * - Handle renderer descriptor pool situation and come up with some solutions for it... Read note written in Renderer.cpp (line: 101)
  * - For runtime layer switch to using a main camera component and not the editor camera
- * - Add pipeline for double sided materials where you just disable culling... but it has its own drawlist
+ * - Add pipeline for double sided materials where you just disable culling... but it has its own drawlist (Or use VK_EXT_extended_dynamic_state to just set the cull mode as a dynamic state)
  * - Make the place where the scene names are rendered in the titlebar act as scene `TABS` that way you could have multiple scenes open at the same time and you switch between them by just pressing the scene name in the titlebar
  * - For raycasting grids we need to fix that the grid is not fixed in place and it moves as the camera moves so it is not useful as a reference grid
  * - OIT? With Weighted Blended technique using info provided from learnopengl.com <https://learnopengl.com/Guest-Articles/2020/OIT/Weighted-Blended> <https://github.com/nvpro-samples/vk_order_independent_transparency>

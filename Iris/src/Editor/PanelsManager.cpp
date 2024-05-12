@@ -102,7 +102,7 @@ namespace Iris {
 
     void PanelsManager::Deserialize()
     {
-        std::filesystem::path layoutPath = FileSystem::GetPersistantStoragePath() / "EditorLayour.yaml";
+        std::filesystem::path layoutPath = FileSystem::GetPersistantStoragePath() / "EditorLayout.yaml";
         if (!FileSystem::Exists(layoutPath))
             return;
 

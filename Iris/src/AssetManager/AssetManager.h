@@ -21,7 +21,7 @@ namespace Iris {
 		// - The asset handle is invalid
 		// - The file referred to by asset meta data is missing
 		// - The asset could not be loaded from file
-		static bool IsAssetValid(AssetHandle handle) { return Project::GetAssetManager()->IsAssetValid(handle); }
+		static bool IsAssetValid(AssetHandle handle, bool loadAsync = false) { return Project::GetAssetManager()->IsAssetValid(handle, loadAsync); }
 
 		// Returns true if the asset referred to by assetHandle is missing.
 		// Note that this checks for existence of file, but makes no attempt to load the asset from file

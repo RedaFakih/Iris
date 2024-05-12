@@ -239,7 +239,7 @@ namespace Iris {
 			};
 			m_GridPass = RenderPass::Create(gridPassSpec);
 			m_GridMaterial = Material::Create(gridPipelineSpec.Shader, "GridMaterial");
-			m_GridMaterial->Set("u_Uniforms.Scale", 10.0f);
+			m_GridMaterial->Set("u_Uniforms.Scale", m_TranslationSnapValue);
 
 			m_GridPass->SetInput("Camera", m_UBSCamera);
 			m_GridPass->Bake();
@@ -544,7 +544,7 @@ namespace Iris {
 			IR_VERIFY(materialAssetHandle);
 			Ref<MaterialAsset> materialAsset = AssetManager::GetAsset<MaterialAsset>(materialAssetHandle);
 
-			MeshKey meshKey = { staticMesh, materialAsset, subMeshIndex, false };
+			MeshKey meshKey = { staticMesh->Handle, materialAssetHandle, subMeshIndex, false };
 			TransformVertexData& transformStorage = m_MeshTransformMap[meshKey].Transforms.emplace_back();
 
 			// glm::mat4 [column][row]
@@ -553,6 +553,7 @@ namespace Iris {
 			transformStorage.MatrixRow[2] = { subMeshTransform[0][2],  subMeshTransform[1][2], subMeshTransform[2][2] , subMeshTransform[3][2] };
 
 			// For main geometry drawlist
+			// TODO: Check if transparent for transparent materials
 			{
 				auto& destDrawList = m_StaticMeshDrawList;
 				auto& dc = destDrawList[meshKey];
@@ -578,9 +579,10 @@ namespace Iris {
 			uint32_t materialIndex = subMesh.MaterialIndex;
 
 			AssetHandle materialAssetHandle = materialTable->HasMaterial(materialIndex) ? materialTable->GetMaterial(materialIndex) : staticMesh->GetMaterials()->GetMaterial(materialIndex);
+			IR_VERIFY(materialAssetHandle);
 			Ref<MaterialAsset> materialAsset = AssetManager::GetAsset<MaterialAsset>(materialAssetHandle);
 
-			MeshKey meshKey = { staticMesh, materialAsset, subMeshIndex, true };
+			MeshKey meshKey = { staticMesh->Handle, materialAssetHandle, subMeshIndex, true };
 			TransformVertexData& transformStorage = m_MeshTransformMap[meshKey].Transforms.emplace_back();
 
 			// glm::mat4 [column][row]
@@ -589,6 +591,7 @@ namespace Iris {
 			transformStorage.MatrixRow[2] = { subMeshTransform[0][2],  subMeshTransform[1][2], subMeshTransform[2][2] , subMeshTransform[3][2] };
 
 			// For main geometry drawlist
+			// TODO: Check if transparent for transparent materials
 			{
 				auto& destDrawList = m_StaticMeshDrawList;
 				auto& dc = destDrawList[meshKey];
@@ -795,6 +798,7 @@ namespace Iris {
 
 		if (m_Options.ShowGrid)
 		{
+			m_GridMaterial->Set("u_Uniforms.Scale", m_TranslationSnapValue);
 			Renderer::BeginRenderPass(m_CommandBuffer, m_GridPass);
 			Renderer::SubmitFullScreenQuad(m_CommandBuffer, m_GridPass->GetPipeline(), m_GridMaterial);
 			Renderer::EndRenderPass(m_CommandBuffer);

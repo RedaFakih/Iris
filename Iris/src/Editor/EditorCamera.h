@@ -9,7 +9,7 @@ namespace Iris {
 
 	enum class CameraType
 	{
-		BlenderCam = 0, FirstPerson
+		ArcBall = 0, FirstPerson
 	};
 
 	class EditorCamera : public Camera
@@ -29,12 +29,16 @@ namespace Iris {
 		void SetViewportSize(uint32_t width, uint32_t height);
 		void SetFOV(float degFov);
 
-		float GetFOV() const { return m_FOV; }
-		float GetAspectRatio() const { return m_AspectRatio; }
-		float GetNearClip() const { return m_NearClip; }
-		float GetFarClip() const { return m_FarClip; }
+		inline float GetFOV() const { return m_FOV; }
+		inline float GetAspectRatio() const { return m_AspectRatio; }
+		inline float GetNearClip() const { return m_NearClip; }
+		inline float GetFarClip() const { return m_FarClip; }
+
+		void SetNearClip(float value);
+		void SetFarClip(float value);
 
 		float GetCameraSpeed() const;
+		float& GetNormalSpeed() { return m_NormalSpeed; }
 
 		glm::vec3 GetLookAtDerection() const { return m_Direction; }
 		glm::vec3 GetUpDirection() const;
@@ -103,7 +107,7 @@ namespace Iris {
 
 		float m_MinFocusDistance = 100.0f;
 
-		CameraType m_CameraType = CameraType::BlenderCam;
+		CameraType m_CameraType = CameraType::ArcBall;
 
 		uint32_t m_ViewportWidth = 1280, m_ViewportHeight = 720;
 

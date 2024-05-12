@@ -118,7 +118,12 @@ namespace Iris {
 		{
 			out << YAML::BeginMap;
 			out << YAML::Key << "MeshSource" << YAML::Value << staticMesh->GetMeshSource();
-			out << YAML::Key << "SubMeshIndices" << YAML::Flow << YAML::Value << staticMesh->GetSubMeshes();
+			out << YAML::Key << "SubMeshIndices" << YAML::Flow;
+			Ref<MeshSource> meshSource = AssetManager::GetAsset<MeshSource>(staticMesh->GetMeshSource());
+			if (meshSource && meshSource->GetSubMeshes().size() == staticMesh->GetSubMeshes().size())
+				out << YAML::Value << std::vector<uint32_t>();
+			else
+				out << YAML::Value << staticMesh->GetSubMeshes();
 			out << YAML::EndMap;
 		}
 		out << YAML::EndMap;

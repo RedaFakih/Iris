@@ -6160,7 +6160,7 @@ void ImGui::ShowStyleEditor(ImGuiStyle* ref, int* outThemeID)
     if (ref == nullptr)
         ref = &style;
 
-    UI::BeginPropertyGrid(2/*, false*/);
+    UI::BeginPropertyGrid(2);
 
     static const char* availableThemes[] = { "Iris", "Dark", "Light", "Classic" };
     static int selectedThemeStyle = *outThemeID;
@@ -6216,7 +6216,7 @@ void ImGui::ShowStyleEditor(ImGuiStyle* ref, int* outThemeID)
         {
             if (ImGui::TreeNodeEx("Main", treeNodeFlags))
             {
-                UI::BeginPropertyGrid(2, false);
+                UI::BeginPropertyGrid(2);
 
                 UI::PropertySliderFloat2("WindowPadding", style.WindowPadding, 0.0f, 20.0f, "%.0f");
                 UI::PropertySliderFloat2("FramePadding", style.FramePadding, 0.0f, 20.0f, "%.0f");
@@ -6234,7 +6234,7 @@ void ImGui::ShowStyleEditor(ImGuiStyle* ref, int* outThemeID)
 
             if (ImGui::TreeNodeEx("Borders", treeNodeFlags))
             {
-                UI::BeginPropertyGrid(2, false);
+                UI::BeginPropertyGrid(2);
 
                 UI::PropertySliderFloat("WindowBorderSize", style.WindowBorderSize, 0.0f, 1.0f, "%.0f");
                 UI::PropertySliderFloat("ChildBorderSize", style.ChildBorderSize, 0.0f, 1.0f, "%.0f");
@@ -6248,7 +6248,7 @@ void ImGui::ShowStyleEditor(ImGuiStyle* ref, int* outThemeID)
 
             if (ImGui::TreeNodeEx("Rounding", treeNodeFlags))
             {
-                UI::BeginPropertyGrid(2, false);
+                UI::BeginPropertyGrid(2);
 
                 UI::PropertySliderFloat("WindowRounding", style.WindowRounding, 0.0f, 12.0f, "%.0f");
                 UI::PropertySliderFloat("ChildRounding", style.ChildRounding, 0.0f, 12.0f, "%.0f");
@@ -6265,7 +6265,7 @@ void ImGui::ShowStyleEditor(ImGuiStyle* ref, int* outThemeID)
 
             if (ImGui::TreeNodeEx("Alignment", treeNodeFlags))
             {
-                UI::BeginPropertyGrid(2, false);
+                UI::BeginPropertyGrid(2);
 
                 UI::PropertySliderFloat2("WindowTitleAlign", style.WindowTitleAlign, 0.0f, 1.0f, "%.2f");
 
@@ -6288,7 +6288,7 @@ void ImGui::ShowStyleEditor(ImGuiStyle* ref, int* outThemeID)
             if (ImGui::TreeNodeEx("Safe Area Padding", treeNodeFlags))
             {
                 ImGui::SameLine(); HelpMarker("Adjust if you cannot see the edges of your screen (e.g. on a TV where scaling has not been configured).");
-                UI::BeginPropertyGrid(2, false);
+                UI::BeginPropertyGrid(2, 200.0f);
 
                 UI::PropertySliderFloat2("DisplaySafeAreaPadding", style.DisplaySafeAreaPadding, 0.0f, 30.0f, "%.0f");
 
@@ -6301,7 +6301,7 @@ void ImGui::ShowStyleEditor(ImGuiStyle* ref, int* outThemeID)
 
         if (ImGui::BeginTabItem("Rendering"))
         {
-            UI::BeginPropertyGrid(2, false);
+            UI::BeginPropertyGrid(2, 250.0f);
 
             UI::PropertyBool("Anti-aliased Lines", style.AntiAliasedLines, "When disabling anti-aliasing lines, you'll probably want to disable borders in your style as well.");
             UI::PropertyBool("Anti-aliased Lines use texture", style.AntiAliasedLinesUseTex, "Faster lines using texture data. Require backend to render with bilinear filtering (not point/nearest filtering).");
@@ -6403,7 +6403,7 @@ void ImGui::ShowStyleEditor(ImGuiStyle* ref, int* outThemeID)
 
             ImGui::BeginChild("##colors", ImVec2(0, 0), true, ImGuiWindowFlags_AlwaysVerticalScrollbar | ImGuiWindowFlags_AlwaysHorizontalScrollbar | ImGuiWindowFlags_NavFlattened);
             ImGui::PushItemWidth(-160);
-            UI::BeginPropertyGrid(2, false);
+            UI::BeginPropertyGrid(2);
             for (int i = 0; i < ImGuiCol_COUNT; i++)
             {
                 const char* name = ImGui::GetStyleColorName(i);

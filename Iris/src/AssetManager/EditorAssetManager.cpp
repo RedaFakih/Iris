@@ -158,9 +158,14 @@ namespace Iris {
 		return result;
 	}
 
-	bool EditorAssetManager::IsAssetValid(AssetHandle handle)
+	bool EditorAssetManager::IsAssetValid(AssetHandle handle, bool loadAsync)
 	{
-		Ref<Asset> asset = GetAssetIncludingInvalid(handle);
+		Ref<Asset> asset;
+		if (loadAsync)
+			asset = GetAssetAsync(handle);
+		else
+			asset = GetAssetIncludingInvalid(handle);
+
 		return asset && asset->IsValid();
 	}
 

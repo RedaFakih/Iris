@@ -27,6 +27,11 @@ namespace Iris {
 		inline static Ref<Texture2D> GearIcon = nullptr;
 		inline static Ref<Texture2D> PencilIcon = nullptr;
 		inline static Ref<Texture2D> PlusIcon = nullptr;
+		inline static Ref<Texture2D> PointerIcon = nullptr;
+		inline static Ref<Texture2D> TranslateIcon = nullptr;
+		inline static Ref<Texture2D> RotateIcon = nullptr;
+		inline static Ref<Texture2D> ScaleIcon = nullptr;
+		inline static Ref<Texture2D> DropdownIcon = nullptr;
 
 		inline static Ref<Texture2D> CheckerboardTexture = nullptr;
 
@@ -53,6 +58,11 @@ namespace Iris {
 			GearIcon = LoadTexture("Generic/Gear.png", "GearIcon", spec);
 			PencilIcon = LoadTexture("Generic/Pencil.png", "PencilIcon", spec);
 			PlusIcon = LoadTexture("Generic/Plus.png", "PlusIcon", spec);
+			PointerIcon = LoadTexture("Generic/Pointer.png", "PointerIcon", spec);
+			TranslateIcon = LoadTexture("Generic/MoveTool.png", "TranslateIcon", spec);
+			RotateIcon = LoadTexture("Generic/RotateTool.png", "RotateIcon", spec);
+			ScaleIcon = LoadTexture("Generic/ScaleTool.png", "ScaleIcon", spec);
+			DropdownIcon = LoadTexture("Generic/Dropdown.png", "DropdownIcon", spec);
 
 			CheckerboardTexture = LoadTexture("Generic/Checkerboard.png", spec);
 		}
@@ -77,6 +87,11 @@ namespace Iris {
 			GearIcon.Reset();
 			PencilIcon.Reset();
 			PlusIcon.Reset();
+			PointerIcon.Reset();
+			TranslateIcon.Reset();
+			RotateIcon.Reset();
+			ScaleIcon.Reset();
+			DropdownIcon.Reset();
 
 			CheckerboardTexture.Reset();
 		}

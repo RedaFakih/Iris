@@ -135,6 +135,15 @@ namespace Iris {
 			VkPipelineStageFlags dstStageMask
 		);
 
+		static void InsertBufferMemoryBarrier(
+			VkCommandBuffer commandBuffer,
+			VkBuffer buffer,
+			VkAccessFlags srcAccessMask,
+			VkAccessFlags dstAccessMask,
+			VkPipelineStageFlags srcStageMask,
+			VkPipelineStageFlags dstStageMask
+		);
+
 		static void InsertImageMemoryBarrier(
 			VkCommandBuffer commandBuffer,
 			VkImage image,

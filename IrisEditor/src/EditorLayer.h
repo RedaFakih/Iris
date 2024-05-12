@@ -71,13 +71,15 @@ namespace Iris {
 		bool UI_TitleBarHitTest(int x, int y) const;
 		void UI_DrawMainMenuBar();
 		float GetSnapValue();
+		glm::vec3& GetSnapValues() { return m_GizmoSnapValues; }
+		void SetSnapValue(float value);
+		void UI_DrawViewportIcons();
 		void UI_DrawGizmos();
 		void UI_ShowNewSceneModal();
 
 		void DeleteEntity(Entity entity);
 
 		void UI_ShowViewport();
-		void UI_ShowShadersPanel();
 		void UI_ShowFontsPanel();
 
 	private:
@@ -105,6 +107,7 @@ namespace Iris {
 
 		int m_GizmoType = -1; // -1 = No gizmo
 		int m_GizmoMode = 0; // 0 = local
+		glm::vec3 m_GizmoSnapValues = { 0.5f, 45.0f, 0.5f }; // Translation, Rotation, Scale
 
 		float m_LineWidth = 2.0f;
 
@@ -123,6 +126,7 @@ namespace Iris {
 		bool m_ShowNewSceneModal = false;
 
 		bool m_ShowGizmos = true;
+		bool m_GizmoAxisFlip = false;
 
 		bool m_ViewportPanelMouseOver = false;
 		bool m_ViewportPanelFocused = false;
@@ -135,6 +139,12 @@ namespace Iris {
 
 		enum class TransformationTarget { MedianPoint, IndividualOrigins };
 		TransformationTarget m_MultiTransformTarget = TransformationTarget::MedianPoint;
+
+		enum class TransformationOrigin { Local = 0, World = 1 };
+		TransformationOrigin m_TransformationOrigin = TransformationOrigin::Local;
+
+		enum class SelectionMode { Entity = 0, SubMesh = 1 };
+		SelectionMode m_SelectionMode = SelectionMode::Entity;
 
 		// We can only have on instance of the EditorLayer
 		inline static EditorLayer* s_EditorLayerInstance = nullptr;

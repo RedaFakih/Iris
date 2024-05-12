@@ -107,7 +107,7 @@ namespace Iris {
 		s_Data->DescriptorPoolAllocationCount.resize(s_RendererConfig.FramesInFlight);
 
 
-		Renderer::Submit([]() mutable
+		Renderer::Submit([]()
 		{
 			// Create Descriptor Pool
 			// TODO: What is the situation here? Do we want to keep this? most probably yes since it allocates discriptors for imgui textures and also will allocate descriptors
@@ -789,7 +789,13 @@ namespace Iris {
 		}
 	}
 
-	void Renderer::InsertMemoryBarrier(VkCommandBuffer commandBuffer, VkAccessFlags srcAccessMask, VkAccessFlags dstAccessMask, VkPipelineStageFlags srcStageMask, VkPipelineStageFlags dstStageMask)
+	void Renderer::InsertMemoryBarrier(
+		VkCommandBuffer commandBuffer,
+		VkAccessFlags srcAccessMask,
+		VkAccessFlags dstAccessMask,
+		VkPipelineStageFlags srcStageMask,
+		VkPipelineStageFlags dstStageMask
+	)
 	{
 		VkMemoryBarrier memoryBarrier = {
 			.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER,
@@ -799,6 +805,29 @@ namespace Iris {
 		};
 
 		vkCmdPipelineBarrier(commandBuffer, srcStageMask, dstStageMask, 0, 1, &memoryBarrier, 0, nullptr, 0, nullptr);
+	}
+
+	void Renderer::InsertBufferMemoryBarrier(
+		VkCommandBuffer commandBuffer,
+		VkBuffer buffer,
+		VkAccessFlags srcAccessMask,
+		VkAccessFlags dstAccessMask,
+		VkPipelineStageFlags srcStageMask,
+		VkPipelineStageFlags dstStageMask
+	)
+	{
+		VkBufferMemoryBarrier bufferMemBarrier = {
+			.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+			.srcAccessMask = srcAccessMask,
+			.dstAccessMask = dstAccessMask,
+			.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+			.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+			.buffer = buffer,
+			.offset = 0,
+			.size = VK_WHOLE_SIZE
+		};
+
+		vkCmdPipelineBarrier(commandBuffer, srcStageMask, dstStageMask, 0, 0, nullptr, 1, &bufferMemBarrier, 0, nullptr);
 	}
 
 	void Renderer::InsertImageMemoryBarrier(

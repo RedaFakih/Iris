@@ -148,7 +148,8 @@ namespace Iris::UI {
 	// Prefer using this over the ToolTip
 	void ShowHelpMarker(const char* description)
 	{
-		ImGui::TextDisabled("(?)");
+		ImGui::SameLine();
+		ImGui::TextDisabled(" (?)");
 		if (ImGui::IsItemHovered())
 		{
 			ImGui::BeginTooltip();
@@ -637,6 +638,33 @@ namespace Iris::UI {
 		return modified;
 	}
 
+	bool PropertyUInt(const char* label, uint32_t& value, uint32_t delta, uint32_t min, uint32_t max, const char* helpText)
+	{
+		ShiftCursor(10.0f, 9.0f);
+		ImGui::Text(label);
+
+		if (std::strlen(helpText) != 0)
+		{
+			ImGui::SameLine();
+			ShowHelpMarker(helpText);
+		}
+
+		ImGui::NextColumn();
+		ShiftCursorY(4.0f);
+
+		ImGui::PushItemWidth(-1);
+		bool modified = ImGui::DragInt(fmt::format("##{0}", label).c_str(), reinterpret_cast<int*>(&value), static_cast<float>(delta), min, max);
+
+		if (!IsItemDisabled())
+			DrawItemActivityOutline();
+		ImGui::PopItemWidth();
+
+		ImGui::NextColumn();
+		UnderLine();
+
+		return modified;
+	}
+
 	bool PropertyBool(const char* label, bool& value, const char* helpText)
 	{
 		ShiftCursor(10.0f, 9.0f);
@@ -906,7 +934,7 @@ namespace Iris::UI {
 		}
 	}
 
-	void UnderLine(bool fullWidth, float offsetX, float offsetY)
+	void UnderLine(bool fullWidth, float offsetX, float offsetY, float thickness, ImU32 theme)
 	{
 		if (fullWidth)
 		{
@@ -918,7 +946,30 @@ namespace Iris::UI {
 
 		const float width = fullWidth ? ImGui::GetWindowWidth() : ImGui::GetContentRegionAvail().x;
 		const ImVec2 cursor = ImGui::GetCursorScreenPos();
-		ImGui::GetWindowDrawList()->AddLine(ImVec2{ cursor.x + offsetX, cursor.y + offsetY }, ImVec2{ cursor.x + width, cursor.y + offsetY }, Colors::Theme::BackgroundDark, 1.0f);
+		ImGui::GetWindowDrawList()->AddLine(ImVec2{ cursor.x + offsetX, cursor.y + offsetY }, ImVec2{ cursor.x + width, cursor.y + offsetY }, theme, thickness);
+
+		if (fullWidth)
+		{
+			if (ImGui::GetCurrentWindow()->DC.CurrentColumns != nullptr)
+				ImGui::PopColumnsBackground();
+			else if (ImGui::GetCurrentTable() != nullptr)
+				ImGui::TablePopBackgroundChannel();
+		}
+	}
+
+	void UnderLine(ImU32 theme, bool fullWidth, ImVec2 p1Offset, ImVec2 p2Offset, float thickness)
+	{
+		if (fullWidth)
+		{
+			if (ImGui::GetCurrentWindow()->DC.CurrentColumns != nullptr)
+				ImGui::PushColumnsBackground();
+			else if (ImGui::GetCurrentTable() != nullptr)
+				ImGui::TablePushBackgroundChannel();
+		}
+
+		const float width = fullWidth ? ImGui::GetWindowWidth() : p2Offset.x - p1Offset.x;
+		const ImVec2 cursor = ImGui::GetCursorScreenPos();
+		ImGui::GetWindowDrawList()->AddLine(ImVec2{ cursor.x + p1Offset.x, cursor.y + p1Offset.y }, ImVec2{ cursor.x + width, cursor.y + p2Offset.y}, theme, thickness);
 
 		if (fullWidth)
 		{

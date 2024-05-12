@@ -145,6 +145,7 @@ namespace Iris {
 	struct StaticMeshComponent
 	{
 		AssetHandle StaticMesh = 0;
+		uint32_t SubMeshIndex = 0;
 		Ref<MaterialTable> MaterialTable = MaterialTable::Create();
 		bool Visible = true;
 	};

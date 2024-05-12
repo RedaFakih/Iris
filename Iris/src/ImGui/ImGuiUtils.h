@@ -266,6 +266,7 @@ namespace Iris::UI {
 	bool PropertyString(const char* label, const char* value, bool isError = false);
 	bool PropertyStringReadOnly(const char* label, const char* value, bool isErorr = false);
 	bool PropertyFloat(const char* label, float& value, float delta = 0.1f, float min = 0.0f, float max = 0.0f, const char* helpText = "");
+	bool PropertyUInt(const char* label, uint32_t& value, uint32_t delta = 1.0f, uint32_t min = 0, uint32_t max = 0, const char* helpText = "");
 	bool PropertyBool(const char* label, bool& value, const char* helpText = "");
 	bool PropertySliderFloat(const char* label, float& value, float min = 0.0f, float max = 0.0f, const char* format = "%.3f", const char* helpText = "");
 	bool PropertySliderFloat2(const char* label, ImVec2& value, float min = 0.0f, float max = 0.0f, const char* format = "%.3f", const char* helpText = "");

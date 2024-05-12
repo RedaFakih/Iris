@@ -50,6 +50,8 @@ namespace Iris {
 
 		Entity DuplicateEntity(Entity entity);
 
+		Entity InstantiateStaticMesh(Ref<StaticMesh> staticMesh);
+
 		template<typename... Componenets>
 		auto GetAllEntitiesWith()
 		{
@@ -104,6 +106,7 @@ namespace Iris {
 
 	private:
 		void SortEntities();
+		void BuildMeshEntityHierarchy(Entity parent, Ref<StaticMesh> staticMesh, const MeshUtils::MeshNode& node);
 
 	private:
 		UUID m_SceneID;

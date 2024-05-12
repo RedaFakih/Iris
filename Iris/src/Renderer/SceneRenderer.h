@@ -84,6 +84,10 @@ namespace Iris {
 
 		void SetOpacity(float opacity) { m_Opacity = opacity; }
 		float GetOpacity() const { return m_Opacity; }
+		float& GetOpacity() { return m_Opacity; }
+
+		float GetTranslationSnapValue() const { return m_TranslationSnapValue; }
+		void SetTranslationSnapValue(float value) { m_TranslationSnapValue = value; }
 
 		const Statistics& GetStatistics() const { return m_Statistics; }
 		SceneRendererOptions& GetOptions() { return m_Options; }
@@ -94,22 +98,22 @@ namespace Iris {
 	private:
 		struct MeshKey
 		{
-			Ref<StaticMesh> MeshHandle;
-			Ref<MaterialAsset> MaterialHandle;
+			AssetHandle MeshHandle;
+			AssetHandle MaterialHandle;
 			uint32_t SubMeshIndex;
 			bool IsSelected;
 
-			MeshKey(Ref<StaticMesh> meshHandle, Ref<MaterialAsset> materialAsset, uint32_t subMeshIndex, bool isSelected)
+			MeshKey(AssetHandle meshHandle, AssetHandle materialAsset, uint32_t subMeshIndex, bool isSelected)
 				: MeshHandle(meshHandle), MaterialHandle(materialAsset), SubMeshIndex(subMeshIndex), IsSelected(isSelected)
 			{
 			}
 
 			bool operator<(const MeshKey& other) const
 			{
-				if (MeshHandle->Handle < other.MeshHandle->Handle)
+				if (MeshHandle < other.MeshHandle)
 					return true;
 
-				if (MeshHandle->Handle > other.MeshHandle->Handle)
+				if (MeshHandle > other.MeshHandle)
 					return false;
 
 				if (SubMeshIndex < other.SubMeshIndex)
@@ -118,10 +122,10 @@ namespace Iris {
 				if (SubMeshIndex > other.SubMeshIndex)
 					return false;
 
-				if (MaterialHandle->Handle < other.MaterialHandle->Handle)
+				if (MaterialHandle < other.MaterialHandle)
 					return true;
 
-				if (MaterialHandle->Handle > other.MaterialHandle->Handle)
+				if (MaterialHandle > other.MaterialHandle)
 					return false;
 
 				return IsSelected < other.IsSelected;
@@ -202,6 +206,7 @@ namespace Iris {
 		// Grid
 		Ref<RenderPass> m_GridPass;
 		Ref<Material> m_GridMaterial;
+		float m_TranslationSnapValue = 0.5f;
 
 		// Composite
 		Ref<Material> m_CompositeMaterial;

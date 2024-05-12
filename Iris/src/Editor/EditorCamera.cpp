@@ -62,7 +62,7 @@ namespace Iris {
 
 		if (Input::IsKeyDown(KeyCode::LeftAlt))
 		{
-			m_CameraType = CameraType::BlenderCam;
+			m_CameraType = CameraType::ArcBall;
 
 			if (Input::IsMouseButtonDown(MouseButton::Right))
 			{
@@ -131,7 +131,7 @@ namespace Iris {
 		m_Pitch += m_PitchDelta * smoothing;
 		m_FocalPoint += m_FocalPointDelta * smoothing;
 
-		if (m_CameraType == CameraType::BlenderCam)
+		if (m_CameraType == CameraType::ArcBall)
 			m_Position = CalculatePosition();
 
 		UpdateView();
@@ -163,13 +163,25 @@ namespace Iris {
 
 		m_ViewportWidth = width;
 		m_ViewportHeight = height;
-		SetPerspectiveProjectionMatrix(glm::degrees(m_FOV), (float)width, (float)height, m_NearClip, m_FarClip);
+		SetPerspectiveProjectionMatrix(glm::degrees(m_FOV), static_cast<float>(width), static_cast<float>(height), m_NearClip, m_FarClip);
 	}
 
 	void EditorCamera::SetFOV(float degFov)
 	{
 		m_FOV = glm::radians(degFov);
-		SetPerspectiveProjectionMatrix(degFov, (float)m_ViewportWidth, (float)m_ViewportHeight, m_NearClip, m_FarClip);
+		SetPerspectiveProjectionMatrix(degFov, static_cast<float>(m_ViewportWidth), static_cast<float>(m_ViewportHeight), m_NearClip, m_FarClip);
+	}
+
+	void EditorCamera::SetNearClip(float value)
+	{
+		m_NearClip = value;
+		SetPerspectiveProjectionMatrix(glm::degrees(m_FOV), static_cast<float>(m_ViewportWidth), static_cast<float>(m_ViewportHeight), m_NearClip, m_FarClip);
+	}
+
+	void EditorCamera::SetFarClip(float value)
+	{
+		m_FarClip = value;
+		SetPerspectiveProjectionMatrix(glm::degrees(m_FOV), static_cast<float>(m_ViewportWidth), static_cast<float>(m_ViewportHeight), m_NearClip, m_FarClip);
 	}
 
 	void EditorCamera::UpdateView()
