@@ -51,6 +51,11 @@ namespace Iris {
 			uint32_t SavedDraw = 0;
 		};
 
+		enum class ViewMode
+		{
+			Lit, Unlit, Wireframe
+		};
+
 	public:
 		SceneRenderer(Ref<Scene> scene, const SceneRendererSpecification& spec = SceneRendererSpecification());
 		~SceneRenderer();
@@ -75,6 +80,8 @@ namespace Iris {
 		Ref<Framebuffer> GetExternalCompositeFramebuffer() { return m_CompositingFramebuffer; }
 
 		Ref<Renderer2D> GetRenderer2D() { return m_Renderer2D; }
+
+		void SetViewMode(ViewMode mode) { m_ViewMode = mode; }
 
 		void SetLineWidth(float lineWidth);
 		float GetLineWidth() const { return m_LineWidth; }
@@ -188,6 +195,7 @@ namespace Iris {
 		// PreDepth
 		Ref<Pipeline> m_PreDepthPipeline;
 		Ref<RenderPass> m_PreDepthPass;
+		Ref<RenderPass> m_WireframeViewPreDepthPass; // For having wireframe view in the future
 		Ref<Material> m_PreDepthMaterial;
 
 		// Geometry
@@ -278,6 +286,8 @@ namespace Iris {
 		float m_Opacity = 1.0f;
 
 		Statistics m_Statistics;
+
+		ViewMode m_ViewMode = ViewMode::Lit;
 
 	};
 

@@ -1,0 +1,98 @@
+Scene: Editor Scene
+Entities:
+  - Entity: 1483087912622722813
+    TagComponent:
+      Tag: Sprite
+    Parent: 0
+    Children:
+      []
+    TransformComponent:
+      Position: [0, -0.0648082495, -7.72574538e-09]
+      Rotation: [1.57079649, 0, 0]
+      Scale: [1, 1, 1]
+    SpriteRendererComponent:
+      Color: [1, 1, 1, 1]
+      Texture: 16894688211854888310
+      TilingFactor: 1
+      UV0: [0, 0]
+      UV1: [1, 1]
+  - Entity: 4053640525131076148
+    TagComponent:
+      Tag: Sprite
+    Parent: 0
+    Children:
+      []
+    TransformComponent:
+      Position: [0.12003535, 0.573015928, 5.05946574e-08]
+      Rotation: [1.57079649, 0, -1.57079625]
+      Scale: [1, 1, 1]
+    SpriteRendererComponent:
+      Color: [1, 1, 1, 1]
+      Texture: 8800642274478896328
+      TilingFactor: 1
+      UV0: [0, 0]
+      UV1: [1, 1]
+  - Entity: 5230119547705616777
+    TagComponent:
+      Tag: Sprite
+    Parent: 0
+    Children:
+      []
+    TransformComponent:
+      Position: [-4.26979732e-08, 0.573015928, 3.62853143e-08]
+      Rotation: [1.57079649, 0, -1.57079625]
+      Scale: [1, 1, 1]
+    SpriteRendererComponent:
+      Color: [1, 1, 1, 1]
+      Texture: 15945537429572738622
+      TilingFactor: 1
+      UV0: [0, 0]
+      UV1: [1, 1]
+  - Entity: 9232678343625890790
+    TagComponent:
+      Tag: Sprite
+    Parent: 0
+    Children:
+      []
+    TransformComponent:
+      Position: [0, 0, 0]
+      Rotation: [1.57079649, 0, 0]
+      Scale: [1, 0.999999762, 0.999999821]
+    SpriteRendererComponent:
+      Color: [1, 1, 1, 1]
+      Texture: 8602806748587412089
+      TilingFactor: 1
+      UV0: [0, 0]
+      UV1: [1, 1]
+  - Entity: 11287347510018860502
+    TagComponent:
+      Tag: Sprite
+    Parent: 0
+    Children:
+      []
+    TransformComponent:
+      Position: [0.0623855591, 0.57301569, -0.898516476]
+      Rotation: [3.10213017, 1.82539225e-07, -1.57079613]
+      Scale: [0.999999344, 1.00000048, 1.0000006]
+    SpriteRendererComponent:
+      Color: [1, 1, 1, 1]
+      Texture: 4179027730210378084
+      TilingFactor: 1
+      UV0: [0, 0]
+      UV1: [1, 1]
+  - Entity: 17231298306233947612
+    TagComponent:
+      Tag: Sprite
+    Parent: 0
+    Children:
+      []
+    TransformComponent:
+      Position: [0.0576498583, 0.57301569, -1.01845849]
+      Rotation: [3.10213017, 1.82539225e-07, -1.57079613]
+      Scale: [0.999999344, 1.00000048, 1.0000006]
+    SpriteRendererComponent:
+      Color: [1, 1, 1, 1]
+      Texture: 8980841913569508585
+      TilingFactor: 1
+      UV0: [0, 0]
+      UV1: [1, 1]

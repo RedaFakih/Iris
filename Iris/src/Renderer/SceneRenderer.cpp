@@ -25,6 +25,9 @@ namespace Iris {
 		Shutdown();
 	}
 
+	// NOTE: We do not want any multisampling...
+	constexpr uint32_t c_Samples = 1;
+
 	void SceneRenderer::Init()
 	{
 		IR_CORE_WARN_TAG("Renderer", "Initializing Scene Renderer for scene: {0}", m_Scene->GetName());
@@ -33,9 +36,6 @@ namespace Iris {
 		m_ViewportHeight = m_Specification.ViewportHeight;
 		if (m_ViewportWidth > 0 && m_ViewportHeight > 0)
 			m_NeedsResize = true;
-
-		// NOTE: We do not want any multisampling...
-		constexpr uint32_t c_Samples = 1;
 
 		m_CommandBuffer = RenderCommandBuffer::Create(0, "SceneRenderer");
 
@@ -92,6 +92,16 @@ namespace Iris {
 
 			m_PreDepthPass->SetInput("Camera", m_UBSCamera);
 			m_PreDepthPass->Bake();
+
+			preDepthPipelineSpec.DebugName = "WireframePreDepthPipeline";
+			preDepthPipelineSpec.WireFrame = true;
+			Ref<Pipeline> pipeline = Pipeline::Create(preDepthPipelineSpec);
+			preDepthRenderPassSpec.DebugName = "WireframePreDepthPass";
+			preDepthRenderPassSpec.Pipeline = pipeline;
+			m_WireframeViewPreDepthPass = RenderPass::Create(preDepthRenderPassSpec);
+
+			m_WireframeViewPreDepthPass->SetInput("Camera", m_UBSCamera);
+			m_WireframeViewPreDepthPass->Bake();
 		}
 
 		// Geometry
@@ -109,7 +119,7 @@ namespace Iris {
 			geometryFBSpec.ExistingImages[3] = m_PreDepthPass->GetDepthOutput(true); // Ignore the resolve image if the buffer is multisampeld
 
 			PipelineSpecification staticGeometryPipelineSpec = {
-				.DebugName = "PBRStaicPipeline",
+				.DebugName = "PBRStaticPipeline",
 				.Shader = Renderer::GetShadersLibrary()->Get("IrisPBRStatic"),
 				.TargetFramebuffer = Framebuffer::Create(geometryFBSpec),
 				.VertexLayout = vertexLayout,
@@ -448,8 +458,7 @@ namespace Iris {
 		if (m_NeedsResize)
 		{
 			m_NeedsResize = false;
-
-			
+						
 			// PreDepth and Geometry framebuffers need to be resized first since other framebuffers reference images in them
 			m_PreDepthPass->GetTargetFramebuffer()->Resize(m_ViewportWidth, m_ViewportHeight);
 			m_GeometryPass->GetTargetFramebuffer()->Resize(m_ViewportWidth, m_ViewportHeight);
@@ -707,13 +716,21 @@ namespace Iris {
 
 		uint32_t frameIndex = Renderer::GetCurrentFrameIndex();
 
-		Renderer::BeginRenderPass(m_CommandBuffer, m_PreDepthPass);
+		Ref<RenderPass> renderPassToUse = nullptr;
+		switch (m_ViewMode)
+		{
+			case ViewMode::Lit: renderPassToUse = m_PreDepthPass; break;
+			case ViewMode::Unlit: renderPassToUse = m_PreDepthPass; break;
+			case ViewMode::Wireframe: renderPassToUse = m_WireframeViewPreDepthPass; break;
+		}
+
+		Renderer::BeginRenderPass(m_CommandBuffer, renderPassToUse);
 
 		for (const auto& [mk, dc] : m_StaticMeshDrawList)
 		{
 			const auto& transformData = m_MeshTransformMap.at(mk);
 			glm::mat4 transform = dc.MeshSource->GetSubMeshes()[dc.SubMeshIndex].Transform;
-			Renderer::RenderStaticMeshWithMaterial(m_CommandBuffer, m_PreDepthPipeline, dc.StaticMesh, dc.MeshSource, dc.SubMeshIndex, m_PreDepthMaterial, m_MeshTransformBuffers[frameIndex].VertexBuffer, transformData.TransformOffset, dc.InstanceCount);
+			Renderer::RenderStaticMeshWithMaterial(m_CommandBuffer, renderPassToUse->GetPipeline(), dc.StaticMesh, dc.MeshSource, dc.SubMeshIndex, m_PreDepthMaterial, m_MeshTransformBuffers[frameIndex].VertexBuffer, transformData.TransformOffset, dc.InstanceCount);
 		}
 
 		Renderer::EndRenderPass(m_CommandBuffer);
@@ -721,8 +738,6 @@ namespace Iris {
 
 	void SceneRenderer::GeometryPass()
 	{
-		// Main geometry pass with lighting...
-
 		uint32_t frameIndex = Renderer::GetCurrentFrameIndex();
 
 		Renderer::BeginRenderPass(m_CommandBuffer, m_SelectedGeometryPass);

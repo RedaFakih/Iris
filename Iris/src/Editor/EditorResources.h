@@ -16,6 +16,8 @@ namespace Iris {
 		inline static Ref<Texture2D> StaticMeshIcon = nullptr;
 		inline static Ref<Texture2D> SpriteIcon = nullptr;
 		inline static Ref<Texture2D> TransformIcon = nullptr;
+		inline static Ref<Texture2D> LitMaterialIcon = nullptr;
+		inline static Ref<Texture2D> UnLitMaterialIcon = nullptr;
 
 		inline static Ref<Texture2D> MinimizeIcon = nullptr;
 		inline static Ref<Texture2D> MaximizeIcon = nullptr;
@@ -32,6 +34,14 @@ namespace Iris {
 		inline static Ref<Texture2D> RotateIcon = nullptr;
 		inline static Ref<Texture2D> ScaleIcon = nullptr;
 		inline static Ref<Texture2D> DropdownIcon = nullptr;
+		
+		inline static Ref<Texture2D> LeftSquareIcon = nullptr;
+		inline static Ref<Texture2D> RightSquareIcon = nullptr;
+		inline static Ref<Texture2D> TopSquareIcon = nullptr;
+		inline static Ref<Texture2D> BottomSquareIcon = nullptr;
+		inline static Ref<Texture2D> BackSquareIcon = nullptr;
+		inline static Ref<Texture2D> FrontSquareIcon = nullptr;
+		inline static Ref<Texture2D> PerspectiveIcon = nullptr;
 
 		inline static Ref<Texture2D> CheckerboardTexture = nullptr;
 
@@ -63,6 +73,16 @@ namespace Iris {
 			RotateIcon = LoadTexture("Generic/RotateTool.png", "RotateIcon", spec);
 			ScaleIcon = LoadTexture("Generic/ScaleTool.png", "ScaleIcon", spec);
 			DropdownIcon = LoadTexture("Generic/Dropdown.png", "DropdownIcon", spec);
+			LitMaterialIcon = LoadTexture("Generic/LitMaterial.png", "LitMaterialIcon", spec);
+			UnLitMaterialIcon = LoadTexture("Generic/UnlitMaterial.png", "UnLitMaterialIcon", spec);
+
+			LeftSquareIcon = LoadTexture("Generic/LeftSquare.png", "LeftSquareIcon", spec);
+			RightSquareIcon = LoadTexture("Generic/RightSquare.png", "RightSquareIcon", spec);
+			TopSquareIcon = LoadTexture("Generic/TopSquare.png", "TopSquareIcon", spec);
+			BottomSquareIcon = LoadTexture("Generic/BottomSquare.png", "BottomSquareIcon", spec);
+			BackSquareIcon = LoadTexture("Generic/BackSquare.png", "BackSquare", spec);
+			FrontSquareIcon = LoadTexture("Generic/FrontSquare.png", "FrontSquare", spec);
+			PerspectiveIcon = LoadTexture("Generic/Perspective.png", "PerspectiveIcon", spec);
 
 			CheckerboardTexture = LoadTexture("Generic/Checkerboard.png", spec);
 		}
@@ -76,6 +96,8 @@ namespace Iris {
 			StaticMeshIcon.Reset();
 			SpriteIcon.Reset();
 			TransformIcon.Reset();
+			LitMaterialIcon.Reset();
+			UnLitMaterialIcon.Reset();
 
 			MinimizeIcon.Reset();
 			MaximizeIcon.Reset();
@@ -92,6 +114,14 @@ namespace Iris {
 			RotateIcon.Reset();
 			ScaleIcon.Reset();
 			DropdownIcon.Reset();
+
+			LeftSquareIcon.Reset();
+			RightSquareIcon.Reset();
+			TopSquareIcon.Reset();
+			BottomSquareIcon.Reset();
+			BackSquareIcon.Reset();
+			FrontSquareIcon.Reset();
+			PerspectiveIcon.Reset();
 
 			CheckerboardTexture.Reset();
 		}

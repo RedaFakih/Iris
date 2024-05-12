@@ -60,79 +60,141 @@ namespace Iris {
 
 		const glm::vec2 delta = (mouse - m_InitialMousePosition) * 0.002f;
 
-		if (Input::IsKeyDown(KeyCode::LeftAlt))
+		constexpr float smoothing = 0.82f; // Decrease the smoothing a bit
+		if (IsPerspectiveProjection())
 		{
-			m_CameraType = CameraType::ArcBall;
+			if (Input::IsKeyDown(KeyCode::LeftAlt))
+			{
+				m_CameraType = CameraType::ArcBall;
 
-			if (Input::IsMouseButtonDown(MouseButton::Right))
-			{
-				Utils::DisableMouse();
-				MouseRotate(delta);
+				if (Input::IsMouseButtonDown(MouseButton::Right))
+				{
+					Utils::DisableMouse();
+					MouseRotate(delta);
+				}
+				else if (Input::IsMouseButtonDown(MouseButton::Left))
+				{
+					Utils::DisableMouse();
+					MousePan(delta);
+				}
+				else if (Input::IsMouseButtonDown(MouseButton::Middle))
+				{
+					Utils::DisableMouse();
+					MouseZoom((delta.x + delta.y) * 0.1f);
+				}
+				else
+					Utils::EnableMouse();
 			}
-			else if (Input::IsMouseButtonDown(MouseButton::Left))
+			else if (Input::IsMouseButtonDown(MouseButton::Right) && !Input::IsKeyDown(KeyCode::LeftAlt))
 			{
+				m_CameraType = CameraType::FirstPerson;
 				Utils::DisableMouse();
-				MousePan(delta);
-			}
-			else if (Input::IsMouseButtonDown(MouseButton::Middle))
-			{
-				Utils::DisableMouse();
-				MouseZoom((delta.x + delta.y) * 0.1f);
+				const float yawSign = GetUpDirection().y < 0.0f ? -1.0f : 1.0f;
+				const glm::vec3 upDirection = { 0.0f, yawSign, 0.0f };
+
+				float speed = GetCameraSpeed();
+
+				if (Input::IsKeyDown(KeyCode::W))
+					m_PositionDelta += m_Direction * speed * ts.GetMilliSeconds();
+				else if (Input::IsKeyDown(KeyCode::S))
+					m_PositionDelta -= m_Direction * speed * ts.GetMilliSeconds();
+
+				if (Input::IsKeyDown(KeyCode::A))
+					m_PositionDelta -= m_RightDirection * speed * ts.GetMilliSeconds();
+				else if (Input::IsKeyDown(KeyCode::D))
+					m_PositionDelta += m_RightDirection * speed * ts.GetMilliSeconds();
+
+				if (Input::IsKeyDown(KeyCode::Q))
+					m_PositionDelta -= upDirection * speed * ts.GetMilliSeconds();
+				else if (Input::IsKeyDown(KeyCode::E))
+					m_PositionDelta += upDirection * speed * ts.GetMilliSeconds();
+
+				constexpr float maxRate = 0.12f;
+				m_YawDelta += glm::clamp(yawSign * delta.x * RotationSpeed(), -maxRate, maxRate);
+				m_PitchDelta += glm::clamp(delta.y * RotationSpeed(), -maxRate, maxRate);
+
+				m_RightDirection = glm::cross(m_Direction, upDirection);
+
+				m_Direction = glm::rotate(glm::normalize(glm::cross(glm::angleAxis(-m_PitchDelta, m_RightDirection),
+					glm::angleAxis(-m_YawDelta, upDirection))), m_Direction);
+
+				float distance = glm::distance(m_FocalPoint, m_Position);
+				m_FocalPoint = m_Position + GetForwardDirection() * distance;
+				m_Distance = distance;
 			}
 			else
+			{
 				Utils::EnableMouse();
-		}
-		else if (Input::IsMouseButtonDown(MouseButton::Right) && !Input::IsKeyDown(KeyCode::LeftAlt))
-		{
-			m_CameraType = CameraType::FirstPerson;
-			Utils::DisableMouse();
-			const float yawSign = GetUpDirection().y < 0.0f ? -1.0f : 1.0f;
-			const glm::vec3 upDirection = { 0.0f, yawSign, 0.0f };
+			}
 
-			float speed = GetCameraSpeed();
+			m_Position += m_PositionDelta * smoothing;
+			m_Yaw += m_YawDelta * smoothing;
+			m_Pitch += m_PitchDelta * smoothing;
+			m_FocalPoint += m_FocalPointDelta * smoothing;
 
-			if (Input::IsKeyDown(KeyCode::W))
-				m_PositionDelta += m_Direction * speed * ts.GetMilliSeconds();
-			else if (Input::IsKeyDown(KeyCode::S))
-				m_PositionDelta -= m_Direction * speed * ts.GetMilliSeconds();
-
-			if (Input::IsKeyDown(KeyCode::A))
-				m_PositionDelta -= m_RightDirection * speed * ts.GetMilliSeconds();
-			else if (Input::IsKeyDown(KeyCode::D))
-				m_PositionDelta += m_RightDirection * speed * ts.GetMilliSeconds();
-
-			if (Input::IsKeyDown(KeyCode::Q))
-				m_PositionDelta -= upDirection * speed * ts.GetMilliSeconds();
-			else if (Input::IsKeyDown(KeyCode::E))
-				m_PositionDelta += upDirection * speed * ts.GetMilliSeconds();
-
-			constexpr float maxRate = 0.12f;
-			m_YawDelta += glm::clamp(yawSign * delta.x * RotationSpeed(), -maxRate, maxRate);
-			m_PitchDelta += glm::clamp(delta.y * RotationSpeed(), -maxRate, maxRate);
-
-			m_RightDirection = glm::cross(m_Direction, upDirection);
-
-			m_Direction = glm::rotate(glm::normalize(glm::cross(glm::angleAxis(-m_PitchDelta, m_RightDirection),
-				glm::angleAxis(-m_YawDelta, upDirection))), m_Direction);
-
-			float distance = glm::distance(m_FocalPoint, m_Position);
-			m_FocalPoint = m_Position + GetForwardDirection() * distance;
-			m_Distance = distance;
+			if (m_CameraType == CameraType::ArcBall)
+				m_Position = CalculatePosition();
 		}
 		else
 		{
-			Utils::EnableMouse();
+			if (m_OrthoPositioning == OrthoPosition::Top)
+			{
+				if (Input::IsKeyDown(KeyCode::W))
+					m_OrthoPosition.z += m_NormalSpeed * ts.GetMilliSeconds();
+				else if (Input::IsKeyDown(KeyCode::S))
+					m_OrthoPosition.z -= m_NormalSpeed * ts.GetMilliSeconds();
+				if (Input::IsKeyDown(KeyCode::A))
+					m_OrthoPosition.x += m_NormalSpeed * ts.GetMilliSeconds();
+				else if (Input::IsKeyDown(KeyCode::D))
+					m_OrthoPosition.x -= m_NormalSpeed * ts.GetMilliSeconds();
+			}
+			else if (m_OrthoPositioning == OrthoPosition::Bottom)
+			{
+				if (Input::IsKeyDown(KeyCode::W))
+					m_OrthoPosition.z -= m_NormalSpeed * ts.GetMilliSeconds();
+				else if (Input::IsKeyDown(KeyCode::S))
+					m_OrthoPosition.z += m_NormalSpeed * ts.GetMilliSeconds();
+				if (Input::IsKeyDown(KeyCode::A))
+					m_OrthoPosition.x += m_NormalSpeed * ts.GetMilliSeconds();
+				else if (Input::IsKeyDown(KeyCode::D))
+					m_OrthoPosition.x -= m_NormalSpeed * ts.GetMilliSeconds();
+			}
+			else if (m_OrthoPositioning == OrthoPosition::Left)
+			{
+				if (Input::IsKeyDown(KeyCode::W))
+					m_OrthoPosition.x += m_NormalSpeed * ts.GetMilliSeconds();
+				else if (Input::IsKeyDown(KeyCode::S))
+					m_OrthoPosition.x -= m_NormalSpeed * ts.GetMilliSeconds();
+				if (Input::IsKeyDown(KeyCode::A))
+					m_OrthoPosition.z += m_NormalSpeed * ts.GetMilliSeconds();
+				else if (Input::IsKeyDown(KeyCode::D))
+					m_OrthoPosition.z -= m_NormalSpeed * ts.GetMilliSeconds();
+			}
+			else if (m_OrthoPositioning == OrthoPosition::Front)
+			{
+				if (Input::IsKeyDown(KeyCode::W))
+					m_OrthoPosition.x += m_NormalSpeed * ts.GetMilliSeconds();
+				else if (Input::IsKeyDown(KeyCode::S))
+					m_OrthoPosition.x -= m_NormalSpeed * ts.GetMilliSeconds();
+				if (Input::IsKeyDown(KeyCode::A))
+					m_OrthoPosition.z += m_NormalSpeed * ts.GetMilliSeconds();
+				else if (Input::IsKeyDown(KeyCode::D))
+					m_OrthoPosition.z -= m_NormalSpeed * ts.GetMilliSeconds();
+			}
+			else
+			{
+				if (Input::IsKeyDown(KeyCode::W))
+					m_OrthoPosition.x += m_NormalSpeed * ts.GetMilliSeconds();
+				else if (Input::IsKeyDown(KeyCode::S))
+					m_OrthoPosition.x -= m_NormalSpeed * ts.GetMilliSeconds();
+				if (Input::IsKeyDown(KeyCode::A))
+					m_OrthoPosition.z -= m_NormalSpeed * ts.GetMilliSeconds();
+				else if (Input::IsKeyDown(KeyCode::D))
+					m_OrthoPosition.z += m_NormalSpeed * ts.GetMilliSeconds();
+			}
 		}
-
+		
 		m_InitialMousePosition = mouse;
-		constexpr float smoothing = 0.82f; // Decrease the smoothing a bit
-		m_Position += m_PositionDelta * smoothing;
-		m_Yaw += m_YawDelta * smoothing;
-		m_Pitch += m_PitchDelta * smoothing;
-		m_FocalPoint += m_FocalPointDelta * smoothing;
-
-		if (m_CameraType == CameraType::ArcBall)
-			m_Position = CalculatePosition();
 
 		UpdateView();
 	}
@@ -156,6 +218,54 @@ namespace Iris {
 		UpdateView();
 	}
 
+	void EditorCamera::SetPerspectiveView()
+	{
+		SetPerspectiveProjection();
+		// Do not need to set a new matrix here we can continue from the one saved from before
+	}
+
+	void EditorCamera::SetTopView()
+	{
+		m_OrthoPositioning = OrthoPosition::Top;
+		SetOrthographicProjection();
+		UpdateView();
+	}
+
+	void EditorCamera::SetBottomView()
+	{
+		m_OrthoPositioning = OrthoPosition::Bottom;
+		SetOrthographicProjection();
+		UpdateView();
+	}
+
+	void EditorCamera::SetLeftView()
+	{
+		m_OrthoPositioning = OrthoPosition::Left;
+		SetOrthographicProjection();
+		UpdateView();
+	}
+
+	void EditorCamera::SetRightView()
+	{
+		m_OrthoPositioning = OrthoPosition::Right;
+		SetOrthographicProjection();
+		UpdateView();
+	}
+
+	void EditorCamera::SetBackView()
+	{
+		m_OrthoPositioning = OrthoPosition::Back;
+		SetOrthographicProjection();
+		UpdateView();
+	}
+
+	void EditorCamera::SetFrontView()
+	{
+		m_OrthoPositioning = OrthoPosition::Front;
+		SetOrthographicProjection();
+		UpdateView();
+	}
+
 	void EditorCamera::SetViewportSize(uint32_t width, uint32_t height)
 	{
 		if (m_ViewportWidth == width && m_ViewportHeight == height)
@@ -164,6 +274,7 @@ namespace Iris {
 		m_ViewportWidth = width;
 		m_ViewportHeight = height;
 		SetPerspectiveProjectionMatrix(glm::degrees(m_FOV), static_cast<float>(width), static_cast<float>(height), m_NearClip, m_FarClip);
+		SetOrthographicProjectionMatrix(2.0f * m_AspectRatio * m_Zoom, 2.0f * m_AspectRatio * m_Zoom, m_NearClip, m_FarClip);
 	}
 
 	void EditorCamera::SetFOV(float degFov)
@@ -176,47 +287,111 @@ namespace Iris {
 	{
 		m_NearClip = value;
 		SetPerspectiveProjectionMatrix(glm::degrees(m_FOV), static_cast<float>(m_ViewportWidth), static_cast<float>(m_ViewportHeight), m_NearClip, m_FarClip);
+		SetOrthographicProjectionMatrix(2.0f * m_AspectRatio * m_Zoom, 2.0f * m_AspectRatio * m_Zoom, m_NearClip, m_FarClip);
 	}
 
 	void EditorCamera::SetFarClip(float value)
 	{
 		m_FarClip = value;
 		SetPerspectiveProjectionMatrix(glm::degrees(m_FOV), static_cast<float>(m_ViewportWidth), static_cast<float>(m_ViewportHeight), m_NearClip, m_FarClip);
+		SetOrthographicProjectionMatrix(2.0f * m_AspectRatio * m_Zoom, 2.0f * m_AspectRatio * m_Zoom, m_NearClip, m_FarClip);
 	}
 
 	void EditorCamera::UpdateView()
 	{
-		const float yawSign = GetUpDirection().y < 0.0f ? -1.0f : 1.0f;
+		if (IsPerspectiveProjection())
+		{
+			const float yawSign = GetUpDirection().y < 0.0f ? -1.0f : 1.0f;
 
-		// Extra step to handle the problem when the camera direction is the same as the up vector
-		const float cosAngle = glm::dot(GetForwardDirection(), GetUpDirection());
-		if (cosAngle * yawSign > 0.99f)
-			m_PitchDelta = 0.0f;
+			// Extra step to handle the problem when the camera direction is the same as the up vector
+			const float cosAngle = glm::dot(GetForwardDirection(), GetUpDirection());
+			if (cosAngle * yawSign > 0.99f)
+				m_PitchDelta = 0.0f;
 
-		const glm::vec3 lookAt = m_Position + GetForwardDirection();
-		m_Direction = glm::normalize(lookAt - m_Position);
-		m_Distance = glm::distance(m_Position, m_FocalPoint);
-		m_ViewMatrix = glm::lookAt(m_Position, lookAt, glm::vec3{ 0.0f, yawSign, 0.0f });
+			const glm::vec3 lookAt = m_Position + GetForwardDirection();
+			m_Direction = glm::normalize(lookAt - m_Position);
+			m_Distance = glm::distance(m_Position, m_FocalPoint);
+			m_ViewMatrix = glm::lookAt(m_Position, lookAt, glm::vec3{ 0.0f, yawSign, 0.0f });
 
-		// damping for smooth camera
-		constexpr float damping = 0.82f;
-		m_YawDelta *= damping;
-		m_PitchDelta *= damping;
-		m_PositionDelta *= damping;
-		m_FocalPointDelta *= damping;
+			// damping for smooth camera
+			constexpr float damping = 0.82f;
+			m_YawDelta *= damping;
+			m_PitchDelta *= damping;
+			m_PositionDelta *= damping;
+			m_FocalPointDelta *= damping;
+		}
+		else
+		{
+			switch (m_OrthoPositioning)
+			{
+				case OrthoPosition::Top:
+				{
+					glm::vec3 vec = { m_OrthoPosition.x, 1.0f * m_Zoom, m_OrthoPosition.z };
+					m_OrthographicViewMatrix = glm::lookAt(vec, glm::vec3{ vec.x, 0.0f, vec.z }, { 0.0f, 0.0f, 1.0f });
+					break;
+				}
+				case OrthoPosition::Bottom:
+				{
+					glm::vec3 vec = { m_OrthoPosition.x, -1.0f * m_Zoom, m_OrthoPosition.z };
+					m_OrthographicViewMatrix = glm::lookAt(vec, glm::vec3{ vec.x, 0.0f, vec.z }, { 0.0f, 0.0f, -1.0f });
+					break;
+				}
+				case OrthoPosition::Left:
+				{
+					glm::vec3 vec = { 1.0f * m_Zoom, m_OrthoPosition.x, m_OrthoPosition.z };
+					m_OrthographicViewMatrix = glm::lookAt(vec, glm::vec3{ 0.0f, vec.y, vec.z }, { 0.0f, 1.0f, 0.0f });
+					break;
+				}
+				case OrthoPosition::Right:
+				{
+					glm::vec3 vec = { -1.0f * m_Zoom, m_OrthoPosition.x, m_OrthoPosition.z };
+					m_OrthographicViewMatrix = glm::lookAt(vec, glm::vec3{ 0.0f, vec.y, vec.z }, { 0.0f, 1.0f, 0.0f });
+					break;
+				}
+				case OrthoPosition::Back:
+				{
+					glm::vec3 vec = { m_OrthoPosition.x, m_OrthoPosition.z, -1.0f * m_Zoom };
+					m_OrthographicViewMatrix = glm::lookAt(vec, glm::vec3{ vec.x, vec.y, 0.0f }, { 1.0f, 0.0f, 0.0f });
+					break;
+				}
+				case OrthoPosition::Front:
+				{
+					glm::vec3 vec = { m_OrthoPosition.x, m_OrthoPosition.z, 1.0f * m_Zoom };
+					m_OrthographicViewMatrix = glm::lookAt(vec, glm::vec3{ vec.x, vec.y, 0.0f }, { 1.0f, 0.0f, 0.0f });
+					break;
+				}
+
+			}
+		}
 	}
 
 	bool EditorCamera::OnMouseScroll(Events::MouseScrolledEvent& e)
 	{
-		if (Input::IsMouseButtonPressed(MouseButton::Right))
+		if (IsPerspectiveProjection())
 		{
-			m_NormalSpeed += e.GetYOffset() * 0.3f * m_NormalSpeed;
-			m_NormalSpeed = std::clamp(m_NormalSpeed, MIN_SPEED, MAX_SPEED);
+			if (Input::IsKeyDown(KeyCode::RightAlt))
+			{
+				m_NormalSpeed += e.GetYOffset() * 0.1f * m_NormalSpeed;
+				m_NormalSpeed = std::clamp(m_NormalSpeed, MIN_SPEED, MAX_SPEED);
+			}
+			else
+			{
+				MouseZoom(e.GetYOffset() * 0.1f);
+				UpdateView();
+			}
 		}
 		else
 		{
-			MouseZoom(e.GetYOffset() * 0.1f);
-			UpdateView();
+			if (Input::IsKeyDown(KeyCode::RightAlt))
+			{
+				m_NormalSpeed += e.GetYOffset() * 0.1f * m_NormalSpeed;
+				m_NormalSpeed = std::clamp(m_NormalSpeed, MIN_SPEED, MAX_SPEED);
+			}
+			else
+			{
+				m_Zoom -= e.GetYOffset() * 0.1f;
+				SetOrthographicProjectionMatrix(2.0f * m_AspectRatio * m_Zoom, 2.0f * m_AspectRatio * m_Zoom, m_NearClip, m_FarClip);
+			}
 		}
 
 		return true;

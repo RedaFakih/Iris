@@ -61,6 +61,8 @@ namespace Iris {
 	void EditorLayer::OnAttach()
 	{
 		EditorResources::Init();
+		m_CurrentlySelectedViewIcon = EditorResources::PerspectiveIcon;
+		m_CurrentlySelectedRenderIcon = EditorResources::LitMaterialIcon;
 		m_PanelsManager = PanelsManager::Create();
 
 		Ref<SceneHierarchyPanel> sceneHierarchyPanel = m_PanelsManager->AddPanel<SceneHierarchyPanel>(PanelCategory::View, "SceneHierarchyPanel", "Scene Hierarchy", true, m_EditorScene, SelectionContext::Scene);
@@ -766,7 +768,7 @@ namespace Iris {
 
 	void EditorLayer::UI_DrawViewportIcons()
 	{
-		// TODO: In runtime scenes if we do not want to show gizmos we should return directly
+		// TODO: In runtime scenes if we do not want to show gizmos we should not show the gizmo related icons
 
 		UI::PushID();
 		
@@ -779,521 +781,431 @@ namespace Iris {
 		constexpr float edgeOffset = 4.0f;
 		constexpr float windowHeight = 32.0f; // imgui windows can not be smaller than 32 pixels
 		constexpr float numberOfButtons = 5.0f + 3.0f; // we add 3 for the dropdown buttons
-		constexpr float backgroundWidth = edgeOffset * 6.0f + buttonSize * numberOfButtons + edgeOffset * (numberOfButtons - 1.0f) * 2.0f;
+		constexpr float popupWidth = 310.0f;
 
-		ImVec2 position = { m_ViewportRect.Max.x - backgroundWidth - 14.0f, m_ViewportRect.Min.y + edgeOffset };
-		//ImGui::SetNextWindowPos(ImVec2(m_ViewportRect.Min.x + 14.0f, m_ViewportRect.Min.y + edgeOffset));
-		ImGui::SetNextWindowPos(position);
-		ImGui::SetNextWindowSize({ backgroundWidth, windowHeight });
-		ImGui::SetNextWindowBgAlpha(0.0f);
-		ImGui::Begin("##viewport_tools", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoDocking);
+		const ImColor SelectedGizmoButtonColor = Colors::Theme::Accent;
+		const ImColor UnselectedGizmoButtonColor = Colors::Theme::TextBrighter;
 
-		// To make a smaller window, we could just fill the desired height that we want with color
-		constexpr float desiredHeight = 26.0f;
-		ImRect background = UI::RectExpanded(ImGui::GetCurrentWindow()->Rect(), 0.0f, -(windowHeight - desiredHeight) / 2.0f);
-		// ImGui::GetWindowDrawList()->AddRectFilled(background.Min, background.Max, IM_COL32(15, 15, 15, 127), 4.0f);
-
-		ImGui::BeginVertical("##viewportIconsV", { backgroundWidth, ImGui::GetContentRegionAvail().y });
-		ImGui::Spring();
-		ImGui::BeginHorizontal("##viewportIconsH", { backgroundWidth, ImGui::GetContentRegionAvail().y });
-		ImGui::Spring();
-
-		bool openTranslateSnapPopup = false;
-		bool openRotateSnapPopup = false;
-		bool openScaleSnapPopup = false;
-		bool openViewportSettingsPopup = false;
+		auto labelIconButton = [](const Ref<Texture2D>& icon, const ImColor& tint, const char* label, ImVec2 labelSize, const char* hint = "")
 		{
-			UI::ImGuiScopedStyle enableSpacing(ImGuiStyleVar_ItemSpacing, { edgeOffset * 2.0f, 0.0f });
+			ImGuiWindow* window = ImGui::GetCurrentWindow();
 
-			const ImColor SelectedGizmoButtonColor = Colors::Theme::Accent;
-			const ImColor UnselectedGizmoButtonColor = Colors::Theme::TextBrighter;
+			float height = std::min(static_cast<float>(icon->GetHeight()), buttonSize);
+			float width = static_cast<float>(icon->GetWidth()) / static_cast<float>(icon->GetHeight()) * height;
+			ImVec2 iconSize = ImGui::CalcItemSize({ width, height }, 0.0f, 0.0f);
 
-			auto iconButton = [&UnselectedGizmoButtonColor, buttonSize](const Ref<Texture2D>& icon, const ImColor& tint, const char* hint1 = "", bool drawDropdown = false, const char* hint2 = "")
-			{
-				float height = std::min(static_cast<float>(icon->GetHeight()), buttonSize);
-				float width = static_cast<float>(icon->GetWidth()) / static_cast<float>(icon->GetHeight()) * height;
-				const bool clicked = ImGui::InvisibleButton(UI::GenerateID(), { width, height });
-				UI::SetToolTip(hint1);
-				bool dropdownClicked = false;
+			constexpr float offset = -15.0f;
+			const ImRect iconRect({ window->DC.CursorPos.x + offset, window->DC.CursorPos.y }, { window->DC.CursorPos.x + offset + iconSize.x, window->DC.CursorPos.y + iconSize.y });
 
-				const ImRect itemRect = UI::GetItemRect();
-				ImColor color = IM_COL32(55, 55, 55, 127);
-				if (!drawDropdown)
-				{
-					const ImRect expanded = UI::RectExpanded(itemRect, 4.0f, 4.0f);
-					ImGui::GetWindowDrawList()->AddRectFilled(expanded.Min, expanded.Max, color, 12.0f);
-					UI::DrawButtonImage(icon,
-						tint,
-						tint,
-						tint,
-						itemRect);
-				}
-				else
-				{
-					Ref<Texture2D> dropdownIcon = EditorResources::DropdownIcon;
-					height = std::min(static_cast<float>(dropdownIcon->GetHeight()), buttonSize);
-					width = static_cast<float>(dropdownIcon->GetWidth()) / static_cast<float>(dropdownIcon->GetHeight()) * height;
-					dropdownClicked = ImGui::InvisibleButton(UI::GenerateID(), { width, height });
+			ImVec2 cursorPos = ImGui::GetCursorPos();
+			UI::ShiftCursorX(offset);
+			const bool clicked = ImGui::InvisibleButton(UI::GenerateID(), { width + labelSize.x + 18.0f, height + labelSize.y / 2.0f - 5.0f });
+			UI::SetToolTip(hint);
+			const ImRect itemRect = UI::GetItemRect();
 
-					const ImRect dropdownRect = UI::GetItemRect();
-					const ImRect desiredRect = { { itemRect.Min.x, itemRect.Min.y }, { dropdownRect.Max.x, dropdownRect.Max.y } };
+			ImColor color = IM_COL32(55, 55, 55, 127);
+			const ImRect expanded = UI::RectExpanded(itemRect, 4.0f, 4.0f);
+			ImGui::GetWindowDrawList()->AddRectFilled(expanded.Min, expanded.Max, color, 16.0f);
+			UI::DrawButtonImage(icon,
+				tint,
+				tint,
+				tint,
+				iconRect);
 
-					const ImRect expanded = UI::RectExpanded(desiredRect, 4.0f, 4.0f);
-					ImGui::GetWindowDrawList()->AddRectFilled(expanded.Min, expanded.Max, color, 12.0f);
+			cursorPos = { cursorPos.x + 7.0F, cursorPos.y };
+			ImGui::SetCursorPos(cursorPos);
 
-					UI::DrawButtonImage(icon,
-						tint,
-						tint,
-						tint,
-						itemRect);
+			ImGuiFontsLibrary& fontsLib = Application::Get().GetImGuiLayer()->GetFontsLibrary();
+			fontsLib.PushFont("RobotoBold");
+			ImGui::TextUnformatted(label);
+			fontsLib.PopFont();
 
-					UI::DrawButtonImage(dropdownIcon,
-						UnselectedGizmoButtonColor,
-						UnselectedGizmoButtonColor,
-						UnselectedGizmoButtonColor,
-						UI::GetItemRect());
-					UI::SetToolTip(hint2);
-				}
+			return clicked;
+		};
 
-				return std::pair{ clicked, dropdownClicked };
-			};
-
-			// TODO: Left Toolbar
-
-			// TODO: Central Toolbar
-
-			ImColor buttonTint = m_GizmoType == -1 ? SelectedGizmoButtonColor : UnselectedGizmoButtonColor;
-			if (iconButton(EditorResources::PointerIcon, buttonTint, "Select").first)
-				m_GizmoType = -1;
-
-			ImGui::Spring(1.0f);
-			buttonTint = m_GizmoType == ImGuizmo::OPERATION::TRANSLATE ? SelectedGizmoButtonColor : UnselectedGizmoButtonColor;
-			auto states = iconButton(EditorResources::TranslateIcon, buttonTint, "Translate", true, "Translation Snap Values");
-			if (states.first)
-				m_GizmoType = ImGuizmo::OPERATION::TRANSLATE;
-			if (states.second)
-				openTranslateSnapPopup = true;
-
-			ImGui::Spring(1.0f);
-			buttonTint = m_GizmoType == ImGuizmo::OPERATION::ROTATE ? SelectedGizmoButtonColor : UnselectedGizmoButtonColor;
-			states = iconButton(EditorResources::RotateIcon, buttonTint, "Rotate", true, "Rotation Snap Values");
-			if (states.first)
-				m_GizmoType = ImGuizmo::OPERATION::ROTATE;
-			if (states.second)
-				openRotateSnapPopup = true;
-
-			ImGui::Spring(1.0f);
-			buttonTint = m_GizmoType == ImGuizmo::OPERATION::SCALE ? SelectedGizmoButtonColor : UnselectedGizmoButtonColor;
-			states = iconButton(EditorResources::ScaleIcon, buttonTint, "Scale", true, "Scaling Snap Values");
-			if (states.first)
-				m_GizmoType = ImGuizmo::OPERATION::SCALE;
-			if (states.second)
-				openScaleSnapPopup = true;
-
-			ImGui::Spring(1.0f);
-			if (iconButton(EditorResources::GearIcon, UnselectedGizmoButtonColor, "ViewportSettings").first)
-				openViewportSettingsPopup = true;
-		}
-
-		ImGui::Spring();
-		ImGui::EndHorizontal();
-		ImGui::Spring();
-		ImGui::EndVertical();
-
-		// Handle popup opening...
+		auto iconButton = [&UnselectedGizmoButtonColor, buttonSize](const Ref<Texture2D>& icon, const ImColor& tint, const char* hint1 = "", bool drawDropdown = false, const char* hint2 = "")
 		{
-			UI::ImGuiScopedStyle enableWindowBorder(ImGuiStyleVar_WindowBorderSize, 4.0f);
-			UI::ImGuiScopedStyle enableWindowPadding(ImGuiStyleVar_WindowPadding, { 4.0f, 4.0f });
+			float height = std::min(static_cast<float>(icon->GetHeight()), buttonSize);
+			float width = static_cast<float>(icon->GetWidth()) / static_cast<float>(icon->GetHeight()) * height;
+			const bool clicked = ImGui::InvisibleButton(UI::GenerateID(), { width, height });
+			UI::SetToolTip(hint1);
+			bool dropdownClicked = false;
 
-			auto tablePopup = []<typename Fn>(const char* id, Fn&& fn)
+			const ImRect itemRect = UI::GetItemRect();
+			ImColor color = IM_COL32(55, 55, 55, 127);
+			if (!drawDropdown)
 			{
-				{
-					UI::ImGuiScopedFont titleBoldFont(Application::Get().GetImGuiLayer()->GetFontsLibrary().GetFont("RobotoBold"));
-					const char* text = "Snap Values";
-					ImVec2 textSize = ImGui::CalcTextSize(text);
-					ImGui::TextUnformatted(text);
-					UI::UnderLine(false, 0.0f, 2.0f);
-				}
-
-				UI::ShiftCursorY(8.0f);
-
-				// Alternating row colors...
-				const ImU32 colRowAlternating = UI::ColorWithMultipliedValue(Colors::Theme::BackgroundDarkBlend, 1.3f);
-				UI::ImGuiScopedColor tableBGAlternating(ImGuiCol_TableRowBgAlt, colRowAlternating);
-
-				UI::ImGuiScopedColor tableBg(ImGuiCol_ChildBg, Colors::Theme::BackgroundDarkBlend);
-
-				ImGuiTableFlags tableFlags = ImGuiTableFlags_NoPadInnerX | ImGuiTableFlags_ScrollY | ImGuiTableFlags_RowBg | ImGuiTableFlags_PadOuterX;
-				if (ImGui::BeginTable(id, 1, tableFlags))
-				{
-					ImGui::TableSetupColumn("Values", ImGuiTableColumnFlags_WidthFixed, 90.0f);
-
-					std::forward<Fn>(fn)();
-
-					ImGui::EndTable();
-				}
-			};
-
-			if (openTranslateSnapPopup)
-				ImGui::OpenPopup("Translate Snap Value");
-
-			float width = edgeOffset * 6.0f + buttonSize * 6.0f + edgeOffset * (numberOfButtons - 1.0f) * 2.0f + 85.0f;
-			ImGui::SetNextWindowPos({ m_ViewportRect.Max.x - width, m_ViewportRect.Min.y + edgeOffset + 30.0f });
-			ImGui::SetNextWindowBgAlpha(0.7f);
-			if (ImGui::BeginPopup("Translate Snap Value", ImGuiWindowFlags_NoMove))
+				const ImRect expanded = UI::RectExpanded(itemRect, 4.0f, 4.0f);
+				ImGui::GetWindowDrawList()->AddRectFilled(expanded.Min, expanded.Max, color, 12.0f);
+				UI::DrawButtonImage(icon,
+					tint,
+					tint,
+					tint,
+					itemRect);
+			}
+			else
 			{
-				tablePopup("##translate_snap_values", [this]()
-				{
-					constexpr const char* translationSnapValues[] = { "10cm", "50cm", "1m", "2m", "5m", "10m" };
-					float& currentSnappingValue = GetSnapValues().x;
-					for (int i = 0; i < 6; i++)
-					{
-						constexpr float rowHeight = 21.0f;
-						ImGui::TableNextRow(0, rowHeight);
-						ImGui::TableNextColumn();
+				Ref<Texture2D> dropdownIcon = EditorResources::DropdownIcon;
+				height = std::min(static_cast<float>(dropdownIcon->GetHeight()), buttonSize);
+				width = static_cast<float>(dropdownIcon->GetWidth()) / static_cast<float>(dropdownIcon->GetHeight()) * height;
+				dropdownClicked = ImGui::InvisibleButton(UI::GenerateID(), { width, height });
 
-						if (ImGui::Selectable(translationSnapValues[i], false, ImGuiSelectableFlags_SpanAllColumns))
-						{
-							float value = 0.0f;
-							switch (i)
-							{
-								case 0: value = 0.1f; break;
-								case 1: value = 0.5f; break;
-								case 2: value = 1.0f; break;
-								case 3: value = 2.0f; break;
-								case 4: value = 5.0f; break;
-								case 5: value = 10.0f; break;
-							}
-							currentSnappingValue = value;
-							m_ViewportRenderer->SetTranslationSnapValue(value);
+				const ImRect dropdownRect = UI::GetItemRect();
+				const ImRect desiredRect = { { itemRect.Min.x, itemRect.Min.y }, { dropdownRect.Max.x, dropdownRect.Max.y } };
 
-							ImGui::CloseCurrentPopup();
-						}
-					}
-				});
+				const ImRect expanded = UI::RectExpanded(desiredRect, 4.0f, 4.0f);
+				ImGui::GetWindowDrawList()->AddRectFilled(expanded.Min, expanded.Max, color, 12.0f);
 
-				ImGui::EndPopup();
+				UI::DrawButtonImage(icon,
+					tint,
+					tint,
+					tint,
+					itemRect);
+
+				UI::DrawButtonImage(dropdownIcon,
+					UnselectedGizmoButtonColor,
+					UnselectedGizmoButtonColor,
+					UnselectedGizmoButtonColor,
+					UI::GetItemRect());
+				UI::SetToolTip(hint2);
 			}
 
-			if (openRotateSnapPopup)
-				ImGui::OpenPopup("Rotate Snap Value");
+			return std::pair{ clicked, dropdownClicked };
+		};
 
-			width = edgeOffset * 6.0f + buttonSize * 3.0f + edgeOffset * (numberOfButtons - 1.0f) * 2.0f + 83.0f;
-			ImGui::SetNextWindowPos({ m_ViewportRect.Max.x - width, m_ViewportRect.Min.y + edgeOffset + 30.0f });
-			ImGui::SetNextWindowBgAlpha(0.7f);
-			if (ImGui::BeginPopup("Rotate Snap Value", ImGuiWindowFlags_NoMove))
+		auto beginSection = [](const char* name, int& sectionIndex, bool columns2 = true)
+		{
+			ImGuiFontsLibrary& fontsLib = Application::Get().GetImGuiLayer()->GetFontsLibrary();
+
+			if (sectionIndex > 0)
+				UI::ShiftCursorY(5.5f);
+
+			fontsLib.PushFont("RobotoBold");
+
+			float halfHeight = ImGui::CalcTextSize(name).y / 2.0f;
+			ImVec2 p1 = { 0.0f, halfHeight };
+			ImVec2 p2 = { 14.0f, halfHeight };
+			UI::UnderLine(Colors::Theme::TextDarker, false, p1, p2, 3.0f);
+			UI::ShiftCursorX(17.0f);
+
+			ImGui::TextUnformatted(name);
+
+			fontsLib.PopFont();
+
+			ImVec2 cursorPos = ImGui::GetCursorPos();
+			ImGui::SameLine();
+
+			UI::UnderLine(false, 3.0f, halfHeight, 3.0f, Colors::Theme::TextDarker);
+			ImGui::SetCursorPos(cursorPos);
+
+			bool result = ImGui::BeginTable("##section_table", columns2 ? 2 : 1, ImGuiTableFlags_SizingStretchSame);
+			if (result)
 			{
-				tablePopup("##rotate_snap_values", [this]()
-				{
-					constexpr const char* translationSnapValues[] = { "5deg", "10deg", "30deg", "45deg", "90deg", "180deg" };
-					float& currentSnappingValue = GetSnapValues().y;
-					for (int i = 0; i < 6; i++)
-					{
-						constexpr float rowHeight = 21.0f;
-						ImGui::TableNextRow(0, rowHeight);
-						ImGui::TableNextColumn();
-
-						if (ImGui::Selectable(translationSnapValues[i], false, ImGuiSelectableFlags_SpanAllColumns))
-						{
-							float value = 0.0f;
-							switch (i)
-							{
-								case 0: value = 5.0f; break;
-								case 1: value = 10.0f; break;
-								case 2: value = 30.0f; break;
-								case 3: value = 45.0f; break;
-								case 4: value = 90.0f; break;
-								case 5: value = 180.0f; break;
-							}
-							currentSnappingValue = value;
-
-							ImGui::CloseCurrentPopup();
-						}
-					}
-				});
-
-				ImGui::EndPopup();
+				ImGui::TableSetupColumn("Labels", ImGuiTableColumnFlags_WidthFixed, popupWidth * 0.5f);
+				if (columns2)
+					ImGui::TableSetupColumn("Widgets", ImGuiTableColumnFlags_WidthFixed, popupWidth * 0.5f);
 			}
 
-			if (openScaleSnapPopup)
-				ImGui::OpenPopup("Scale Snap Value");
+			sectionIndex++;
+			return result;
+		};
 
-			width = edgeOffset * 6.0f + buttonSize * 1.0f + edgeOffset * (numberOfButtons - 1.0f) * 2.0f + 62.0f;
-			ImGui::SetNextWindowPos({ m_ViewportRect.Max.x - width, m_ViewportRect.Min.y + edgeOffset + 30.0f });
-			ImGui::SetNextWindowBgAlpha(0.7f);
-			if (ImGui::BeginPopup("Scale Snap Value", ImGuiWindowFlags_NoMove))
-			{
-				tablePopup("##scale_snap_values", [this]()
-				{
-					constexpr const char* translationSnapValues[] = { "10cm", "50cm", "1m", "2m", "5m", "10m" };
-					float& currentSnappingValue = GetSnapValues().z;
-					for (int i = 0; i < 6; i++)
-					{
-						constexpr float rowHeight = 21.0f;
-						ImGui::TableNextRow(0, rowHeight);
-						ImGui::TableNextColumn();
+		auto endSection = []()
+		{
+			ImGui::EndTable();
+		};
 
-						if (ImGui::Selectable(translationSnapValues[i], false, ImGuiSelectableFlags_SpanAllColumns))
-						{
-							float value = 0.0f;
-							switch (i)
-							{
-								case 0: value = 0.1f; break;
-								case 1: value = 0.5f; break;
-								case 2: value = 1.0f; break;
-								case 3: value = 2.0f; break;
-								case 4: value = 5.0f; break;
-								case 5: value = 10.0f; break;
-							}
-							currentSnappingValue = value;
+		auto selection = [](const char* label, Ref<Texture2D> icon)
+		{
+			float height = std::min(static_cast<float>(icon->GetHeight()), buttonSize);
+			float width = static_cast<float>(icon->GetWidth()) / static_cast<float>(icon->GetHeight()) * height;
 
-							ImGui::CloseCurrentPopup();
-						}
-					}
-				});
-
-				ImGui::EndPopup();
-			}
+			ImGui::TableNextRow();
+			ImGui::TableSetColumnIndex(0);
+			ImVec2 cursorPos = ImGui::GetCursorPos();
+			UI::ShiftCursor(4.0f, 3.0f);
+			UI::Image(icon, { width, height });
+			ImGui::SetCursorPos({ cursorPos.x + width + 8.0f, cursorPos.y + 4.0f });
+			ImGui::TextUnformatted(label);
+			ImGui::SetCursorPos(cursorPos);
+			ImGuiTable* table = ImGui::GetCurrentTable();
+			float columnWidth = ImGui::TableGetMaxColumnWidth(table, 0);
+			bool clicked = ImGui::InvisibleButton(UI::GenerateID(), { columnWidth, 23.0f });
+			// TODO: Add color highlighting for the currently selected
+			if (ImGui::IsItemHovered())
+				ImGui::GetWindowDrawList()->AddRectFilled(ImGui::GetItemRectMin(), ImGui::GetItemRectMax(), Colors::Theme::BackgroundDarkBlend);
 			
-			if (openViewportSettingsPopup)
-				ImGui::OpenPopup("Viewport Settings");
+			return clicked;
+		};
 
-			// Viewport settings
+		auto text = [](const char* label, const char* text)
+		{
+			ImGui::TableNextRow();
+			ImGui::TableSetColumnIndex(0);
+			ImGui::TextUnformatted(label);
+			ImGui::TableSetColumnIndex(1);
+			ImGuiTable* table = ImGui::GetCurrentTable();
+			float columnWidth = ImGui::TableGetMaxColumnWidth(table, 1);
+			UI::ShiftCursor(columnWidth - ImGui::GetFrameHeight() - ImGui::GetStyle().ItemInnerSpacing.x, -GImGui->Style.FramePadding.y);
+			ImGui::TextUnformatted(text);
+		};
+
+		auto checkbox = [](const char* label, bool& value, const char* hint = "")
+		{
+			ImGui::TableNextRow();
+			ImGui::TableSetColumnIndex(0);
+			ImVec2 cursorPos = ImGui::GetCursorPos();
+			ImGui::TextUnformatted(label);
+			ImVec2 size = ImGui::CalcTextSize(label);
+			ImVec2 cursorPosToReset = ImGui::GetCursorPos();
+			ImGui::SetCursorPos(cursorPos);
+			ImGui::InvisibleButton(UI::GenerateID(), size);
+			UI::SetToolTip(hint);
+			ImGui::SetCursorPos(cursorPosToReset);
+			ImGui::TableSetColumnIndex(1);
+			ImGuiTable* table = ImGui::GetCurrentTable();
+			float columnWidth = ImGui::TableGetMaxColumnWidth(table, 1);
+			UI::ShiftCursor(columnWidth - ImGui::GetFrameHeight() - ImGui::GetStyle().ItemInnerSpacing.x, -GImGui->Style.FramePadding.y);
+			return UI::Checkbox(UI::GenerateID(), &value);
+		};
+
+		auto slider = [](const char* label, float& value, float min = 0.0f, float max = 0.0f, const char* hint = "")
+		{
+			ImGui::TableNextRow();
+			ImGui::TableSetColumnIndex(0);
+			ImVec2 cursorPos = ImGui::GetCursorPos();
+			ImGui::TextUnformatted(label);
+			ImVec2 size = ImGui::CalcTextSize(label);
+			ImVec2 cursorPosToReset = ImGui::GetCursorPos();
+			ImGui::SetCursorPos(cursorPos);
+			ImGui::InvisibleButton(UI::GenerateID(), size);
+			UI::SetToolTip(hint);
+			ImGui::TableSetColumnIndex(1);
+			ImGui::SetNextItemWidth(-1);
+			UI::ShiftCursor(GImGui->Style.FramePadding.x, -GImGui->Style.FramePadding.y);
+			return UI::SliderFloat(UI::GenerateID(), &value, min, max);
+		};
+
+		auto drag = [](const char* label, float& value, float delta = 1.0f, float min = 0.0f, float max = 0.0f, const char* hint = "")
+		{
+			ImGui::TableNextRow();
+			ImGui::TableSetColumnIndex(0);
+			ImVec2 cursorPos = ImGui::GetCursorPos();
+			ImGui::TextUnformatted(label);
+			ImVec2 size = ImGui::CalcTextSize(label);
+			ImVec2 cursorPosToReset = ImGui::GetCursorPos();
+			ImGui::SetCursorPos(cursorPos);
+			ImGui::InvisibleButton(UI::GenerateID(), size);
+			UI::SetToolTip(hint);
+			ImGui::TableSetColumnIndex(1);
+			ImGui::SetNextItemWidth(-1);
+			UI::ShiftCursor(GImGui->Style.FramePadding.x, -GImGui->Style.FramePadding.y);
+			return UI::DragFloat(UI::GenerateID(), &value, delta, min, max);
+		};
+
+		auto dropdown = [](const char* label, const char** options, int32_t optionCount, int32_t* selected, const char* hint = "")
+		{
+			const char* current = options[*selected];
+			ImGui::TableNextRow();
+			ImGui::TableSetColumnIndex(0);
+			ImVec2 cursorPos = ImGui::GetCursorPos();
+			ImGui::TextUnformatted(label);
+			ImVec2 size = ImGui::CalcTextSize(label);
+			ImVec2 cursorPosToReset = ImGui::GetCursorPos();
+			ImGui::SetCursorPos(cursorPos);
+			ImGui::InvisibleButton(UI::GenerateID(), size);
+			UI::SetToolTip(hint);
+			ImGui::TableSetColumnIndex(1);
+			ImGui::PushItemWidth(-1);
+
+			bool result = false;
+			UI::ShiftCursor(GImGui->Style.FramePadding.x, -GImGui->Style.FramePadding.y);
+			if (UI::BeginCombo(UI::GenerateID(), current))
 			{
-				UI::ImGuiScopedStyle itemSpacing(ImGuiStyleVar_ItemSpacing, ImVec2(0, 5.5f));
-				UI::ImGuiScopedStyle windowPadding(ImGuiStyleVar_WindowPadding, ImVec2(10, 10));
-				UI::ImGuiScopedStyle windowRounding(ImGuiStyleVar_PopupRounding, 4.0f);
-				UI::ImGuiScopedStyle cellPadding(ImGuiStyleVar_CellPadding, ImVec2(0.0f, 5.5f));
-
-				width = edgeOffset * 6.0f + buttonSize + edgeOffset * (numberOfButtons - 1.0f) * 2.0f + 256.0f;
-				ImGui::SetNextWindowPos({ m_ViewportRect.Max.x - width, m_ViewportRect.Min.y + edgeOffset + 30.0f });
-				ImGui::SetNextWindowBgAlpha(0.7f);
-				if (ImGui::BeginPopup("Viewport Settings", ImGuiWindowFlags_NoMove))
+				for (int i = 0; i < optionCount; i++)
 				{
-					constexpr float popupWidth = 310.0f;
-					int32_t sectionIdx = 0;
-
-					auto beginSection = [&sectionIdx](const char* name)
+					const bool is_selected = (current == options[i]);
+					if (ImGui::Selectable(options[i], is_selected))
 					{
-						ImGuiFontsLibrary& fontsLib = Application::Get().GetImGuiLayer()->GetFontsLibrary();
-
-						if (sectionIdx > 0)
-							UI::ShiftCursorY(5.5f);
-
-						fontsLib.PushFont("RobotoBold");
-
-						float halfHeight = ImGui::CalcTextSize(name).y / 2.0f;
-						ImVec2 p1 = { 0.0f, halfHeight };
-						ImVec2 p2 = { 14.0f, halfHeight };
-						UI::UnderLine(Colors::Theme::TextDarker, false, p1, p2, 3.0f);
-						UI::ShiftCursorX(17.0f);
-
-						ImGui::TextUnformatted(name);
-
-						fontsLib.PopFont();
-
-						ImVec2 cursorPos = ImGui::GetCursorPos();
-						ImGui::SameLine();
-
-						UI::UnderLine(false, 3.0f, halfHeight, 3.0f, Colors::Theme::TextDarker);
-						ImGui::SetCursorPos(cursorPos);
-
-						bool result = ImGui::BeginTable("##section_table", 2, ImGuiTableFlags_SizingStretchSame);
-						if (result)
-						{
-							ImGui::TableSetupColumn("Labels", ImGuiTableColumnFlags_WidthFixed, popupWidth * 0.5f);
-							ImGui::TableSetupColumn("Widgets", ImGuiTableColumnFlags_WidthFixed, popupWidth * 0.5f);
-						}
-
-						sectionIdx++;
-						return result;
-					};
-
-					auto endSection = []()
-					{
-						ImGui::EndTable();
-					};
-
-					auto checkbox = [](const char* label, bool& value, const char* hint = "")
-					{
-						ImGui::TableNextRow();
-						ImGui::TableSetColumnIndex(0);
-						ImVec2 cursorPos = ImGui::GetCursorPos();
-						ImGui::TextUnformatted(label);
-						ImVec2 size = ImGui::CalcTextSize(label);
-						ImVec2 cursorPosToReset = ImGui::GetCursorPos();
-						ImGui::SetCursorPos(cursorPos);
-						ImGui::InvisibleButton(UI::GenerateID(), size);
-						UI::SetToolTip(hint);
-						ImGui::SetCursorPos(cursorPosToReset);
-						ImGui::TableSetColumnIndex(1);
-						auto table = ImGui::GetCurrentTable();
-						float columnWidth = ImGui::TableGetMaxColumnWidth(table, 1);
-						UI::ShiftCursor(columnWidth - ImGui::GetFrameHeight() - ImGui::GetStyle().ItemInnerSpacing.x, -GImGui->Style.FramePadding.y);
-						return UI::Checkbox(UI::GenerateID(), &value);
-					};
-
-					auto slider = [](const char* label, float& value, float min = 0.0f, float max = 0.0f, const char* hint = "")
-					{
-						ImGui::TableNextRow();
-						ImGui::TableSetColumnIndex(0);
-						ImVec2 cursorPos = ImGui::GetCursorPos();
-						ImGui::TextUnformatted(label);
-						ImVec2 size = ImGui::CalcTextSize(label);
-						ImVec2 cursorPosToReset = ImGui::GetCursorPos();
-						ImGui::SetCursorPos(cursorPos);
-						ImGui::InvisibleButton(UI::GenerateID(), size);
-						UI::SetToolTip(hint);
-						ImGui::TableSetColumnIndex(1);
-						ImGui::SetNextItemWidth(-1);
-						UI::ShiftCursor(GImGui->Style.FramePadding.x, -GImGui->Style.FramePadding.y);
-						return UI::SliderFloat(UI::GenerateID(), &value, min, max);
-					};
-
-					auto drag = [](const char* label, float& value, float delta = 1.0f, float min = 0.0f, float max = 0.0f, const char* hint = "")
-					{
-						ImGui::TableNextRow();
-						ImGui::TableSetColumnIndex(0);
-						ImVec2 cursorPos = ImGui::GetCursorPos();
-						ImGui::TextUnformatted(label);
-						ImVec2 size = ImGui::CalcTextSize(label);
-						ImVec2 cursorPosToReset = ImGui::GetCursorPos();
-						ImGui::SetCursorPos(cursorPos);
-						ImGui::InvisibleButton(UI::GenerateID(), size);
-						UI::SetToolTip(hint);
-						ImGui::TableSetColumnIndex(1);
-						ImGui::SetNextItemWidth(-1);
-						UI::ShiftCursor(GImGui->Style.FramePadding.x, -GImGui->Style.FramePadding.y);
-						return UI::DragFloat(UI::GenerateID(), &value, delta, min, max);
-					};
-
-					auto dropdown = [](const char* label, const char** options, int32_t optionCount, int32_t* selected, const char* hint = "")
-					{
-						const char* current = options[*selected];
-						ImGui::TableNextRow();
-						ImGui::TableSetColumnIndex(0);
-						ImVec2 cursorPos = ImGui::GetCursorPos();
-						ImGui::TextUnformatted(label);
-						ImVec2 size = ImGui::CalcTextSize(label);
-						ImVec2 cursorPosToReset = ImGui::GetCursorPos();
-						ImGui::SetCursorPos(cursorPos);
-						ImGui::InvisibleButton(UI::GenerateID(), size);
-						UI::SetToolTip(hint);
-						ImGui::TableSetColumnIndex(1);
-						ImGui::PushItemWidth(-1);
-
-						bool result = false;
-						UI::ShiftCursor(GImGui->Style.FramePadding.x, -GImGui->Style.FramePadding.y);
-						if (UI::BeginCombo(UI::GenerateID(), current))
-						{
-							for (int i = 0; i < optionCount; i++)
-							{
-								const bool is_selected = (current == options[i]);
-								if (ImGui::Selectable(options[i], is_selected))
-								{
-									current = options[i];
-									*selected = i;
-									result = true;
-								}
-
-								if (is_selected)
-									ImGui::SetItemDefaultFocus();
-							}
-							UI::EndCombo();
-						}
-						ImGui::PopItemWidth();
-
-						return result;
-					};
-
-					auto text = [](const char* label, const char* text)
-					{
-						ImGui::TableNextRow();
-						ImGui::TableSetColumnIndex(0);
-						ImGui::TextUnformatted(label);
-						ImGui::TableSetColumnIndex(1);
-						auto table = ImGui::GetCurrentTable();
-						float columnWidth = ImGui::TableGetMaxColumnWidth(table, 1);
-						UI::ShiftCursor(columnWidth - ImGui::GetFrameHeight() - ImGui::GetStyle().ItemInnerSpacing.x, -GImGui->Style.FramePadding.y);
-						ImGui::TextUnformatted(text);
-					};
-
-					if (beginSection("General"))
-					{
-						static const char* s_SelectionModes[] = { "Entity", "Submesh" };
-						dropdown("Selection Mode", s_SelectionModes, 2, reinterpret_cast<int32_t*>(&m_SelectionMode), "Mode of how submeshes are selected");
-
-						static const char* s_TransformTargetNames[] = { "Median Point", "Individual Origins" };
-						dropdown("Multi-Transform Target", s_TransformTargetNames, 2, reinterpret_cast<int32_t*>(&m_MultiTransformTarget), "Transform around the origin or each entity while in multiselection\nor around a median point with respect to all selected entites");
-
-						static const char* s_TransformAroundOrigin[] = { "Local", "World" };
-						dropdown("Transformation Origin", s_TransformAroundOrigin, 2, reinterpret_cast<int32_t*>(&m_TransformationOrigin), "Transform around origin of the entity/entities\nor around the origin of the world");
-
-						endSection();
+						current = options[i];
+						*selected = i;
+						result = true;
 					}
 
-					if (beginSection("Display"))
+					if (is_selected)
+						ImGui::SetItemDefaultFocus();
+				}
+				UI::EndCombo();
+			}
+			ImGui::PopItemWidth();
+
+			return result;
+		};
+
+		// Top Left corner tools and icons
+		{
+			static const char* currentlySelectedViewOption = "Perspective";
+			static const char* currentlySelectedRenderOption = "Lit";
+			ImVec2 viewTextSize = ImGui::CalcTextSize(currentlySelectedViewOption);
+			ImVec2 renderTextSize = ImGui::CalcTextSize(currentlySelectedRenderOption);
+			glm::vec2 maxTextSize = { viewTextSize.x + renderTextSize.x, viewTextSize.y };
+
+			float backgroundWidth = edgeOffset * 6.0f + buttonSize * 2.0f + maxTextSize.x * 1.8f;
+			ImVec2 position = { m_ViewportRect.Min.x + 2.0f, m_ViewportRect.Min.y + edgeOffset };
+			ImGui::SetNextWindowPos(position);
+			ImGui::SetNextWindowSize({ backgroundWidth, windowHeight });
+			ImGui::SetNextWindowBgAlpha(0.0f);
+			ImGui::Begin("##viewport_left_tools", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoDocking);
+
+			constexpr float desiredHeight = 26.0f;
+			ImRect background = UI::RectExpanded(ImGui::GetCurrentWindow()->Rect(), 0.0f, -(windowHeight - desiredHeight) / 2.0f);
+			// ImGui::GetWindowDrawList()->AddRectFilled(background.Min, background.Max, IM_COL32(15, 15, 15, 127), 4.0f);
+
+			ImGui::BeginVertical("##viewportLeftIconsV", { backgroundWidth, ImGui::GetContentRegionAvail().y });
+			ImGui::Spring();
+			ImGui::BeginHorizontal("##viewportLeftIconsH", { backgroundWidth, ImGui::GetContentRegionAvail().y });
+			ImGui::Spring();
+
+			bool openViewSelectionPopup = false;
+			if (labelIconButton(m_CurrentlySelectedViewIcon, UnselectedGizmoButtonColor, currentlySelectedViewOption, viewTextSize, "Changes the viewport projection view"))
+				openViewSelectionPopup = true;
+
+			ImGui::Spring(1.0f);
+
+			bool openRenderSelectionPopup = false;
+			if (labelIconButton(m_CurrentlySelectedRenderIcon, UnselectedGizmoButtonColor, currentlySelectedRenderOption, renderTextSize, "Changes the rendering option"))
+				openRenderSelectionPopup = true;
+
+			ImGui::Spring();
+			ImGui::EndHorizontal();
+			ImGui::Spring();
+			ImGui::EndVertical();
+
+			// Open popups...
+			{
+				UI::ImGuiScopedStyle enableWindowBorder(ImGuiStyleVar_WindowBorderSize, 4.0f);
+				UI::ImGuiScopedStyle enableWindowPadding(ImGuiStyleVar_WindowPadding, { 4.0f, 4.0f });
+
+				if (openViewSelectionPopup)
+					ImGui::OpenPopup("View Selection Popup");
+
+				ImGui::SetNextWindowPos({ m_ViewportRect.Min.x + 14.0f, m_ViewportRect.Min.y + edgeOffset + 30.0f });
+				ImGui::SetNextWindowBgAlpha(0.7f);
+				if (ImGui::BeginPopup("View Selection Popup", ImGuiWindowFlags_NoMove))
+				{
+					int sectionIndex = 0;
+					if (beginSection("Perspective", sectionIndex, false))
 					{
-						checkbox("Show Gizmos", m_ShowGizmos, "Show transform gizmos");
-						if (checkbox("Allow Gizmo Axis Flip", m_GizmoAxisFlip, "Allow transform gizmos to flip their\naxes with respect to the camera"))
-							ImGuizmo::AllowAxisFlip(m_GizmoAxisFlip);
-						checkbox("Show Bounding Boxes", m_ShowBoundingBoxes, "Show mesh entities bounding boxes, Ctrl + B");
-						if (m_ShowBoundingBoxes)
+						if (selection("Perspective", EditorResources::PerspectiveIcon))
 						{
-							checkbox("Selected Entity", m_ShowBoundingBoxSelectedMeshOnly, "Show bounding boxes only for the\ncurrently selected entity");
+							m_CurrentlySelectedViewIcon = EditorResources::PerspectiveIcon;
+							currentlySelectedViewOption = "Perspective";
+							m_EditorCamera.SetPerspectiveProjection();
 
-							if (m_ShowBoundingBoxSelectedMeshOnly)
-								checkbox("Submeshes", m_ShowBoundingBoxSubMeshes, "Show submesh bounding boxes for the\ncurrently selected entity");
-						}
-						SceneRendererOptions& rendererOptions = m_ViewportRenderer->GetOptions();
-						checkbox("Show Grid", rendererOptions.ShowGrid, "Show Grid, Ctrl + G");
-						checkbox("Selected in Wireframe", rendererOptions.ShowSelectedInWireFrame, "Show selected mesh in wireframe mode");
-
-						if (drag("Line Width", m_LineWidth, 0.1f, 0.1f, 10.0f, "Change pipeline line width"))
-						{
-							m_Renderer2D->SetLineWidth(m_LineWidth);
-							m_ViewportRenderer->SetLineWidth(m_LineWidth);
+							ImGui::CloseCurrentPopup();
 						}
 
 						endSection();
 					}
 
-					if (beginSection("Scene Camera"))
+					if (beginSection("Orthographic", sectionIndex, false))
 					{
-						float fov = glm::degrees(m_EditorCamera.GetFOV());
-						if (slider("Field of View", fov, 30, 120, "Field of view of the viewport camera"))
-							m_EditorCamera.SetFOV(fov);
-						slider("Exposure", m_EditorCamera.GetExposure(), 0.0f, 8.0f, "Exposure of viewport camera,\nalso extends into rendered scene");
-						drag("Speed", m_EditorCamera.GetNormalSpeed(), 0.001f, 0.0002f, 0.5f, "Speed of viewport camera in fly mode");
-						float nearClip = m_EditorCamera.GetNearClip();
-						if (drag("Near Clip", nearClip, 0.1f, 0.002f, 100.0f, "Viewport camera near clip"))
-							m_EditorCamera.SetNearClip(nearClip);
-						float farClip = m_EditorCamera.GetFarClip();
-						if (drag("Far Clip", farClip, 2.0f, 100.1f, 1'000'000.0f, "Viewport camera far clip"))
-							m_EditorCamera.SetFarClip(farClip);
+						if (selection("Top", EditorResources::TopSquareIcon))
+						{
+							m_CurrentlySelectedViewIcon = EditorResources::TopSquareIcon;
+							currentlySelectedViewOption = "Top";
+							m_EditorCamera.SetTopView();
+
+							ImGui::CloseCurrentPopup();
+						}
+
+						if (selection("Bottom", EditorResources::BottomSquareIcon))
+						{
+							m_CurrentlySelectedViewIcon = EditorResources::BottomSquareIcon;
+							currentlySelectedViewOption = "Bottom";
+							m_EditorCamera.SetBottomView();
+
+							ImGui::CloseCurrentPopup();
+						}
+
+						if (selection("Left", EditorResources::LeftSquareIcon))
+						{
+							m_CurrentlySelectedViewIcon = EditorResources::LeftSquareIcon;
+							currentlySelectedViewOption = "Left";
+							m_EditorCamera.SetLeftView();
+
+							ImGui::CloseCurrentPopup();
+						}
+
+						if (selection("Right", EditorResources::RightSquareIcon))
+						{
+							m_CurrentlySelectedViewIcon = EditorResources::RightSquareIcon;
+							currentlySelectedViewOption = "Right";
+							m_EditorCamera.SetRightView();
+
+							ImGui::CloseCurrentPopup();
+						}
+
+						if (selection("Back", EditorResources::BackSquareIcon))
+						{
+							m_CurrentlySelectedViewIcon = EditorResources::BackSquareIcon;
+							currentlySelectedViewOption = "Back";
+							m_EditorCamera.SetBackView();
+
+							ImGui::CloseCurrentPopup();
+						}
+
+						if (selection("Front", EditorResources::FrontSquareIcon))
+						{
+							m_CurrentlySelectedViewIcon = EditorResources::FrontSquareIcon;
+							currentlySelectedViewOption = "Front";
+							m_EditorCamera.SetFrontView();
+
+							ImGui::CloseCurrentPopup();
+						}
 
 						endSection();
 					}
 
-					if (beginSection("Viewport Renderer"))
+					ImGui::EndPopup();
+				}
+				
+				if (openRenderSelectionPopup)
+					ImGui::OpenPopup("Render Selection Popup");
+
+				ImGui::SetNextWindowPos({ m_ViewportRect.Min.x + 14.0f, m_ViewportRect.Min.y + edgeOffset + 30.0f });
+				ImGui::SetNextWindowBgAlpha(0.7f);
+				if (ImGui::BeginPopup("Render Selection Popup"))
+				{
+					int sectionIndex = 0;
+					if (beginSection("View Mode", sectionIndex, false))
 					{
-						std::string string = fmt::format("{}", static_cast<uint32_t>(1.0f / Application::Get().GetFrameTime().GetSeconds()));
-						text("Framerate (FPS)", string.c_str());
+						if (selection("Lit", EditorResources::LitMaterialIcon))
+						{
+							m_CurrentlySelectedRenderIcon = EditorResources::LitMaterialIcon;
+							currentlySelectedRenderOption = "Lit";
+							m_ViewportRenderer->SetViewMode(SceneRenderer::ViewMode::Lit);
 
-						bool isVSync = Application::Get().GetWindow().IsVSync();
-						if (checkbox("Vertical Sync", isVSync, "Toggle monitor vertical sync"))
-							Application::Get().GetWindow().SetVSync(isVSync);
+							ImGui::CloseCurrentPopup();
+						}
 
-						slider("Opacity", m_ViewportRenderer->GetOpacity(), 0.0f, 1.0f, "Viewport renderer opacity");
+						if (selection("Unlit", EditorResources::UnLitMaterialIcon))
+						{
+							m_CurrentlySelectedRenderIcon = EditorResources::UnLitMaterialIcon;
+							currentlySelectedRenderOption = "Unlit";
+							m_ViewportRenderer->SetViewMode(SceneRenderer::ViewMode::Unlit);
 
-						static float renderScale = m_ViewportRenderer->GetSpecification().RendererScale;
-						const float prevRenderScale = m_ViewportRenderer->GetSpecification().RendererScale;
-						if (slider("Rendering Scale", renderScale, 0.1f, 2.0f, "Viewport renderer rendering scale,\nincrease for better quality result"))
-							m_ViewportRenderer->SetViewportSize(\
-								static_cast<uint32_t>(m_ViewportRenderer->GetViewportWidth() / prevRenderScale),
-								static_cast<uint32_t>(m_ViewportRenderer->GetViewportHeight() / prevRenderScale),
-								renderScale
-							);
+							ImGui::CloseCurrentPopup();
+						}
+
+						if (selection("Wireframe", EditorResources::StaticMeshIcon))
+						{
+							m_CurrentlySelectedRenderIcon = EditorResources::StaticMeshIcon;
+							currentlySelectedRenderOption = "Wireframe";
+							m_ViewportRenderer->SetViewMode(SceneRenderer::ViewMode::Wireframe);
+
+							ImGui::CloseCurrentPopup();
+						}
 
 						endSection();
 					}
@@ -1301,9 +1213,367 @@ namespace Iris {
 					ImGui::EndPopup();
 				}
 			}
+
+			ImGui::End();
 		}
 
-		ImGui::End();
+		// Top Right corner tools and icons
+		{
+			constexpr float backgroundWidth = edgeOffset * 6.0f + buttonSize * numberOfButtons + edgeOffset * (numberOfButtons - 1.0f) * 2.0f;
+			ImVec2 position = { m_ViewportRect.Max.x - backgroundWidth - 14.0f, m_ViewportRect.Min.y + edgeOffset };
+			ImGui::SetNextWindowPos(position);
+			ImGui::SetNextWindowSize({ backgroundWidth, windowHeight });
+			ImGui::SetNextWindowBgAlpha(0.0f);
+			ImGui::Begin("##viewport_right_tools", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoDocking);
+
+			// To make a smaller window, we could just fill the desired height that we want with color
+			constexpr float desiredHeight = 26.0f;
+			ImRect background = UI::RectExpanded(ImGui::GetCurrentWindow()->Rect(), 0.0f, -(windowHeight - desiredHeight) / 2.0f);
+			// ImGui::GetWindowDrawList()->AddRectFilled(background.Min, background.Max, IM_COL32(15, 15, 15, 127), 4.0f);
+
+			ImGui::BeginVertical("##viewportRightIconsV", { backgroundWidth, ImGui::GetContentRegionAvail().y });
+			ImGui::Spring();
+			ImGui::BeginHorizontal("##viewportRightIconsH", { backgroundWidth, ImGui::GetContentRegionAvail().y });
+			ImGui::Spring();
+
+			bool openTranslateSnapPopup = false;
+			bool openRotateSnapPopup = false;
+			bool openScaleSnapPopup = false;
+			bool openViewportSettingsPopup = false;
+			{
+				UI::ImGuiScopedStyle enableSpacing(ImGuiStyleVar_ItemSpacing, { edgeOffset * 2.0f, 0.0f });
+
+				ImColor buttonTint = m_GizmoType == -1 ? SelectedGizmoButtonColor : UnselectedGizmoButtonColor;
+				if (iconButton(EditorResources::PointerIcon, buttonTint, "Select, Q").first)
+					m_GizmoType = -1;
+
+				ImGui::Spring(1.0f);
+				buttonTint = m_GizmoType == ImGuizmo::OPERATION::TRANSLATE ? SelectedGizmoButtonColor : UnselectedGizmoButtonColor;
+				auto states = iconButton(EditorResources::TranslateIcon, buttonTint, "Translate, W", true, "Translation Snap Values");
+				if (states.first)
+					m_GizmoType = ImGuizmo::OPERATION::TRANSLATE;
+				if (states.second)
+					openTranslateSnapPopup = true;
+
+				ImGui::Spring(1.0f);
+				buttonTint = m_GizmoType == ImGuizmo::OPERATION::ROTATE ? SelectedGizmoButtonColor : UnselectedGizmoButtonColor;
+				states = iconButton(EditorResources::RotateIcon, buttonTint, "Rotate, E", true, "Rotation Snap Values");
+				if (states.first)
+					m_GizmoType = ImGuizmo::OPERATION::ROTATE;
+				if (states.second)
+					openRotateSnapPopup = true;
+
+				ImGui::Spring(1.0f);
+				buttonTint = m_GizmoType == ImGuizmo::OPERATION::SCALE ? SelectedGizmoButtonColor : UnselectedGizmoButtonColor;
+				states = iconButton(EditorResources::ScaleIcon, buttonTint, "Scale, R", true, "Scaling Snap Values");
+				if (states.first)
+					m_GizmoType = ImGuizmo::OPERATION::SCALE;
+				if (states.second)
+					openScaleSnapPopup = true;
+
+				ImGui::Spring(1.0f);
+				if (iconButton(EditorResources::GearIcon, UnselectedGizmoButtonColor, "ViewportSettings").first)
+					openViewportSettingsPopup = true;
+			}
+
+			ImGui::Spring();
+			ImGui::EndHorizontal();
+			ImGui::Spring();
+			ImGui::EndVertical();
+
+			// Handle popup opening...
+			{
+				UI::ImGuiScopedStyle enableWindowBorder(ImGuiStyleVar_WindowBorderSize, 4.0f);
+				UI::ImGuiScopedStyle enableWindowPadding(ImGuiStyleVar_WindowPadding, { 4.0f, 4.0f });
+
+				if (openTranslateSnapPopup)
+					ImGui::OpenPopup("Translate Snap Value");
+
+				constexpr float SnappingTableColumnWidth = 40.0f;
+
+				float width = edgeOffset * 6.0f + buttonSize * 6.0f + edgeOffset * (numberOfButtons - 1.0f) * 2.0f + SnappingTableColumnWidth * 3 + 20.0f;
+				ImGui::SetNextWindowPos({ m_ViewportRect.Max.x - width, m_ViewportRect.Min.y + edgeOffset + 30.0f });
+				ImGui::SetNextWindowBgAlpha(0.7f);
+				if (ImGui::BeginPopup("Translate Snap Value", ImGuiWindowFlags_NoMove))
+				{
+					int sectionIndex = 0;
+					if (beginSection("Snapping", sectionIndex, false))
+					{
+						ImGui::TableNextRow();
+						ImGui::TableSetColumnIndex(0);
+
+						// Alternating row colors...
+						const ImU32 colRowAlternating = UI::ColorWithMultipliedValue(Colors::Theme::BackgroundDarkBlend, 1.3f);
+						UI::ImGuiScopedColor tableBGAlternating(ImGuiCol_TableRowBgAlt, colRowAlternating);
+
+						UI::ImGuiScopedColor tableBg(ImGuiCol_ChildBg, Colors::Theme::BackgroundDarkBlend);
+
+						ImGuiTableFlags tableFlags = ImGuiTableFlags_NoPadInnerX | ImGuiTableFlags_ScrollY | ImGuiTableFlags_RowBg | ImGuiTableFlags_NoPadOuterX;
+						if (ImGui::BeginTable("##translate_snap_table", 1, tableFlags))
+						{
+							ImGui::TableSetupColumn("Values", ImGuiTableColumnFlags_WidthFixed, SnappingTableColumnWidth);
+
+							constexpr const char* translationSnapValues[] = { "  10cm", "  50cm", "  1m", "  2m", "  5m", "  10m" };
+							float& currentSnappingValue = GetSnapValues().x;
+							for (int i = 0; i < 6; i++)
+							{
+								constexpr float rowHeight = 21.0f;
+								ImGui::TableNextRow(0, rowHeight);
+								ImGui::TableNextColumn();
+
+								if (ImGui::Selectable(translationSnapValues[i], false, ImGuiSelectableFlags_SpanAllColumns))
+								{
+									float value = 0.0f;
+									switch (i)
+									{
+										case 0: value = 0.1f; break;
+										case 1: value = 0.5f; break;
+										case 2: value = 1.0f; break;
+										case 3: value = 2.0f; break;
+										case 4: value = 5.0f; break;
+										case 5: value = 10.0f; break;
+									}
+									currentSnappingValue = value;
+									m_ViewportRenderer->SetTranslationSnapValue(value);
+
+									ImGui::CloseCurrentPopup();
+								}
+							}
+
+							ImGui::EndTable();
+						}
+
+						endSection();
+					}
+
+					ImGui::EndPopup();
+				}
+
+				if (openRotateSnapPopup)
+					ImGui::OpenPopup("Rotate Snap Value");
+
+				width = edgeOffset * 6.0f + buttonSize * 3.0f + edgeOffset * (numberOfButtons - 1.0f) * 2.0f + SnappingTableColumnWidth * 3 + 21.0f;
+				ImGui::SetNextWindowPos({ m_ViewportRect.Max.x - width, m_ViewportRect.Min.y + edgeOffset + 30.0f });
+				ImGui::SetNextWindowBgAlpha(0.7f);
+				if (ImGui::BeginPopup("Rotate Snap Value", ImGuiWindowFlags_NoMove))
+				{
+					int sectionIndex = 0;
+					if (beginSection("Snapping", sectionIndex, false))
+					{
+						ImGui::TableNextRow();
+						ImGui::TableSetColumnIndex(0);
+
+						// Alternating row colors...
+						const ImU32 colRowAlternating = UI::ColorWithMultipliedValue(Colors::Theme::BackgroundDarkBlend, 1.3f);
+						UI::ImGuiScopedColor tableBGAlternating(ImGuiCol_TableRowBgAlt, colRowAlternating);
+
+						UI::ImGuiScopedColor tableBg(ImGuiCol_ChildBg, Colors::Theme::BackgroundDarkBlend);
+
+						ImGuiTableFlags tableFlags = ImGuiTableFlags_NoPadInnerX | ImGuiTableFlags_ScrollY | ImGuiTableFlags_RowBg | ImGuiTableFlags_NoPadOuterX;
+						if (ImGui::BeginTable("##rotate_snap_table", 1, tableFlags))
+						{
+							ImGui::TableSetupColumn("Values", ImGuiTableColumnFlags_WidthFixed, SnappingTableColumnWidth + 10.0f);
+
+							constexpr const char* translationSnapValues[] = { "  5deg", "  10deg", "  30deg", "  45deg", "  90deg", "  180deg" };
+							float& currentSnappingValue = GetSnapValues().y;
+							for (int i = 0; i < 6; i++)
+							{
+								constexpr float rowHeight = 21.0f;
+								ImGui::TableNextRow(0, rowHeight);
+								ImGui::TableNextColumn();
+
+								static bool currentlySelected = false;
+								if (ImGui::Selectable(translationSnapValues[i], &currentlySelected, ImGuiSelectableFlags_SpanAllColumns))
+								{
+									float value = 0.0f;
+									switch (i)
+									{
+										case 0: value = 5.0f; break;
+										case 1: value = 10.0f; break;
+										case 2: value = 30.0f; break;
+										case 3: value = 45.0f; break;
+										case 4: value = 90.0f; break;
+										case 5: value = 180.0f; break;
+									}
+									currentSnappingValue = value;
+
+									ImGui::CloseCurrentPopup();
+								}
+							}
+
+							ImGui::EndTable();
+						}
+
+						endSection();
+					}
+
+					ImGui::EndPopup();
+				}
+
+				if (openScaleSnapPopup)
+					ImGui::OpenPopup("Scale Snap Value");
+
+				width = edgeOffset * 6.0f + buttonSize * 1.0f + edgeOffset * (numberOfButtons - 1.0f) * 2.0f + SnappingTableColumnWidth * 3;
+				ImGui::SetNextWindowPos({ m_ViewportRect.Max.x - width, m_ViewportRect.Min.y + edgeOffset + 30.0f });
+				ImGui::SetNextWindowBgAlpha(0.7f);
+				if (ImGui::BeginPopup("Scale Snap Value", ImGuiWindowFlags_NoMove))
+				{
+					int sectionIndex = 0;
+					if (beginSection("Snapping", sectionIndex, false))
+					{
+						ImGui::TableNextRow();
+						ImGui::TableSetColumnIndex(0);
+
+						// Alternating row colors...
+						const ImU32 colRowAlternating = UI::ColorWithMultipliedValue(Colors::Theme::BackgroundDarkBlend, 1.3f);
+						UI::ImGuiScopedColor tableBGAlternating(ImGuiCol_TableRowBgAlt, colRowAlternating);
+
+						UI::ImGuiScopedColor tableBg(ImGuiCol_ChildBg, Colors::Theme::BackgroundDarkBlend);
+
+						ImGuiTableFlags tableFlags = ImGuiTableFlags_NoPadInnerX | ImGuiTableFlags_ScrollY | ImGuiTableFlags_RowBg | ImGuiTableFlags_NoPadOuterX;
+						if (ImGui::BeginTable("##rotate_snap_table", 1, tableFlags))
+						{
+							ImGui::TableSetupColumn("Values", ImGuiTableColumnFlags_WidthFixed, SnappingTableColumnWidth);
+
+							constexpr const char* translationSnapValues[] = { "  10cm", "  50cm", "  1m", "  2m", "  5m", "  10m" };
+							float& currentSnappingValue = GetSnapValues().z;
+							for (int i = 0; i < 6; i++)
+							{
+								constexpr float rowHeight = 21.0f;
+								ImGui::TableNextRow(0, rowHeight);
+								ImGui::TableNextColumn();
+
+								if (ImGui::Selectable(translationSnapValues[i], false, ImGuiSelectableFlags_SpanAllColumns))
+								{
+									float value = 0.0f;
+									switch (i)
+									{
+										case 0: value = 0.1f; break;
+										case 1: value = 0.5f; break;
+										case 2: value = 1.0f; break;
+										case 3: value = 2.0f; break;
+										case 4: value = 5.0f; break;
+										case 5: value = 10.0f; break;
+									}
+									currentSnappingValue = value;
+
+									ImGui::CloseCurrentPopup();
+								}
+							}
+
+							ImGui::EndTable();
+						}
+
+						endSection();
+					}
+
+					ImGui::EndPopup();
+				}
+
+				if (openViewportSettingsPopup)
+					ImGui::OpenPopup("Viewport Settings");
+
+				// Viewport settings
+				{
+					UI::ImGuiScopedStyle itemSpacing(ImGuiStyleVar_ItemSpacing, ImVec2(0, 5.5f));
+					UI::ImGuiScopedStyle windowPadding(ImGuiStyleVar_WindowPadding, ImVec2(10, 10));
+					UI::ImGuiScopedStyle windowRounding(ImGuiStyleVar_PopupRounding, 4.0f);
+					UI::ImGuiScopedStyle cellPadding(ImGuiStyleVar_CellPadding, ImVec2(0.0f, 5.5f));
+
+					width = edgeOffset * 6.0f + buttonSize + edgeOffset * (numberOfButtons - 1.0f) * 2.0f + 256.0f;
+					ImGui::SetNextWindowPos({ m_ViewportRect.Max.x - width, m_ViewportRect.Min.y + edgeOffset + 30.0f });
+					ImGui::SetNextWindowBgAlpha(0.7f);
+					if (ImGui::BeginPopup("Viewport Settings", ImGuiWindowFlags_NoMove))
+					{
+						int sectionIndex = 0;
+
+						if (beginSection("General", sectionIndex))
+						{
+							static const char* s_SelectionModes[] = { "Entity", "Submesh" };
+							dropdown("Selection Mode", s_SelectionModes, 2, reinterpret_cast<int32_t*>(&m_SelectionMode), "Mode of how submeshes are selected");
+
+							static const char* s_TransformTargetNames[] = { "Median Point", "Individual Origins" };
+							dropdown("Multi-Transform Target", s_TransformTargetNames, 2, reinterpret_cast<int32_t*>(&m_MultiTransformTarget), "Transform around the origin or each entity while in multiselection\nor around a median point with respect to all selected entites");
+
+							static const char* s_TransformAroundOrigin[] = { "Local", "World" };
+							dropdown("Transformation Origin", s_TransformAroundOrigin, 2, reinterpret_cast<int32_t*>(&m_TransformationOrigin), "Transform around origin of the entity/entities\nor around the origin of the world");
+
+							endSection();
+						}
+
+						if (beginSection("Display", sectionIndex))
+						{
+							checkbox("Show Gizmos", m_ShowGizmos, "Show transform gizmos");
+							if (checkbox("Allow Gizmo Axis Flip", m_GizmoAxisFlip, "Allow transform gizmos to flip their\naxes with respect to the camera"))
+								ImGuizmo::AllowAxisFlip(m_GizmoAxisFlip);
+							checkbox("Show Bounding Boxes", m_ShowBoundingBoxes, "Show mesh entities bounding boxes, Ctrl + B");
+							if (m_ShowBoundingBoxes)
+							{
+								checkbox("Selected Entity", m_ShowBoundingBoxSelectedMeshOnly, "Show bounding boxes only for the\ncurrently selected entity");
+
+								if (m_ShowBoundingBoxSelectedMeshOnly)
+									checkbox("Submeshes", m_ShowBoundingBoxSubMeshes, "Show submesh bounding boxes for the\ncurrently selected entity");
+							}
+							SceneRendererOptions& rendererOptions = m_ViewportRenderer->GetOptions();
+							checkbox("Show Grid", rendererOptions.ShowGrid, "Show Grid, Ctrl + G");
+							checkbox("Selected in Wireframe", rendererOptions.ShowSelectedInWireFrame, "Show selected mesh in wireframe mode");
+
+							if (drag("Line Width", m_LineWidth, 0.1f, 0.1f, 10.0f, "Change pipeline line width"))
+							{
+								m_Renderer2D->SetLineWidth(m_LineWidth);
+								m_ViewportRenderer->SetLineWidth(m_LineWidth);
+							}
+
+							endSection();
+						}
+
+						if (beginSection("Scene Camera", sectionIndex))
+						{
+							float fov = glm::degrees(m_EditorCamera.GetFOV());
+							if (slider("Field of View", fov, 30, 120, "Field of view of the viewport camera"))
+								m_EditorCamera.SetFOV(fov);
+							slider("Exposure", m_EditorCamera.GetExposure(), 0.0f, 10.0f, "Exposure of viewport camera,\nalso extends into rendered scene");
+							drag("Speed", m_EditorCamera.GetNormalSpeed(), 0.001f, 0.0002f, 0.5f, "Speed of viewport camera in fly mode, RightAlt + Scroll");
+							float nearClip = m_EditorCamera.GetNearClip();
+							if (drag("Near Clip", nearClip, 0.1f, 0.002f, 100.0f, "Viewport camera near clip"))
+								m_EditorCamera.SetNearClip(nearClip);
+							float farClip = m_EditorCamera.GetFarClip();
+							if (drag("Far Clip", farClip, 2.0f, 100.1f, 1'000'000.0f, "Viewport camera far clip"))
+								m_EditorCamera.SetFarClip(farClip);
+
+							endSection();
+						}
+
+						if (beginSection("Viewport Renderer", sectionIndex))
+						{
+							std::string string = fmt::format("{}", static_cast<uint32_t>(1.0f / Application::Get().GetFrameTime().GetSeconds()));
+							text("Framerate (FPS)", string.c_str());
+
+							bool isVSync = Application::Get().GetWindow().IsVSync();
+							if (checkbox("Vertical Sync", isVSync, "Toggle monitor vertical sync"))
+								Application::Get().GetWindow().SetVSync(isVSync);
+
+							slider("Opacity", m_ViewportRenderer->GetOpacity(), 0.0f, 1.0f, "Viewport renderer opacity");
+
+							static float renderScale = m_ViewportRenderer->GetSpecification().RendererScale;
+							const float prevRenderScale = m_ViewportRenderer->GetSpecification().RendererScale;
+							if (slider("Rendering Scale", renderScale, 0.1f, 2.0f, "Viewport renderer rendering scale,\nincrease for better quality result"))
+								m_ViewportRenderer->SetViewportSize(
+									static_cast<uint32_t>(m_ViewportRenderer->GetViewportWidth() / prevRenderScale),
+									static_cast<uint32_t>(m_ViewportRenderer->GetViewportHeight() / prevRenderScale),
+									renderScale
+								);
+
+							endSection();
+						}
+
+						ImGui::EndPopup();
+					}
+				}
+			}
+
+			ImGui::End();
+		}
 
 		UI::PopID();
 	}
@@ -1427,7 +1697,7 @@ namespace Iris {
 			//medianScale /= static_cast<float>(selections.size());
 			medianRotation /= static_cast<float>(selections.size());
 
-			int numOfEntities = selections.size();
+			int numOfEntities = static_cast<int>(selections.size());
 			float averageScaleX = std::pow(medianScale.x, 1.0f / numOfEntities);
 			float averageScaleY = std::pow(medianScale.y, 1.0f / numOfEntities);
 			float averageScaleZ = std::pow(medianScale.z, 1.0f / numOfEntities);
@@ -1842,9 +2112,11 @@ namespace Iris {
 	
 		glm::vec3 rayPos = camera.GetPosition();
 		glm::vec4 ray = inverseProj * mouseClipPos;
+		if (!camera.IsPerspectiveProjection())
+			ray.z = -1.0f;
 		glm::vec3 direction = inverseView * ray;
 
-		return { rayPos, direction };
+		return { rayPos, camera.IsPerspectiveProjection() ? direction : glm::normalize(glm::vec3(direction) - rayPos) };
 	}
 
 	void EditorLayer::SceneHierarchySetEditorCameraTransform(Entity entity)

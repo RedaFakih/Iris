@@ -137,6 +137,10 @@ namespace Iris {
 		bool m_ShowImGuiMetricsWindow = false;
 		bool m_ShowImGuiStyleEditor = false;
 
+		// Just references
+		Ref<Texture2D> m_CurrentlySelectedViewIcon = nullptr;
+		Ref<Texture2D> m_CurrentlySelectedRenderIcon = nullptr;
+
 		enum class TransformationTarget { MedianPoint, IndividualOrigins };
 		TransformationTarget m_MultiTransformTarget = TransformationTarget::MedianPoint;
 

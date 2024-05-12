@@ -92,6 +92,7 @@ void main()
 	color *= u_Uniforms.Opacity;
 
 	o_Color = vec4(color, 1.0f);
+
 	// float depth = 1.0f / LinearizeDepth(texture(u_DepthTexture, v_TexCoord).r);
 	// o_Color = vec4(vec3(depth), 1.0f);
 }

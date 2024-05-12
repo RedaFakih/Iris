@@ -56,6 +56,9 @@ Assets:
   - Handle: 2148552209505028990
     FilePath: Meshes/LowPolySponza/8114461559286000061.jpg
     Type: Texture
+  - Handle: 2219528169467375815
+    FilePath: Scenes/TestingOrthoScene.Iscene
+    Type: Scene
   - Handle: 2732277024539045285
     FilePath: Meshes/Default/Plane.Ismesh
     Type: StaticMesh

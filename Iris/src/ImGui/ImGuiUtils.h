@@ -238,7 +238,8 @@ namespace Iris::UI {
 	// Draw an outline for the last item
 	void DrawItemActivityOutline(OutlineFlags flags = OutlineFlags_All, ImColor colorHighlight = Colors::Theme::NiceBlue, float rounding = GImGui->Style.FrameRounding);
 
-	void UnderLine(bool fullWidth = false, float offsetX = 0.0f, float offsetY = -1.0f);
+	void UnderLine(bool fullWidth = false, float offsetX = 0.0f, float offsetY = -1.0f, float thickness = 1.0f, ImU32 theme = Colors::Theme::BackgroundDark);
+	void UnderLine(ImU32 theme, bool fullWidth = false, ImVec2 p1Offset = {}, ImVec2 p2Offset = {}, float thickness = 1.0f);
 
 	void RenderWindowOuterBorders(ImGuiWindow* currentWindow);
 	

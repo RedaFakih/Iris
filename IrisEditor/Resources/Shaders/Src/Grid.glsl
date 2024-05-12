@@ -69,17 +69,17 @@ vec4 Grid(vec3 fragPos, float scale)
 
 	float line = min(grid.x, grid.y);
 
-	vec4 color = vec4(0.3f, 0.3f, 0.3f, 1.0f - min(line, 1.5f));
+	vec4 color = vec4(0.3f, 0.3f, 0.3f, 1.4f - min(line, 1.5f));
 
 	float minX = min(derivative.x, 2.0f);
 	float minZ = min(derivative.y, 2.0f);
 
 	// X axis
-	if (fragPos.z > -0.1f * minZ && fragPos.z < 0.1f * minZ)
+	if (fragPos.z > -0.2f * minZ && fragPos.z < 0.2f * minZ)
 		color = vec4(1.0f, 0.0f, 0.0f, 1.0f);
 
 	// Z axis
-	if (fragPos.x > -0.1f * minX && fragPos.x < 0.1f * minX)
+	if (fragPos.x > -0.2f * minX && fragPos.x < 0.2f * minX)
 		color = vec4(0.0f, 0.0f, 1.0f, 1.0f);
 
 	return color;
@@ -113,7 +113,8 @@ void main()
 	float fading = max(0.0f, linearDepth + 0.02f);
 	
 	// Add resolution on the 1x1 squares
-	o_Color = (Grid(fragPos, 1.0f / u_Uniforms.Scale) + Grid(fragPos, (1.0f / (u_Uniforms.Scale / 2.0f)))) * float(t > 0.0f);
+	// o_Color = (Grid(fragPos, 1.0f / u_Uniforms.Scale) + Grid(fragPos, (1.0f / (u_Uniforms.Scale / 2.0f)))) * float(t > 0.0f);
+	o_Color = Grid(fragPos, 1.0f / u_Uniforms.Scale) * float(t > 0.0f);
 	o_Color.a *= fading;
 
 	if (o_Color.a <= 0.0f)
