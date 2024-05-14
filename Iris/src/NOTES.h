@@ -9,13 +9,10 @@
  * 
  * TODO Creative Ideas:
  * - Submesh selection when we have a content browser Both static and dynamic meshes will support submesh selection
- * - For extra viewport settings:
- *		- Viewing mode: Wireframe
  * - Viewport camera orthographic views done:
  *		- Gizmo controls and orthographic camera movement collision
  *		- Fix bugs in orthogrpahic view
  *		- Fix mouse picking in orthographic view
- *		- Fix the ImGui viewport top left icons display because when we change mode they change alignment
  * - Fix the grid highlighting for Z and X axes
  * - When pressing translation gizmo axis draw infinite lines just like in blender for those axes
  * - Look into auto exposure because its SO COOL

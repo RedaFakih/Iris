@@ -199,6 +199,7 @@ namespace Iris {
 
 		// Geometry
 		Ref<RenderPass> m_GeometryPass;
+		Ref<RenderPass> m_WireframeViewGeometryPass;
 
 		// Selected Geometry
 		Ref<RenderPass> m_SelectedGeometryPass;

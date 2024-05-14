@@ -1,8 +1,10 @@
 #include "RuntimeLayer.h"
 
-#include "Core/Input/Input.h"
-#include "Renderer/Renderer.h"
 #include "AssetManager/Importers/MeshImporter.h"
+#include "Core/Input/Input.h"
+#include "Project/Project.h"
+#include "Renderer/Renderer.h"
+#include "Scene/SceneSerializer.h"
 
 bool g_WireFrame = false;
 
@@ -19,7 +21,10 @@ namespace Iris {
 
 	void RuntimeLayer::OnAttach()
 	{
-		m_RuntimeScene = Scene::Create("Runtime Scene");
+		Ref<Project> project = Project::Create();
+		Project::SetActive(project);
+
+		m_RuntimeScene = Scene::Create();
 
 		m_ViewportRenderer = SceneRenderer::Create(m_RuntimeScene, { .RendererScale = 1.0f, .JumpFloodPass = false });
 		m_ViewportRenderer->SetLineWidth(m_LineWidth);
@@ -58,17 +63,15 @@ namespace Iris {
 
 		m_CommandBuffer = RenderCommandBuffer::CreateFromSwapChain("RuntimeLayer");
 
-		Entity mesh = m_RuntimeScene->CreateEntity();
-		auto& src = mesh.AddComponent<SpriteRendererComponent>();
-		src.Color = { 1.0f, 0.0f, 1.0f, 1.0f };
+		SceneSerializer::Deserialize(m_RuntimeScene, "SandboxProject/Assets/Scenes/SponzaDemo.Iscene");
 	}
 
 	void RuntimeLayer::OnDetach()
 	{
 		m_ViewportRenderer->SetScene(nullptr);
-
 		IR_VERIFY(m_RuntimeScene->GetRefCount() == 1);
 		m_RuntimeScene = nullptr;
+		Project::SetActive(nullptr);
 	}
 
 	void RuntimeLayer::OnUpdate(TimeStep ts)

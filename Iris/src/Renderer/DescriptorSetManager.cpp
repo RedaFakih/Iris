@@ -21,6 +21,11 @@ namespace Iris {
 
 	DescriptorSetManager::~DescriptorSetManager()
 	{
+		Release();
+	}
+
+	void DescriptorSetManager::Release()
+	{
 		Renderer::SubmitReseourceFree([descriptorPool = m_DescriptorPool]()
 		{
 			VkDevice device = RendererContext::GetCurrentDevice()->GetVulkanDevice();

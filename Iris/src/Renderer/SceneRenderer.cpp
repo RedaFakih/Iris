@@ -78,6 +78,7 @@ namespace Iris {
 				.VertexLayout = vertexLayout,
 				.InstanceLayout = instanceLayout,
 				.Topology = PrimitiveTopology::Triangles,
+				.BackFaceCulling = true,
 				.DepthOperator = DepthCompareOperator::GreaterOrEqual
 			};
 
@@ -93,10 +94,10 @@ namespace Iris {
 			m_PreDepthPass->Bake();
 
 			preDepthPipelineSpec.DebugName = "WireframePreDepthPipeline";
+			preDepthPipelineSpec.BackFaceCulling = false;
 			preDepthPipelineSpec.WireFrame = true;
-			Ref<Pipeline> pipeline = Pipeline::Create(preDepthPipelineSpec);
 			preDepthRenderPassSpec.DebugName = "WireframePreDepthPass";
-			preDepthRenderPassSpec.Pipeline = pipeline;
+			preDepthRenderPassSpec.Pipeline = Pipeline::Create(preDepthPipelineSpec);
 			m_WireframeViewPreDepthPass = RenderPass::Create(preDepthRenderPassSpec);
 
 			m_WireframeViewPreDepthPass->SetInput("Camera", m_UBSCamera);
@@ -139,6 +140,17 @@ namespace Iris {
 
 			m_GeometryPass->SetInput("Camera", m_UBSCamera);
 			m_GeometryPass->Bake();
+
+			staticGeometryPipelineSpec.DebugName = "WireframeViewPipeline";
+			staticGeometryPipelineSpec.BackFaceCulling = false;
+			staticGeometryPipelineSpec.DepthOperator = DepthCompareOperator::GreaterOrEqual;
+			staticGeometryPipelineSpec.WireFrame = true;
+			staticGeometryPassSpec.DebugName = "WireframeViewPass";
+			staticGeometryPassSpec.Pipeline = Pipeline::Create(staticGeometryPipelineSpec);
+			m_WireframeViewGeometryPass = RenderPass::Create(staticGeometryPassSpec);
+
+			m_WireframeViewGeometryPass->SetInput("Camera", m_UBSCamera);
+			m_WireframeViewGeometryPass->Bake();
 		}
 
 		// Selected Geometry isolation
@@ -277,7 +289,7 @@ namespace Iris {
 			m_GeometryWireFramePass = RenderPass::Create(wireFramePassSpec);
 			m_WireFrameMaterial = Material::Create(wireframePipelineSpec.Shader, "WireFrameMaterial");
 			// m_WireFrameMaterial->Set("u_Uniforms.Color", glm::vec4{ 1.0f, 0.5f, 0.0f, 1.0f });
-			m_WireFrameMaterial->Set("u_Uniforms.Color", glm::vec4{ 0.14f, 0.8f, 0.52f, 1.0f }); // Use this color for wireframe of ONLY current selection
+			m_WireFrameMaterial->Set("u_Uniforms.Color", glm::vec4{ glm::vec3{ 0.14f, 0.8f, 0.52f } * 0.9f, 1.0f }); // Use this color for wireframe of ONLY current selection
 
 			m_GeometryWireFramePass->SetInput("Camera", m_UBSCamera);
 			m_GeometryWireFramePass->Bake();
@@ -465,7 +477,7 @@ namespace Iris {
 			m_SelectedGeometryPass->GetTargetFramebuffer()->Resize(m_ViewportWidth, m_ViewportHeight);
 			m_CompositePass->GetTargetFramebuffer()->Resize(m_ViewportWidth, m_ViewportHeight);
 
-			// NOTE: We are able to not resize the grid pass since it references the Compositing framebuffer whic is resized manually
+			// NOTE: We are able to not resize the grid pass since it references the Compositing framebuffer which is resized manually
 			// m_GridPass->GetTargetFramebuffer()->Resize(m_ViewportWidth, m_ViewportHeight);
 
 			for (auto& jumpFloodFB : m_JumpFloodFramebuffers)
@@ -750,12 +762,32 @@ namespace Iris {
 
 		Renderer::EndRenderPass(m_CommandBuffer);
 
-		Renderer::BeginRenderPass(m_CommandBuffer, m_GeometryPass);
+		Ref<RenderPass> renderPassToUse = nullptr;
+		switch (m_ViewMode)
+		{
+			case ViewMode::Lit:
+			{
+				renderPassToUse = m_GeometryPass;
+				break;
+			}
+			case ViewMode::Unlit:
+			{
+				renderPassToUse = m_GeometryPass;
+				break;
+			}
+			case ViewMode::Wireframe:
+			{
+				renderPassToUse = m_WireframeViewGeometryPass;
+				break;
+			}
+		}
+
+		Renderer::BeginRenderPass(m_CommandBuffer, renderPassToUse);
 
 		for (const auto& [mk, dc] : m_StaticMeshDrawList)
 		{
 			const auto& transformData = m_MeshTransformMap.at(mk);
-			Renderer::RenderStaticMesh(m_CommandBuffer, m_GeometryPass->GetPipeline(), dc.StaticMesh, dc.MeshSource, dc.SubMeshIndex, dc.MaterialTable ? dc.MaterialTable : dc.StaticMesh->GetMaterials(), m_MeshTransformBuffers[frameIndex].VertexBuffer, transformData.TransformOffset, dc.InstanceCount, static_cast<int>(m_ViewMode));
+			Renderer::RenderStaticMesh(m_CommandBuffer, renderPassToUse->GetPipeline(), dc.StaticMesh, dc.MeshSource, dc.SubMeshIndex, dc.MaterialTable ? dc.MaterialTable : dc.StaticMesh->GetMaterials(), m_MeshTransformBuffers[frameIndex].VertexBuffer, transformData.TransformOffset, dc.InstanceCount, static_cast<int>(m_ViewMode));
 		}
 
 		Renderer::EndRenderPass(m_CommandBuffer);

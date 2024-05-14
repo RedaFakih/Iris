@@ -250,6 +250,7 @@ namespace Iris {
 
 	private:
 		void Init();
+		void Release();
 		const RenderPassInputDeclaration* GetInputDeclaration(std::string_view name) const;
 
 	private:
