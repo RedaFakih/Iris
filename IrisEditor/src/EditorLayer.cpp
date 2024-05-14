@@ -782,11 +782,12 @@ namespace Iris {
 		constexpr float windowHeight = 32.0f; // imgui windows can not be smaller than 32 pixels
 		constexpr float numberOfButtons = 5.0f + 3.0f; // we add 3 for the dropdown buttons
 		constexpr float popupWidth = 310.0f;
+		constexpr float textOffset = 4.0f; // Offset between text and label
 
 		const ImColor SelectedGizmoButtonColor = Colors::Theme::Accent;
 		const ImColor UnselectedGizmoButtonColor = Colors::Theme::TextBrighter;
 
-		auto labelIconButton = [](const Ref<Texture2D>& icon, const ImColor& tint, const char* label, ImVec2 labelSize, const char* hint = "")
+		auto labelIconButton = [](const Ref<Texture2D>& icon, const ImColor& tint, const char* label, ImVec2 labelSize, const ImRect& windowRect, const char* hint = "")
 		{
 			ImGuiWindow* window = ImGui::GetCurrentWindow();
 
@@ -794,17 +795,18 @@ namespace Iris {
 			float width = static_cast<float>(icon->GetWidth()) / static_cast<float>(icon->GetHeight()) * height;
 			ImVec2 iconSize = ImGui::CalcItemSize({ width, height }, 0.0f, 0.0f);
 
-			constexpr float offset = -15.0f;
-			const ImRect iconRect({ window->DC.CursorPos.x + offset, window->DC.CursorPos.y }, { window->DC.CursorPos.x + offset + iconSize.x, window->DC.CursorPos.y + iconSize.y });
+			const ImRect iconRect({ windowRect.Min.x + 4.0f, windowRect.Min.y + edgeOffset + 2.0f }, { windowRect.Min.x + iconSize.x + 4.0f,  windowRect.Min.y + edgeOffset + iconSize.y + 2.0f });
 
 			ImVec2 cursorPos = ImGui::GetCursorPos();
-			UI::ShiftCursorX(offset);
-			const bool clicked = ImGui::InvisibleButton(UI::GenerateID(), { width + labelSize.x + 18.0f, height + labelSize.y / 2.0f - 5.0f });
+
+			ImRect buttonRect;
+			buttonRect.Min = { iconRect.Min.x, iconRect.Min.y };
+			buttonRect.Max = { iconRect.Min.x + width + labelSize.x + textOffset + 16.0f, iconRect.Max.y };
+			const bool clicked = ImGui::ButtonBehavior(buttonRect, ImGui::GetID(UI::GenerateID()), nullptr, nullptr, ImGuiButtonFlags_PressedOnClick);
 			UI::SetToolTip(hint);
-			const ImRect itemRect = UI::GetItemRect();
 
 			ImColor color = IM_COL32(55, 55, 55, 127);
-			const ImRect expanded = UI::RectExpanded(itemRect, 4.0f, 4.0f);
+			ImRect expanded = UI::RectExpanded(buttonRect, 4.0f, 4.0f);
 			ImGui::GetWindowDrawList()->AddRectFilled(expanded.Min, expanded.Max, color, 16.0f);
 			UI::DrawButtonImage(icon,
 				tint,
@@ -812,8 +814,7 @@ namespace Iris {
 				tint,
 				iconRect);
 
-			cursorPos = { cursorPos.x + 7.0F, cursorPos.y };
-			ImGui::SetCursorPos(cursorPos);
+			window->DC.CursorPos = { iconRect.Max.x + textOffset, iconRect.Min.y };
 
 			ImGuiFontsLibrary& fontsLib = Application::Get().GetImGuiLayer()->GetFontsLibrary();
 			fontsLib.PushFont("RobotoBold");
@@ -1051,9 +1052,9 @@ namespace Iris {
 			glm::vec2 maxTextSize = { viewTextSize.x + renderTextSize.x, viewTextSize.y };
 
 			float backgroundWidth = edgeOffset * 6.0f + buttonSize * 2.0f + maxTextSize.x * 1.8f;
-			ImVec2 position = { m_ViewportRect.Min.x + 2.0f, m_ViewportRect.Min.y + edgeOffset };
+			ImVec2 position = { m_ViewportRect.Min.x + 14.0f, m_ViewportRect.Min.y + edgeOffset };
 			ImGui::SetNextWindowPos(position);
-			ImGui::SetNextWindowSize({ backgroundWidth, windowHeight });
+			ImGui::SetNextWindowSize({ backgroundWidth + 4.0f + 2.0f, windowHeight });
 			ImGui::SetNextWindowBgAlpha(0.0f);
 			ImGui::Begin("##viewport_left_tools", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoDocking);
 
@@ -1066,14 +1067,14 @@ namespace Iris {
 			ImGui::BeginHorizontal("##viewportLeftIconsH", { backgroundWidth, ImGui::GetContentRegionAvail().y });
 			ImGui::Spring();
 
+			ImRect windowRect = ImGui::GetCurrentWindow()->Rect();
 			bool openViewSelectionPopup = false;
-			if (labelIconButton(m_CurrentlySelectedViewIcon, UnselectedGizmoButtonColor, currentlySelectedViewOption, viewTextSize, "Changes the viewport projection view"))
+			if (labelIconButton(m_CurrentlySelectedViewIcon, UnselectedGizmoButtonColor, currentlySelectedViewOption, viewTextSize, windowRect, "Changes the viewport projection view"))
 				openViewSelectionPopup = true;
 
-			ImGui::Spring(1.0f);
-
+			windowRect.Min.x += viewTextSize.x + textOffset + 46.0f;
 			bool openRenderSelectionPopup = false;
-			if (labelIconButton(m_CurrentlySelectedRenderIcon, UnselectedGizmoButtonColor, currentlySelectedRenderOption, renderTextSize, "Changes the rendering option"))
+			if (labelIconButton(m_CurrentlySelectedRenderIcon, UnselectedGizmoButtonColor, currentlySelectedRenderOption, renderTextSize, windowRect, "Changes the rendering option"))
 				openRenderSelectionPopup = true;
 
 			ImGui::Spring();

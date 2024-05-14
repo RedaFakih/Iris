@@ -1,0 +1,57 @@
+Scene: Editor Scene
+Entities:
+  - Entity: 11742091416900633685
+    TagComponent:
+      Tag: Empty Entity
+    Parent: 0
+    Children:
+      []
+    TransformComponent:
+      Position: [0, 0.0307064056, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    StaticMeshComponent:
+      AssetID: 7407597925920568692
+      MaterialTable:
+        0: 0
+        1: 0
+        2: 0
+        3: 0
+        4: 0
+        5: 0
+        6: 0
+        7: 0
+        8: 0
+        9: 0
+        10: 0
+        11: 0
+        12: 0
+        13: 0
+        14: 0
+        15: 0
+        16: 0
+        17: 0
+        18: 0
+        19: 0
+        20: 0
+        21: 0
+        22: 0
+        23: 0
+        24: 0
+        25: 0
+      Visible: true
+  - Entity: 16282644480529103363
+    TagComponent:
+      Tag: Cube
+    Parent: 0
+    Children:
+      []
+    TransformComponent:
+      Position: [-0.0138091743, 2.54499578, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1.25, 1.25, 1.25]
+    StaticMeshComponent:
+      AssetID: 13164229695691519330
+      MaterialTable:
+        0: 0
+      Visible: true
