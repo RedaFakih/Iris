@@ -131,6 +131,9 @@ Assets:
   - Handle: 7088163104103516360
     FilePath: Meshes/LowPolySponza/2299742237651021498.jpg
     Type: Texture
+  - Handle: 7318631997764497785
+    FilePath: Scenes/SponzaDemo.Iscene
+    Type: Scene
   - Handle: 7407597925920568692
     FilePath: Meshes/LowPolySponza.Ismesh
     Type: StaticMesh

@@ -9,11 +9,15 @@
  * 
  * TODO Creative Ideas:
  * - Submesh selection when we have a content browser Both static and dynamic meshes will support submesh selection
- * - When pressing translation gizmo axis draw infinite lines just like in blender for those axes
- * - Fix the grid highlighting for Z and X axes
  * - For extra viewport settings:
- *		- For Scene Camera: otho views and all that
- * - Add a way to adjust the first person editor camera speed even if that requires changing the system of how to change between the 2 camera modes...
+ *		- Viewing mode: Wireframe
+ * - Viewport camera orthographic views done:
+ *		- Gizmo controls and orthographic camera movement collision
+ *		- Fix bugs in orthogrpahic view
+ *		- Fix mouse picking in orthographic view
+ *		- Fix the ImGui viewport top left icons display because when we change mode they change alignment
+ * - Fix the grid highlighting for Z and X axes
+ * - When pressing translation gizmo axis draw infinite lines just like in blender for those axes
  * - Look into auto exposure because its SO COOL
  *		- 1: https://bruop.github.io/exposure/
  *		- 2: https://mynameismjp.wordpress.com/2011/08/10/average-luminance-compute-shader/

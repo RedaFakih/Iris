@@ -15,6 +15,7 @@ namespace Iris {
 	static const std::string s_EmissionUniform = "u_MaterialUniforms.Emission";
 	static const std::string s_UseNormalMapUniform = "u_MaterialUniforms.UseNormalMap";
 	static const std::string s_TransparencyUniform = "u_MaterialUniforms.Transparency";
+	static const std::string s_LitUniform = "u_MaterialUniforms.Lit";
 
 	static const std::string s_AlbedoMapUniform = "u_AlbedoTexture";
 	static const std::string s_NormalMapUniform = "u_NormalTexture";
@@ -143,6 +144,21 @@ namespace Iris {
 		m_Material->Set(s_TransparencyUniform, transparency);
 	}
 
+	bool MaterialAsset::IsLit()
+	{
+		return m_Material->GetBool(s_LitUniform);
+	}
+
+	void MaterialAsset::SetLit()
+	{
+		m_Material->Set(s_LitUniform, true);
+	}
+
+	void MaterialAsset::SetUnlit()
+	{
+		m_Material->Set(s_LitUniform, false);
+	}
+
 	Ref<Texture2D> MaterialAsset::GetAlbedoMap()
 	{
 		return m_Material->GetTexture2D(s_AlbedoMapUniform);
@@ -264,6 +280,7 @@ namespace Iris {
 			SetMetalness(0.0f);
 			SetEmission(0.0f);
 			SetUseNormalMap(false);
+			SetLit();
 
 			ClearAlbedoMap();
 			ClearNormalMap();

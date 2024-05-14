@@ -42,6 +42,10 @@ namespace Iris {
 		float& GetTransparency();
 		void SetTransparency(float tranparency);
 
+		bool IsLit();
+		void SetLit();
+		void SetUnlit();
+
 		Ref<Texture2D> GetAlbedoMap();
 		void SetAlbedoMap(AssetHandle albedoMap);
 		void ClearAlbedoMap();

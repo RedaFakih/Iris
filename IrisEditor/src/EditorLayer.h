@@ -145,7 +145,7 @@ namespace Iris {
 		TransformationTarget m_MultiTransformTarget = TransformationTarget::MedianPoint;
 
 		enum class TransformationOrigin { Local = 0, World = 1 };
-		TransformationOrigin m_TransformationOrigin = TransformationOrigin::Local;
+		TransformationOrigin m_TransformationOrigin = TransformationOrigin::World;
 
 		enum class SelectionMode { Entity = 0, SubMesh = 1 };
 		SelectionMode m_SelectionMode = SelectionMode::Entity;

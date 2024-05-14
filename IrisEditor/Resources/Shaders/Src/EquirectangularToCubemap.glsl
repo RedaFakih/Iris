@@ -7,9 +7,10 @@
 const float PI = 3.14159265358979323846f;
 const float TwoPI = 2 * PI;
 
+// This is handled by the renderpass
+layout(set = 2, binding = 0, rgba16f) restrict writeonly uniform imageCube o_OutputCubeMap;
 // Handled by the material
-layout(set = 3, binding = 0, rgba16f) restrict writeonly uniform imageCube o_OutputCubeMap;
-layout(set = 3, binding = 1) uniform sampler2D u_EquirectangularTexture;
+layout(set = 3, binding = 0) uniform sampler2D u_EquirectangularTexture;
 
 // So we get a 3D vector that points to a pixel inside on one of the cubemap faces based on the GlobalInvocationID inside
 // a workgroup. Basically we go from a 2D equirectangular picture to a 3D cubemap.

@@ -100,26 +100,33 @@ layout(push_constant) uniform Materials
     float Emission;
 
     bool UseNormalMap;
+	bool Lit;
 } u_MaterialUniforms;
 
-vec3 s_LightColor = vec3(0.6f, 0.6f, 1.0f);
+vec3 s_LightColor = vec3(1.0f, 1.0f, 1.0f);
 vec3 s_LightPos = vec3(-120.2f, 180.0f, -5.0f);
 
 void main()
 {
-    // Ambient since we do not have IBL
-    float ambientStrength = 0.2f;
-    vec3 ambient = ambientStrength * s_LightColor;
+	vec3 lightContrib = vec3(0.6f);
+	if (u_MaterialUniforms.Lit)
+	{
+		// Ambient since we do not have IBL
+		float ambientStrength = 0.2f;
+		vec3 ambient = ambientStrength * s_LightColor;
 
-    vec3 norm = normalize(Input.Normal);
-    vec3 lightDir = normalize(s_LightPos - Input.WorldPosition);
+		vec3 norm = normalize(Input.Normal);
+		vec3 lightDir = normalize(s_LightPos - Input.WorldPosition);
     
-    float diff = max(dot(norm, lightDir), 0.0f);
-    vec3 diffuse = diff * s_LightColor;
+		float diff = max(dot(norm, lightDir), 0.0f);
+		vec3 diffuse = diff * s_LightColor;
+		lightContrib = ambient + diffuse;
+	}
 
-	// TODO: REMOVE
+	vec4 finalColor = vec4(lightContrib, 1.0f) * (texture(u_AlbedoTexture, Input.TexCoord) * vec4(u_MaterialUniforms.AlbedoColor, 1.0f));
+
+	// TODO: REMOVE since we want to write the metalness in one of the channels of the roughness texture
     // o_Color = vec4(vec3(texture(u_MetalnessTexture, Input.TexCoord).b), 1.0f);
-    vec4 finalColor = vec4(ambient + diffuse, 1.0f) * (texture(u_AlbedoTexture, Input.TexCoord) * vec4(u_MaterialUniforms.AlbedoColor, 1.0f));
     o_Normals = vec4(texture(u_NormalTexture, Input.TexCoord).rgb, 1.0f);
 	o_Roughness = vec4(vec3(texture(u_RoughnessTexture, Input.TexCoord).g), 1.0f);
 

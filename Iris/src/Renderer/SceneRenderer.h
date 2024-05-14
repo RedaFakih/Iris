@@ -193,13 +193,11 @@ namespace Iris {
 		Ref<UniformBufferSet> m_UBSScreenData;
 
 		// PreDepth
-		Ref<Pipeline> m_PreDepthPipeline;
 		Ref<RenderPass> m_PreDepthPass;
 		Ref<RenderPass> m_WireframeViewPreDepthPass; // For having wireframe view in the future
 		Ref<Material> m_PreDepthMaterial;
 
 		// Geometry
-		Ref<Pipeline> m_GeometryPipeline;
 		Ref<RenderPass> m_GeometryPass;
 
 		// Selected Geometry

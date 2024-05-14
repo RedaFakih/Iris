@@ -596,13 +596,13 @@ namespace Iris {
 		});
 	}
 
-	void Renderer::RenderStaticMesh(Ref<RenderCommandBuffer> renderCommandBuffer, Ref<Pipeline> pipeline, Ref<StaticMesh> staticMesh, Ref<MeshSource> meshSource, uint32_t subMeshIndex, Ref<MaterialTable> materialTable, Ref<VertexBuffer> transformBuffer, uint32_t transformOffset, uint32_t instanceCount)
+	void Renderer::RenderStaticMesh(Ref<RenderCommandBuffer> renderCommandBuffer, Ref<Pipeline> pipeline, Ref<StaticMesh> staticMesh, Ref<MeshSource> meshSource, uint32_t subMeshIndex, Ref<MaterialTable> materialTable, Ref<VertexBuffer> transformBuffer, uint32_t transformOffset, uint32_t instanceCount, int viewMode)
 	{
 		IR_VERIFY(staticMesh);
 		IR_VERIFY(meshSource);
 		IR_VERIFY(materialTable);
 
-		Renderer::Submit([renderCommandBuffer, pipeline, staticMesh, meshSource, subMeshIndex, materialTable, transformBuffer, transformOffset, instanceCount]() mutable
+		Renderer::Submit([renderCommandBuffer, pipeline, staticMesh, meshSource, subMeshIndex, materialTable, transformBuffer, transformOffset, instanceCount, viewMode]() mutable
 		{
 			uint32_t frameIndex = Renderer::RT_GetCurrentFrameIndex();
 			VkCommandBuffer commandBuffer = renderCommandBuffer->GetActiveCommandBuffer();
@@ -628,6 +628,11 @@ namespace Iris {
 				meshMaterialTable->GetMaterial(subMesh.MaterialIndex);
 
 			Ref<MaterialAsset> materialAsset = AssetManager::GetAsset<MaterialAsset>(materialAssetHandle);
+
+			if (viewMode == 0)
+				materialAsset->SetLit();
+			else if (viewMode == 1)
+				materialAsset->SetUnlit();
 
 			Ref<Material> vulkanMaterial = materialAsset->GetMaterial();
 

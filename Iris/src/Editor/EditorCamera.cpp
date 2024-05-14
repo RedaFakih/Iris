@@ -351,13 +351,13 @@ namespace Iris {
 				case OrthoPosition::Back:
 				{
 					glm::vec3 vec = { m_OrthoPosition.x, m_OrthoPosition.z, -1.0f * m_Zoom };
-					m_OrthographicViewMatrix = glm::lookAt(vec, glm::vec3{ vec.x, vec.y, 0.0f }, { 1.0f, 0.0f, 0.0f });
+					m_OrthographicViewMatrix = glm::lookAt(vec, glm::vec3{ vec.x, vec.y, 0.0f }, { 0.0f, 1.0f, 0.0f });
 					break;
 				}
 				case OrthoPosition::Front:
 				{
 					glm::vec3 vec = { m_OrthoPosition.x, m_OrthoPosition.z, 1.0f * m_Zoom };
-					m_OrthographicViewMatrix = glm::lookAt(vec, glm::vec3{ vec.x, vec.y, 0.0f }, { 1.0f, 0.0f, 0.0f });
+					m_OrthographicViewMatrix = glm::lookAt(vec, glm::vec3{ vec.x, vec.y, 0.0f }, { 0.0f, 1.0f, 0.0f });
 					break;
 				}
 

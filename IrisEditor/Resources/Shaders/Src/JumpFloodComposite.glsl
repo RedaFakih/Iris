@@ -23,6 +23,11 @@ layout(location = 0) in vec2 v_TexCoord;
 
 layout(set = 1, binding = 0) uniform sampler2D u_Texture;
 
+layout(push_constant) uniform Material
+{
+	vec4 Color;
+} u_Uniforms;
+
 void main()
 {
 	vec4 pixel = texture(u_Texture, v_TexCoord);
@@ -33,6 +38,5 @@ void main()
 	if (alpha == 0.0f)
 		discard;
 
-	vec3 outlineColor = vec3(0.14f, 0.8f, 0.52f);
-	o_Color = vec4(outlineColor, alpha);
+	o_Color = vec4(u_Uniforms.Color.rgb, alpha);
 }

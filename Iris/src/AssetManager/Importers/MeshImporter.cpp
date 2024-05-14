@@ -416,6 +416,8 @@ namespace Iris {
 					ma->SetMetalnessMap(textureHandle);
 					ma->SetMetalness(1.0f);
 				}
+
+				ma->SetLit();
 			}
 
 			IR_CORE_TRACE_TAG("Mesh", "---------------------------");

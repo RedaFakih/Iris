@@ -80,11 +80,10 @@ namespace Iris {
 				.Topology = PrimitiveTopology::Triangles,
 				.DepthOperator = DepthCompareOperator::GreaterOrEqual
 			};
-			m_PreDepthPipeline = Pipeline::Create(preDepthPipelineSpec);
 
 			RenderPassSpecification preDepthRenderPassSpec = {
 				.DebugName = "OpaquePreDepthRenderPass",
-				.Pipeline = m_PreDepthPipeline,
+				.Pipeline = Pipeline::Create(preDepthPipelineSpec),
 				.MarkerColor = { 1.0f, 1.0f, 0.0f, 1.0f }
 			};
 			m_PreDepthPass = RenderPass::Create(preDepthRenderPassSpec);
@@ -127,13 +126,13 @@ namespace Iris {
 				.BackFaceCulling = true,
 				.DepthOperator = DepthCompareOperator::Equal,
 				.DepthWrite = false,
+				.WireFrame = false,
 				.LineWidth = m_LineWidth
 			};
-			m_GeometryPipeline = Pipeline::Create(staticGeometryPipelineSpec);
 
 			RenderPassSpecification staticGeometryPassSpec = {
 				.DebugName = "StaticGeometryRenderPass",
-				.Pipeline = m_GeometryPipeline,
+				.Pipeline = Pipeline::Create(staticGeometryPipelineSpec),
 				.MarkerColor = { 1.0f, 0.0f, 0.0f, 1.0f }
 			};
 			m_GeometryPass = RenderPass::Create(staticGeometryPassSpec);
@@ -204,7 +203,7 @@ namespace Iris {
 				.MarkerColor = { 0.0f, 1.0f, 0.0f, 1.0f }
 			};
 			m_CompositePass = RenderPass::Create(compositePassSpec);
-			m_CompositeMaterial = Material::Create(Renderer::GetShadersLibrary()->Get("Compositing"));
+			m_CompositeMaterial = Material::Create(compPipelineSpec.Shader, "CompositingMaterial");
 
 			// For if we decide we want to view the depth image
 			// m_CompositePass->SetInput("Camera", m_UBSCamera);
@@ -277,7 +276,8 @@ namespace Iris {
 			};
 			m_GeometryWireFramePass = RenderPass::Create(wireFramePassSpec);
 			m_WireFrameMaterial = Material::Create(wireframePipelineSpec.Shader, "WireFrameMaterial");
-			m_WireFrameMaterial->Set("u_Uniforms.Color", glm::vec4{ 1.0f, 0.5f, 0.0f, 1.0f });
+			// m_WireFrameMaterial->Set("u_Uniforms.Color", glm::vec4{ 1.0f, 0.5f, 0.0f, 1.0f });
+			m_WireFrameMaterial->Set("u_Uniforms.Color", glm::vec4{ 0.14f, 0.8f, 0.52f, 1.0f }); // Use this color for wireframe of ONLY current selection
 
 			m_GeometryWireFramePass->SetInput("Camera", m_UBSCamera);
 			m_GeometryWireFramePass->Bake();
@@ -386,12 +386,12 @@ namespace Iris {
 					.MarkerColor = { 0.7f, 0.2f, 0.7f, 1.0f }
 				};
 				m_JumpFloodCompositePass = RenderPass::Create(jumpFloodCompositePass);
+				m_JumpFloodCompositeMaterial = Material::Create(jumpFloodCompositePipeline.Shader, "JumpFloodCompositeMaterial");
+				m_JumpFloodCompositeMaterial->Set("u_Uniforms.Color", glm::vec4{ 0.14f, 0.8f, 0.52f, 1.0f });
 
 				// Take the output of the first framebuffer since we only do two jump flood passes (ping pong only once)
 				m_JumpFloodCompositePass->SetInput("u_Texture", m_JumpFloodFramebuffers[0]->GetImage(0));
 				m_JumpFloodCompositePass->Bake();
-
-				m_JumpFloodCompositeMaterial = Material::Create(jumpFloodCompositePipeline.Shader, "JumpFloodCompositeMaterial");
 			}
 		}
 
@@ -755,7 +755,7 @@ namespace Iris {
 		for (const auto& [mk, dc] : m_StaticMeshDrawList)
 		{
 			const auto& transformData = m_MeshTransformMap.at(mk);
-			Renderer::RenderStaticMesh(m_CommandBuffer, m_GeometryPipeline, dc.StaticMesh, dc.MeshSource, dc.SubMeshIndex, dc.MaterialTable ? dc.MaterialTable : dc.StaticMesh->GetMaterials(), m_MeshTransformBuffers[frameIndex].VertexBuffer, transformData.TransformOffset, dc.InstanceCount);
+			Renderer::RenderStaticMesh(m_CommandBuffer, m_GeometryPass->GetPipeline(), dc.StaticMesh, dc.MeshSource, dc.SubMeshIndex, dc.MaterialTable ? dc.MaterialTable : dc.StaticMesh->GetMaterials(), m_MeshTransformBuffers[frameIndex].VertexBuffer, transformData.TransformOffset, dc.InstanceCount, static_cast<int>(m_ViewMode));
 		}
 
 		Renderer::EndRenderPass(m_CommandBuffer);

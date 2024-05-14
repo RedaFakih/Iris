@@ -32,7 +32,7 @@ namespace Iris {
 			m_Name = other->GetName();
 
 		Init(true, other->m_DescriptorSetManager.GetInputResources());
-		Renderer::RegisterShaderDependency(m_Shader, this);
+		// Renderer::RegisterShaderDependency(m_Shader, this); // Should not register this otherwise we get duplicate materials
 
 		m_UniformStorageBuffer = Buffer::Copy(other->m_UniformStorageBuffer.Data, other->m_UniformStorageBuffer.Size);
 	}
