@@ -287,6 +287,9 @@ Assets:
   - Handle: 15653375001284254537
     FilePath: Meshes/LowPolySponza/8750083169368950601.jpg
     Type: Texture
+  - Handle: 15657962225806717784
+    FilePath: Scenes/Characters.Iscene
+    Type: Scene
   - Handle: 15810676132377391369
     FilePath: Meshes/LowPolySponza/6151467286084645207.jpg
     Type: Texture

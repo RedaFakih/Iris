@@ -1,0 +1,68 @@
+Scene: Editor Scene
+Entities:
+  - Entity: 978865093965260794
+    TagComponent:
+      Tag: Stormtrooper
+    Parent: 0
+    Children:
+      []
+    TransformComponent:
+      Position: [-1.47998905, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    StaticMeshComponent:
+      AssetID: 11733034874740757145
+      MaterialTable:
+        0: 0
+        1: 0
+      Visible: true
+  - Entity: 1017548288841473994
+    TagComponent:
+      Tag: Illaoi
+    Parent: 0
+    Children:
+      []
+    TransformComponent:
+      Position: [0, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1.13999999, 1.13999999, 1.13999999]
+    StaticMeshComponent:
+      AssetID: 8492331187162521719
+      MaterialTable:
+        0: 0
+        1: 0
+        2: 0
+      Visible: true
+  - Entity: 8131771692437708439
+    TagComponent:
+      Tag: Jhin
+    Parent: 0
+    Children:
+      []
+    TransformComponent:
+      Position: [1.60286403, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [0.626999974, 0.626999974, 0.626999974]
+    StaticMeshComponent:
+      AssetID: 7526181345639326923
+      MaterialTable:
+        0: 0
+        1: 0
+      Visible: true
+  - Entity: 14915367868508491852
+    TagComponent:
+      Tag: Galio
+    Parent: 0
+    Children:
+      []
+    TransformComponent:
+      Position: [3.25018382, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [0.0100000501, 0.0100000501, 0.0100000501]
+    StaticMeshComponent:
+      AssetID: 9685325371244041466
+      MaterialTable:
+        0: 0
+        1: 0
+        2: 0
+      Visible: true

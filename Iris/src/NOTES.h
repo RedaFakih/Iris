@@ -8,6 +8,7 @@
  *  - Fix assimp copying the dll to the exe dir for the runtime if we need to do that... because the runtime should not be using assimp it should be using an assetpack
  * 
  * TODO Creative Ideas:
+ * - Bug when duplicating meshes, they will share the same material and not have their own material instance
  * - Submesh selection when we have a content browser Both static and dynamic meshes will support submesh selection
  * - Viewport camera orthographic views done:
  *		- Gizmo controls and orthographic camera movement collision
@@ -58,8 +59,6 @@
  * - Add Filled Circles to Renderer2D? (Circle sprites)
  * - Handle renderer descriptor pool situation and come up with some solutions for it... Read note written in Renderer.cpp (line: 101)
  * - For runtime layer switch to using a main camera component and not the editor camera
- * - Add pipeline for double sided materials where you just disable culling... but it has its own drawlist (Or use VK_EXT_extended_dynamic_state to just set the cull mode as a dynamic state)
- * - Make the place where the scene names are rendered in the titlebar act as scene `TABS` that way you could have multiple scenes open at the same time and you switch between them by just pressing the scene name in the titlebar
  * - For raycasting grids we need to fix that the grid is not fixed in place and it moves as the camera moves so it is not useful as a reference grid
  * - OIT? With Weighted Blended technique using info provided from learnopengl.com <https://learnopengl.com/Guest-Articles/2020/OIT/Weighted-Blended> <https://github.com/nvpro-samples/vk_order_independent_transparency>
  * 

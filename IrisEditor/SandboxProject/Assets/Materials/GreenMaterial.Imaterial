@@ -1,6 +1,7 @@
 Material:
   Transparent: false
-  AlbedoColor: [0.344683588, 0.819701731, 0.176378712]
+  TwoSided: false
+  AlbedoColor: [0.136440068, 0.402053893, 0.0423307903]
   Emission: 0
   UseNormalMap: false
   Roughness: 1

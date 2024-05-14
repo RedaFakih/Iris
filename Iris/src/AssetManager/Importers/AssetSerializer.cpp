@@ -79,7 +79,9 @@ namespace Iris {
 
 			// TODO: Here we should check if the material's shader is the same as the registered transparent shader that way we make sure if it is transparent
 			bool transparent = materialAsset->IsTransparent();
+			bool twoSided = materialAsset->IsDoubleSided();
 			out << YAML::Key << "Transparent" << YAML::Value << transparent;
+			out << YAML::Key << "TwoSided" << YAML::Value << twoSided;
 			out << YAML::Key << "AlbedoColor" << YAML::Value << materialAsset->GetAlbedoColor();
 			out << YAML::Key << "Emission" << YAML::Value << materialAsset->GetEmission();
 
@@ -143,6 +145,7 @@ namespace Iris {
 
 		bool transparent = false;
 		transparent = materialNode["Transparent"].as<bool>(false);
+		bool twoSided = materialNode["TwoSided"].as<bool>(false);
 
 		targetAsset = MaterialAsset::Create(transparent);
 		targetAsset->Handle = handle;
@@ -152,6 +155,8 @@ namespace Iris {
 
 		float emission = materialNode["Emission"].as<float>(0.0f);
 		targetAsset->SetEmission(emission);
+
+		targetAsset->SetDoubleSided(twoSided);
 
 		if (!transparent)
 		{

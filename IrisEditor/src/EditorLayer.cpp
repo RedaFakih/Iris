@@ -100,7 +100,7 @@ namespace Iris {
 	{
 		AssetManager::SyncWithAssetThread();
 
-		m_PanelsManager->SetSceneContext(m_EditorScene);
+		m_PanelsManager->SetSceneContext(m_CurrentScene);
 
 		// Set jump flood pass on or off based on if we have selected something in the past frame...
 		m_ViewportRenderer->GetSpecification().JumpFloodPass = SelectionManager::GetSelectionCount(SelectionContext::Scene) > 0;
@@ -108,8 +108,8 @@ namespace Iris {
 		m_EditorCamera.SetActive(m_AllowViewportCameraEvents);
 		m_EditorCamera.OnUpdate(ts);
 
-		m_EditorScene->OnUpdateEditor(ts);
-		m_EditorScene->OnRenderEditor(m_ViewportRenderer, ts, m_EditorCamera);
+		m_CurrentScene->OnUpdateEditor(ts);
+		m_CurrentScene->OnRenderEditor(m_ViewportRenderer, ts, m_EditorCamera);
 
 		OnRender2D();
 
@@ -1199,9 +1199,9 @@ namespace Iris {
 							ImGui::CloseCurrentPopup();
 						}
 
-						if (selection("Wireframe", EditorResources::StaticMeshIcon))
+						if (selection("Wireframe", EditorResources::WireframeViewIcon))
 						{
-							m_CurrentlySelectedRenderIcon = EditorResources::StaticMeshIcon;
+							m_CurrentlySelectedRenderIcon = EditorResources::WireframeViewIcon;
 							currentlySelectedRenderOption = "Wireframe";
 							m_ViewportRenderer->SetViewMode(SceneRenderer::ViewMode::Wireframe);
 
@@ -1679,34 +1679,30 @@ namespace Iris {
 			if (m_MultiTransformTarget == TransformationTarget::MedianPoint && m_GizmoType == ImGuizmo::SCALE)
 			{
 				// NOTE: Disabling multi-entity scaling for median point mode for now since it causes strange scaling behavior
+			    // NOTE: https://math.stackexchange.com/questions/3245481/rotate-and-scale-a-point-around-different-origins
 				return;
 			}
 
 			glm::vec3 medianLocation = glm::vec3(0.0f);
 			glm::vec3 medianScale = glm::vec3(1.0f);
-			glm::vec3 medianRotation = glm::vec3(0.0f);
+			glm::quat medianQuat = glm::quat(0.0f, 0.0f, 0.0f, 0.0f);
 
 			// Compuet median point
 			for (auto entityID : selections)
 			{
 				Entity entity = m_CurrentScene->GetEntityWithUUID(entityID);
-				medianLocation += entity.Transform().Translation;
-				medianScale += entity.Transform().Scale;
-				medianRotation += entity.Transform().GetRotationEuler();
+				const TransformComponent& tc = entity.Transform();
+				medianLocation += tc.Translation;
+				medianScale += tc.Scale;
+				medianQuat += glm::quat(tc.GetRotationEuler());
 			}
 			medianLocation /= static_cast<float>(selections.size());
-			//medianScale /= static_cast<float>(selections.size());
-			medianRotation /= static_cast<float>(selections.size());
-
-			int numOfEntities = static_cast<int>(selections.size());
-			float averageScaleX = std::pow(medianScale.x, 1.0f / numOfEntities);
-			float averageScaleY = std::pow(medianScale.y, 1.0f / numOfEntities);
-			float averageScaleZ = std::pow(medianScale.z, 1.0f / numOfEntities);
-			glm::vec3 averageScale = { averageScaleX, averageScaleY, averageScaleZ };
+			medianScale /= static_cast<float>(selections.size());
+			medianQuat = glm::normalize(medianQuat / static_cast<float>(selections.size()));
 
 			glm::mat4 medianPointMatrix = glm::translate(glm::mat4(1.0f), medianLocation)
-				* glm::toMat4(glm::quat(medianRotation))
-				* glm::scale(glm::mat4(1.0f), averageScale);
+				* glm::toMat4(medianQuat)
+				* glm::scale(glm::mat4(1.0f), medianScale);
 
 			glm::mat4 deltaMatrix = glm::mat4(1.0f);
 
@@ -1813,7 +1809,7 @@ namespace Iris {
 		if (!entity)
 			return;
 
-		m_EditorScene->DestroyEntity(entity);
+		m_CurrentScene->DestroyEntity(entity);
 	}
 
 	void EditorLayer::UI_ShowViewport()
@@ -1827,7 +1823,7 @@ namespace Iris {
 		ImVec2 viewportOffset = ImGui::GetCursorPos(); // Includes tab bar
 		ImVec2 viewportSize = ImGui::GetContentRegionAvail();
 		m_ViewportRenderer->SetViewportSize(static_cast<uint32_t>(viewportSize.x), static_cast<uint32_t>(viewportSize.y), m_ViewportRenderer->GetSpecification().RendererScale);
-		m_EditorScene->SetViewportSize(static_cast<uint32_t>(viewportSize.x), static_cast<uint32_t>(viewportSize.y));
+		m_CurrentScene->SetViewportSize(static_cast<uint32_t>(viewportSize.x), static_cast<uint32_t>(viewportSize.y));
 		m_EditorCamera.SetViewportSize(static_cast<uint32_t>(viewportSize.x), static_cast<uint32_t>(viewportSize.y));
 
 		UI::Image(m_ViewportRenderer->GetFinalPassImage(), viewportSize, { 0, 1 }, { 1, 0 });
@@ -2245,7 +2241,6 @@ namespace Iris {
 		m_SceneFilePath = std::string();
 
 		m_EditorCamera = EditorCamera(45.0f, 1280.0f, 720.0f, 0.01f, 1000.0f);
-		m_CurrentScene = m_EditorScene;
 
 		if (m_ViewportRenderer)
 			m_ViewportRenderer->SetScene(m_CurrentScene);
@@ -2278,12 +2273,11 @@ namespace Iris {
 		if ((m_SceneFilePath.size() >= 5) && (m_SceneFilePath.substr(m_SceneFilePath.size() - 5) == ".auto"))
 			m_SceneFilePath = m_SceneFilePath.substr(0, m_SceneFilePath.size() - 5);
 
-		m_PanelsManager->SetSceneContext(m_EditorScene);
-		AssetEditorPanel::SetSceneContext(m_EditorScene);
+		m_PanelsManager->SetSceneContext(m_CurrentScene);
+		AssetEditorPanel::SetSceneContext(m_CurrentScene);
 
 		SelectionManager::DeselectAll();
 
-		m_CurrentScene = m_EditorScene;
 
 		if (m_ViewportRenderer)
 			m_ViewportRenderer->SetScene(m_CurrentScene);
@@ -2301,7 +2295,7 @@ namespace Iris {
 	{
 		if (!m_SceneFilePath.empty())
 		{
-			SceneSerializer::Serialize(m_EditorScene, std::filesystem::path(m_SceneFilePath));
+			SceneSerializer::Serialize(m_CurrentScene, std::filesystem::path(m_SceneFilePath));
 		}
 		else
 		{
@@ -2319,7 +2313,7 @@ namespace Iris {
 		if (!filepath.has_extension())
 			filepath += ".Iscene";
 
-		SceneSerializer::Serialize(m_EditorScene, filepath);
+		SceneSerializer::Serialize(m_CurrentScene, filepath);
 
 		std::filesystem::path path = filepath;
 		m_SceneFilePath = filepath.string();

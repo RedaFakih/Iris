@@ -194,15 +194,18 @@ namespace Iris {
 
 		// PreDepth
 		Ref<RenderPass> m_PreDepthPass;
+		Ref<RenderPass> m_DoubleSidedPreDepthPass;
 		Ref<RenderPass> m_WireframeViewPreDepthPass; // For having wireframe view in the future
 		Ref<Material> m_PreDepthMaterial;
 
 		// Geometry
 		Ref<RenderPass> m_GeometryPass;
+		Ref<RenderPass> m_DoubleSidedGeometryPass;
 		Ref<RenderPass> m_WireframeViewGeometryPass;
 
 		// Selected Geometry
 		Ref<RenderPass> m_SelectedGeometryPass;
+		Ref<RenderPass> m_DoubleSidedSelectedGeometryPass;
 		Ref<Material> m_SelectedGeometryMaterial;
 
 		// TODO: Add wireframe on top pass where there is no depth testing
@@ -270,6 +273,7 @@ namespace Iris {
 		std::map<MeshKey, StaticDrawCommand> m_StaticMeshDrawList;
 		std::map<MeshKey, StaticDrawCommand> m_DoubleSidedStaticMeshDrawList;
 		std::map<MeshKey, StaticDrawCommand> m_SelectedStaticMeshDrawList;
+		std::map<MeshKey, StaticDrawCommand> m_DoubleSidedSelectedStaticMeshDrawList;
 
 		uint32_t m_ViewportWidth = 0;
 		uint32_t m_ViewportHeight = 0;

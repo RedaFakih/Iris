@@ -93,15 +93,40 @@ namespace Iris {
 			m_PreDepthPass->SetInput("Camera", m_UBSCamera);
 			m_PreDepthPass->Bake();
 
-			preDepthPipelineSpec.DebugName = "WireframePreDepthPipeline";
-			preDepthPipelineSpec.BackFaceCulling = false;
-			preDepthPipelineSpec.WireFrame = true;
-			preDepthRenderPassSpec.DebugName = "WireframePreDepthPass";
-			preDepthRenderPassSpec.Pipeline = Pipeline::Create(preDepthPipelineSpec);
-			m_WireframeViewPreDepthPass = RenderPass::Create(preDepthRenderPassSpec);
+			// DoubleSided
+			{
+				FramebufferSpecification doubleSidedFBSpec = {
+					.DebugName = "DoubleSidedPreDepthFB",
+					.ClearDepthOnLoad = false,
+					.Attachments = { { ImageFormat::DEPTH32F, AttachmentPassThroughUsage::Input } },
+					.Samples = c_Samples
+				};
+				doubleSidedFBSpec.ExistingImages[0] = m_PreDepthPass->GetDepthOutput(true);
+				
+				preDepthPipelineSpec.DebugName = "DoubleSidedPreDepthPipeline";
+				preDepthPipelineSpec.TargetFramebuffer = Framebuffer::Create(doubleSidedFBSpec);
+				preDepthPipelineSpec.BackFaceCulling = false;
+				preDepthRenderPassSpec.DebugName = "DoubleSidedPreDepthPass";
+				preDepthRenderPassSpec.Pipeline = Pipeline::Create(preDepthPipelineSpec);
+				m_DoubleSidedPreDepthPass = RenderPass::Create(preDepthRenderPassSpec);
+				
+				m_DoubleSidedPreDepthPass->SetInput("Camera", m_UBSCamera);
+				m_DoubleSidedPreDepthPass->Bake();
+			}
 
-			m_WireframeViewPreDepthPass->SetInput("Camera", m_UBSCamera);
-			m_WireframeViewPreDepthPass->Bake();
+			// Wireframe view
+			{
+				preDepthPipelineSpec.DebugName = "WireframePreDepthPipeline";
+				preDepthPipelineSpec.TargetFramebuffer = m_PreDepthPass->GetTargetFramebuffer();
+				preDepthPipelineSpec.BackFaceCulling = false;
+				preDepthPipelineSpec.WireFrame = true;
+				preDepthRenderPassSpec.DebugName = "WireframePreDepthPass";
+				preDepthRenderPassSpec.Pipeline = Pipeline::Create(preDepthPipelineSpec);
+				m_WireframeViewPreDepthPass = RenderPass::Create(preDepthRenderPassSpec);
+
+				m_WireframeViewPreDepthPass->SetInput("Camera", m_UBSCamera);
+				m_WireframeViewPreDepthPass->Bake();
+			}
 		}
 
 		// Geometry
@@ -113,9 +138,12 @@ namespace Iris {
 				.ClearDepthOnLoad = false,
 				// TODO: The first attachment has to load... Since the skybox (when we have it...) pass writes to it before
 				// NOTE: The second attachment does not blend since we do not want to blend with luminance in the alpha channel
-				.Attachments = { { ImageFormat::RGBA32F, AttachmentLoadOp::Clear } , { ImageFormat::RGBA16F, false }, ImageFormat::RGBA, { ImageFormat::DEPTH32F, AttachmentPassThroughUsage::Input } },
+				.Attachments = { { ImageFormat::RGBA32F, AttachmentPassThroughUsage::Input } , { ImageFormat::RGBA16F, false }, ImageFormat::RGBA, { ImageFormat::DEPTH32F, AttachmentPassThroughUsage::Input } },
 				.Samples = c_Samples
 			};
+			geometryFBSpec.Attachments.Attachments[1].Sampled = AttachmentPassThroughUsage::Input;
+			geometryFBSpec.Attachments.Attachments[2].Sampled = AttachmentPassThroughUsage::Input;
+
 			geometryFBSpec.ExistingImages[3] = m_PreDepthPass->GetDepthOutput(true); // Ignore the resolve image if the buffer is multisampeld
 
 			PipelineSpecification staticGeometryPipelineSpec = {
@@ -141,16 +169,48 @@ namespace Iris {
 			m_GeometryPass->SetInput("Camera", m_UBSCamera);
 			m_GeometryPass->Bake();
 
-			staticGeometryPipelineSpec.DebugName = "WireframeViewPipeline";
-			staticGeometryPipelineSpec.BackFaceCulling = false;
-			staticGeometryPipelineSpec.DepthOperator = DepthCompareOperator::GreaterOrEqual;
-			staticGeometryPipelineSpec.WireFrame = true;
-			staticGeometryPassSpec.DebugName = "WireframeViewPass";
-			staticGeometryPassSpec.Pipeline = Pipeline::Create(staticGeometryPipelineSpec);
-			m_WireframeViewGeometryPass = RenderPass::Create(staticGeometryPassSpec);
+			// DoubleSided
+			{
+				FramebufferSpecification doubleSidedGeometryFB = {
+					.DebugName = "DoubleSidedGeometryFB",
+					.ClearColorOnLoad = false,
+					.ClearColor = { 0.04f, 0.04f, 0.04f, 1.0f },
+					.ClearDepthOnLoad = false,
+					// TODO: The first attachment has to load... Since the skybox (when we have it...) pass writes to it before
+					// NOTE: The second attachment does not blend since we do not want to blend with luminance in the alpha channel
+					.Attachments = { { ImageFormat::RGBA32F, AttachmentPassThroughUsage::Input } , { ImageFormat::RGBA16F, false }, ImageFormat::RGBA, { ImageFormat::DEPTH32F, AttachmentPassThroughUsage::Input } },
+					.Samples = c_Samples
+				};
+				doubleSidedGeometryFB.ExistingImages[0] = m_GeometryPass->GetOutput(0, true);
+				doubleSidedGeometryFB.ExistingImages[1] = m_GeometryPass->GetOutput(1, true);
+				doubleSidedGeometryFB.ExistingImages[2] = m_GeometryPass->GetOutput(2, true);
+				doubleSidedGeometryFB.ExistingImages[3] = m_PreDepthPass->GetDepthOutput(true);				
 
-			m_WireframeViewGeometryPass->SetInput("Camera", m_UBSCamera);
-			m_WireframeViewGeometryPass->Bake();
+				staticGeometryPipelineSpec.DebugName = "DoubleSidedGeometryPipeline";
+				staticGeometryPipelineSpec.TargetFramebuffer = Framebuffer::Create(doubleSidedGeometryFB);
+				staticGeometryPipelineSpec.BackFaceCulling = false;
+				staticGeometryPassSpec.DebugName = "DoubleSidedGeometryPass";
+				staticGeometryPassSpec.Pipeline = Pipeline::Create(staticGeometryPipelineSpec);
+				m_DoubleSidedGeometryPass = RenderPass::Create(staticGeometryPassSpec);
+				
+				m_DoubleSidedGeometryPass->SetInput("Camera", m_UBSCamera);
+				m_DoubleSidedGeometryPass->Bake();
+			}
+
+			// Wireframe view
+			{
+				staticGeometryPipelineSpec.DebugName = "WireframeViewPipeline";
+				staticGeometryPipelineSpec.TargetFramebuffer = m_GeometryPass->GetTargetFramebuffer();
+				staticGeometryPipelineSpec.BackFaceCulling = false;
+				staticGeometryPipelineSpec.DepthOperator = DepthCompareOperator::GreaterOrEqual;
+				staticGeometryPipelineSpec.WireFrame = true;
+				staticGeometryPassSpec.DebugName = "WireframeViewPass";
+				staticGeometryPassSpec.Pipeline = Pipeline::Create(staticGeometryPipelineSpec);
+				m_WireframeViewGeometryPass = RenderPass::Create(staticGeometryPassSpec);
+
+				m_WireframeViewGeometryPass->SetInput("Camera", m_UBSCamera);
+				m_WireframeViewGeometryPass->Bake();
+			}
 		}
 
 		// Selected Geometry isolation
@@ -161,7 +221,7 @@ namespace Iris {
 				.ClearColor = { 0.0f, 0.0f, 0.0f, 0.0f },
 				.ClearDepthOnLoad = true,
 				.DepthClearValue = 1.0f,
-				.Attachments = { ImageFormat::RGBA32F, ImageFormat::DEPTH32F },
+				.Attachments = { { ImageFormat::RGBA32F, AttachmentPassThroughUsage::Input }, { ImageFormat::DEPTH32F, AttachmentPassThroughUsage::Input } },
 				.Samples = 1
 			};
 
@@ -180,11 +240,33 @@ namespace Iris {
 				.MarkerColor = { 0.8f, 0.3f, 0.2f, 1.0f }
 			};
 			m_SelectedGeometryPass = RenderPass::Create(selectedGeoPass);
+			m_SelectedGeometryMaterial = Material::Create(selectedGeoPipeline.Shader, "SelectedGeoIsolationMaterial");
 
 			m_SelectedGeometryPass->SetInput("Camera", m_UBSCamera);
 			m_SelectedGeometryPass->Bake();
 
-			m_SelectedGeometryMaterial = Material::Create(selectedGeoPipeline.Shader, "SelectedGeoIsolationMaterial");
+			// DoubleSided
+			{
+				FramebufferSpecification doubleSidedFBSpec = {
+					.DebugName = "DoubleSidedSelectedGeoFB",
+					.ClearColorOnLoad = false,
+					.ClearDepthOnLoad = false,
+					.Attachments = { ImageFormat::RGBA32F, ImageFormat::DEPTH32F },
+					.Samples = c_Samples
+				};
+				doubleSidedFBSpec.ExistingImages[0] = m_SelectedGeometryPass->GetOutput(0);
+				doubleSidedFBSpec.ExistingImages[1] = m_SelectedGeometryPass->GetDepthOutput();
+
+				selectedGeoPipeline.DebugName = "DoubleSidedSelectedGeoPipeline";
+				selectedGeoPipeline.TargetFramebuffer = Framebuffer::Create(doubleSidedFBSpec);
+				selectedGeoPipeline.BackFaceCulling = false;
+				selectedGeoPass.DebugName = "DoubleSidedSelectedGeoPass";
+				selectedGeoPass.Pipeline = Pipeline::Create(selectedGeoPipeline);
+				m_DoubleSidedSelectedGeometryPass = RenderPass::Create(selectedGeoPass);
+
+				m_DoubleSidedSelectedGeometryPass->SetInput("Camera", m_UBSCamera);
+				m_DoubleSidedSelectedGeometryPass->Bake();
+			}
 		}
 
 		// Composite
@@ -384,7 +466,6 @@ namespace Iris {
 					.Shader = Renderer::GetShadersLibrary()->Get("JumpFloodComposite"),
 					// TODO: Is it possible to move this pipeline and the skybox to use samae framebuffer?
 					.TargetFramebuffer = Framebuffer::Create(jumpFloodCompositeFB),
-					//.TargetFramebuffer = m_CompositingFramebuffer,
 					.VertexLayout = {
 						{ ShaderDataType::Float3, "a_Position" },
 						{ ShaderDataType::Float2, "a_TexCoord" }
@@ -473,8 +554,11 @@ namespace Iris {
 						
 			// PreDepth and Geometry framebuffers need to be resized first since other framebuffers reference images in them
 			m_PreDepthPass->GetTargetFramebuffer()->Resize(m_ViewportWidth, m_ViewportHeight);
+			m_DoubleSidedPreDepthPass->GetTargetFramebuffer()->Resize(m_ViewportWidth, m_ViewportHeight);
 			m_GeometryPass->GetTargetFramebuffer()->Resize(m_ViewportWidth, m_ViewportHeight);
+			m_DoubleSidedGeometryPass->GetTargetFramebuffer()->Resize(m_ViewportWidth, m_ViewportHeight);
 			m_SelectedGeometryPass->GetTargetFramebuffer()->Resize(m_ViewportWidth, m_ViewportHeight);
+			m_DoubleSidedSelectedGeometryPass->GetTargetFramebuffer()->Resize(m_ViewportWidth, m_ViewportHeight);
 			m_CompositePass->GetTargetFramebuffer()->Resize(m_ViewportWidth, m_ViewportHeight);
 
 			// NOTE: We are able to not resize the grid pass since it references the Compositing framebuffer which is resized manually
@@ -628,7 +712,8 @@ namespace Iris {
 
 			// For selected mesh drawlist
 			{
-				auto& dc = m_SelectedStaticMeshDrawList[meshKey];
+				bool isDoubleSided = materialAsset->IsDoubleSided();
+				auto& dc = isDoubleSided == true ? m_DoubleSidedSelectedStaticMeshDrawList[meshKey] : m_SelectedStaticMeshDrawList[meshKey];
 				dc.StaticMesh = staticMesh;
 				dc.MeshSource = meshSource;
 				dc.SubMeshIndex = subMeshIndex;
@@ -697,6 +782,7 @@ namespace Iris {
 		m_StaticMeshDrawList.clear();
 		m_DoubleSidedStaticMeshDrawList.clear();
 		m_SelectedStaticMeshDrawList.clear();
+		m_DoubleSidedSelectedStaticMeshDrawList.clear();
 
 		m_SceneData = {};
 
@@ -731,69 +817,153 @@ namespace Iris {
 
 		uint32_t frameIndex = Renderer::GetCurrentFrameIndex();
 
-		Ref<RenderPass> renderPassToUse = nullptr;
-		switch (m_ViewMode)
+		if (m_ViewMode == ViewMode::Lit || m_ViewMode == ViewMode::Unlit)
 		{
-			case ViewMode::Lit: renderPassToUse = m_PreDepthPass; break;
-			case ViewMode::Unlit: renderPassToUse = m_PreDepthPass; break;
-			case ViewMode::Wireframe: renderPassToUse = m_WireframeViewPreDepthPass; break;
+			Ref<RenderPass> renderPassToUse = nullptr;
+			switch (m_ViewMode)
+			{
+				case ViewMode::Lit: renderPassToUse = m_PreDepthPass; break;
+				case ViewMode::Unlit: renderPassToUse = m_PreDepthPass; break;
+			}
+
+			Renderer::BeginRenderPass(m_CommandBuffer, renderPassToUse);
+
+			for (const auto& [mk, dc] : m_StaticMeshDrawList)
+			{
+				const auto& transformData = m_MeshTransformMap.at(mk);
+				glm::mat4 transform = dc.MeshSource->GetSubMeshes()[dc.SubMeshIndex].Transform;
+				Renderer::RenderStaticMeshWithMaterial(m_CommandBuffer, renderPassToUse->GetPipeline(), dc.StaticMesh, dc.MeshSource, dc.SubMeshIndex, m_PreDepthMaterial, m_MeshTransformBuffers[frameIndex].VertexBuffer, transformData.TransformOffset, dc.InstanceCount);
+			}
+
+			Renderer::EndRenderPass(m_CommandBuffer);
+
+			switch (m_ViewMode)
+			{
+				case ViewMode::Lit: renderPassToUse = m_DoubleSidedPreDepthPass; break;
+				case ViewMode::Unlit: renderPassToUse = m_DoubleSidedPreDepthPass; break;
+			}
+
+			if (m_DoubleSidedStaticMeshDrawList.size())
+			{
+				Renderer::BeginRenderPass(m_CommandBuffer, renderPassToUse);
+
+				for (const auto& [mk, dc] : m_DoubleSidedStaticMeshDrawList)
+				{
+					const auto& transformData = m_MeshTransformMap.at(mk);
+					glm::mat4 transform = dc.MeshSource->GetSubMeshes()[dc.SubMeshIndex].Transform;
+					Renderer::RenderStaticMeshWithMaterial(m_CommandBuffer, renderPassToUse->GetPipeline(), dc.StaticMesh, dc.MeshSource, dc.SubMeshIndex, m_PreDepthMaterial, m_MeshTransformBuffers[frameIndex].VertexBuffer, transformData.TransformOffset, dc.InstanceCount);
+				}
+
+				Renderer::EndRenderPass(m_CommandBuffer);
+			}
 		}
-
-		Renderer::BeginRenderPass(m_CommandBuffer, renderPassToUse);
-
-		for (const auto& [mk, dc] : m_StaticMeshDrawList)
+		else
 		{
-			const auto& transformData = m_MeshTransformMap.at(mk);
-			glm::mat4 transform = dc.MeshSource->GetSubMeshes()[dc.SubMeshIndex].Transform;
-			Renderer::RenderStaticMeshWithMaterial(m_CommandBuffer, renderPassToUse->GetPipeline(), dc.StaticMesh, dc.MeshSource, dc.SubMeshIndex, m_PreDepthMaterial, m_MeshTransformBuffers[frameIndex].VertexBuffer, transformData.TransformOffset, dc.InstanceCount);
-		}
+			Renderer::BeginRenderPass(m_CommandBuffer, m_WireframeViewPreDepthPass);
 
-		Renderer::EndRenderPass(m_CommandBuffer);
+			for (const auto& [mk, dc] : m_StaticMeshDrawList)
+			{
+				const auto& transformData = m_MeshTransformMap.at(mk);
+				glm::mat4 transform = dc.MeshSource->GetSubMeshes()[dc.SubMeshIndex].Transform;
+				Renderer::RenderStaticMeshWithMaterial(m_CommandBuffer, m_WireframeViewPreDepthPass->GetPipeline(), dc.StaticMesh, dc.MeshSource, dc.SubMeshIndex, m_PreDepthMaterial, m_MeshTransformBuffers[frameIndex].VertexBuffer, transformData.TransformOffset, dc.InstanceCount);
+			}
+
+			for (const auto& [mk, dc] : m_DoubleSidedStaticMeshDrawList)
+			{
+				const auto& transformData = m_MeshTransformMap.at(mk);
+				glm::mat4 transform = dc.MeshSource->GetSubMeshes()[dc.SubMeshIndex].Transform;
+				Renderer::RenderStaticMeshWithMaterial(m_CommandBuffer, m_WireframeViewPreDepthPass->GetPipeline(), dc.StaticMesh, dc.MeshSource, dc.SubMeshIndex, m_PreDepthMaterial, m_MeshTransformBuffers[frameIndex].VertexBuffer, transformData.TransformOffset, dc.InstanceCount);
+			}
+
+			Renderer::EndRenderPass(m_CommandBuffer);
+		}
 	}
 
 	void SceneRenderer::GeometryPass()
 	{
 		uint32_t frameIndex = Renderer::GetCurrentFrameIndex();
 
-		Renderer::BeginRenderPass(m_CommandBuffer, m_SelectedGeometryPass);
-
-		for (auto& [mk, dc] : m_SelectedStaticMeshDrawList)
+		// Selected Geometry Isolation
 		{
-			const auto& transformData = m_MeshTransformMap.at(mk);
-			Renderer::RenderStaticMeshWithMaterial(m_CommandBuffer, m_SelectedGeometryPass->GetPipeline(), dc.StaticMesh, dc.MeshSource, dc.SubMeshIndex, m_SelectedGeometryMaterial, m_MeshTransformBuffers[frameIndex].VertexBuffer, transformData.TransformOffset + dc.InstanceOffset * sizeof(TransformVertexData), dc.InstanceCount);
+			Renderer::BeginRenderPass(m_CommandBuffer, m_SelectedGeometryPass);
+
+			for (auto& [mk, dc] : m_SelectedStaticMeshDrawList)
+			{
+				const auto& transformData = m_MeshTransformMap.at(mk);
+				Renderer::RenderStaticMeshWithMaterial(m_CommandBuffer, m_SelectedGeometryPass->GetPipeline(), dc.StaticMesh, dc.MeshSource, dc.SubMeshIndex, m_SelectedGeometryMaterial, m_MeshTransformBuffers[frameIndex].VertexBuffer, transformData.TransformOffset + dc.InstanceOffset * sizeof(TransformVertexData), dc.InstanceCount);
+			}
+
+			Renderer::EndRenderPass(m_CommandBuffer);
+
+			Renderer::BeginRenderPass(m_CommandBuffer, m_DoubleSidedSelectedGeometryPass);
+
+			for (auto& [mk, dc] : m_DoubleSidedSelectedStaticMeshDrawList)
+			{
+				const auto& transformData = m_MeshTransformMap.at(mk);
+				Renderer::RenderStaticMeshWithMaterial(m_CommandBuffer, m_DoubleSidedSelectedGeometryPass->GetPipeline(), dc.StaticMesh, dc.MeshSource, dc.SubMeshIndex, m_SelectedGeometryMaterial, m_MeshTransformBuffers[frameIndex].VertexBuffer, transformData.TransformOffset + dc.InstanceOffset * sizeof(TransformVertexData), dc.InstanceCount);
+			}
+
+			Renderer::EndRenderPass(m_CommandBuffer);
 		}
 
-		Renderer::EndRenderPass(m_CommandBuffer);
-
-		Ref<RenderPass> renderPassToUse = nullptr;
-		switch (m_ViewMode)
+		// Lit and Unlit
+		if (m_ViewMode == ViewMode::Lit || m_ViewMode == ViewMode::Unlit)
 		{
-			case ViewMode::Lit:
+			Ref<RenderPass> renderPassToUse = nullptr;
+			switch (m_ViewMode)
 			{
-				renderPassToUse = m_GeometryPass;
-				break;
+				case ViewMode::Lit: renderPassToUse = m_GeometryPass; break;
+				case ViewMode::Unlit: renderPassToUse = m_GeometryPass; break;
 			}
-			case ViewMode::Unlit:
+
+			Renderer::BeginRenderPass(m_CommandBuffer, renderPassToUse);
+
+			for (const auto& [mk, dc] : m_StaticMeshDrawList)
 			{
-				renderPassToUse = m_GeometryPass;
-				break;
+				const auto& transformData = m_MeshTransformMap.at(mk);
+				Renderer::RenderStaticMesh(m_CommandBuffer, renderPassToUse->GetPipeline(), dc.StaticMesh, dc.MeshSource, dc.SubMeshIndex, dc.MaterialTable ? dc.MaterialTable : dc.StaticMesh->GetMaterials(), m_MeshTransformBuffers[frameIndex].VertexBuffer, transformData.TransformOffset, dc.InstanceCount, static_cast<int>(m_ViewMode));
 			}
-			case ViewMode::Wireframe:
+
+			Renderer::EndRenderPass(m_CommandBuffer);
+
+			switch (m_ViewMode)
 			{
-				renderPassToUse = m_WireframeViewGeometryPass;
-				break;
+				case ViewMode::Lit: renderPassToUse = m_DoubleSidedGeometryPass; break;
+				case ViewMode::Unlit: renderPassToUse = m_DoubleSidedGeometryPass; break;
+			}
+
+			if (m_DoubleSidedStaticMeshDrawList.size())
+			{
+				Renderer::BeginRenderPass(m_CommandBuffer, renderPassToUse);
+
+				for (const auto& [mk, dc] : m_DoubleSidedStaticMeshDrawList)
+				{
+					const auto& transformData = m_MeshTransformMap.at(mk);
+					Renderer::RenderStaticMesh(m_CommandBuffer, renderPassToUse->GetPipeline(), dc.StaticMesh, dc.MeshSource, dc.SubMeshIndex, dc.MaterialTable ? dc.MaterialTable : dc.StaticMesh->GetMaterials(), m_MeshTransformBuffers[frameIndex].VertexBuffer, transformData.TransformOffset, dc.InstanceCount, static_cast<int>(m_ViewMode));
+				}
+
+				Renderer::EndRenderPass(m_CommandBuffer);
 			}
 		}
-
-		Renderer::BeginRenderPass(m_CommandBuffer, renderPassToUse);
-
-		for (const auto& [mk, dc] : m_StaticMeshDrawList)
+		// Wireframe view
+		else
 		{
-			const auto& transformData = m_MeshTransformMap.at(mk);
-			Renderer::RenderStaticMesh(m_CommandBuffer, renderPassToUse->GetPipeline(), dc.StaticMesh, dc.MeshSource, dc.SubMeshIndex, dc.MaterialTable ? dc.MaterialTable : dc.StaticMesh->GetMaterials(), m_MeshTransformBuffers[frameIndex].VertexBuffer, transformData.TransformOffset, dc.InstanceCount, static_cast<int>(m_ViewMode));
-		}
+			Renderer::BeginRenderPass(m_CommandBuffer, m_WireframeViewGeometryPass);
 
-		Renderer::EndRenderPass(m_CommandBuffer);
+			for (const auto& [mk, dc] : m_StaticMeshDrawList)
+			{
+				const auto& transformData = m_MeshTransformMap.at(mk);
+				Renderer::RenderStaticMesh(m_CommandBuffer, m_WireframeViewGeometryPass->GetPipeline(), dc.StaticMesh, dc.MeshSource, dc.SubMeshIndex, dc.MaterialTable ? dc.MaterialTable : dc.StaticMesh->GetMaterials(), m_MeshTransformBuffers[frameIndex].VertexBuffer, transformData.TransformOffset, dc.InstanceCount, static_cast<int>(m_ViewMode));
+			}
+
+			for (const auto& [mk, dc] : m_DoubleSidedStaticMeshDrawList)
+			{
+				const auto& transformData = m_MeshTransformMap.at(mk);
+				Renderer::RenderStaticMesh(m_CommandBuffer, m_WireframeViewGeometryPass->GetPipeline(), dc.StaticMesh, dc.MeshSource, dc.SubMeshIndex, dc.MaterialTable ? dc.MaterialTable : dc.StaticMesh->GetMaterials(), m_MeshTransformBuffers[frameIndex].VertexBuffer, transformData.TransformOffset, dc.InstanceCount, static_cast<int>(m_ViewMode));
+			}
+
+			Renderer::EndRenderPass(m_CommandBuffer);
+		}
 	}
 
 	void SceneRenderer::JumpFloodPass()
@@ -834,6 +1004,22 @@ namespace Iris {
 	{
 		// Composite the final scene image and apply gamma correction and tone mapping
 
+		// Transition Geometry Pass image to shader read only format
+		Renderer::Submit([cmd = m_CommandBuffer, geoPass = m_GeometryPass]()
+		{
+			Renderer::InsertImageMemoryBarrier(
+				cmd->GetActiveCommandBuffer(),
+				geoPass->GetOutput(0)->GetVulkanImage(),
+				VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+				VK_ACCESS_SHADER_READ_BIT,
+				VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+				VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+				VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+				VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+				{ .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = 1 }
+			);
+		});
+
 		uint32_t frameIndex = Renderer::GetCurrentFrameIndex();
 
 		float exposure = m_SceneData.Camera.Camera.GetExposure();
@@ -871,6 +1057,12 @@ namespace Iris {
 				const auto& transformData = m_MeshTransformMap.at(mk);
 				Renderer::RenderStaticMeshWithMaterial(m_CommandBuffer, m_GeometryWireFramePass->GetPipeline(), dc.StaticMesh, dc.MeshSource, dc.SubMeshIndex, m_WireFrameMaterial, m_MeshTransformBuffers[frameIndex].VertexBuffer, transformData.TransformOffset + dc.InstanceOffset * sizeof(TransformVertexData), dc.InstanceCount);
 			}
+
+			for (const auto& [mk, dc] : m_DoubleSidedSelectedStaticMeshDrawList)
+			{
+				const auto& transformData = m_MeshTransformMap.at(mk);
+				Renderer::RenderStaticMeshWithMaterial(m_CommandBuffer, m_GeometryWireFramePass->GetPipeline(), dc.StaticMesh, dc.MeshSource, dc.SubMeshIndex, m_WireFrameMaterial, m_MeshTransformBuffers[frameIndex].VertexBuffer, transformData.TransformOffset + dc.InstanceOffset * sizeof(TransformVertexData), dc.InstanceCount);
+			}
 		
 			Renderer::EndRenderPass(m_CommandBuffer);
 		}
@@ -894,6 +1086,13 @@ namespace Iris {
 		m_Statistics.Meshes = 0;
 
 		for (const auto& [mk, dc] : m_SelectedStaticMeshDrawList)
+		{
+			m_Statistics.Instances += dc.InstanceCount;
+			m_Statistics.DrawCalls += 1;
+			m_Statistics.Meshes += 1;
+		}
+
+		for (const auto& [mk, dc] : m_DoubleSidedSelectedStaticMeshDrawList)
 		{
 			m_Statistics.Instances += dc.InstanceCount;
 			m_Statistics.DrawCalls += 1;

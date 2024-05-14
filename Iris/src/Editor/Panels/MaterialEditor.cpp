@@ -56,7 +56,10 @@ namespace Iris {
 
 		bool doubleSided = m_MaterialAsset->IsDoubleSided();
 		if (UI::PropertyBool("Double Sided", doubleSided))
+		{
 			m_MaterialAsset->SetDoubleSided(doubleSided);
+			needsSerialize = true;
+		}
 
 		UI::PropertyStringReadOnly("Shader", material->GetShader()->GetName().data());
 		UI::PopID();
