@@ -268,6 +268,7 @@ namespace Iris {
 		};
 
 		std::map<MeshKey, StaticDrawCommand> m_StaticMeshDrawList;
+		std::map<MeshKey, StaticDrawCommand> m_DoubleSidedStaticMeshDrawList;
 		std::map<MeshKey, StaticDrawCommand> m_SelectedStaticMeshDrawList;
 
 		uint32_t m_ViewportWidth = 0;

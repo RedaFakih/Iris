@@ -66,6 +66,8 @@ namespace Iris {
 		void SetMaterial(Ref<Material> material) { m_Material = material; }
 
 		bool IsTransparent() const { return m_Transparent; }
+		bool IsDoubleSided() const { return m_Material->GetFlag(MaterialFlag::TwoSided); }
+		void SetDoubleSided(bool doubleSided) { m_Material->SetFlag(MaterialFlag::TwoSided, doubleSided); }
 
 		static AssetType GetStaticType() { return AssetType::Material; }
 		virtual AssetType GetAssetType() const override { return GetStaticType(); }

@@ -18,6 +18,7 @@ namespace Iris {
 		inline static Ref<Texture2D> TransformIcon = nullptr;
 		inline static Ref<Texture2D> LitMaterialIcon = nullptr;
 		inline static Ref<Texture2D> UnLitMaterialIcon = nullptr;
+		inline static Ref<Texture2D> WireframeViewIcon = nullptr;
 
 		inline static Ref<Texture2D> MinimizeIcon = nullptr;
 		inline static Ref<Texture2D> MaximizeIcon = nullptr;
@@ -75,6 +76,7 @@ namespace Iris {
 			DropdownIcon = LoadTexture("Generic/Dropdown.png", "DropdownIcon", spec);
 			LitMaterialIcon = LoadTexture("Generic/LitMaterial.png", "LitMaterialIcon", spec);
 			UnLitMaterialIcon = LoadTexture("Generic/UnlitMaterial.png", "UnLitMaterialIcon", spec);
+			WireframeViewIcon = LoadTexture("Generic/WireframeView.png", "WireframeViewIcon", spec);
 
 			LeftSquareIcon = LoadTexture("Generic/LeftSquare.png", "LeftSquareIcon", spec);
 			RightSquareIcon = LoadTexture("Generic/RightSquare.png", "RightSquareIcon", spec);
@@ -98,6 +100,7 @@ namespace Iris {
 			TransformIcon.Reset();
 			LitMaterialIcon.Reset();
 			UnLitMaterialIcon.Reset();
+			WireframeViewIcon.Reset();
 
 			MinimizeIcon.Reset();
 			MaximizeIcon.Reset();

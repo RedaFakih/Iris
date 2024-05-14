@@ -3169,7 +3169,7 @@ Entities:
     Children:
       []
     TransformComponent:
-      Position: [0, 1.88267541, 0]
+      Position: [0, 1.85972166, 0]
       Rotation: [0, -0, 0]
       Scale: [0.250100017, 0.250100017, 0.250100017]
     StaticMeshComponent:

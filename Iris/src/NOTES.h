@@ -14,7 +14,7 @@
  *		- Fix bugs in orthogrpahic view
  *		- Fix mouse picking in orthographic view
  * - Fix the grid highlighting for Z and X axes
- * - When pressing translation gizmo axis draw infinite lines just like in blender for those axes
+ * - Do the idea for the scene tabs...
  * - Look into auto exposure because its SO COOL
  *		- 1: https://bruop.github.io/exposure/
  *		- 2: https://mynameismjp.wordpress.com/2011/08/10/average-luminance-compute-shader/

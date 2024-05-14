@@ -68,6 +68,9 @@ Assets:
   - Handle: 3157465373486071481
     FilePath: Meshes/Jhin/textures/base_mat_baseColor.png
     Type: Texture
+  - Handle: 3448222499160019637
+    FilePath: Meshes/Evenlynn.Ismesh
+    Type: StaticMesh
   - Handle: 3654689400500837972
     FilePath: Meshes/LowPolySponza/17876391417123941155.jpg
     Type: Texture
@@ -140,6 +143,9 @@ Assets:
   - Handle: 7459097309434600429
     FilePath: Meshes/LowPolySponza/6047387724914829168.jpg
     Type: Texture
+  - Handle: 7526181345639326923
+    FilePath: Meshes/Jhin.Ismesh
+    Type: StaticMesh
   - Handle: 7576152064026614879
     FilePath: Meshes/LowPolySponza/11968150294050148237.jpg
     Type: Texture
@@ -158,6 +164,9 @@ Assets:
   - Handle: 8356286198642734227
     FilePath: Meshes/LowPolySponza/6593109234861095314.jpg
     Type: Texture
+  - Handle: 8492331187162521719
+    FilePath: Meshes/Illaoi.Ismesh
+    Type: StaticMesh
   - Handle: 8499499654652707041
     FilePath: Meshes/Default/Source/Cube.gltf
     Type: MeshSource
@@ -185,6 +194,9 @@ Assets:
   - Handle: 9521122861929777337
     FilePath: Meshes/Illaio/scene.gltf
     Type: MeshSource
+  - Handle: 9685325371244041466
+    FilePath: Meshes/Galio.Ismesh
+    Type: StaticMesh
   - Handle: 9891509226969151992
     FilePath: Meshes/LowPolySponza/2374361008830720677.jpg
     Type: Texture
@@ -215,6 +227,9 @@ Assets:
   - Handle: 11579347592044811175
     FilePath: Meshes/LowPolySponza/4975155472559461469.jpg
     Type: Texture
+  - Handle: 11733034874740757145
+    FilePath: Meshes/stormtrooper.Ismesh
+    Type: StaticMesh
   - Handle: 12062500036675514477
     FilePath: Meshes/LowPolySponza/7441062115984513793.jpg
     Type: Texture

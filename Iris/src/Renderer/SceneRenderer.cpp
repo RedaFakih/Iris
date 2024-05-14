@@ -576,7 +576,8 @@ namespace Iris {
 			// For main geometry drawlist
 			// TODO: Check if transparent for transparent materials
 			{
-				auto& destDrawList = m_StaticMeshDrawList;
+				bool isDoubleSided = materialAsset->IsDoubleSided();
+				auto& destDrawList = isDoubleSided == true ? m_DoubleSidedStaticMeshDrawList : m_StaticMeshDrawList;
 				auto& dc = destDrawList[meshKey];
 				dc.StaticMesh = staticMesh;
 				dc.MeshSource = meshSource;
@@ -614,7 +615,8 @@ namespace Iris {
 			// For main geometry drawlist
 			// TODO: Check if transparent for transparent materials
 			{
-				auto& destDrawList = m_StaticMeshDrawList;
+				bool isDoubleSided = materialAsset->IsDoubleSided();
+				auto& destDrawList =  isDoubleSided == true ? m_DoubleSidedStaticMeshDrawList : m_StaticMeshDrawList;
 				auto& dc = destDrawList[meshKey];
 				dc.StaticMesh = staticMesh;
 				dc.MeshSource = meshSource;
@@ -693,6 +695,7 @@ namespace Iris {
 		UpdateStatistics();
 
 		m_StaticMeshDrawList.clear();
+		m_DoubleSidedStaticMeshDrawList.clear();
 		m_SelectedStaticMeshDrawList.clear();
 
 		m_SceneData = {};
@@ -898,6 +901,13 @@ namespace Iris {
 		}
 
 		for (const auto& [mk, dc] : m_StaticMeshDrawList)
+		{
+			m_Statistics.Instances += dc.InstanceCount;
+			m_Statistics.DrawCalls += 1;
+			m_Statistics.Meshes += 1;
+		}
+
+		for (const auto& [mk, dc] : m_DoubleSidedStaticMeshDrawList)
 		{
 			m_Statistics.Instances += dc.InstanceCount;
 			m_Statistics.DrawCalls += 1;

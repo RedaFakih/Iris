@@ -1351,13 +1351,13 @@ namespace ImGuizmo
 		{
 			//ImVec2 sourcePosOnScreen = worldToPos(gContext.mMatrixOrigin, gContext.mViewProjection);
 			ImVec2 destinationPosOnScreen = worldToPos(gContext.mModel.v.position, gContext.mViewProjection);
-			/*vec_t dif(destinationPosOnScreen.x - sourcePosOnScreen.x, destinationPosOnScreen.y - sourcePosOnScreen.y);
-			dif.Normalize();
-			dif *= 5.f;
-			drawList->AddCircle(sourcePosOnScreen, 6.f, translationLineColor);
-			drawList->AddCircle(destinationPosOnScreen, 6.f, translationLineColor);
-			drawList->AddLine(ImVec2(sourcePosOnScreen.x + dif.x, sourcePosOnScreen.y + dif.y), ImVec2(destinationPosOnScreen.x - dif.x, destinationPosOnScreen.y - dif.y), translationLineColor, 2.f);
-			*/
+			// vec_t dif(destinationPosOnScreen.x - sourcePosOnScreen.x, destinationPosOnScreen.y - sourcePosOnScreen.y);
+			// dif.Normalize();
+			// dif *= 5.f;
+			// drawList->AddCircle(sourcePosOnScreen, 6.f, translationLineColor);
+			// drawList->AddCircle(destinationPosOnScreen, 6.f, translationLineColor);
+			// drawList->AddLine(ImVec2(sourcePosOnScreen.x + dif.x, sourcePosOnScreen.y + dif.y), ImVec2(destinationPosOnScreen.x - dif.x, destinationPosOnScreen.y - dif.y), translationLineColor, 2.f);
+			
 			char tmps[512];
 			//vec_t deltaInfo = gContext.mModel.v.position - gContext.mMatrixOrigin;
 			int componentInfoIndex = (type - MT_SCALE_X) * 3;

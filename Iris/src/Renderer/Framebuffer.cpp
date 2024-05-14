@@ -222,7 +222,7 @@ namespace Iris {
 
                 if (m_Specification.ClearDepthOnLoad)
                 {
-                    m_ClearValues.emplace_back(VkClearValue{
+                    m_ClearValues.emplace(m_ClearValues.begin() + attachmentIndex, VkClearValue{
                         .depthStencil = { m_Specification.DepthClearValue, 0 }
                     });
                 }
@@ -270,7 +270,7 @@ namespace Iris {
 
                 if (m_Specification.ClearColorOnLoad)
                 {
-                    m_ClearValues.emplace_back(VkClearValue{
+                    m_ClearValues.emplace(m_ClearValues.begin() + attachmentIndex, VkClearValue{
                         .color = {
                             m_Specification.ClearColor.r,
                             m_Specification.ClearColor.g,
