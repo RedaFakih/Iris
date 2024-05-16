@@ -200,10 +200,28 @@ namespace Iris {
 
 	void SceneHierarchyPanel::OnEvent(Events::Event& e)
 	{
+		Events::EventDispatcher dispatcher(e);
+
+		dispatcher.Dispatch<Events::KeyPressedEvent>([&](Events::KeyPressedEvent& e)
+		{
+			switch (e.GetKeyCode())
+			{
+				if (Input::IsKeyDown(KeyCode::LeftShift))
+				{
+					case KeyCode::A:
+					{
+						DrawEntityCreateMenu({});
+						return true;
+					}
+				}
+			}
+
+			return false;
+		});
+
 		if (!m_IsWindowFocused)
 			return;
 
-		Events::EventDispatcher dispatcher(e);
 		dispatcher.Dispatch<Events::MouseButtonReleasedEvent>([&](Events::MouseButtonReleasedEvent& event)
 		{
 			if (ImGui::IsMouseHoveringRect(s_WindowBounds.Min, s_WindowBounds.Max, false) && !ImGui::IsAnyItemHovered())
@@ -241,6 +259,7 @@ namespace Iris {
 		});
 	}
 
+	// Switch to be its own imgui panel that we pass in the position of where to create it that way we could create it anywhere inside the window like in blender with Shift+A
 	void SceneHierarchyPanel::DrawEntityCreateMenu(Entity parent)
 	{
 		if (!ImGui::BeginMenu("Create"))

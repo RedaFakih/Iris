@@ -1,6 +1,6 @@
 Material:
   Transparent: false
-  TwoSided: false
+  TwoSided: true
   AlbedoColor: [0.136440068, 0.402053893, 0.0423307903]
   Emission: 0
   UseNormalMap: false
@@ -10,4 +10,4 @@ Material:
   NormalMap: 0
   RoughnessMap: 0
   MetalnessMap: 0
-  MaterialFlags: 6
+  MaterialFlags: 14

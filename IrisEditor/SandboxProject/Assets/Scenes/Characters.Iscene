@@ -1,5 +1,21 @@
 Scene: Editor Scene
 Entities:
+  - Entity: 197469730918477431
+    TagComponent:
+      Tag: Empty Entity
+    Parent: 0
+    Children:
+      []
+    TransformComponent:
+      Position: [1.4827373, 0, -0.521002054]
+      Rotation: [0, 0, 0]
+      Scale: [0.00880004372, 0.00880004372, 0.00880004372]
+    StaticMeshComponent:
+      AssetID: 3448222499160019637
+      MaterialTable:
+        0: 0
+        1: 0
+      Visible: true
   - Entity: 978865093965260794
     TagComponent:
       Tag: Stormtrooper
@@ -7,7 +23,7 @@ Entities:
     Children:
       []
     TransformComponent:
-      Position: [-1.47998905, 0, 0]
+      Position: [1.5, 0, 0]
       Rotation: [0, 0, 0]
       Scale: [1, 1, 1]
     StaticMeshComponent:
@@ -25,7 +41,7 @@ Entities:
     TransformComponent:
       Position: [0, 0, 0]
       Rotation: [0, 0, 0]
-      Scale: [1.13999999, 1.13999999, 1.13999999]
+      Scale: [1.14000201, 1.13999999, 1.14000201]
     StaticMeshComponent:
       AssetID: 8492331187162521719
       MaterialTable:
@@ -40,14 +56,29 @@ Entities:
     Children:
       []
     TransformComponent:
-      Position: [1.60286403, 0, 0]
-      Rotation: [0, 0, 0]
-      Scale: [0.626999974, 0.626999974, 0.626999974]
+      Position: [-1.55481577, -0.00633020699, 0.0879173279]
+      Rotation: [-2.38418579e-07, 0, -2.38418579e-07]
+      Scale: [0.627000213, 0.627000034, 0.626999855]
     StaticMeshComponent:
       AssetID: 7526181345639326923
       MaterialTable:
         0: 0
         1: 0
+      Visible: true
+  - Entity: 14449481804758652680
+    TagComponent:
+      Tag: Plane
+    Parent: 0
+    Children:
+      []
+    TransformComponent:
+      Position: [0, -0.0792695284, 0]
+      Rotation: [0, 0, 0]
+      Scale: [10, 10, 10]
+    StaticMeshComponent:
+      AssetID: 2732277024539045285
+      MaterialTable:
+        0: 4786713185340225801
       Visible: true
   - Entity: 14915367868508491852
     TagComponent:
@@ -56,9 +87,9 @@ Entities:
     Children:
       []
     TransformComponent:
-      Position: [3.25018382, 0, 0]
-      Rotation: [0, 0, 0]
-      Scale: [0.0100000501, 0.0100000501, 0.0100000501]
+      Position: [-2.94812489, 0, 0.108948946]
+      Rotation: [0, 2.98023224e-08, 0]
+      Scale: [0.0100000584, 0.0100000501, 0.0100000584]
     StaticMeshComponent:
       AssetID: 9685325371244041466
       MaterialTable:

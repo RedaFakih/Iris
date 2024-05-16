@@ -77,7 +77,7 @@ namespace Iris {
 		}
 		else
 		{
-			m_Window = glfwCreateWindow((int)m_Data.Width, (int)m_Data.Height, m_Data.Title.c_str(), nullptr, nullptr);
+			m_Window = glfwCreateWindow(static_cast<int>(m_Data.Width), static_cast<uint32_t>(m_Data.Height), m_Data.Title.c_str(), nullptr, nullptr);
 		}
 
 		// Set icon
@@ -116,20 +116,19 @@ namespace Iris {
 		else
 			IR_CORE_WARN_TAG("Window", "Raw mouse motion not supported.");
 
-		// TODO: Typing and clicking events...?
 		glfwSetWindowSizeCallback(m_Window, [](GLFWwindow* window, int width, int height)
 		{
-			WindowData& data = *((WindowData*)glfwGetWindowUserPointer(window));
+			WindowData& data = *static_cast<WindowData*>(glfwGetWindowUserPointer(window));
 
 			Events::WindowResizeEvent event(width, height);
 			data.EventCallback(event);
-			data.Width = (uint32_t)width;
-			data.Height = (uint32_t)height;
+			data.Width = static_cast<uint32_t>(width);
+			data.Height = static_cast<uint32_t>(height);
 		});
 
 		glfwSetWindowCloseCallback(m_Window, [](GLFWwindow* window)
 		{
-			WindowData& data = *(WindowData*)glfwGetWindowUserPointer(window);
+			WindowData& data = *static_cast<WindowData*>(glfwGetWindowUserPointer(window));
 
 			Events::WindowCloseEvent event;
 		    data.EventCallback(event);
@@ -137,36 +136,36 @@ namespace Iris {
 
 		glfwSetWindowIconifyCallback(m_Window, [](GLFWwindow* window, int iconified)
 		{
-			WindowData& data = *(WindowData*)glfwGetWindowUserPointer(window);
+			WindowData& data = *static_cast<WindowData*>(glfwGetWindowUserPointer(window));
 
-			Events::WindowMinimizeEvent event((bool)iconified);
+			Events::WindowMinimizeEvent event(static_cast<bool>(iconified));
 			data.EventCallback(event);
 		});
 
 		glfwSetKeyCallback(m_Window, [](GLFWwindow* window, int key, int scancode, int action, int mods)
 		{
-			WindowData& data = *(WindowData*)glfwGetWindowUserPointer(window);
+			WindowData& data = *static_cast<WindowData*>(glfwGetWindowUserPointer(window));
 
 			switch (action)
 			{
 				case GLFW_PRESS:
 				{
 					Input::UpdateKeyState((KeyCode)key, KeyState::Pressed);
-					Events::KeyPressedEvent event((KeyCode)key, 0);
+					Events::KeyPressedEvent event(static_cast<KeyCode>(key), 0);
 					data.EventCallback(event);
 					break;
 				}
 				case GLFW_RELEASE:
 				{
 					Input::UpdateKeyState((KeyCode)key, KeyState::Released);
-					Events::KeyReleasedEvent event((KeyCode)key);
+					Events::KeyReleasedEvent event(static_cast<KeyCode>(key));
 					data.EventCallback(event);
 					break;
 				}
 				case GLFW_REPEAT:
 				{
 					Input::UpdateKeyState((KeyCode)key, KeyState::Held);
-					Events::KeyPressedEvent event((KeyCode)key, true);
+					Events::KeyPressedEvent event(static_cast<KeyCode>(key), true);
 					data.EventCallback(event);
 					break;
 				}
@@ -175,30 +174,30 @@ namespace Iris {
 
 		glfwSetCharCallback(m_Window, [](GLFWwindow* window, unsigned int keycode)
 		{
-			WindowData& data = *(WindowData*)glfwGetWindowUserPointer(window);
+			WindowData& data = *static_cast<WindowData*>(glfwGetWindowUserPointer(window));
 
-			Events::KeyTypedEvent event((KeyCode)keycode);
+			Events::KeyTypedEvent event(static_cast<KeyCode>(keycode));
 			
 			data.EventCallback(event);
 		});
 
 		glfwSetMouseButtonCallback(m_Window, [](GLFWwindow* window, int button, int action, int mods)
 		{
-			WindowData& data = *(WindowData*)glfwGetWindowUserPointer(window);
+			WindowData& data = *static_cast<WindowData*>(glfwGetWindowUserPointer(window));
 
 			switch (action)
 			{
 				case GLFW_PRESS:
 				{
-					Input::UpdateButtonState((MouseButton)button, KeyState::Pressed);
-					Events::MouseButtonPressedEvent event((MouseButton)button);
+					Input::UpdateButtonState(static_cast<MouseButton>(button), KeyState::Pressed);
+					Events::MouseButtonPressedEvent event(static_cast<MouseButton>(button));
 					data.EventCallback(event);
 					break;
 				}
 				case GLFW_RELEASE:
 				{
-					Input::UpdateButtonState((MouseButton)button, KeyState::Released);
-					Events::MouseButtonReleasedEvent event((MouseButton)button);
+					Input::UpdateButtonState(static_cast<MouseButton>(button), KeyState::Released);
+					Events::MouseButtonReleasedEvent event(static_cast<MouseButton>(button));
 					data.EventCallback(event);
 					break;
 				}
@@ -207,27 +206,29 @@ namespace Iris {
 
 		glfwSetScrollCallback(m_Window, [](GLFWwindow* window, double xOffset, double yOffset)
 		{
-			WindowData& data = *(WindowData*)glfwGetWindowUserPointer(window);
+			WindowData& data = *static_cast<WindowData*>(glfwGetWindowUserPointer(window));
 
-			Events::MouseScrolledEvent event((float)xOffset, (float)yOffset);
+			Events::MouseScrolledEvent event(static_cast<float>(xOffset), static_cast<float>(yOffset));
 			data.EventCallback(event);
 		});
 
 		glfwSetCursorPosCallback(m_Window, [](GLFWwindow* window, double xPos, double yPos)
 		{
-			WindowData& data = *(WindowData*)glfwGetWindowUserPointer(window);
+			WindowData& data = *static_cast<WindowData*>(glfwGetWindowUserPointer(window));
 
-			Events::MouseMovedEvent event((float)xPos, (float)yPos);
+			Events::MouseMovedEvent event(static_cast<float>(xPos), static_cast<float>(yPos));
 			data.EventCallback(event);
 		});
 
 		glfwSetTitleBarHitTestCallback(m_Window, [](GLFWwindow* window, int x, int y, int* hit)
 		{
-			auto& data = *(WindowData*)glfwGetWindowUserPointer(window);
+			auto& data = *static_cast<WindowData*>(glfwGetWindowUserPointer(window));
 		
 			Events::WindowTitleBarHitTestEvent event(x, y, *hit);
 			data.EventCallback(event);
 		});
+
+		m_PrimaryMonitor = glfwGetPrimaryMonitor();
 
 		m_ImGuiMouseCursors[ImGuiMouseCursor_Arrow]      = glfwCreateStandardCursor(GLFW_ARROW_CURSOR);
 		m_ImGuiMouseCursors[ImGuiMouseCursor_TextInput]  = glfwCreateStandardCursor(GLFW_IBEAM_CURSOR);
@@ -299,7 +300,7 @@ namespace Iris {
 
 	void Window::CentreWindow()
 	{
-		const GLFWvidmode* vidMode = glfwGetVideoMode(glfwGetPrimaryMonitor());
+		const GLFWvidmode* vidMode = glfwGetVideoMode(m_PrimaryMonitor);
 		int x = (vidMode->width / 2) - (m_Data.Width / 2);
 		int y = (vidMode->height / 2) - (m_Data.Height / 2);
 		glfwSetWindowPos(m_Window, x, y);
@@ -308,6 +309,11 @@ namespace Iris {
 	bool Window::IsMaximized() const
 	{
 		return (bool)glfwGetWindowAttrib(m_Window, GLFW_MAXIMIZED);
+	}
+
+	bool Window::IsFullScreen() const
+	{
+		return static_cast<bool>(glfwGetWindowMonitor(m_Window) != nullptr);
 	}
 
 	void Window::SetTitle(const std::string& title)

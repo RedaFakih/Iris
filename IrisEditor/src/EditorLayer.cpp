@@ -227,10 +227,11 @@ namespace Iris {
 
 		UI_ShowViewport();
 
-		m_PanelsManager->OnImGuiRender();
+		if (!m_ShowOnlyViewport)
+			m_PanelsManager->OnImGuiRender();
 
 		// TODO: Move into EditorStyle editor panel
-		if (m_ShowImGuiStyleEditor)
+		if (m_ShowImGuiStyleEditor && !m_ShowOnlyViewport)
 		{
 			ImGui::Begin("Style Editor", &m_ShowImGuiStyleEditor, ImGuiWindowFlags_NoCollapse);
 			static int style;
@@ -238,18 +239,20 @@ namespace Iris {
 			ImGui::End();
 		}
 
-		if (m_ShowImGuiMetricsWindow)
+		if (m_ShowImGuiMetricsWindow && !m_ShowOnlyViewport)
 			ImGui::ShowMetricsWindow(&m_ShowImGuiMetricsWindow);
 
-		if (m_ShowImGuiStackToolWindow)
+		if (m_ShowImGuiStackToolWindow && !m_ShowOnlyViewport)
 			ImGui::ShowStackToolWindow(&m_ShowImGuiStackToolWindow);
 
-		// TODO: PanelManager
-		UI_ShowFontsPanel();
+		if (!m_ShowOnlyViewport)
+			// TODO: PanelManager
+			UI_ShowFontsPanel();
 
-		AssetEditorPanel::OnImGuiRender();
+		if (!m_ShowOnlyViewport)
+			AssetEditorPanel::OnImGuiRender();
 
-		if (m_ShowNewSceneModal)
+		if (m_ShowNewSceneModal && !m_ShowOnlyViewport)
 			UI_ShowNewSceneModal();
 
 		UI_EndDocking();
@@ -300,10 +303,14 @@ namespace Iris {
 			if (!isMaximized)
 				UI::RenderWindowOuterBorders(ImGui::GetCurrentWindow());
 		}
-		UI_HandleManualWindowResize();
 
-		const float titleBarHeight = UI_DrawTitleBar();
-		ImGui::SetCursorPosY(titleBarHeight + ImGui::GetCurrentWindow()->WindowPadding.y);
+		UI_HandleManualWindowResize();
+		
+		if (!m_ShowOnlyViewport)
+		{
+			const float titleBarHeight = UI_DrawTitleBar();
+			ImGui::SetCursorPosY(titleBarHeight + ImGui::GetCurrentWindow()->WindowPadding.y);
+		}
 
 		float minWinSizeX = style.WindowMinSize.x;
 		style.WindowMinSize.x = 370.0f;
@@ -1913,6 +1920,23 @@ namespace Iris {
 						m_EditorCamera.Focus(m_CurrentScene->GetWorldSpaceTransform(selectedEntity).Translation);
 						break;
 					}
+					case KeyCode::H:
+					{
+						if (SelectionManager::GetSelectionCount(SelectionContext::Scene) == 0)
+							break;
+
+						const std::vector<UUID>& selectedEntityIDs = SelectionManager::GetSelections(SelectionContext::Scene);
+						for (auto entityID : selectedEntityIDs)
+						{
+							Entity selectedEntity = m_CurrentScene->GetEntityWithUUID(entityID);
+							if (selectedEntity.HasComponent<StaticMeshComponent>())
+							{
+								StaticMeshComponent& smc = selectedEntity.GetComponent<StaticMeshComponent>();
+								smc.Visible = !smc.Visible;
+							}
+						}
+						break;
+					}
 				}
 			}
 
@@ -1974,6 +1998,34 @@ namespace Iris {
 				case KeyCode::O:
 				{
 					OpenScene();
+					break;
+				}
+				case KeyCode::F:
+				{
+					Window& window = Application::Get().GetWindow();
+					GLFWwindow* nativeWindow = window.GetNativeWindow();
+					GLFWmonitor* monitor = window.GetNativePrimaryMonitor();
+
+					static glm::uvec2 previousPos = {};
+					static glm::uvec2 previousSize = {};
+
+					if (Application::Get().GetWindow().IsFullScreen())
+					{
+						glfwSetWindowMonitor(nativeWindow, nullptr, previousPos.x, previousPos.y, previousSize.x, previousSize.y, 0);
+
+						m_ShowOnlyViewport = false;
+					}
+					// Maximize Viewport
+					else
+					{
+						glfwGetWindowPos(nativeWindow, reinterpret_cast<int*>(&previousPos.x), reinterpret_cast<int*>(&previousPos.y));
+						glfwGetWindowSize(nativeWindow, reinterpret_cast<int*>(&previousSize.x), reinterpret_cast<int*>(&previousSize.y));
+						const GLFWvidmode* vidMode = glfwGetVideoMode(monitor);
+						glfwSetWindowMonitor(nativeWindow, monitor, 0, 0, vidMode->width, vidMode->height, 0);
+
+						m_ShowOnlyViewport = true;
+					}
+
 					break;
 				}
 			}

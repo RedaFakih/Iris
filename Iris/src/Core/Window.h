@@ -13,6 +13,7 @@
 
 struct GLFWwindow;
 struct GLFWcursor;
+struct GLFWmonitor;
 
 namespace Iris {
 
@@ -56,6 +57,7 @@ namespace Iris {
 
 		SwapChain& GetSwapChain() { return m_SwapChain; }
 		GLFWwindow* GetNativeWindow() const { return m_Window; }
+		GLFWmonitor* GetNativePrimaryMonitor() const { return m_PrimaryMonitor; }
 		Ref<RendererContext> GetRendererContext() { return m_RendererContext; }
 
 		inline uint32_t GetWidth() const { return m_Data.Width; }
@@ -70,12 +72,14 @@ namespace Iris {
 		void CentreWindow();
 
 		bool IsMaximized() const;
+		bool IsFullScreen() const;
 
 		const std::string& GetTitle() const { return m_Data.Title; }
 		void SetTitle(const std::string& title);
 
 	private:
 		GLFWwindow* m_Window = nullptr;
+		GLFWmonitor* m_PrimaryMonitor = nullptr;
 		WindowSpecification m_Specification;
 
 		GLFWcursor* m_ImGuiMouseCursors[8] = { 0 };
