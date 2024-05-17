@@ -288,6 +288,9 @@ namespace Iris {
 		Ref<Scene> m_ComponentCopyScene;
 		Entity m_ComponentCopyEntity;
 
+		// Just a reference
+		Ref<Texture2D> m_CurrentlySelectedMeshViewIcon = nullptr;
+
 		static SelectionContext s_ActiveSelectionContext;
 
 	};

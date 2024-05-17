@@ -97,12 +97,12 @@ namespace Iris {
 				 // | ImGuiTableFlags_Sortable
 				    ;
 				
-				// TODO: Maybe add a visibility column?
-				constexpr int numColumns = 2;
+				constexpr int numColumns = 3;
 				if (ImGui::BeginTable("##SceneHierarchy-Table", numColumns, tableFlags, ImGui::GetContentRegionAvail()))
 				{
 					ImGui::TableSetupColumn("Label");
 					ImGui::TableSetupColumn("Type");
+					ImGui::TableSetupColumn("Visibility");
 
 					// Headers...
 					{
@@ -526,7 +526,7 @@ namespace Iris {
 
 		const bool isSelected = SelectionManager::IsSelected(s_ActiveSelectionContext, entity.GetUUID());
 
-		ImGuiTreeNodeFlags flags = (isSelected ? ImGuiTreeNodeFlags_Selected : 0) | ImGuiTreeNodeFlags_OpenOnArrow;
+		ImGuiTreeNodeFlags flags = (isSelected ? ImGuiTreeNodeFlags_Selected : 0) | ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_AllowItemOverlap;
 		flags |= ImGuiTreeNodeFlags_SpanAvailWidth;
 
 		if (hasChildMatchingSearch)
@@ -797,6 +797,29 @@ namespace Iris {
 
 		// TODO: Type Column fill with data about the type of the entity (Text? Icon?)
 		ImGui::TableNextColumn();
+
+		ImGui::TableNextColumn();
+
+		m_CurrentlySelectedMeshViewIcon = EditorResources::EyeIcon;
+		if (entity.HasComponent<StaticMeshComponent>())
+		{
+			ImVec2 avaiLRegion = ImGui::GetContentRegionAvail();
+			StaticMeshComponent& smc = entity.GetComponent<StaticMeshComponent>();
+
+			if (ImGui::InvisibleButton(UI::GenerateID(), { avaiLRegion.x, rowHeight }))
+				smc.Visible = !smc.Visible;
+
+			m_CurrentlySelectedMeshViewIcon = smc.Visible ? EditorResources::EyeIcon : EditorResources::ClosedEyeIcon;
+
+			ImRect buttonRect = UI::GetItemRect();
+
+			ImRect iconRect;
+			iconRect.Min = { buttonRect.Min.x + (buttonRect.Max.x - buttonRect.Min.x) / 2.0f - m_CurrentlySelectedMeshViewIcon->GetWidth() / 2.0f, 
+							 buttonRect.Min.y + (buttonRect.Max.y - buttonRect.Min.y) / 2.0f - m_CurrentlySelectedMeshViewIcon->GetHeight() / 2.0f };
+			iconRect.Max = { buttonRect.Min.x + (buttonRect.Max.x - buttonRect.Min.x) / 2.0f + m_CurrentlySelectedMeshViewIcon->GetWidth() / 2.0f, 
+							 buttonRect.Min.y + (buttonRect.Max.y - buttonRect.Min.y) / 2.0f + m_CurrentlySelectedMeshViewIcon->GetHeight() / 2.0f };
+			UI::DrawButtonImage(m_CurrentlySelectedMeshViewIcon, Colors::Theme::TextBrighter, Colors::Theme::TextBrighter, Colors::Theme::TextBrighter, iconRect);
+		}
 
 		// Draw Children
 		if (opened)
