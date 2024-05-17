@@ -44,6 +44,8 @@ namespace Iris {
 	static char* s_OpenProjectFilePathBuffer = new char[c_MAX_PROJECT_FILEPATH_LENGTH];
 	static char* s_NewProjectFilePathBuffer = new char[c_MAX_PROJECT_FILEPATH_LENGTH];
 
+	static const char* s_CurrentlySelectedRenderOption = "Lit";
+
 	EditorLayer::EditorLayer()
 		: Layer("EditorLayer"), m_EditorCamera(45.0f, 1280.0f, 720.0f, 0.01f, 10000.0f)
 	{
@@ -652,9 +654,10 @@ namespace Iris {
 
 					ImGui::PushStyleColor(ImGuiCol_HeaderHovered, colHovered);
 
+					int n = 1;
 					// We only serialize the panels manager for the view panels and not the Edit panels since the Edit ones should always be closed on startup
 					for (auto& [id, panelSpec] : m_PanelsManager->GetPanels(PanelCategory::View))
-						if (ImGui::MenuItem(panelSpec.Name, nullptr, &panelSpec.IsOpen))
+						if (ImGui::MenuItem(panelSpec.Name, fmt::format("Shift + F{}", n++).c_str(), &panelSpec.IsOpen))
 							m_PanelsManager->Serialize();
 
 					ImGui::Separator();
@@ -788,7 +791,6 @@ namespace Iris {
 		constexpr float edgeOffset = 4.0f;
 		constexpr float windowHeight = 32.0f; // imgui windows can not be smaller than 32 pixels
 		constexpr float numberOfButtons = 5.0f + 3.0f; // we add 3 for the dropdown buttons
-		constexpr float popupWidth = 310.0f;
 		constexpr float textOffset = 4.0f; // Offset between text and label
 
 		const ImColor SelectedGizmoButtonColor = Colors::Theme::Accent;
@@ -881,8 +883,10 @@ namespace Iris {
 			return std::pair{ clicked, dropdownClicked };
 		};
 
-		auto beginSection = [](const char* name, int& sectionIndex, bool columns2 = true)
+		auto beginSection = [](const char* name, int& sectionIndex, bool columns2 = true, float column1Width = 0.0f, float column2Width = 0.0f)
 		{
+			constexpr float popupWidth = 310.0f;
+
 			ImGuiFontsLibrary& fontsLib = Application::Get().GetImGuiLayer()->GetFontsLibrary();
 
 			if (sectionIndex > 0)
@@ -909,9 +913,9 @@ namespace Iris {
 			bool result = ImGui::BeginTable("##section_table", columns2 ? 2 : 1, ImGuiTableFlags_SizingStretchSame);
 			if (result)
 			{
-				ImGui::TableSetupColumn("Labels", ImGuiTableColumnFlags_WidthFixed, popupWidth * 0.5f);
+				ImGui::TableSetupColumn("Labels", ImGuiTableColumnFlags_WidthFixed, column1Width == 0.0f ? popupWidth * 0.5f : column1Width);
 				if (columns2)
-					ImGui::TableSetupColumn("Widgets", ImGuiTableColumnFlags_WidthFixed, popupWidth * 0.5f);
+					ImGui::TableSetupColumn("Widgets", ImGuiTableColumnFlags_WidthFixed, column2Width == 0.0f ? popupWidth * 0.5f : column2Width);
 			}
 
 			sectionIndex++;
@@ -923,7 +927,7 @@ namespace Iris {
 			ImGui::EndTable();
 		};
 
-		auto selection = [](const char* label, Ref<Texture2D> icon)
+		auto selection = [](const char* label, Ref<Texture2D> icon, const char* hint = "")
 		{
 			float height = std::min(static_cast<float>(icon->GetHeight()), buttonSize);
 			float width = static_cast<float>(icon->GetWidth()) / static_cast<float>(icon->GetHeight()) * height;
@@ -939,9 +943,14 @@ namespace Iris {
 			ImGuiTable* table = ImGui::GetCurrentTable();
 			float columnWidth = ImGui::TableGetMaxColumnWidth(table, 0);
 			bool clicked = ImGui::InvisibleButton(UI::GenerateID(), { columnWidth, 23.0f });
-			// TODO: Add color highlighting for the currently selected
 			if (ImGui::IsItemHovered())
 				ImGui::GetWindowDrawList()->AddRectFilled(ImGui::GetItemRectMin(), ImGui::GetItemRectMax(), Colors::Theme::BackgroundDarkBlend);
+
+			if (strlen(hint) != 0)
+			{
+				ImGui::TableSetColumnIndex(1);
+				ImGui::TextDisabled(hint);
+			}
 			
 			return clicked;
 		};
@@ -1053,9 +1062,8 @@ namespace Iris {
 		// Top Left corner tools and icons
 		{
 			static const char* currentlySelectedViewOption = "Perspective";
-			static const char* currentlySelectedRenderOption = "Lit";
 			ImVec2 viewTextSize = ImGui::CalcTextSize(currentlySelectedViewOption);
-			ImVec2 renderTextSize = ImGui::CalcTextSize(currentlySelectedRenderOption);
+			ImVec2 renderTextSize = ImGui::CalcTextSize(s_CurrentlySelectedRenderOption);
 			glm::vec2 maxTextSize = { viewTextSize.x + renderTextSize.x, viewTextSize.y };
 
 			float backgroundWidth = edgeOffset * 6.0f + buttonSize * 2.0f + maxTextSize.x * 1.8f;
@@ -1081,7 +1089,7 @@ namespace Iris {
 
 			windowRect.Min.x += viewTextSize.x + textOffset + 46.0f;
 			bool openRenderSelectionPopup = false;
-			if (labelIconButton(m_CurrentlySelectedRenderIcon, UnselectedGizmoButtonColor, currentlySelectedRenderOption, renderTextSize, windowRect, "Changes the rendering option"))
+			if (labelIconButton(m_CurrentlySelectedRenderIcon, UnselectedGizmoButtonColor, s_CurrentlySelectedRenderOption, renderTextSize, windowRect, "Changes the rendering option"))
 				openRenderSelectionPopup = true;
 
 			ImGui::Spring();
@@ -1186,30 +1194,30 @@ namespace Iris {
 				if (ImGui::BeginPopup("Render Selection Popup"))
 				{
 					int sectionIndex = 0;
-					if (beginSection("View Mode", sectionIndex, false))
+					if (beginSection("View Mode", sectionIndex, true, 0.0f, 48.0f)) // 48.0f is ImGui::CalcTextSize("Shift + 1").x
 					{
-						if (selection("Lit", EditorResources::LitMaterialIcon))
+						if (selection("Lit", EditorResources::LitMaterialIcon, "Shift + 1"))
 						{
 							m_CurrentlySelectedRenderIcon = EditorResources::LitMaterialIcon;
-							currentlySelectedRenderOption = "Lit";
+							s_CurrentlySelectedRenderOption = "Lit";
 							m_ViewportRenderer->SetViewMode(SceneRenderer::ViewMode::Lit);
 
 							ImGui::CloseCurrentPopup();
 						}
 
-						if (selection("Unlit", EditorResources::UnLitMaterialIcon))
+						if (selection("Unlit", EditorResources::UnLitMaterialIcon, "Shift + 2"))
 						{
 							m_CurrentlySelectedRenderIcon = EditorResources::UnLitMaterialIcon;
-							currentlySelectedRenderOption = "Unlit";
+							s_CurrentlySelectedRenderOption = "Unlit";
 							m_ViewportRenderer->SetViewMode(SceneRenderer::ViewMode::Unlit);
 
 							ImGui::CloseCurrentPopup();
 						}
 
-						if (selection("Wireframe", EditorResources::WireframeViewIcon))
+						if (selection("Wireframe", EditorResources::WireframeViewIcon, "Shift + 3"))
 						{
 							m_CurrentlySelectedRenderIcon = EditorResources::WireframeViewIcon;
-							currentlySelectedRenderOption = "Wireframe";
+							s_CurrentlySelectedRenderOption = "Wireframe";
 							m_ViewportRenderer->SetViewMode(SceneRenderer::ViewMode::Wireframe);
 
 							ImGui::CloseCurrentPopup();
@@ -1940,6 +1948,37 @@ namespace Iris {
 				}
 			}
 
+			if (Input::IsKeyDown(KeyCode::LeftShift))
+			{
+				switch (e.GetKeyCode())
+				{
+					case KeyCode::Key1:
+					{
+						m_CurrentlySelectedRenderIcon = EditorResources::LitMaterialIcon;
+						s_CurrentlySelectedRenderOption = "Lit";
+						m_ViewportRenderer->SetViewMode(SceneRenderer::ViewMode::Lit);
+
+						break;
+					}
+					case KeyCode::Key2:
+					{
+						m_CurrentlySelectedRenderIcon = EditorResources::UnLitMaterialIcon;
+						s_CurrentlySelectedRenderOption = "Unlit";
+						m_ViewportRenderer->SetViewMode(SceneRenderer::ViewMode::Unlit);
+
+						break;
+					}
+					case KeyCode::Key3:
+					{
+						m_CurrentlySelectedRenderIcon = EditorResources::WireframeViewIcon;
+						s_CurrentlySelectedRenderOption = "Wireframe";
+						m_ViewportRenderer->SetViewMode(SceneRenderer::ViewMode::Wireframe);
+
+						break;
+					}
+				}
+			}
+
 			switch (e.GetKeyCode())
 			{
 				case KeyCode::Escape:
@@ -1952,6 +1991,23 @@ namespace Iris {
 					std::vector<UUID> selectedEntities = SelectionManager::GetSelections(SelectionContext::Scene);
 					for (auto entity : selectedEntities)
 						DeleteEntity(m_CurrentScene->TryGetEntityWithUUID(entity));
+					break;
+				}
+			}
+		}
+
+		if (Input::IsKeyDown(KeyCode::LeftShift))
+		{
+			int n = 0;
+			// We only serialize the panels manager for the view panels and not the Edit panels since the Edit ones should always be closed on startup
+			for (auto& [id, panelSpec] : m_PanelsManager->GetPanels(PanelCategory::View))
+			{
+				KeyCode key = static_cast<KeyCode>(static_cast<int>(KeyCode::F1) + n++);
+				if (key == e.GetKeyCode())
+				{
+					panelSpec.IsOpen = !panelSpec.IsOpen;
+					m_PanelsManager->Serialize();
+
 					break;
 				}
 			}
@@ -2025,6 +2081,8 @@ namespace Iris {
 
 						m_ShowOnlyViewport = true;
 					}
+
+					Application::Get().DispatchEvent<Events::RenderViewportOnlyEvent>(m_ShowOnlyViewport);
 
 					break;
 				}

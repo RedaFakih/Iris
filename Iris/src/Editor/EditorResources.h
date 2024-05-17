@@ -15,7 +15,10 @@ namespace Iris {
 		inline static Ref<Texture2D> CameraIcon = nullptr;
 		inline static Ref<Texture2D> StaticMeshIcon = nullptr;
 		inline static Ref<Texture2D> SpriteIcon = nullptr;
+		inline static Ref<Texture2D> EyeIcon = nullptr;
+		inline static Ref<Texture2D> ClosedEyeIcon = nullptr;
 		inline static Ref<Texture2D> TransformIcon = nullptr;
+
 		inline static Ref<Texture2D> LitMaterialIcon = nullptr;
 		inline static Ref<Texture2D> UnLitMaterialIcon = nullptr;
 		inline static Ref<Texture2D> WireframeViewIcon = nullptr;
@@ -64,6 +67,12 @@ namespace Iris {
 			RestoreIcon = LoadTexture("Viewport/Restore.png", "MaximizeIcon", spec);
 			CloseIcon = LoadTexture("Viewport/Close.png", "CloseIcon", spec);
 
+			EyeIcon = LoadTexture("Generic/Eye.png", "EyeIcon", spec);
+			ClosedEyeIcon = LoadTexture("Generic/ClosedEye.png", "ClosedEyeIcon", spec);
+			LitMaterialIcon = LoadTexture("Generic/LitMaterial.png", "LitMaterialIcon", spec);
+			UnLitMaterialIcon = LoadTexture("Generic/UnlitMaterial.png", "UnLitMaterialIcon", spec);
+			WireframeViewIcon = LoadTexture("Generic/WireframeView.png", "WireframeViewIcon", spec);
+
 			SearchIcon = LoadTexture("Generic/Search.png", "SearchIcon", spec);
 			ClearIcon = LoadTexture("Generic/Clear.png", "ClearIcon", spec);
 			GearIcon = LoadTexture("Generic/Gear.png", "GearIcon", spec);
@@ -74,9 +83,6 @@ namespace Iris {
 			RotateIcon = LoadTexture("Generic/RotateTool.png", "RotateIcon", spec);
 			ScaleIcon = LoadTexture("Generic/ScaleTool.png", "ScaleIcon", spec);
 			DropdownIcon = LoadTexture("Generic/Dropdown.png", "DropdownIcon", spec);
-			LitMaterialIcon = LoadTexture("Generic/LitMaterial.png", "LitMaterialIcon", spec);
-			UnLitMaterialIcon = LoadTexture("Generic/UnlitMaterial.png", "UnLitMaterialIcon", spec);
-			WireframeViewIcon = LoadTexture("Generic/WireframeView.png", "WireframeViewIcon", spec);
 
 			LeftSquareIcon = LoadTexture("Generic/LeftSquare.png", "LeftSquareIcon", spec);
 			RightSquareIcon = LoadTexture("Generic/RightSquare.png", "RightSquareIcon", spec);
@@ -98,6 +104,9 @@ namespace Iris {
 			StaticMeshIcon.Reset();
 			SpriteIcon.Reset();
 			TransformIcon.Reset();
+			EyeIcon.Reset();
+			ClosedEyeIcon.Reset();
+
 			LitMaterialIcon.Reset();
 			UnLitMaterialIcon.Reset();
 			WireframeViewIcon.Reset();
