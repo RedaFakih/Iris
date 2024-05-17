@@ -8,6 +8,7 @@
  *  - Fix assimp copying the dll to the exe dir for the runtime if we need to do that... because the runtime should not be using assimp it should be using an assetpack
  * 
  * TODO Creative Ideas:
+ * - Add mesh visibility column
  * - Bug when duplicating meshes, they will share the same material and not have their own material instance
  * - Submesh selection when we have a content browser Both static and dynamic meshes will support submesh selection
  * - Viewport camera orthographic views done:

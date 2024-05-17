@@ -267,8 +267,13 @@ namespace Iris {
 		Ref<Scene> m_Context;
 		bool m_IsWindow;
 		bool m_IsWindowFocused = false;
+		bool m_IsWindowHovered = false;
 		bool m_IsHierarchyOrPropertiesFocused = false;
 		bool m_ShiftSelectionRunning = false;
+		bool m_OpenEntityCreateMenuPopup = false;
+		bool m_CurrentlyRenderingOnlyViewport = false;
+
+		ImRect m_WindowBounds = {};
 
 		std::function<void(Entity)> m_EntityDeletedCallback;
 		std::vector<std::function<void(Entity)>> m_EntityContextMenuPlugins;

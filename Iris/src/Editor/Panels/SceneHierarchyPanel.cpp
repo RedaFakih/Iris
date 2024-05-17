@@ -15,7 +15,6 @@
 
 namespace Iris {
 
-	static ImRect s_WindowBounds;
 	static bool s_ActivateSearchWidget = false;
 	SelectionContext SceneHierarchyPanel::s_ActiveSelectionContext = SelectionContext::Scene;
 
@@ -52,11 +51,12 @@ namespace Iris {
 		{
 			ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 0.0f, 0.0f });
 			ImGui::Begin("Scene Hierarchy", &isOpen, ImGuiWindowFlags_NoCollapse);
+
+			m_IsWindowHovered = ImGui::IsWindowHovered();
+			m_IsWindowFocused = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
 		}
 
 		s_ActiveSelectionContext = m_SelectionContext;
-
-		m_IsWindowFocused = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
 
 		ImRect windowRect = { ImGui::GetWindowContentRegionMin(), ImGui::GetWindowContentRegionMax() };
 
@@ -144,11 +144,23 @@ namespace Iris {
 						}
 					}
 
+					if (!ImGui::IsAnyItemHovered())
+						if (ImGui::IsMouseReleased(ImGuiMouseButton_Right) && ImGui::IsWindowHovered(ImGuiHoveredFlags_AllowWhenBlockedByPopup))
+							m_OpenEntityCreateMenuPopup = true;
+
+					if (m_OpenEntityCreateMenuPopup)
+					{
+						if (!ImGui::IsAnyItemHovered())
+							ImGui::OpenPopup("draw_entity_create_menu_popup");
+					}
+
 					ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 8.0f, 6.0f });
-					if (ImGui::BeginPopupContextWindow(nullptr, ImGuiPopupFlags_MouseButtonRight | ImGuiPopupFlags_NoOpenOverItems))
+					if (ImGui::BeginPopup("draw_entity_create_menu_popup"))
 					{
 						DrawEntityCreateMenu({});
 						ImGui::EndPopup();
+
+						m_OpenEntityCreateMenuPopup = false;
 					}
 					ImGui::PopStyleVar();
 
@@ -156,7 +168,7 @@ namespace Iris {
 				}
 			}
 
-			s_WindowBounds = ImGui::GetCurrentWindow()->Rect();
+			m_WindowBounds = ImGui::GetCurrentWindow()->Rect();
 		}
 
 		if (ImGui::BeginDragDropTargetCustom(windowRect, ImGui::GetCurrentWindow()->ID))
@@ -202,17 +214,50 @@ namespace Iris {
 	{
 		Events::EventDispatcher dispatcher(e);
 
+		dispatcher.Dispatch<Events::MouseButtonReleasedEvent>([&](Events::MouseButtonReleasedEvent& e)
+		{
+			switch (e.GetMouseButton())
+			{
+				case MouseButton::Right:
+				{
+					if (m_CurrentlyRenderingOnlyViewport)
+						break;
+
+					if (m_IsWindowHovered)
+						break;
+
+					if (Input::IsKeyDown(KeyCode::LeftShift))
+						m_OpenEntityCreateMenuPopup = true;
+
+					return true;
+				}
+			}
+
+			return false;
+		});
+
+		dispatcher.Dispatch<Events::RenderViewportOnlyEvent>([&](Events::RenderViewportOnlyEvent& e)
+		{
+			m_CurrentlyRenderingOnlyViewport = e.GetViewportOnlyFlag();
+
+			return false;
+		});
+
 		dispatcher.Dispatch<Events::KeyPressedEvent>([&](Events::KeyPressedEvent& e)
 		{
 			switch (e.GetKeyCode())
 			{
-				if (Input::IsKeyDown(KeyCode::LeftShift))
+				case KeyCode::A:
 				{
-					case KeyCode::A:
-					{
-						DrawEntityCreateMenu({});
-						return true;
-					}
+					if (m_CurrentlyRenderingOnlyViewport)
+						break;
+
+					if (!Input::IsKeyDown(KeyCode::LeftShift))
+						break;
+
+					m_OpenEntityCreateMenuPopup = true;
+
+					return true;
 				}
 			}
 
@@ -224,7 +269,7 @@ namespace Iris {
 
 		dispatcher.Dispatch<Events::MouseButtonReleasedEvent>([&](Events::MouseButtonReleasedEvent& event)
 		{
-			if (ImGui::IsMouseHoveringRect(s_WindowBounds.Min, s_WindowBounds.Max, false) && !ImGui::IsAnyItemHovered())
+			if (ImGui::IsMouseHoveringRect(m_WindowBounds.Min, m_WindowBounds.Max, false) && !ImGui::IsAnyItemHovered())
 			{
 				m_FirstSelectedRow = -1;
 				m_LastSelectedRow = -1;
@@ -244,8 +289,13 @@ namespace Iris {
 			{
 				case KeyCode::F:
 				{
-					s_ActivateSearchWidget = true;
-					return true;
+					if (Input::IsKeyDown(KeyCode::LeftControl))
+					{
+						s_ActivateSearchWidget = true;
+						return true;
+					}
+
+					break;
 				}
 				case KeyCode::Escape:
 				{
@@ -262,118 +312,166 @@ namespace Iris {
 	// Switch to be its own imgui panel that we pass in the position of where to create it that way we could create it anywhere inside the window like in blender with Shift+A
 	void SceneHierarchyPanel::DrawEntityCreateMenu(Entity parent)
 	{
-		if (!ImGui::BeginMenu("Create"))
-			return;
-
-		Entity newEntity;
-
-		if (ImGui::MenuItem("Empty Entity"))
+		auto beginSection = [](const char* name, int& sectionIndex, bool columns2 = true, float column1Width = 0.0f, float column2Width = 0.0f)
 		{
-			newEntity = m_Context->CreateEntity("Empty Entity");
-		}
+			constexpr float popupWidth = 310.0f;
 
-		if (ImGui::BeginMenu("Camera"))
-		{
-			if (ImGui::MenuItem("From View"))
+			ImGuiFontsLibrary& fontsLib = Application::Get().GetImGuiLayer()->GetFontsLibrary();
+
+			if (sectionIndex > 0)
+				UI::ShiftCursorY(5.5f);
+
+			fontsLib.PushFont("RobotoBold");
+
+			float halfHeight = ImGui::CalcTextSize(name).y / 2.0f;
+			ImVec2 p1 = { 0.0f, halfHeight };
+			ImVec2 p2 = { 14.0f, halfHeight };
+			UI::UnderLine(Colors::Theme::TextDarker, false, p1, p2, 3.0f);
+			UI::ShiftCursorX(17.0f);
+
+			ImGui::TextUnformatted(name);
+
+			fontsLib.PopFont();
+
+			ImVec2 cursorPos = ImGui::GetCursorPos();
+			ImGui::SameLine();
+
+			UI::UnderLine(false, 3.0f, halfHeight, 3.0f, Colors::Theme::TextDarker);
+			ImGui::SetCursorPos(cursorPos);
+
+			bool result = ImGui::BeginTable("##section_table", columns2 ? 2 : 1, ImGuiTableFlags_SizingStretchSame);
+			if (result)
 			{
-				newEntity = m_Context->CreateEntity("Camera");
-				newEntity.AddComponent<CameraComponent>();
-
-				for (auto& func : m_EntityContextMenuPlugins)
-					func(newEntity);
+				ImGui::TableSetupColumn("Labels", ImGuiTableColumnFlags_WidthFixed, column1Width == 0.0f ? popupWidth * 0.5f : column1Width);
+				if (columns2)
+					ImGui::TableSetupColumn("Widgets", ImGuiTableColumnFlags_WidthFixed, column2Width == 0.0f ? popupWidth * 0.5f : column2Width);
 			}
 
-			if (ImGui::MenuItem("At World Origin"))
+			sectionIndex++;
+			return result;
+		};
+
+		auto endSection = []()
+		{
+			ImGui::EndTable();
+		};
+
+		int index = 0;
+		if (beginSection(parent ? "Add Child Entity" : "Add Entity", index, false, parent ? 270.0f : 0.0f))
+		{
+			ImGui::TableNextRow();
+			ImGui::TableSetColumnIndex(0);
+
+			Entity newEntity;
+
+			if (ImGui::MenuItem("Empty Entity"))
 			{
-				newEntity = m_Context->CreateEntity("Camera");
-				newEntity.AddComponent<CameraComponent>();
+				newEntity = m_Context->CreateEntity("Empty Entity");
 			}
 
-			ImGui::EndMenu();
-		}
-
-		if (ImGui::BeginMenu("2D"))
-		{
-			// TODO: Add lines and circles
-
-			if (ImGui::MenuItem("Sprite"))
+			if (ImGui::BeginMenu("Camera"))
 			{
-				newEntity = m_Context->CreateEntity("Sprite");
-				newEntity.AddComponent<SpriteRendererComponent>();
-			}
-
-			ImGui::EndMenu();
-		}
-
-		if (ImGui::BeginMenu("3D"))
-		{
-			auto create3DEntity = [this](const char* entityName, const char* targetAssetName, const char* sourceAssetName)
-			{
-				Entity entity = m_Context->CreateEntity(entityName);
-
-				std::filesystem::path sourcePath = "Meshes/Default/Source";
-				std::filesystem::path targetPath = "Meshes/Default";
-
-				// Check if we have loaded the mesh before and serialized the Iris mesh file
-				AssetHandle mesh = Project::GetEditorAssetManager()->GetAssetHandleFromFilePath(targetPath / targetAssetName);
-				if (mesh != 0)
+				if (ImGui::MenuItem("From View"))
 				{
-					// Load mesh from Iris mesh file
-					entity.AddComponent<StaticMeshComponent>(mesh);
+					newEntity = m_Context->CreateEntity("Camera");
+					newEntity.AddComponent<CameraComponent>();
+
+					for (auto& func : m_EntityContextMenuPlugins)
+						func(newEntity);
 				}
-				else
+
+				if (ImGui::MenuItem("At World Origin"))
 				{
-					// Load mesh from source file
-					if (FileSystem::Exists(Project::GetAssetDirectory() / sourcePath / sourceAssetName))
+					newEntity = m_Context->CreateEntity("Camera");
+					newEntity.AddComponent<CameraComponent>();
+				}
+
+				ImGui::EndMenu();
+			}
+
+			if (ImGui::BeginMenu("2D"))
+			{
+				// TODO: Add lines and circles
+
+				if (ImGui::MenuItem("Sprite"))
+				{
+					newEntity = m_Context->CreateEntity("Sprite");
+					newEntity.AddComponent<SpriteRendererComponent>();
+				}
+
+				ImGui::EndMenu();
+			}
+
+			if (ImGui::BeginMenu("3D"))
+			{
+				auto create3DEntity = [this](const char* entityName, const char* targetAssetName, const char* sourceAssetName)
+				{
+					Entity entity = m_Context->CreateEntity(entityName);
+
+					std::filesystem::path sourcePath = "Meshes/Default/Source";
+					std::filesystem::path targetPath = "Meshes/Default";
+
+					// Check if we have loaded the mesh before and serialized the Iris mesh file
+					AssetHandle mesh = Project::GetEditorAssetManager()->GetAssetHandleFromFilePath(targetPath / targetAssetName);
+					if (mesh != 0)
 					{
-						AssetHandle handle = Project::GetEditorAssetManager()->GetAssetHandleFromFilePath(sourcePath / sourceAssetName);
-						if (AssetManager::GetAssetAsync<StaticMesh>(handle).Asset)
+						// Load mesh from Iris mesh file
+						entity.AddComponent<StaticMeshComponent>(mesh);
+					}
+					else
+					{
+						// Load mesh from source file
+						if (FileSystem::Exists(Project::GetAssetDirectory() / sourcePath / sourceAssetName))
 						{
-							Ref<StaticMesh> staticMesh = Project::GetEditorAssetManager()->CreateNewAsset<StaticMesh>(targetAssetName, (Project::GetAssetDirectory() / targetPath).string(), handle);
-							entity.AddComponent<StaticMeshComponent>(staticMesh->Handle);
+							AssetHandle handle = Project::GetEditorAssetManager()->GetAssetHandleFromFilePath(sourcePath / sourceAssetName);
+							if (AssetManager::GetAssetAsync<StaticMesh>(handle).Asset)
+							{
+								Ref<StaticMesh> staticMesh = Project::GetEditorAssetManager()->CreateNewAsset<StaticMesh>(targetAssetName, (Project::GetAssetDirectory() / targetPath).string(), handle);
+								entity.AddComponent<StaticMeshComponent>(staticMesh->Handle);
+							}
 						}
 					}
+
+					return entity;
+				};
+
+				if (ImGui::MenuItem("Cube"))
+				{
+					newEntity = create3DEntity("Cube", "Cube.Ismesh", "Cube.gltf");
 				}
 
-				return entity;
-			};
+				if (ImGui::MenuItem("Sphere"))
+				{
+					newEntity = create3DEntity("Sphere", "Sphere.Ismesh", "Sphere.gltf");
+				}
 
-			if (ImGui::MenuItem("Cube"))
-			{
-				newEntity = create3DEntity("Cube", "Cube.Ismesh", "Cube.gltf");
+				if (ImGui::MenuItem("Plane"))
+				{
+					newEntity = create3DEntity("Plane", "Plane.Ismesh", "Plane.gltf");
+				}
+
+				if (ImGui::MenuItem("Cone"))
+				{
+					newEntity = create3DEntity("Cone", "Cone.Ismesh", "Cone.gltf");
+				}
+
+				ImGui::EndMenu();
 			}
 
-			if (ImGui::MenuItem("Sphere"))
+			if (newEntity)
 			{
-				newEntity = create3DEntity("Sphere", "Sphere.Ismesh", "Sphere.gltf");
+				if (parent)
+				{
+					m_Context->ParentEntity(newEntity, parent);
+					newEntity.Transform().Translation = glm::vec3(0.0f);
+				}
+
+				SelectionManager::DeselectAll();
+				SelectionManager::Select(s_ActiveSelectionContext, newEntity.GetUUID());
 			}
 
-			if (ImGui::MenuItem("Plane"))
-			{
-				newEntity = create3DEntity("Plane", "Plane.Ismesh", "Plane.gltf");
-			}
-
-			if (ImGui::MenuItem("Cone"))
-			{
-				newEntity = create3DEntity("Cone", "Cone.Ismesh", "Cone.gltf");
-			}
-
-			ImGui::EndMenu();
+			endSection();
 		}
-
-		if (newEntity)
-		{
-			if (parent)
-			{
-				m_Context->ParentEntity(newEntity, parent);
-				newEntity.Transform().Translation = glm::vec3(0.0f);
-			}
-
-			SelectionManager::DeselectAll();
-			SelectionManager::Select(s_ActiveSelectionContext, newEntity.GetUUID());
-		}
-
-		ImGui::EndMenu();
 	}
 
 	bool SceneHierarchyPanel::TagSearchRecursive(Entity entity, std::string_view searchFilter, uint32_t maxSearchDepth, uint32_t currentDepth)
@@ -583,7 +681,8 @@ namespace Iris {
 
 				if (!m_EntityContextMenuPlugins.empty())
 				{
-					ImGui::Separator();
+					UI::UnderLine();
+					UI::ShiftCursorY(2.0f);
 
 					if (ImGui::MenuItem("Set Transform to Editor Camera Transform"))
 					{
@@ -696,7 +795,7 @@ namespace Iris {
 			ImGui::EndDragDropTarget();
 		}
 
-		// TODO: Type Column
+		// TODO: Type Column fill with data about the type of the entity (Text? Icon?)
 		ImGui::TableNextColumn();
 
 		// Draw Children

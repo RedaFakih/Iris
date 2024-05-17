@@ -76,6 +76,13 @@ namespace Iris::Events {
 		inline int GetY() const { return m_Y; }
 		inline void SetHit(bool hit) { m_Hit = static_cast<int>(hit); }
 
+		std::string toString() const override
+		{
+			std::stringstream ss;
+			ss << "Window Titlebar Hit Test Event! X: " << m_X << " Y: " << m_Y << " Hit: " << m_Hit;
+			return ss.str();
+		}
+
 		IR_EVENT_CLASS_TYPE(WindowTitleBarHitTest)
 
 	private:
@@ -93,10 +100,39 @@ namespace Iris::Events {
 
 		inline uint32_t GetTargetColor() const { return m_TargetColor; }
 
+		std::string toString() const override
+		{
+			std::stringstream ss;
+			ss << "Window Titlebar Color Change Event! TargerColor: " << m_TargetColor;
+			return ss.str();
+		}
+
 		IR_EVENT_CLASS_TYPE(TitleBarColorChange)
 
 	private:
 		uint32_t m_TargetColor;
+
+	};
+
+	class RenderViewportOnlyEvent : public Event
+	{
+		public:
+			RenderViewportOnlyEvent(bool flag)
+				: m_ViewportOnly(flag) {}
+
+			inline bool GetViewportOnlyFlag() const { return m_ViewportOnly; }
+
+			std::string toString() const override
+			{
+				std::stringstream ss;
+				ss << "Render Viewport Only Event! Flag: " << m_ViewportOnly;
+				return ss.str();
+			}
+
+			IR_EVENT_CLASS_TYPE(RenderViewportOnly)
+
+	private:
+		bool m_ViewportOnly = false;
 
 	};
 
