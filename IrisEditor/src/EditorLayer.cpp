@@ -67,21 +67,17 @@ namespace Iris {
 		m_CurrentlySelectedRenderIcon = EditorResources::LitMaterialIcon;
 		m_PanelsManager = PanelsManager::Create();
 
-		Ref<SceneHierarchyPanel> sceneHierarchyPanel = m_PanelsManager->AddPanel<SceneHierarchyPanel>(PanelCategory::View, "SceneHierarchyPanel", "Scene Hierarchy", true, m_EditorScene, SelectionContext::Scene);
+		if (!Project::GetActive())
+			EmptyProject();
+
+		Ref<SceneHierarchyPanel> sceneHierarchyPanel = m_PanelsManager->AddPanel<SceneHierarchyPanel>(PanelCategory::View, "SceneHierarchyPanel", "Scene Hierarchy", true, m_CurrentScene, SelectionContext::Scene);
 		sceneHierarchyPanel->SetEntityDeletedCallback([this](Entity entity) { OnEntityDeleted(entity); });
 		sceneHierarchyPanel->AddEntityContextMenuPlugin([this](Entity entity) { SceneHierarchySetEditorCameraTransform(entity); });
 
 		m_PanelsManager->AddPanel<ShadersPanel>(PanelCategory::View, "ShadersPanel", "Shaders", false);
 
-		if (!Project::GetActive())
-			EmptyProject();
-
-		// TODO: REMOVE since this should be handled by NewScene and all that stuff
-		m_EditorScene = Scene::Create("Editor Scene");
-		m_CurrentScene = m_EditorScene;
-
 		// NOTE: For debugging ECS Problems
-		// m_PanelsManager->AddPanel<ECSDebugPanel>(PanelCategory::View, "ECSDebugPanel", "ECS", false, m_CurrentScene);
+		m_PanelsManager->AddPanel<ECSDebugPanel>(PanelCategory::View, "ECSDebugPanel", "ECS", false, m_CurrentScene);
 
 		m_ViewportRenderer = SceneRenderer::Create(m_CurrentScene, { .RendererScale = 1.0f });
 		m_ViewportRenderer->SetLineWidth(m_LineWidth);
@@ -443,29 +439,69 @@ namespace Iris {
 		// Current Scene name
 		{
 			UI::ImGuiScopedColor textColor(ImGuiCol_Text, Colors::Theme::Text);
-			const std::string sceneName = m_CurrentScene->GetName();
-
-			ImGui::SetCursorPosX(menuBarLeft);
-			UI::ShiftCursorX(13.0f);
+			int index = 0;
+			for (const Ref<Scene>& scene : m_EditorScenes)
 			{
-				UI::ImGuiScopedFont boldFont(fontsLib.GetFont("RobotoBold"));
-				ImGui::TextUnformatted(sceneName.c_str());
+				if (index++ != 0)
+				{
+					ImGui::SameLine();
+					UI::ShiftCursor(6.0f, -2.0f);
+				}
+				else
+					ImGui::SetCursorPosX(menuBarLeft);
+					
+				const std::string sceneName = scene->GetName();
+
+				ImVec2 textSize = ImGui::CalcTextSize(sceneName.c_str());
+
+				UI::ShiftCursorX(15.0f);
+
+				ImRect itemRect = { { ImGui::GetCursorPosX() - 13.0f, ImGui::GetCursorPosY() - 5.0f}, {ImGui::GetCursorPosX() + textSize.x + 10.0f, ImGui::GetCursorPosY() + textSize.y + 5.0f } };
+				itemRect = UI::RectExpanded(itemRect, 3.0f, 4.0f);
+
+				// Vertical line
+				constexpr float underLineThickness = 2.0f;
+				constexpr float underLineExpandWidth = 4.0f;
+				ImRect lineRect = itemRect;
+				lineRect.Min.x += 4.0f;
+				lineRect.Max.x = itemRect.Min.x + underLineThickness + 4.0f;
+				lineRect.Min.y += 2.0f;
+				lineRect.Max.y -= 10.0f;
+				drawList->AddRectFilled(lineRect.Min, lineRect.Max, Colors::Theme::Muted, 2.0f);
+
+				itemRect = UI::RectExpanded(itemRect, 1.0f, 2.0f);
+				bool currentSceneTab = m_EditorScenes[index - 1] == m_CurrentScene;
+				ImGui::GetCurrentWindow()->DrawList->AddRectFilled(itemRect.Min, itemRect.Max, currentSceneTab ? IM_COL32(20, 125, 106, 127) : IM_COL32(25, 25, 25, 100), 8.0f);
+
+				if (ImGui::ButtonBehavior(UI::RectExpanded(itemRect, 1.0f, 2.0f), ImGui::GetID(UI::GenerateID()), nullptr, nullptr, ImGuiButtonFlags_PressedOnClick))
+				{
+					SelectionManager::DeselectAll();
+					m_CurrentScene = m_EditorScenes[index - 1];
+				}
+
+				ImGui::SetCursorPosX(lineRect.Max.x + 8.0f);
+				UI::ShiftCursorY(2.0f);
+				{
+					UI::ImGuiScopedFont boldFont(fontsLib.GetFont("RobotoBold"));
+					ImGui::TextUnformatted(sceneName.c_str());
+				}
+				UI::SetToolTip("Current Scene (" + sceneName + ")");
+
+				//if (ImGui::IsItemClicked(ImGuiMouseButton_Right))
+				//{
+				//	// TODO: DELETE the scene at the current index - 1
+				//}
 			}
-			UI::SetToolTip("Current Scene (" + sceneName + ")");
 
-			constexpr float underLineThickness = 2.0f;
-			constexpr float underLineExpandWidth = 4.0f;
-			ImRect itemRect = UI::RectExpanded(UI::GetItemRect(), underLineExpandWidth, 0.0f);
-
-			// Horizontal line
-			// itemRect.Min.y = itemRect.Max.y - underLineThickness;
-			// itemRect = UI::RectOffset(itemRect, 0.0f, underLineThickness * 2.0f);
-
-			// Vertical line
-			itemRect.Max.x = itemRect.Min.x + underLineThickness;
-			itemRect = UI::RectOffset(itemRect, -underLineThickness * 2.0f, 0.0f);
-
-			drawList->AddRectFilled(itemRect.Min, itemRect.Max, Colors::Theme::Muted, 2.0f);
+			// TODO: Fix spacing issues
+			// TODO: For the last one add a little plus button after it that way we can make an add scene button
+			// TODO: IMPROVE the looks of this
+			// ImGui::SameLine();
+			// UI::ShiftCursorX(3.0f);
+			// if (ImGui::Button("+"))
+			// {
+			// 	m_ShowNewSceneModal = true;
+			// }
 		}
 
 		ImGui::ResumeLayout();
@@ -2297,7 +2333,7 @@ namespace Iris {
 		Project::SetActive(project);
 
 		m_PanelsManager->OnProjectChanged(project);
-		NewScene();
+		NewScene("Editor Scene");
 
 		SelectionManager::DeselectAll();
 
@@ -2332,8 +2368,11 @@ namespace Iris {
 		m_CurrentScene = nullptr;
 
 		// Check that m_EditorScene is the last one (so setting it null here will destroy the scene)
-		IR_ASSERT(m_EditorScene->GetRefCount() == 1, "Scene will not be destroyed after project is closed - something is still holding scene refs!");
-		m_EditorScene = nullptr;
+		for (Ref<Scene>& scene : m_EditorScenes)
+		{
+			IR_ASSERT(scene->GetRefCount() == 1, "Scene will not be destroyed after project is closed - something is still holding scene refs!");
+			scene = nullptr;
+		}
 
 		if (unloadProject)
 			Project::SetActive(nullptr);
@@ -2343,10 +2382,18 @@ namespace Iris {
 	{
 		SelectionManager::DeselectAll();
 
-		m_EditorScene = Scene::Create(name, true);
+		//m_EditorScenes.push_back(Scene::Create(name, true));
+		//m_CurrentScene = m_EditorScenes[++m_CurrentSceneIndex];
 
-		m_PanelsManager->SetSceneContext(m_EditorScene);
-		AssetEditorPanel::SetSceneContext(m_EditorScene);
+		 // TODO: REMOVE
+		if (!m_EditorScenes.size())
+			m_EditorScenes.resize(1);
+		m_CurrentSceneIndex = 0;
+		m_EditorScenes[m_CurrentSceneIndex] = Scene::Create(name, true);
+		m_CurrentScene = m_EditorScenes[m_CurrentSceneIndex];
+
+		m_PanelsManager->SetSceneContext(m_CurrentScene);
+		AssetEditorPanel::SetSceneContext(m_CurrentScene);
 
 		m_SceneFilePath = std::string();
 
@@ -2376,7 +2423,8 @@ namespace Iris {
 		Ref<Scene> newScene = Scene::Create("New Scene", true);
 		SceneSerializer::Deserialize(newScene, filePath);
 
-		m_EditorScene = newScene;
+		m_EditorScenes[m_CurrentSceneIndex] = newScene;
+		m_CurrentScene = m_EditorScenes[m_CurrentSceneIndex];
 		m_SceneFilePath = filePath.string();
 
 		std::replace(m_SceneFilePath.begin(), m_SceneFilePath.end(), '\\', '/');

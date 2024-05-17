@@ -92,9 +92,10 @@ namespace Iris {
 
 	private:
 		Ref<Scene> m_CurrentScene;
-		Ref<Scene> m_EditorScene;
+		std::vector<Ref<Scene>> m_EditorScenes;
 		Ref<SceneRenderer> m_ViewportRenderer;
 		Ref<Renderer2D> m_Renderer2D;
+		int m_CurrentSceneIndex = -1;
 
 		Scope<PanelsManager> m_PanelsManager;
 
