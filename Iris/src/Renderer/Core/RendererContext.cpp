@@ -304,4 +304,9 @@ namespace Iris {
         return Ref<RendererContext>(Renderer::GetContext());
     }
 
+    void RendererContext::WaitDeviceIdle()
+    {
+        vkDeviceWaitIdle(Get()->GetCurrentDevice()->GetVulkanDevice());
+    }
+
 }

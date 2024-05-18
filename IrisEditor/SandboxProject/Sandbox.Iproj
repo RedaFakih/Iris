@@ -1,0 +1,31 @@
+Project:
+  Name: Sandbox
+  AssetDirectory: Assets
+  AssetRegistryPath: Assets/AssetRegistry.Iar
+  MeshPath: Assets/Meshes/Default
+  MeshSourcePath: Assets/Meshes/Default/Source
+  StartScene: scenes/Characters.Iscene
+  AutoSave: false
+  AutoSaveInterval: 300
+  Log:
+    AssetManager:
+      Enabled: true
+      LevelFilter: Trace
+    Assimp:
+      Enabled: true
+      LevelFilter: Trace
+    Mesh:
+      Enabled: true
+      LevelFilter: Trace
+    Renderer:
+      Enabled: true
+      LevelFilter: Trace
+    Shader:
+      Enabled: true
+      LevelFilter: Trace
+    ShaderCompiler:
+      Enabled: true
+      LevelFilter: Trace
+    VulkanAllocator:
+      Enabled: true
+      LevelFilter: Trace

@@ -81,7 +81,9 @@ namespace Iris {
 
 		config.MeshPath = rootNode["MeshPath"].as<std::string>();
 		config.MeshSourcePath = rootNode["MeshSourcePath"].as<std::string>();
-		config.StartScene = rootNode["StartScene"].as<std::string>();
+
+		if (rootNode["StartScene"])
+			config.StartScene = rootNode["StartScene"].as<std::string>();
 
 		config.EnableAutoSave = rootNode["AutoSave"].as<bool>();
 		config.AutoSaveIntervalSeconds = rootNode["AutoSaveInterval"].as<int>();
@@ -94,8 +96,8 @@ namespace Iris {
 			{
 				std::string name = node.first.as<std::string>();
 				auto& details = tags[name];
-				details.Enabled = node.second["Enabled"].as<bool>();
-				details.LevelFilter = Logging::Log::LevelFromString(node.second["LevelFilter"].as<std::string>());
+				details.Enabled = node.second["Enabled"].as<bool>(true);
+				details.LevelFilter = Logging::Log::LevelFromString(node.second["LevelFilter"].as<std::string>("Info"));
 			}
 		}
 

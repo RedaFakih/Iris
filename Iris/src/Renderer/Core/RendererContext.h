@@ -24,6 +24,8 @@ namespace Iris {
 		static Ref<RendererContext> Get();
 		inline static Ref<VulkanDevice> GetCurrentDevice() { return Get()->GetDevice(); }
 
+		static void WaitDeviceIdle();
+
 	private:
 		Ref<VulkanDevice> m_Device;
 		Ref<VulkanPhysicalDevice> m_PhysicalDevice;

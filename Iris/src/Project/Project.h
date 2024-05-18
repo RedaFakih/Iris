@@ -8,23 +8,21 @@ namespace Iris {
 	{
 		std::string Name;
 
-		// TODO: The values that are set here are temp and they should not be set here
-		std::string AssetDirectory = "Assets";
-		std::string AssetRegistryPath = "Assets/AssetRegistry.Iar";
+		std::string AssetDirectory;
+		std::string AssetRegistryPath;
 
+		// For default meshes
 		std::string MeshPath;
 		std::string MeshSourcePath;
 
 		std::string StartScene;
 
-		// TODO: Not implemented yet...
 		bool EnableAutoSave = false;
 		int AutoSaveIntervalSeconds = 300; // 5 minutes
 
 		// Not serialized
 		std::string ProjectFileName;
-		// TODO: The value set here is temp and it should not be set here
-		std::string ProjectDirectory = "SandboxProject";
+		std::string ProjectDirectory;
 	};
 
 	class Project : public RefCountedObject

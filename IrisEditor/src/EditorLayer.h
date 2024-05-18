@@ -8,9 +8,11 @@
 #include "Editor/EditorCamera.h"
 #include "Editor/PanelsManager.h"
 #include "Project/Project.h"
+#include "Project/UserPreferences.h"
 #include "Renderer/Renderer2D.h"
 #include "Renderer/SceneRenderer.h"
 #include "Scene/Scene.h"
+#include "Utils/FileSystem.h"
 
 #include <imgui/imgui_internal.h>
 
@@ -19,7 +21,7 @@ namespace Iris {
 	class EditorLayer : public Layer
 	{
 	public:
-		EditorLayer();
+		EditorLayer(const Ref<UserPreferences>& userPrefs);
 		virtual ~EditorLayer() override;
 
 		static EditorLayer* Get() { return s_EditorLayerInstance; }
@@ -38,7 +40,7 @@ namespace Iris {
 
 		// Project
 		void OpenProject();
-		void OpenProject(std::filesystem::path& filePath);
+		void OpenProject(const std::filesystem::path& filePath);
 		void CreateProject(std::filesystem::path projectPath);
 		void EmptyProject();
 		void SaveProject();
@@ -50,6 +52,7 @@ namespace Iris {
 		bool OpenScene(const std::filesystem::path filePath);
 		bool OpenScene(const AssetMetaData& metaData);
 		void SaveScene();
+		void SaveSceneAuto();
 		void SaveSceneAs();
 
 		void SceneHierarchySetEditorCameraTransform(Entity entity);
@@ -76,6 +79,7 @@ namespace Iris {
 		void UI_DrawViewportIcons();
 		void UI_DrawGizmos();
 		void UI_ShowNewSceneModal();
+		void UI_ShowNewProjectModal();
 
 		void DeleteEntity(Entity entity);
 
@@ -91,11 +95,13 @@ namespace Iris {
 		};
 
 	private:
+		Ref<UserPreferences> m_UserPreferences;
+
 		Ref<Scene> m_CurrentScene;
-		std::vector<Ref<Scene>> m_EditorScenes;
+		Ref<Scene> m_EditorScene;
+
 		Ref<SceneRenderer> m_ViewportRenderer;
 		Ref<Renderer2D> m_Renderer2D;
-		int m_CurrentSceneIndex = -1;
 
 		Scope<PanelsManager> m_PanelsManager;
 
@@ -125,6 +131,7 @@ namespace Iris {
 		bool m_ShowBoundingBoxSubMeshes = false;
 
 		bool m_ShowNewSceneModal = false;
+		bool m_ShowNewProjectModal = false;
 
 		bool m_ShowGizmos = true;
 		bool m_GizmoAxisFlip = false;
@@ -151,6 +158,8 @@ namespace Iris {
 
 		enum class SelectionMode { Entity = 0, SubMesh = 1 };
 		SelectionMode m_SelectionMode = SelectionMode::Entity;
+
+		float m_TimeSinceLastSave = 0.0f;
 
 		// We can only have on instance of the EditorLayer
 		inline static EditorLayer* s_EditorLayerInstance = nullptr;

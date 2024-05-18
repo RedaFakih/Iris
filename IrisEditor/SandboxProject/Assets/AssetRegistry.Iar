@@ -32,6 +32,9 @@ Assets:
   - Handle: 1292639928559906373
     FilePath: Meshes/LowPolySponza/9288698199695299068.jpg
     Type: Texture
+  - Handle: 1542930265488252775
+    FilePath: Meshes/Default/Source/Capsule.gltf
+    Type: MeshSource
   - Handle: 1605926159532914677
     FilePath: Meshes/football.glb
     Type: MeshSource
@@ -71,6 +74,9 @@ Assets:
   - Handle: 3448222499160019637
     FilePath: Meshes/Evenlynn.Ismesh
     Type: StaticMesh
+  - Handle: 3549975881088168559
+    FilePath: Meshes/Default/Source/Cylinder.gltf
+    Type: MeshSource
   - Handle: 3654689400500837972
     FilePath: Meshes/LowPolySponza/17876391417123941155.jpg
     Type: Texture
@@ -95,6 +101,9 @@ Assets:
   - Handle: 4786713185340225801
     FilePath: Materials/GreenMaterial.Imaterial
     Type: Material
+  - Handle: 4835715805608920513
+    FilePath: Meshes/Default/Capsule.Ismesh
+    Type: StaticMesh
   - Handle: 5003918072871864288
     FilePath: Meshes/LowPolySponza/2185409758123873465.jpg
     Type: Texture
@@ -218,6 +227,9 @@ Assets:
   - Handle: 11079752218480321585
     FilePath: Meshes/LowPolySponza/13824894030729245199.jpg
     Type: Texture
+  - Handle: 11155005694498319828
+    FilePath: Meshes/Default/Torus.Ismesh
+    Type: StaticMesh
   - Handle: 11354832327799582001
     FilePath: Meshes/LowPolySponza/8006627369776289000.png
     Type: Texture
@@ -251,6 +263,9 @@ Assets:
   - Handle: 13185725162571231150
     FilePath: Meshes/LowPolySponza/715093869573992647.jpg
     Type: Texture
+  - Handle: 13315839447845139405
+    FilePath: Meshes/Default/Cylinder.Ismesh
+    Type: StaticMesh
   - Handle: 13357592797938815638
     FilePath: Meshes/LowPolySponza/14650633544276105767.jpg
     Type: Texture
@@ -265,6 +280,9 @@ Assets:
     Type: Texture
   - Handle: 13686750258206424161
     FilePath: Meshes/Galio/scene.gltf
+    Type: MeshSource
+  - Handle: 14753657999470155821
+    FilePath: Meshes/Default/Source/Torus.gltf
     Type: MeshSource
   - Handle: 15031040429962181583
     FilePath: Meshes/LowPolySponza/7645212358685992005.jpg

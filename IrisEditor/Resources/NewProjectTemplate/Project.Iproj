@@ -1,0 +1,9 @@
+Project:
+  Name: $PROJECT_NAME$
+  AssetDirectory: Assets
+  AssetRegistryPath: Assets/AssetRegistry.Iar
+  MeshPath: Assets/Meshes/Default
+  MeshSourcePath: Assets/Meshes/Default/Source
+  StartScene: scenes/$START_SCENE_NAME$
+  AutoSave: true
+  AutoSaveInterval: 300

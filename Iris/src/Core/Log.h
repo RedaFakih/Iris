@@ -87,7 +87,6 @@ namespace Iris::Logging {
 		static std::shared_ptr<spdlog::logger> s_CoreLogger;
 		static std::shared_ptr<spdlog::logger> s_ClientLogger;
 
-		// TODO: These are to be serialized when we have a projects so that we can properly filter out logging messages
 		static std::map<std::string, TagDetails> s_EnabledTags;
 
 	};

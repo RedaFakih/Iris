@@ -14,7 +14,6 @@ Entities:
       AssetID: 3448222499160019637
       MaterialTable:
         0: 0
-        1: 0
       Visible: true
   - Entity: 978865093965260794
     TagComponent:
@@ -30,7 +29,6 @@ Entities:
       AssetID: 11733034874740757145
       MaterialTable:
         0: 0
-        1: 0
       Visible: true
   - Entity: 1017548288841473994
     TagComponent:
@@ -46,8 +44,6 @@ Entities:
       AssetID: 8492331187162521719
       MaterialTable:
         0: 0
-        1: 0
-        2: 0
       Visible: true
   - Entity: 8131771692437708439
     TagComponent:
@@ -63,7 +59,6 @@ Entities:
       AssetID: 7526181345639326923
       MaterialTable:
         0: 0
-        1: 0
       Visible: true
   - Entity: 14449481804758652680
     TagComponent:
@@ -94,6 +89,4 @@ Entities:
       AssetID: 9685325371244041466
       MaterialTable:
         0: 0
-        1: 0
-        2: 0
       Visible: true

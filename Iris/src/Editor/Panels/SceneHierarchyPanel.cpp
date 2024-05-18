@@ -424,7 +424,7 @@ namespace Iris {
 						if (FileSystem::Exists(Project::GetAssetDirectory() / sourcePath / sourceAssetName))
 						{
 							AssetHandle handle = Project::GetEditorAssetManager()->GetAssetHandleFromFilePath(sourcePath / sourceAssetName);
-							if (AssetManager::GetAssetAsync<StaticMesh>(handle).Asset)
+							if (AssetManager::GetAsset<StaticMesh>(handle))
 							{
 								Ref<StaticMesh> staticMesh = Project::GetEditorAssetManager()->CreateNewAsset<StaticMesh>(targetAssetName, (Project::GetAssetDirectory() / targetPath).string(), handle);
 								entity.AddComponent<StaticMeshComponent>(staticMesh->Handle);
@@ -453,6 +453,21 @@ namespace Iris {
 				if (ImGui::MenuItem("Cone"))
 				{
 					newEntity = create3DEntity("Cone", "Cone.Ismesh", "Cone.gltf");
+				}
+
+				if (ImGui::MenuItem("Cylinder"))
+				{
+					newEntity = create3DEntity("Cylinder", "Cylinder.Ismesh", "Cylinder.gltf");
+				}
+
+				if (ImGui::MenuItem("Torus"))
+				{
+					newEntity = create3DEntity("Torus", "Torus.Ismesh", "Torus.gltf");
+				}
+
+				if (ImGui::MenuItem("Capsule"))
+				{
+					newEntity = create3DEntity("Capsule", "Capsule.Ismesh", "Capsule.gltf");
 				}
 
 				ImGui::EndMenu();

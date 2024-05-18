@@ -38,19 +38,42 @@
 
 namespace Iris {
 
+	namespace Utils {
+
+		static void ReplaceToken(std::string& str, const char* token, const std::string& value)
+		{
+			size_t pos = 0;
+			while ((pos = str.find(token, pos)) != std::string::npos)
+			{
+				str.replace(pos, strlen(token), value);
+				pos += strlen(token);
+			}
+		}
+
+	}
+
 	constexpr int c_MAX_PROJECT_NAME_LENGTH = 255;
 	constexpr int c_MAX_PROJECT_FILEPATH_LENGTH = 512;
 	static char* s_ProjectNameBuffer = new char[c_MAX_PROJECT_NAME_LENGTH];
 	static char* s_OpenProjectFilePathBuffer = new char[c_MAX_PROJECT_FILEPATH_LENGTH];
 	static char* s_NewProjectFilePathBuffer = new char[c_MAX_PROJECT_FILEPATH_LENGTH];
+	static char* s_ProjectStartSceneNameBuffer = new char[c_MAX_PROJECT_NAME_LENGTH];
 
 	static const char* s_CurrentlySelectedRenderOption = "Lit";
 
-	EditorLayer::EditorLayer()
-		: Layer("EditorLayer"), m_EditorCamera(45.0f, 1280.0f, 720.0f, 0.01f, 10000.0f)
+	EditorLayer::EditorLayer(const Ref<UserPreferences>& userPrefs)
+		: Layer("EditorLayer"), m_UserPreferences(userPrefs), m_EditorCamera(45.0f, 1280.0f, 720.0f, 0.01f, 10000.0f)
 	{
 		IR_VERIFY(!s_EditorLayerInstance, "No more than 1 EditorLayer can be created!");
 		s_EditorLayerInstance = this;
+
+		for (auto it = m_UserPreferences->RecentProjects.begin(); it != m_UserPreferences->RecentProjects.end();)
+		{
+			if (!FileSystem::Exists(it->second.Filepath))
+				it = m_UserPreferences->RecentProjects.erase(it);
+			else
+				it++;
+		}
 
 		m_TitleBarPreviousColor = Colors::Theme::TitlebarRed;
 		m_TitleBarTargetColor   = Colors::Theme::TitlebarCyan;
@@ -62,10 +85,20 @@ namespace Iris {
 
 	void EditorLayer::OnAttach()
 	{
+		memset(s_ProjectNameBuffer, 0, c_MAX_PROJECT_NAME_LENGTH);
+		memset(s_OpenProjectFilePathBuffer, 0, c_MAX_PROJECT_FILEPATH_LENGTH);
+		memset(s_NewProjectFilePathBuffer, 0, c_MAX_PROJECT_FILEPATH_LENGTH);
+		memset(s_ProjectStartSceneNameBuffer, 0, c_MAX_PROJECT_NAME_LENGTH);
+
 		EditorResources::Init();
 		m_CurrentlySelectedViewIcon = EditorResources::PerspectiveIcon;
 		m_CurrentlySelectedRenderIcon = EditorResources::LitMaterialIcon;
 		m_PanelsManager = PanelsManager::Create();
+
+		if (!m_UserPreferences->StartupProject.empty())
+			OpenProject(m_UserPreferences->StartupProject);
+		else
+			IR_VERIFY(false, "No Project provided");
 
 		if (!Project::GetActive())
 			EmptyProject();
@@ -97,6 +130,16 @@ namespace Iris {
 	void EditorLayer::OnUpdate(TimeStep ts)
 	{
 		AssetManager::SyncWithAssetThread();
+
+		// TODO: Do this only in SceneState::Edit
+		if (const auto& project = Project::GetActive(); project && project->GetConfig().EnableAutoSave)
+		{
+			m_TimeSinceLastSave += ts;
+			if (m_TimeSinceLastSave > project->GetConfig().AutoSaveIntervalSeconds)
+			{
+				SaveSceneAuto();
+			}
+		}
 
 		m_PanelsManager->SetSceneContext(m_CurrentScene);
 
@@ -216,9 +259,7 @@ namespace Iris {
 	}
 
 	void EditorLayer::OnImGuiRender()
-	{
-		// IR_CORE_FATAL("Main thread still running...");
-		
+	{		
 		UI_StartDocking();
 
 		// ImGui::ShowDemoWindow(); // Testing imgui stuff
@@ -253,7 +294,13 @@ namespace Iris {
 		if (m_ShowNewSceneModal && !m_ShowOnlyViewport)
 			UI_ShowNewSceneModal();
 
+		if (m_ShowNewProjectModal && !m_ShowOnlyViewport)
+			UI_ShowNewProjectModal();
+
 		UI_EndDocking();
+
+		if (strlen(s_OpenProjectFilePathBuffer) > 0)
+			OpenProject(s_OpenProjectFilePathBuffer);
 	}
 
 	void EditorLayer::UI_StartDocking()
@@ -400,15 +447,14 @@ namespace Iris {
 				m_TitleBarHovered = false;
 		}
 
-		const float menuBarLeft = ImGui::GetItemRectMin().x - ImGui::GetCurrentWindow()->Pos.x;
+		const float menuBarRight = ImGui::GetItemRectMin().x - ImGui::GetCurrentWindow()->Pos.x;
 		ImGuiFontsLibrary& fontsLib = Application::Get().GetImGuiLayer()->GetFontsLibrary();
 
-		// TODO: Project name
 		{
 			UI::ImGuiScopedColor textColor(ImGuiCol_Text, Colors::Theme::TextDarker);
 			UI::ImGuiScopedColor border(ImGuiCol_Border, IM_COL32(40, 40, 40, 255));
 
-			const std::string title = "TODO: Project Iris";
+			const std::string title = Project::GetActive()->GetConfig().Name;
 
 			const ImVec2 textSize = ImGui::CalcTextSize(title.c_str());
 			const float rightOffset = ImGui::GetWindowWidth() / 5.0f;
@@ -420,7 +466,7 @@ namespace Iris {
 				UI::ImGuiScopedFont boldFont(fontsLib.GetFont("RobotoBold"));
 				ImGui::TextUnformatted(title.c_str());
 			}
-			UI::SetToolTip("Current Project (ADD PROJECT NAME HERE)");
+			UI::SetToolTip(fmt::format("Current Project ({})", Project::GetActive()->GetConfig().ProjectFileName).c_str());
 
 			UI::DrawBorder(UI::RectExpanded(UI::GetItemRect(), 24.0f, 68.0f), 1.0f, 3.0f, 0.0f, -60.0f);
 		}
@@ -439,71 +485,30 @@ namespace Iris {
 		// Current Scene name
 		{
 			UI::ImGuiScopedColor textColor(ImGuiCol_Text, Colors::Theme::Text);
-			int index = 0;
-			for (const Ref<Scene>& scene : m_EditorScenes)
-			{
-				if (index++ != 0)
-				{
-					ImGui::SameLine();
-					UI::ShiftCursor(6.0f, -2.0f);
-				}
-				else
-					ImGui::SetCursorPosX(menuBarLeft);
-					
-				const std::string sceneName = scene->GetName();
 
-				ImVec2 textSize = ImGui::CalcTextSize(sceneName.c_str());
+			std::string sceneString = Utils::RemoveExtension(std::filesystem::path(m_SceneFilePath).filename().string());
+			const std::string sceneName = sceneString.size() ? sceneString : m_CurrentScene->GetName();
 
-				UI::ShiftCursorX(15.0f);
+			ImGui::SetCursorPosX(menuBarRight);
+			UI::ShiftCursorX(13.0f);
 
-				ImRect itemRect = { { ImGui::GetCursorPosX() - 13.0f, ImGui::GetCursorPosY() - 5.0f}, {ImGui::GetCursorPosX() + textSize.x + 10.0f, ImGui::GetCursorPosY() + textSize.y + 5.0f } };
-				itemRect = UI::RectExpanded(itemRect, 3.0f, 4.0f);
+			fontsLib.PushFont("RobotoBold");
+			ImGui::TextUnformatted(sceneName.c_str());
+			fontsLib.PopFont();
 
-				// Vertical line
-				constexpr float underLineThickness = 2.0f;
-				constexpr float underLineExpandWidth = 4.0f;
-				ImRect lineRect = itemRect;
-				lineRect.Min.x += 4.0f;
-				lineRect.Max.x = itemRect.Min.x + underLineThickness + 4.0f;
-				lineRect.Min.y += 2.0f;
-				lineRect.Max.y -= 10.0f;
-				drawList->AddRectFilled(lineRect.Min, lineRect.Max, Colors::Theme::Muted, 2.0f);
+			UI::SetToolTip(fmt::format("Current Scene ({})", m_SceneFilePath).c_str());
 
-				itemRect = UI::RectExpanded(itemRect, 1.0f, 2.0f);
-				bool currentSceneTab = m_EditorScenes[index - 1] == m_CurrentScene;
-				ImGui::GetCurrentWindow()->DrawList->AddRectFilled(itemRect.Min, itemRect.Max, currentSceneTab ? IM_COL32(20, 125, 106, 127) : IM_COL32(25, 25, 25, 100), 8.0f);
+			const float underLineThickness = 2.0f;
+			const float underLineExpandWidth = 4.0f;
+			ImRect rect = UI::RectExpanded(UI::GetItemRect(), underLineExpandWidth, 0.0f);
 
-				if (ImGui::ButtonBehavior(UI::RectExpanded(itemRect, 1.0f, 2.0f), ImGui::GetID(UI::GenerateID()), nullptr, nullptr, ImGuiButtonFlags_PressedOnClick))
-				{
-					SelectionManager::DeselectAll();
-					m_CurrentScene = m_EditorScenes[index - 1];
-				}
+			// Vertical Line
+			rect.Max.x = rect.Min.x + underLineThickness;
+			rect = UI::RectOffset(rect, -underLineThickness * 2.0f, 0.0f);
 
-				ImGui::SetCursorPosX(lineRect.Max.x + 8.0f);
-				UI::ShiftCursorY(2.0f);
-				{
-					UI::ImGuiScopedFont boldFont(fontsLib.GetFont("RobotoBold"));
-					ImGui::TextUnformatted(sceneName.c_str());
-				}
-				UI::SetToolTip("Current Scene (" + sceneName + ")");
+			drawList->AddRectFilled(rect.Min, rect.Max, Colors::Theme::Muted, 2.0f);
 
-				//if (ImGui::IsItemClicked(ImGuiMouseButton_Right))
-				//{
-				//	// TODO: DELETE the scene at the current index - 1
-				//}
-			}
-
-			// TODO: Fix spacing issues
-			// TODO: For the last one add a little plus button after it that way we can make an add scene button
-			// TODO: IMPROVE the looks of this
-			// ImGui::SameLine();
-			// UI::ShiftCursorX(3.0f);
-			// if (ImGui::Button("+"))
-			// {
-			// 	m_ShowNewSceneModal = true;
-			// }
 		}
-
 		ImGui::ResumeLayout();
 
 		// Window buttons
@@ -645,12 +650,63 @@ namespace Iris {
 
 					ImGui::PushStyleColor(ImGuiCol_HeaderHovered, colHovered);
 
-					if (ImGui::MenuItem("New Scene...", "Ctrl + N"))
+					if (ImGui::MenuItem("Create Project..."))
 					{
-						m_ShowNewSceneModal = !m_ShowNewSceneModal;
+						m_ShowNewProjectModal = true;
 					}
 
-					if (ImGui::MenuItem("Open Scene...", "Ctrl + O"))
+					if (ImGui::MenuItem("Open Project...", "Ctrl + O"))
+					{
+						OpenProject();
+					}
+
+					if (ImGui::BeginMenu("Open Recent"))
+					{
+						std::size_t i = 0;
+						for (auto it = m_UserPreferences->RecentProjects.begin(); it != m_UserPreferences->RecentProjects.end(); it++)
+						{
+							if (i > 5)
+								break;
+
+							if (ImGui::MenuItem(it->second.Name.c_str()))
+							{
+								// Stash the filepath away and defer the creation of the filepath until it is safe to do so
+								strcpy(s_OpenProjectFilePathBuffer, it->second.Filepath.data());
+
+								RecentProject entry = {
+									.Name = it->second.Name,
+									.Filepath = it->second.Filepath,
+									.LastOpened = time(NULL)
+								};
+
+								it = m_UserPreferences->RecentProjects.erase(it);
+
+								m_UserPreferences->RecentProjects[entry.LastOpened] = entry;
+
+								UserPreferencesSerializer::Serialize(m_UserPreferences, m_UserPreferences->Filepath);
+
+								break;
+							}
+
+							i++;
+						}
+
+						ImGui::EndMenu();
+					}
+
+					if (ImGui::MenuItem("Save Project"))
+					{
+						SaveProject();
+					}
+
+					ImGui::Separator();
+
+					if (ImGui::MenuItem("New Scene...", "Ctrl + N"))
+					{
+						m_ShowNewSceneModal = true;
+					}
+
+					if (ImGui::MenuItem("Open Scene...", "Ctrl + Shift + O"))
 					{
 						OpenScene();
 					}
@@ -1855,6 +1911,73 @@ namespace Iris {
 		}
 	}
 
+	void EditorLayer::UI_ShowNewProjectModal()
+	{
+		ImGui::OpenPopup("Create New Project");
+
+		// Always center this window when appearing
+		ImVec2 center = ImGui::GetMainViewport()->GetCenter();
+		ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+
+		if (ImGui::BeginPopupModal("Create New Project", 0, ImGuiWindowFlags_AlwaysAutoResize))
+		{
+			ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, { 10.0f, 7.0f });
+
+			ImGuiFontsLibrary& fontsLib = Application::Get().GetImGuiLayer()->GetFontsLibrary();
+
+			fontsLib.PushFont("RobotoBold");
+			std::string fullProjectPath = strlen(s_NewProjectFilePathBuffer) > 0 ? std::string(s_NewProjectFilePathBuffer) + "/" + std::string(s_ProjectNameBuffer) : "";
+			ImGui::Text("Full Project Path: %s", fullProjectPath.c_str());
+			fontsLib.PopFont();
+
+			ImGui::SetNextItemWidth(-1);
+			ImGui::InputTextWithHint("##new_project_name", "Project Name", s_ProjectNameBuffer, c_MAX_PROJECT_NAME_LENGTH);
+
+			ImGui::SetNextItemWidth(-1);
+			ImGui::InputTextWithHint("##new_project_start_scene", "Start Scene Name", s_ProjectStartSceneNameBuffer, c_MAX_PROJECT_NAME_LENGTH);
+
+			ImVec2 label_size = ImGui::CalcTextSize("...", NULL, true);
+			auto& style = ImGui::GetStyle();
+			ImVec2 button_size = ImGui::CalcItemSize(ImVec2(0, 0), label_size.x + style.FramePadding.x * 2.0f, label_size.y + style.FramePadding.y * 2.0f);
+
+			ImGui::SetNextItemWidth(590 - button_size.x - style.FramePadding.x * 2.0f - style.ItemInnerSpacing.x - 1);
+			ImGui::InputTextWithHint("##new_project_location", "Project Location", s_NewProjectFilePathBuffer, c_MAX_PROJECT_FILEPATH_LENGTH);
+
+			ImGui::SameLine();
+
+			if (ImGui::Button("..."))
+			{
+				std::string result = FileSystem::OpenFolderDialog().string();
+				memcpy(s_NewProjectFilePathBuffer, result.data(), result.length());
+			}
+
+			ImGui::Separator();
+
+			fontsLib.PushFont("RobotoBold");
+			if (ImGui::Button("Create") || Input::IsKeyDown(KeyCode::Enter))
+			{
+				CreateProject(fullProjectPath);
+				m_ShowNewProjectModal = false;
+				ImGui::CloseCurrentPopup();
+			}
+
+			ImGui::SameLine();
+
+			if (ImGui::Button("Cancel") || Input::IsKeyDown(KeyCode::Escape))
+			{
+				memset(s_NewProjectFilePathBuffer, 0, c_MAX_PROJECT_FILEPATH_LENGTH);
+				m_ShowNewProjectModal = false;
+				ImGui::CloseCurrentPopup();
+			}
+
+			fontsLib.PopFont();
+
+			ImGui::PopStyleVar();
+
+			ImGui::EndPopup();
+		}
+	}
+
 	void EditorLayer::DeleteEntity(Entity entity)
 	{
 		if (!entity)
@@ -1936,8 +2059,56 @@ namespace Iris {
 
 	bool EditorLayer::OnKeyPressed(Events::KeyPressedEvent& e)
 	{
+		if (Input::IsKeyDown(KeyCode::LeftShift))
+		{
+			int n = 0;
+			// We only serialize the panels manager for the view panels and not the Edit panels since the Edit ones should always be closed on startup
+			for (auto& [id, panelSpec] : m_PanelsManager->GetPanels(PanelCategory::View))
+			{
+				KeyCode key = static_cast<KeyCode>(static_cast<int>(KeyCode::F1) + n++);
+				if (key == e.GetKeyCode())
+				{
+					panelSpec.IsOpen = !panelSpec.IsOpen;
+					m_PanelsManager->Serialize();
+
+					break;
+				}
+			}
+		}
+
 		if (UI::IsWindowFocused("Viewport") || UI::IsWindowFocused("Scene Hierarchy"))
 		{
+			if (Input::IsKeyDown(KeyCode::LeftShift))
+			{
+				switch (e.GetKeyCode())
+				{
+					case KeyCode::Key1:
+					{
+						m_CurrentlySelectedRenderIcon = EditorResources::LitMaterialIcon;
+						s_CurrentlySelectedRenderOption = "Lit";
+						m_ViewportRenderer->SetViewMode(SceneRenderer::ViewMode::Lit);
+
+						break;
+					}
+					case KeyCode::Key2:
+					{
+						m_CurrentlySelectedRenderIcon = EditorResources::UnLitMaterialIcon;
+						s_CurrentlySelectedRenderOption = "Unlit";
+						m_ViewportRenderer->SetViewMode(SceneRenderer::ViewMode::Unlit);
+
+						break;
+					}
+					case KeyCode::Key3:
+					{
+						m_CurrentlySelectedRenderIcon = EditorResources::WireframeViewIcon;
+						s_CurrentlySelectedRenderOption = "Wireframe";
+						m_ViewportRenderer->SetViewMode(SceneRenderer::ViewMode::Wireframe);
+
+						break;
+					}
+				}
+			}
+
 			if (m_ViewportPanelMouseOver && !Input::IsMouseButtonDown(MouseButton::Right))
 			{
 				switch (e.GetKeyCode())
@@ -1984,37 +2155,6 @@ namespace Iris {
 				}
 			}
 
-			if (Input::IsKeyDown(KeyCode::LeftShift))
-			{
-				switch (e.GetKeyCode())
-				{
-					case KeyCode::Key1:
-					{
-						m_CurrentlySelectedRenderIcon = EditorResources::LitMaterialIcon;
-						s_CurrentlySelectedRenderOption = "Lit";
-						m_ViewportRenderer->SetViewMode(SceneRenderer::ViewMode::Lit);
-
-						break;
-					}
-					case KeyCode::Key2:
-					{
-						m_CurrentlySelectedRenderIcon = EditorResources::UnLitMaterialIcon;
-						s_CurrentlySelectedRenderOption = "Unlit";
-						m_ViewportRenderer->SetViewMode(SceneRenderer::ViewMode::Unlit);
-
-						break;
-					}
-					case KeyCode::Key3:
-					{
-						m_CurrentlySelectedRenderIcon = EditorResources::WireframeViewIcon;
-						s_CurrentlySelectedRenderOption = "Wireframe";
-						m_ViewportRenderer->SetViewMode(SceneRenderer::ViewMode::Wireframe);
-
-						break;
-					}
-				}
-			}
-
 			switch (e.GetKeyCode())
 			{
 				case KeyCode::Escape:
@@ -2027,23 +2167,6 @@ namespace Iris {
 					std::vector<UUID> selectedEntities = SelectionManager::GetSelections(SelectionContext::Scene);
 					for (auto entity : selectedEntities)
 						DeleteEntity(m_CurrentScene->TryGetEntityWithUUID(entity));
-					break;
-				}
-			}
-		}
-
-		if (Input::IsKeyDown(KeyCode::LeftShift))
-		{
-			int n = 0;
-			// We only serialize the panels manager for the view panels and not the Edit panels since the Edit ones should always be closed on startup
-			for (auto& [id, panelSpec] : m_PanelsManager->GetPanels(PanelCategory::View))
-			{
-				KeyCode key = static_cast<KeyCode>(static_cast<int>(KeyCode::F1) + n++);
-				if (key == e.GetKeyCode())
-				{
-					panelSpec.IsOpen = !panelSpec.IsOpen;
-					m_PanelsManager->Serialize();
-
 					break;
 				}
 			}
@@ -2080,8 +2203,14 @@ namespace Iris {
 					break;
 				}
 				case KeyCode::S:
-					SaveScene();
+				{
+					if (Input::IsKeyDown(KeyCode::LeftShift))
+						SaveSceneAs();
+					else
+						SaveScene();
+					
 					break;
+				}
 				case KeyCode::N:
 				{
 					m_ShowNewSceneModal = true;
@@ -2089,7 +2218,11 @@ namespace Iris {
 				}
 				case KeyCode::O:
 				{
-					OpenScene();
+					if (Input::IsKeyDown(KeyCode::LeftShift))
+						OpenScene();
+					else
+						OpenProject();
+
 					break;
 				}
 				case KeyCode::F:
@@ -2107,7 +2240,6 @@ namespace Iris {
 
 						m_ShowOnlyViewport = false;
 					}
-					// Maximize Viewport
 					else
 					{
 						glfwGetWindowPos(nativeWindow, reinterpret_cast<int*>(&previousPos.x), reinterpret_cast<int*>(&previousPos.y));
@@ -2121,16 +2253,6 @@ namespace Iris {
 					Application::Get().DispatchEvent<Events::RenderViewportOnlyEvent>(m_ShowOnlyViewport);
 
 					break;
-				}
-			}
-
-			if (Input::IsKeyDown(KeyCode::LeftShift))
-			{
-				switch (e.GetKeyCode())
-				{
-					case KeyCode::S:
-						SaveSceneAs();
-						break;
 				}
 			}
 		}
@@ -2285,9 +2407,26 @@ namespace Iris {
 
 		// stash the filepath away.  Actual opening of project is deferred until it is "safe" to do so.
 		strcpy(s_OpenProjectFilePathBuffer, filePath.string().data());
+
+		RecentProject projectEntry;
+		projectEntry.Name = Utils::RemoveExtension(filePath.filename().string());
+		projectEntry.Filepath = filePath.string();
+		projectEntry.LastOpened = time(NULL);
+
+		for (auto it = m_UserPreferences->RecentProjects.begin(); it != m_UserPreferences->RecentProjects.end(); it++)
+		{
+			if (it->second.Name == projectEntry.Name)
+			{
+				m_UserPreferences->RecentProjects.erase(it);
+				break;
+			}
+		}
+
+		m_UserPreferences->RecentProjects[projectEntry.LastOpened] = projectEntry;
+		UserPreferencesSerializer::Serialize(m_UserPreferences, m_UserPreferences->Filepath);
 	}
 
-	void EditorLayer::OpenProject(std::filesystem::path& filePath)
+	void EditorLayer::OpenProject(const std::filesystem::path& filePath)
 	{
 		if (!FileSystem::Exists(filePath))
 		{
@@ -2295,6 +2434,8 @@ namespace Iris {
 			memset(s_OpenProjectFilePathBuffer, 0, c_MAX_PROJECT_FILEPATH_LENGTH);
 			return;
 		}
+
+		RendererContext::WaitDeviceIdle();
 
 		if (Project::GetActive())
 			CloseProject();
@@ -2305,11 +2446,16 @@ namespace Iris {
 
 		m_PanelsManager->OnProjectChanged(project);
 
-		bool hasScene = !project->GetConfig().StartScene.empty();
+		bool startSceneFileExists = FileSystem::Exists(Project::GetAssetDirectory() / project->GetConfig().StartScene);
+		bool hasScene = !project->GetConfig().StartScene.empty() && startSceneFileExists;
 		if (hasScene)
 			hasScene = OpenScene((Project::GetAssetDirectory() / project->GetConfig().StartScene).string());
 		else
+		{
+			if (startSceneFileExists)
+				m_SceneFilePath = (Project::GetAssetDirectory() / project->GetConfig().StartScene).string();
 			NewScene();
+		}
 
 		SelectionManager::DeselectAll();
 
@@ -2318,10 +2464,73 @@ namespace Iris {
 		memset(s_ProjectNameBuffer, 0, c_MAX_PROJECT_NAME_LENGTH);
 		memset(s_OpenProjectFilePathBuffer, 0, c_MAX_PROJECT_FILEPATH_LENGTH);
 		memset(s_NewProjectFilePathBuffer, 0, c_MAX_PROJECT_FILEPATH_LENGTH);
+		memset(s_ProjectStartSceneNameBuffer, 0, c_MAX_PROJECT_NAME_LENGTH);
 	}
 
 	void EditorLayer::CreateProject(std::filesystem::path projectPath)
 	{
+		if (!FileSystem::Exists(projectPath))
+			FileSystem::CreateDirectory(projectPath);
+
+		std::filesystem::copy("Resources/NewProjectTemplate", projectPath, std::filesystem::copy_options::recursive);
+		std::filesystem::path irisRootDirectory = std::filesystem::absolute("./Resources").parent_path().string();
+		std::string irisRootDirectoryString = irisRootDirectory.string();
+
+		if (irisRootDirectory.stem().string() == "IrisEditor")
+			irisRootDirectory = irisRootDirectory.parent_path().string();
+
+		std::replace(irisRootDirectoryString.begin(), irisRootDirectoryString.end(), '\\', '/');
+
+		{
+			// Project File
+			std::ifstream stream(projectPath / "Project.Iproj");
+			IR_VERIFY(stream.is_open());
+			std::stringstream ss;
+			ss << stream.rdbuf();
+			stream.close();
+
+			std::string str = ss.str();
+			Utils::ReplaceToken(str, "$PROJECT_NAME$", s_ProjectNameBuffer);
+
+			Utils::ReplaceToken(str, "$START_SCENE_NAME$", fmt::format("{}.Iscene", s_ProjectStartSceneNameBuffer));
+
+			std::ofstream ostream(projectPath / "Project.Iproj");
+			ostream << str;
+			ostream.close();
+
+			std::string newProjectFileName = std::string(s_ProjectNameBuffer) + ".Iproj";
+			std::filesystem::rename(projectPath / "Project.Iproj", projectPath / newProjectFileName);
+		}
+
+		std::filesystem::create_directories(projectPath / "Assets" / "Materials");
+		std::filesystem::create_directories(projectPath / "Assets" / "Meshes" / "Default");
+		std::filesystem::create_directories(projectPath / "Assets" / "Meshes" / "Default" / "Source");
+		std::filesystem::create_directories(projectPath / "Assets" / "Scenes");
+		std::filesystem::create_directories(projectPath / "Assets" / "Textures");
+		std::filesystem::create_directories(projectPath / "Assets" / "EnvironmentMaps");
+
+		// NOTE: Copying meshes from resources, change this in the future to just a vertex buffer thats built into 
+		// the engine since we wouldn't really want to modify these meshes and hence there's no point to have gltf files...
+		{
+			std::filesystem::path originalFilePath = irisRootDirectoryString + "/Resources/Meshes/Default";
+			std::filesystem::path targetPath = projectPath / "Assets" / "Meshes" / "Default" / "Source";
+			IR_VERIFY(std::filesystem::exists(originalFilePath));
+
+			for (const auto& dirEntry : std::filesystem::directory_iterator(originalFilePath))
+				std::filesystem::copy(dirEntry.path(), targetPath);
+		}
+
+		{
+			RecentProject projectEntry;
+			projectEntry.Name = s_ProjectNameBuffer;
+			projectEntry.Filepath = (projectPath / (std::string(s_ProjectNameBuffer) + ".Iproj")).string();
+			projectEntry.LastOpened = time(NULL);
+			m_UserPreferences->RecentProjects[projectEntry.LastOpened] = projectEntry;
+
+			UserPreferencesSerializer::Serialize(m_UserPreferences, m_UserPreferences->Filepath);
+		}
+
+		OpenProject(projectPath.string() + "/" + std::string(s_ProjectNameBuffer) + ".Iproj");
 	}
 
 	void EditorLayer::EmptyProject()
@@ -2338,6 +2547,11 @@ namespace Iris {
 		SelectionManager::DeselectAll();
 
 		m_EditorCamera = EditorCamera(45.0f, 1280.0f, 720.0f, 0.01f, 1000.0f);
+
+		memset(s_ProjectNameBuffer, 0, c_MAX_PROJECT_NAME_LENGTH);
+		memset(s_OpenProjectFilePathBuffer, 0, c_MAX_PROJECT_FILEPATH_LENGTH);
+		memset(s_NewProjectFilePathBuffer, 0, c_MAX_PROJECT_FILEPATH_LENGTH);
+		memset(s_ProjectStartSceneNameBuffer, 0, c_MAX_PROJECT_NAME_LENGTH);
 	}
 
 	void EditorLayer::SaveProject()
@@ -2346,7 +2560,7 @@ namespace Iris {
 			IR_VERIFY(false); 
 
 		auto project = Project::GetActive();
-		ProjectSerializer::Serialize(project, project->GetConfig().ProjectDirectory + "/" + project->GetConfig().ProjectFileName);
+		ProjectSerializer::Serialize(project, project->GetConfig().ProjectDirectory + "/" + project->GetConfig().ProjectFileName + ".Iproj");
 
 		m_PanelsManager->Serialize();
 	}
@@ -2368,11 +2582,8 @@ namespace Iris {
 		m_CurrentScene = nullptr;
 
 		// Check that m_EditorScene is the last one (so setting it null here will destroy the scene)
-		for (Ref<Scene>& scene : m_EditorScenes)
-		{
-			IR_ASSERT(scene->GetRefCount() == 1, "Scene will not be destroyed after project is closed - something is still holding scene refs!");
-			scene = nullptr;
-		}
+		IR_ASSERT(m_EditorScene->GetRefCount() == 1, "Scene will not be destroyed after project is closed - something is still holding scene refs!");
+		m_EditorScene = nullptr;
 
 		if (unloadProject)
 			Project::SetActive(nullptr);
@@ -2382,15 +2593,8 @@ namespace Iris {
 	{
 		SelectionManager::DeselectAll();
 
-		//m_EditorScenes.push_back(Scene::Create(name, true));
-		//m_CurrentScene = m_EditorScenes[++m_CurrentSceneIndex];
-
-		 // TODO: REMOVE
-		if (!m_EditorScenes.size())
-			m_EditorScenes.resize(1);
-		m_CurrentSceneIndex = 0;
-		m_EditorScenes[m_CurrentSceneIndex] = Scene::Create(name, true);
-		m_CurrentScene = m_EditorScenes[m_CurrentSceneIndex];
+		m_EditorScene = Scene::Create(name, true);
+		m_CurrentScene = m_EditorScene;
 
 		m_PanelsManager->SetSceneContext(m_CurrentScene);
 		AssetEditorPanel::SetSceneContext(m_CurrentScene);
@@ -2423,8 +2627,8 @@ namespace Iris {
 		Ref<Scene> newScene = Scene::Create("New Scene", true);
 		SceneSerializer::Deserialize(newScene, filePath);
 
-		m_EditorScenes[m_CurrentSceneIndex] = newScene;
-		m_CurrentScene = m_EditorScenes[m_CurrentSceneIndex];
+		m_EditorScene = newScene;
+		m_CurrentScene = m_EditorScene;
 		m_SceneFilePath = filePath.string();
 
 		std::replace(m_SceneFilePath.begin(), m_SceneFilePath.end(), '\\', '/');
@@ -2458,6 +2662,20 @@ namespace Iris {
 		else
 		{
 			SaveSceneAs();
+		}
+	}
+
+	// Auto save the scene.
+	// We save to different files so as not to overwrite the manually saved scene.
+	// (the manually saved scene is the authoritative source, auto saved scene is just a backup)
+	// If scene has never been saved, then do nothing (there is no nice option for where to save the scene to in this situation)
+	void EditorLayer::SaveSceneAuto()
+	{
+		if (!m_SceneFilePath.empty())
+		{
+			SceneSerializer::Serialize(m_EditorScene, m_SceneFilePath + ".auto"); // this isn't perfect as there is a non-zero chance (admittedly small) of overwriting some existing .auto file that the user actually wanted)
+
+			m_TimeSinceLastSave = 0.0f;
 		}
 	}
 
