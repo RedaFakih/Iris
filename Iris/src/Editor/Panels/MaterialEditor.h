@@ -10,7 +10,7 @@ namespace Iris {
 	public:
 		MaterialEditor();
 
-		virtual void SetAsset(const Ref<Asset>& asset) override { m_MaterialAsset = (Ref<MaterialAsset>)asset; }
+		virtual void SetAsset(const Ref<Asset>& asset) override;
 
 	private:
 		virtual void OnOpen() override;

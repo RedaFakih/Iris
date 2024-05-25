@@ -8,19 +8,23 @@
  *  - Fix assimp copying the dll to the exe dir for the runtime if we need to do that... because the runtime should not be using assimp it should be using an assetpack
  * 
  * TODO Creative Ideas:
- * - Finish the scene tabs feature: Still needs to be able to delete/remove tabs and fix the spacing between tabs
- * - Bug when duplicating meshes, they will share the same material and not have their own material instance
+ * - For any object other than the primitives we always have an extra material for some reason
  * - Submesh selection when we have a content browser Both static and dynamic meshes will support submesh selection
  * - Viewport camera orthographic views done:
  *		- Gizmo controls and orthographic camera movement collision
  *		- Fix bugs in orthogrpahic view
  *		- Fix mouse picking in orthographic view
  * - Fix the grid highlighting for Z and X axes
- * - Do the idea for the scene tabs...
  * - Look into auto exposure because its SO COOL
  *		- 1: https://bruop.github.io/exposure/
  *		- 2: https://mynameismjp.wordpress.com/2011/08/10/average-luminance-compute-shader/
  *		- 3: https://www.google.com/url?sa=t&source=web&rct=j&opi=89978449&url=https://resources.mpi-inf.mpg.de/tmo/logmap/logmap.pdf&ved=2ahUKEwiIrqjRtv2FAxVih_0HHZVMBK84ChAWegQIBRAB&usg=AOvVaw2PQ0E5hUTrfiVHLXDvpYKR
+ *		- 4: https://github.com/SaschaWillems/Vulkan/tree/master?tab=readme-ov-file#Advanced
+ * - Frustum Culling:
+ *		- 1: https://vkguide.dev/docs/new_chapter_5/faster_draw/
+ *		- 2: https://vkguide.dev/docs/gpudriven/compute_culling/
+ * - Tesselation Shaders: (For having low poly meshes with high details using tesselation and LODs)
+ *		- 1: https://github.com/SaschaWillems/Vulkan/tree/master?tab=readme-ov-file#tessellation-shader
  * 
  * LATEST UPDATES:
  *  ** 05/05/2024 **
@@ -44,6 +48,9 @@
  *	- Computing environment maps and transforming them
  * 
  * NEXT THING TO WORK ON:
+ * - The problem with compute passes was with pipeline layouts is that we are using different command buffers inside the ComputePipeline class since when we class RT_Begin we do not pass it a command buffer
+ *		So to fix we should either let the whole compute pass use the same commandbuffer or just pass it the current renderCommandBuffer which will use the graphics queue and not the Compute queue
+ *		So far I have tried to pass a command buffer that is created on the Compute Queue into the pipeline and work with it which is working for now...
  * - DescriptorSetManager needs to have a semi re-write since it does not correctly handle all the cases were the image is a textureCube and storage image
  *		- There is confusion between cube textures and storage images... A cube texture input.Type is being set as DescriptorResourceType::StorageImage
  *        eventhough it is a cube texture... see we need a way to detect that and handle it accordingly. (Most probably separate those two cases from the

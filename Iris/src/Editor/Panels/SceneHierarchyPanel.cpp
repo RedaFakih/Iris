@@ -424,6 +424,7 @@ namespace Iris {
 						if (FileSystem::Exists(Project::GetAssetDirectory() / sourcePath / sourceAssetName))
 						{
 							AssetHandle handle = Project::GetEditorAssetManager()->GetAssetHandleFromFilePath(sourcePath / sourceAssetName);
+							// Load the primitive 3D objects synchronously since they are not large and we need to create the .Ismesh files out of them after they are loaded
 							if (AssetManager::GetAsset<StaticMesh>(handle))
 							{
 								Ref<StaticMesh> staticMesh = Project::GetEditorAssetManager()->CreateNewAsset<StaticMesh>(targetAssetName, (Project::GetAssetDirectory() / targetPath).string(), handle);

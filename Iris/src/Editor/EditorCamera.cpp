@@ -85,7 +85,7 @@ namespace Iris {
 				else
 					Utils::EnableMouse();
 			}
-			else if (Input::IsMouseButtonDown(MouseButton::Right) && !Input::IsKeyDown(KeyCode::LeftAlt))
+			else if (Input::IsMouseButtonDown(MouseButton::Right) && !Input::IsMouseButtonDown(MouseButton::Left) && !Input::IsKeyDown(KeyCode::LeftAlt))
 			{
 				m_CameraType = CameraType::FirstPerson;
 				Utils::DisableMouse();

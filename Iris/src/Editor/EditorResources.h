@@ -49,6 +49,10 @@ namespace Iris {
 
 		inline static Ref<Texture2D> CheckerboardTexture = nullptr;
 
+		// Content Browser
+		inline static Ref<Texture2D> DirectoryIcon = nullptr;
+		inline static Ref<Texture2D> FileIcon = nullptr;
+
 		static void Init()
 		{
 			TextureSpecification spec;
@@ -93,6 +97,9 @@ namespace Iris {
 			PerspectiveIcon = LoadTexture("Generic/Perspective.png", "PerspectiveIcon", spec);
 
 			CheckerboardTexture = LoadTexture("Generic/Checkerboard.png", spec);
+
+			DirectoryIcon = LoadTexture("ContentBrowser/DirectoryIcon.png", "DirectoryIcon", spec);
+			FileIcon = LoadTexture("ContentBrowser/FileIcon.png", "FileIcon", spec);
 		}
 
 		static void Shutdown()
@@ -136,6 +143,9 @@ namespace Iris {
 			PerspectiveIcon.Reset();
 
 			CheckerboardTexture.Reset();
+
+			DirectoryIcon.Reset();
+			FileIcon.Reset();
 		}
 
 	private:

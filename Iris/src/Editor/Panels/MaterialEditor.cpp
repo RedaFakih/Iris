@@ -15,6 +15,13 @@ namespace Iris {
 	{
 	}
 
+	void MaterialEditor::SetAsset(const Ref<Asset>& asset)
+	{
+		m_MaterialAsset = asset.As<MaterialAsset>();
+		std::string title = m_MaterialAsset->GetMaterial()->GetName().size() ? m_MaterialAsset->GetMaterial()->GetName() : Project::GetEditorAssetManager()->GetMetaData(asset->Handle).FilePath.stem().string();
+		SetTitle(title);
+	}
+
 	void MaterialEditor::OnOpen()
 	{
 		if (!m_MaterialAsset)

@@ -675,6 +675,30 @@ namespace Iris::UI {
 		return changed;
 	}
 
+	inline static bool PropertyInputU64(const char* label, uint64_t& value, uint64_t step = 0, uint64_t stepFast = 0, ImGuiInputTextFlags flags = 0, const char* helpText = "")
+	{
+		ShiftCursor(10.0f, 9.0f);
+		ImGui::Text(label);
+
+		if (std::strlen(helpText) != 0)
+		{
+			ImGui::SameLine();
+			ShowHelpMarker(helpText);
+		}
+
+		ImGui::NextColumn();
+		ShiftCursorY(4.0f);
+		ImGui::PushItemWidth(-1);
+
+		bool modified = UI::InputUInt64(GenerateID(), &value, step, stepFast, flags);
+
+		ImGui::PopItemWidth();
+		ImGui::NextColumn();
+		UnderLine();
+
+		return modified;
+	}
+
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	/// Widgets...
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

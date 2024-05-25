@@ -16,7 +16,7 @@ namespace Iris {
 		virtual void OnImGuiRender(bool& isOpen) = 0;
 		virtual void OnEvent(Events::Event& e) {}
 		virtual void SetSceneContext(const Ref<Scene>& context) {}
-		virtual void OnProjectChanged(Ref<Project> project) {}
+		virtual void OnProjectChanged(const Ref<Project>& project) {}
 	};
 
 }

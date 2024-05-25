@@ -295,24 +295,26 @@ namespace Iris {
 
 	void ImGuiLayer::LoadFonts()
 	{
+		constexpr float c_Scale = 1.0f;
+
 		FontSpecification robotoLarge = {
 			.FontName = "RobotoLarge",
 			.Filepath = "Resources/Editor/Fonts/Roboto/Roboto-Regular.ttf",
-			.Size = 24.0f
+			.Size = 24.0f * c_Scale
 		};
 		m_FontsLibrary.Load(robotoLarge);
 
 		FontSpecification robotoBold = {
 			.FontName = "RobotoBold",
 			.Filepath = "Resources/Editor/Fonts/Roboto/Roboto-Bold.ttf",
-			.Size = 18.0f
+			.Size = 18.0f * c_Scale
 		};
 		m_FontsLibrary.Load(robotoBold);
 
 		FontSpecification robotoDefault = {
 			.FontName = "RobotoDefault",
 			.Filepath = "Resources/Editor/Fonts/Roboto/Roboto-SemiMedium.ttf",
-			.Size = 15.0f
+			.Size = 15.0f * c_Scale
 		};
 		m_FontsLibrary.Load(robotoDefault, true);
 
@@ -321,7 +323,7 @@ namespace Iris {
 		FontSpecification fontAwesome = {
 			.FontName = "FontAwesome",
 			.Filepath = "Resources/Editor/Fonts/FontAwesome/fontawesome-webfont.ttf",
-			.Size = 16.0f,
+			.Size = 16.0f * c_Scale,
 			.GlyphRanges = s_FontAwesomeGlyphRanges,
 			.MergeWithLast = true
 		};
@@ -330,7 +332,7 @@ namespace Iris {
 		FontSpecification mochiyPop = {
 			.FontName = "MochiyPopOne",
 			.Filepath = "Resources/Editor/Fonts/MochiyPopOne/MochiyPopOne-Regular.ttf",
-			.Size = 18.0f
+			.Size = 18.0f * c_Scale
 		};
 		m_FontsLibrary.Load(mochiyPop);
 	}

@@ -311,7 +311,9 @@ namespace Iris {
 
 		// Device Queues...
 		vkGetDeviceQueue(m_LogicalDevice, m_PhysicalDevice->GetQueueFamilyIndices().Graphics, 0, &m_GraphicsQueue);
-		// TODO: vkGetDeviceQueue(m_LogicalDevice, m_PhysicalDevice->GetQueueFamilyIndices().Compute, 0, &m_ComputeQueue);
+		VKUtils::SetDebugUtilsObjectName(m_LogicalDevice, VK_OBJECT_TYPE_QUEUE, "GraphicsQueue", m_GraphicsQueue);
+		vkGetDeviceQueue(m_LogicalDevice, m_PhysicalDevice->GetQueueFamilyIndices().Compute, 0, &m_ComputeQueue);
+		VKUtils::SetDebugUtilsObjectName(m_LogicalDevice, VK_OBJECT_TYPE_QUEUE, "ComputeQueue", m_ComputeQueue);
 	}
 
 	VulkanDevice::~VulkanDevice()
@@ -348,9 +350,9 @@ namespace Iris {
 		return GetOrCreateThreadLocalCommandPool()->AllocateCommandBuffer(begin, compute);
 	}
 
-	void VulkanDevice::FlushCommandBuffer(VkCommandBuffer commandBuffer)
+	void VulkanDevice::FlushCommandBuffer(VkCommandBuffer commandBuffer, bool compute)
 	{
-		GetThreadLocalCommandPool()->FlushCommandBuffer(commandBuffer);
+		GetThreadLocalCommandPool()->FlushCommandBuffer(commandBuffer, compute);
 	}
 
 	void VulkanDevice::FlushCommandBuffer(VkCommandBuffer commandBuffer, VkQueue queue)
@@ -390,7 +392,7 @@ namespace Iris {
 		VkCommandPoolCreateInfo commandPoolInfo = {
 			.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
 			.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT,
-			.queueFamilyIndex = (uint32_t)device->GetPhysicalDevice()->GetQueueFamilyIndices().Graphics,
+			.queueFamilyIndex = static_cast<uint32_t>(device->GetPhysicalDevice()->GetQueueFamilyIndices().Graphics),
 		};
 
 		uint32_t framesInFlight = Renderer::GetConfig().FramesInFlight;
@@ -399,6 +401,7 @@ namespace Iris {
 		for (uint32_t i = 0; i < framesInFlight; i++)
 			VK_CHECK_RESULT(vkCreateCommandPool(vulkanDevice, &commandPoolInfo, nullptr, &m_GraphicsCommandPools[i]));
 
+		commandPoolInfo.queueFamilyIndex = static_cast<uint32_t>(device->GetPhysicalDevice()->GetQueueFamilyIndices().Compute);
 		m_ComputeCommandPools.resize(framesInFlight);
 		for (uint32_t i = 0; i < framesInFlight; i++)
 			VK_CHECK_RESULT(vkCreateCommandPool(vulkanDevice, &commandPoolInfo, nullptr, &m_ComputeCommandPools[i]));
@@ -411,7 +414,7 @@ namespace Iris {
 		for (uint32_t i = 0; i < m_GraphicsCommandPools.size(); i++)
 			vkDestroyCommandPool(device, m_GraphicsCommandPools[i], nullptr);
 
-		for (uint32_t i = 0; i < m_GraphicsCommandPools.size(); i++)
+		for (uint32_t i = 0; i < m_ComputeCommandPools.size(); i++)
 			vkDestroyCommandPool(device, m_ComputeCommandPools[i], nullptr);
 	}
 
@@ -456,20 +459,19 @@ namespace Iris {
 		return commandBuffer;
 	}
 
-	void VulkanCommandPool::FlushCommandBuffer(VkCommandBuffer commandBuffer)
+	void VulkanCommandPool::FlushCommandBuffer(VkCommandBuffer commandBuffer, bool compute)
 	{
 		Ref<VulkanDevice> device = RendererContext::GetCurrentDevice();
-		FlushCommandBuffer(commandBuffer, device->GetGraphicsQueue());
+		FlushCommandBuffer(commandBuffer, compute ? device->GetComputeQueue() : device->GetGraphicsQueue());
 	}
 
 	void VulkanCommandPool::FlushCommandBuffer(VkCommandBuffer commandBuffer, VkQueue queue)
 	{
 		Ref<VulkanDevice> device = RendererContext::GetCurrentDevice();
-		IR_VERIFY(queue == device->GetGraphicsQueue());
 		VkDevice vulkanDevice = device->GetVulkanDevice();
-		uint32_t frameIndex = Renderer::GetCurrentFrameIndex();
 
 		IR_ASSERT(commandBuffer != VK_NULL_HANDLE, "Can't flush a null buffer");
+		IR_ASSERT(queue != VK_NULL_HANDLE, "No Queue provided!");
 
 		VK_CHECK_RESULT(vkEndCommandBuffer(commandBuffer));
 

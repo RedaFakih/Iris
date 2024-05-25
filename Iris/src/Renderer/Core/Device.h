@@ -95,7 +95,7 @@ namespace Iris {
 		void Reset();
 
 		VkCommandBuffer AllocateCommandBuffer(bool begin, bool compute = false);
-		void FlushCommandBuffer(VkCommandBuffer commandBuffer);
+		void FlushCommandBuffer(VkCommandBuffer commandBuffer, bool compute = false);
 		void FlushCommandBuffer(VkCommandBuffer commandBuffer, VkQueue queue);
 
 		VkCommandPool GetGraphicsCommandPool(uint32_t frameIndex) const { IR_ASSERT(frameIndex < m_GraphicsCommandPools.size()); return m_GraphicsCommandPools[frameIndex]; }
@@ -125,7 +125,7 @@ namespace Iris {
 		VkQueue GetComputeQueue() { return m_ComputeQueue; }
 
 		VkCommandBuffer GetCommandBuffer(bool begin, bool compute = false);
-		void FlushCommandBuffer(VkCommandBuffer commandBuffer); // Defaults to the Graphics queue
+		void FlushCommandBuffer(VkCommandBuffer commandBuffer, bool compute = false);
 		void FlushCommandBuffer(VkCommandBuffer commandBuffer, VkQueue queue);
 
 		const Ref<VulkanPhysicalDevice> GetPhysicalDevice() const { return m_PhysicalDevice; }

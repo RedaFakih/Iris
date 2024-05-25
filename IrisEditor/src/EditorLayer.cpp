@@ -33,9 +33,6 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
-// TODO: REMOVE
-// #include <stb/stb_image_writer/stb_image_write.h>
-
 namespace Iris {
 
 	namespace Utils {
@@ -109,8 +106,9 @@ namespace Iris {
 
 		m_PanelsManager->AddPanel<ShadersPanel>(PanelCategory::View, "ShadersPanel", "Shaders", false);
 
-		// NOTE: For debugging ECS Problems
+#ifdef IR_CONFIG_DEBUG
 		m_PanelsManager->AddPanel<ECSDebugPanel>(PanelCategory::View, "ECSDebugPanel", "ECS", false, m_CurrentScene);
+#endif
 
 		m_ViewportRenderer = SceneRenderer::Create(m_CurrentScene, { .RendererScale = 1.0f });
 		m_ViewportRenderer->SetLineWidth(m_LineWidth);
@@ -153,18 +151,6 @@ namespace Iris {
 		m_CurrentScene->OnRenderEditor(m_ViewportRenderer, ts, m_EditorCamera);
 
 		OnRender2D();
-
-		// TODO: Should be moved to OnKeyPressed
-		//if (Input::IsKeyDown(KeyCode::R))
-		//{
-		//	// TODO: This currently does not work since the final image that is returned is a floating point image
-		//	Buffer textureBuffer;
-		//	Ref<Texture2D> texture = m_ViewportRenderer->GetFinalPassImage();
-		//	texture->CopyToHostBuffer(textureBuffer, true);
-		//	stbi_flip_vertically_on_write(true);
-		//	stbi_write_jpg("Resources/assets/textures/output.jpg", texture->GetWidth(), texture->GetHeight(), 4, textureBuffer.Data, 100);
-		//	stbi_flip_vertically_on_write(false);
-		//}
 
 		bool leftAltWithEitherLeftOrMiddleButtonOrJustRight = (Input::IsKeyDown(KeyCode::LeftAlt) && (Input::IsMouseButtonDown(MouseButton::Left) || (Input::IsMouseButtonDown(MouseButton::Middle)))) || Input::IsMouseButtonDown(MouseButton::Right);
 		bool notStartCameraViewportAndViewportHoveredFocused = !m_StartedCameraClickInViewport && m_ViewportPanelFocused && m_ViewportPanelMouseOver;
@@ -1024,6 +1010,8 @@ namespace Iris {
 			float height = std::min(static_cast<float>(icon->GetHeight()), buttonSize);
 			float width = static_cast<float>(icon->GetWidth()) / static_cast<float>(icon->GetHeight()) * height;
 
+			bool haveHint = strlen(hint) != 0;
+
 			ImGui::TableNextRow();
 			ImGui::TableSetColumnIndex(0);
 			ImVec2 cursorPos = ImGui::GetCursorPos();
@@ -1034,11 +1022,13 @@ namespace Iris {
 			ImGui::SetCursorPos(cursorPos);
 			ImGuiTable* table = ImGui::GetCurrentTable();
 			float columnWidth = ImGui::TableGetMaxColumnWidth(table, 0);
-			bool clicked = ImGui::InvisibleButton(UI::GenerateID(), { columnWidth, 23.0f });
+			if (haveHint)
+				columnWidth += ImGui::TableGetMaxColumnWidth(table, 1);
+			bool clicked = ImGui::InvisibleButton(UI::GenerateID(), { columnWidth, 23.0f }, ImGuiButtonFlags_AllowItemOverlap);
 			if (ImGui::IsItemHovered())
 				ImGui::GetWindowDrawList()->AddRectFilled(ImGui::GetItemRectMin(), ImGui::GetItemRectMax(), Colors::Theme::BackgroundDarkBlend);
 
-			if (strlen(hint) != 0)
+			if (haveHint)
 			{
 				ImGui::TableSetColumnIndex(1);
 				ImGui::TextDisabled(hint);
@@ -1641,7 +1631,10 @@ namespace Iris {
 							if (slider("Field of View", fov, 30, 120, "Field of view of the viewport camera"))
 								m_EditorCamera.SetFOV(fov);
 							slider("Exposure", m_EditorCamera.GetExposure(), 0.0f, 10.0f, "Exposure of viewport camera,\nalso extends into rendered scene");
-							drag("Speed", m_EditorCamera.GetNormalSpeed(), 0.001f, 0.0002f, 0.5f, "Speed of viewport camera in fly mode, RightAlt + Scroll");
+							static float& cameraSpeed = m_EditorCamera.GetNormalSpeed();
+							float displayCameraSpeed = cameraSpeed / 0.0002f;
+							if (drag("Speed", displayCameraSpeed, 0.5f, 0.0002f, 100.0f, "Speed of viewport camera in fly mode, RightAlt + Scroll"))
+								cameraSpeed = displayCameraSpeed * 0.0002f;
 							float nearClip = m_EditorCamera.GetNearClip();
 							if (drag("Near Clip", nearClip, 0.1f, 0.002f, 100.0f, "Viewport camera near clip"))
 								m_EditorCamera.SetNearClip(nearClip);

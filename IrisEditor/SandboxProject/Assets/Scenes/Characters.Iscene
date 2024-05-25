@@ -2,7 +2,7 @@ Scene: Editor Scene
 Entities:
   - Entity: 197469730918477431
     TagComponent:
-      Tag: Empty Entity
+      Tag: Evelynn
     Parent: 0
     Children:
       []
@@ -14,6 +14,7 @@ Entities:
       AssetID: 3448222499160019637
       MaterialTable:
         0: 0
+        1: 0
       Visible: true
   - Entity: 978865093965260794
     TagComponent:
