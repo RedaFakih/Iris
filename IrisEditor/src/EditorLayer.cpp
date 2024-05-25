@@ -92,14 +92,6 @@ namespace Iris {
 		m_CurrentlySelectedRenderIcon = EditorResources::LitMaterialIcon;
 		m_PanelsManager = PanelsManager::Create();
 
-		if (!m_UserPreferences->StartupProject.empty())
-			OpenProject(m_UserPreferences->StartupProject);
-		else
-			IR_VERIFY(false, "No Project provided");
-
-		if (!Project::GetActive())
-			EmptyProject();
-
 		Ref<SceneHierarchyPanel> sceneHierarchyPanel = m_PanelsManager->AddPanel<SceneHierarchyPanel>(PanelCategory::View, "SceneHierarchyPanel", "Scene Hierarchy", true, m_CurrentScene, SelectionContext::Scene);
 		sceneHierarchyPanel->SetEntityDeletedCallback([this](Entity entity) { OnEntityDeleted(entity); });
 		sceneHierarchyPanel->AddEntityContextMenuPlugin([this](Entity entity) { SceneHierarchySetEditorCameraTransform(entity); });
@@ -109,6 +101,21 @@ namespace Iris {
 #ifdef IR_CONFIG_DEBUG
 		m_PanelsManager->AddPanel<ECSDebugPanel>(PanelCategory::View, "ECSDebugPanel", "ECS", false, m_CurrentScene);
 #endif
+
+		if (!m_UserPreferences->StartupProject.empty())
+			OpenProject(m_UserPreferences->StartupProject);
+		else
+			IR_VERIFY(false, "No Project provided");
+
+		if (!Project::GetActive())
+			EmptyProject();
+
+		// TODO: Move to before the project creation after we remove the Project::GetAssetDirectory call from the constructor of the ContentBrowserPanel
+		Ref<ContentBrowserPanel> contentBrowser = m_PanelsManager->AddPanel<ContentBrowserPanel>(PanelCategory::View, "ContentBrowserPanel", "Content Browser", true);
+		//contentBrowser->RegisterItemActivateCallbackForType(AssetType::Scene, [this](const AssetMetadata& metadata)
+		//{
+		//	OpenScene(metadata);
+		//});
 
 		m_ViewportRenderer = SceneRenderer::Create(m_CurrentScene, { .RendererScale = 1.0f });
 		m_ViewportRenderer->SetLineWidth(m_LineWidth);

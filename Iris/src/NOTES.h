@@ -27,6 +27,13 @@
  *		- 1: https://github.com/SaschaWillems/Vulkan/tree/master?tab=readme-ov-file#tessellation-shader
  * 
  * LATEST UPDATES:
+ *  ** 25/05/2024 **
+ * - Problem for the invalid pipeline layout discovered and temporarily fixed in a bad way (Was that we were using different command buffers for material and pipeline)
+ * - We need to continue writing the TextureCube class to determine the final image layout amd also generate mips for it
+ * - Setup pipeline barriers and image transitions for the cube image
+ * - ComputePipeline needs a bit of a re-write with regards to the command buffer that it executes on...
+ * 
+ * LATEST UPDATES:
  *  ** 05/05/2024 **
  * - DescriptorSetManager problem is MAYBE fixed but we still need to check for that when we write TextureCube properly
  * - We still get pipeline layout not matching validation errors (Maybe has to do something with DescriptorSetManager)

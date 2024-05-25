@@ -37,7 +37,7 @@ namespace Iris {
 		enum class ProjectionType { Perspective, Orthographic };
 		ProjectionType m_ProjectionType = ProjectionType::Perspective;
 
-		float m_Exposure = 0.8f;
+		float m_Exposure = 1.0f;
 
 	};
 
