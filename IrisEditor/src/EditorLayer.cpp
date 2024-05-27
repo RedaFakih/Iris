@@ -832,9 +832,9 @@ namespace Iris {
 
 			if (menuOpen)
 				ImGui::PopStyleColor(2);
+		
+			UI::EndMenuBar();
 		}
-
-		UI::EndMenuBar();
 
 		ImGui::EndGroup();
 	}
@@ -1413,7 +1413,7 @@ namespace Iris {
 
 						UI::ImGuiScopedColor tableBg(ImGuiCol_ChildBg, Colors::Theme::BackgroundDarkBlend);
 
-						ImGuiTableFlags tableFlags = ImGuiTableFlags_NoPadInnerX | ImGuiTableFlags_ScrollY | ImGuiTableFlags_RowBg | ImGuiTableFlags_NoPadOuterX;
+						ImGuiTableFlags tableFlags = ImGuiTableFlags_NoPadInnerX | ImGuiTableFlags_RowBg | ImGuiTableFlags_NoPadOuterX;
 						if (ImGui::BeginTable("##translate_snap_table", 1, tableFlags))
 						{
 							ImGui::TableSetupColumn("Values", ImGuiTableColumnFlags_WidthFixed, SnappingTableColumnWidth);
@@ -1474,7 +1474,7 @@ namespace Iris {
 
 						UI::ImGuiScopedColor tableBg(ImGuiCol_ChildBg, Colors::Theme::BackgroundDarkBlend);
 
-						ImGuiTableFlags tableFlags = ImGuiTableFlags_NoPadInnerX | ImGuiTableFlags_ScrollY | ImGuiTableFlags_RowBg | ImGuiTableFlags_NoPadOuterX;
+						ImGuiTableFlags tableFlags = ImGuiTableFlags_NoPadInnerX | ImGuiTableFlags_RowBg | ImGuiTableFlags_NoPadOuterX;
 						if (ImGui::BeginTable("##rotate_snap_table", 1, tableFlags))
 						{
 							ImGui::TableSetupColumn("Values", ImGuiTableColumnFlags_WidthFixed, SnappingTableColumnWidth + 10.0f);
@@ -1535,7 +1535,7 @@ namespace Iris {
 
 						UI::ImGuiScopedColor tableBg(ImGuiCol_ChildBg, Colors::Theme::BackgroundDarkBlend);
 
-						ImGuiTableFlags tableFlags = ImGuiTableFlags_NoPadInnerX | ImGuiTableFlags_ScrollY | ImGuiTableFlags_RowBg | ImGuiTableFlags_NoPadOuterX;
+						ImGuiTableFlags tableFlags = ImGuiTableFlags_NoPadInnerX | ImGuiTableFlags_RowBg | ImGuiTableFlags_NoPadOuterX;
 						if (ImGui::BeginTable("##rotate_snap_table", 1, tableFlags))
 						{
 							ImGui::TableSetupColumn("Values", ImGuiTableColumnFlags_WidthFixed, SnappingTableColumnWidth);

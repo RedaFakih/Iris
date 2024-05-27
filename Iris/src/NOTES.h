@@ -8,6 +8,8 @@
  *  - Fix assimp copying the dll to the exe dir for the runtime if we need to do that... because the runtime should not be using assimp it should be using an assetpack
  * 
  * TODO Creative Ideas:
+ * - Need to rename the assimp bin directory since it is getting git ignored
+ * - Need to fix everything regarding orthographic projection views
  * - For any object other than the primitives we always have an extra material for some reason
  * - Submesh selection when we have a content browser Both static and dynamic meshes will support submesh selection
  * - Viewport camera orthographic views done:

@@ -1343,7 +1343,7 @@ namespace Iris {
 			UI::BeginPropertyGrid();
 
 			// Projection type
-			const char* projectionTypes[2] = { "Perspective", "Orthographic" };
+			static const char* projectionTypes[2] = { "Perspective", "Orthographic" };
 			int currentPorj = static_cast<int>(camComponent.Camera.GetProjectionType());
 
 			ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiEdit && IsInconsistentPrimitive<int, CameraComponent>([](const CameraComponent& other) { return static_cast<int>(other.Camera.GetProjectionType()); }));
