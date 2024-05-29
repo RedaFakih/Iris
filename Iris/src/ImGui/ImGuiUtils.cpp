@@ -524,7 +524,7 @@ namespace Iris::UI {
 
 		ImGui::PushID(label.c_str());
 		ImVec2 contentRegionAvailable = ImGui::GetContentRegionAvail();
-		open = ImGui::TreeNodeEx("##dummy_id", treeNodeFlags, "");
+		open = ImGui::TreeNodeEx("##dummy_id", treeNodeFlags);
 
 		float lineHeight = ImGui::GetItemRectMax().y - ImGui::GetItemRectMin().y;
 		ImGui::SameLine();
@@ -545,6 +545,17 @@ namespace Iris::UI {
 		ImGui::BeginChild("sep", size);
 		ImGui::EndChild();
 		ImGui::PopStyleColor();
+	}
+
+	void TextWrapped(const char* value, bool isError)
+	{
+		if (isError)
+			ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(204, 51, 76.5, 255));
+		ImGui::TextWrapped(value);
+		if (isError)
+			ImGui::PopStyleColor();
+
+		UnderLine();
 	}
 
 	bool PropertyString(const char* label, const char* value, bool isError)

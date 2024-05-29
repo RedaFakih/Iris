@@ -883,7 +883,8 @@ namespace Iris {
 	{
 		uint32_t frameIndex = Renderer::GetCurrentFrameIndex();
 
-		// Selected Geometry Isolation
+		// Selected Geometry Isolation (Only happens when we have something selected, so as long we do not have anything selected we do not want to start these passes)
+		if (m_Specification.JumpFloodPass)
 		{
 			Renderer::BeginRenderPass(m_CommandBuffer, m_SelectedGeometryPass);
 
@@ -1081,39 +1082,41 @@ namespace Iris {
 
 	void SceneRenderer::UpdateStatistics()
 	{
-		m_Statistics.DrawCalls = 0;
+		m_Statistics.TotalDrawCalls = 0;
+		m_Statistics.ColorPassDrawCalls = 0;
 		m_Statistics.Instances = 0;
 		m_Statistics.Meshes = 0;
 
 		for (const auto& [mk, dc] : m_SelectedStaticMeshDrawList)
 		{
 			m_Statistics.Instances += dc.InstanceCount;
-			m_Statistics.DrawCalls += 1;
+			m_Statistics.ColorPassDrawCalls += 1;
 			m_Statistics.Meshes += 1;
 		}
 
 		for (const auto& [mk, dc] : m_DoubleSidedSelectedStaticMeshDrawList)
 		{
 			m_Statistics.Instances += dc.InstanceCount;
-			m_Statistics.DrawCalls += 1;
+			m_Statistics.ColorPassDrawCalls += 1;
 			m_Statistics.Meshes += 1;
 		}
 
 		for (const auto& [mk, dc] : m_StaticMeshDrawList)
 		{
 			m_Statistics.Instances += dc.InstanceCount;
-			m_Statistics.DrawCalls += 1;
+			m_Statistics.ColorPassDrawCalls += 1;
 			m_Statistics.Meshes += 1;
 		}
 
 		for (const auto& [mk, dc] : m_DoubleSidedStaticMeshDrawList)
 		{
 			m_Statistics.Instances += dc.InstanceCount;
-			m_Statistics.DrawCalls += 1;
+			m_Statistics.ColorPassDrawCalls += 1;
 			m_Statistics.Meshes += 1;
 		}
 
-		m_Statistics.SavedDraw = m_Statistics.Instances - m_Statistics.DrawCalls;
+		m_Statistics.TotalDrawCalls = Renderer::GetTotalDrawCallCount();
+		m_Statistics.ColorPassSavedDraws = m_Statistics.Instances - m_Statistics.ColorPassDrawCalls;
 	}
 
 }

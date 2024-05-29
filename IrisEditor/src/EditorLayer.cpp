@@ -747,10 +747,7 @@ namespace Iris {
 
 					ImGui::Separator();
 
-					if (ImGui::MenuItem("Renderer Info"))
-					{
-						// TODO:
-					}
+					ImGui::MenuItem("Renderer Info", nullptr, &m_ShowRendererInfoOverlay);
 
 					ImGui::PopStyleColor();
 					ImGui::EndMenu();
@@ -1684,6 +1681,26 @@ namespace Iris {
 		}
 
 		UI::PopID();
+
+		if (m_ShowRendererInfoOverlay)
+		{
+			ImGui::SetNextWindowBgAlpha(0.5f);
+			ImGui::SetNextWindowSize({ 298.0f, 108.0f });
+			ImGui::SetNextWindowPos({ m_ViewportRect.Min.x + 12.0f, m_ViewportRect.Max.y - 120.0f });
+			if (ImGui::Begin("Renderer Info", &m_ShowRendererInfoOverlay, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse))
+			{
+				UI::BeginPropertyGrid(2, 95.0f);
+
+				const auto& rendererCaps = Renderer::GetCapabilities();
+				UI::PropertyStringReadOnly("Vendor", rendererCaps.Vendor.c_str());
+				UI::PropertyStringReadOnly("Device", rendererCaps.Device.c_str());
+				UI::PropertyStringReadOnly("Version", rendererCaps.Version.c_str());
+
+				UI::EndPropertyGrid();
+			}
+
+			ImGui::End();
+		}
 	}
 
 	void EditorLayer::UI_DrawGizmos()
@@ -1892,10 +1909,13 @@ namespace Iris {
 
 			if (ImGui::Button("Create") || Input::IsKeyDown(KeyCode::Enter))
 			{
-				NewScene(sceneName);
-				m_ShowNewSceneModal = false;
-				sceneName.clear();
-				ImGui::CloseCurrentPopup();
+				if (!sceneName.empty())
+				{
+					NewScene(sceneName);
+					m_ShowNewSceneModal = false;
+					sceneName.clear();
+					ImGui::CloseCurrentPopup();
+				}
 			}
 
 			ImGui::SameLine();
@@ -1989,7 +2009,7 @@ namespace Iris {
 	void EditorLayer::UI_ShowViewport()
 	{
 		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
-		ImGui::Begin("Viewport", 0, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoScrollbar);
+		ImGui::Begin("Viewport", 0, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
 
 		m_ViewportPanelMouseOver = ImGui::IsWindowHovered();
 		m_ViewportPanelFocused = ImGui::IsWindowFocused();	
@@ -2017,7 +2037,7 @@ namespace Iris {
 
 	void EditorLayer::UI_ShowFontsPanel()
 	{
-		ImGui::Begin("Fonts");
+		ImGui::Begin("Fonts", nullptr, ImGuiWindowFlags_NoCollapse);
 
 		ImGuiFontsLibrary& fontsLib = Application::Get().GetImGuiLayer()->GetFontsLibrary();
 
@@ -2127,6 +2147,10 @@ namespace Iris {
 						break;
 					case KeyCode::F:
 					{
+						// Since Ctrl + F is a different shortcut
+						if (Input::IsKeyDown(KeyCode::LeftControl))
+							break;
+
 						if (SelectionManager::GetSelectionCount(SelectionContext::Scene) == 0)
 							break;
 

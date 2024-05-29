@@ -42,6 +42,10 @@ namespace Iris {
         ImGui::Spacing();
         ImGui::Spacing();
 
+        UI::ShiftCursorX(10.0f);
+        ImGui::TextUnformatted(fmt::format("Total Shaders: {}", Renderer::GetShadersLibrary()->GetSize()).c_str());
+        UI::UnderLine();
+
         UI::BeginPropertyGrid();
 
         uint32_t counter = 0;
@@ -53,10 +57,10 @@ namespace Iris {
 
             ImGui::PushID(fmt::format("shader{0}", name).c_str());
 
-            UI::PropertyStringReadOnly("Name", name.c_str());
-            UI::PropertyStringReadOnly("- Path", shader->GetFilePath().c_str());
+            UI::PropertyStringReadOnly(" - Name", name.c_str());
+            UI::PropertyStringReadOnly("   Path", shader->GetFilePath().c_str());
 
-            UI::ShiftCursor(10.0f, 9.0f);
+            UI::ShiftCursor(15.0f, 9.0f);
 
             if (ImGui::Button("Reload"))
                 shader->Reload();

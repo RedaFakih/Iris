@@ -38,7 +38,7 @@ namespace Iris {
 		void SetMinSize(uint32_t width, uint32_t height);
 		void SetMaxSize(uint32_t width, uint32_t height);
 
-		virtual ImGuiWindowFlags GetWindowFlags() { return 0; }
+		virtual ImGuiWindowFlags GetWindowFlags();
 
 		// Subclass can optionally override this to customize window style
 		virtual void OnWindowStylePush() {}

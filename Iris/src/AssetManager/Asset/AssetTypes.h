@@ -17,7 +17,7 @@ namespace Iris {
 		Scene,
 		StaticMesh,
 		MeshSource,
-		Material,
+		Material, // This refers to the MaterialAsset class and not the Material class since that is used with renderpasses
 		Texture,
 		EnvironmentMap
 	};

@@ -67,6 +67,7 @@ namespace Colors
 		constexpr auto TextBrighter			= IM_COL32(210, 210, 210, 255);
 		constexpr auto TextDarker			= IM_COL32(128, 128, 128, 255);
 		constexpr auto TextError			= IM_COL32(230, 51, 51, 255);
+		constexpr auto TextWarning			= IM_COL32(255, 165, 0, 255);
 		constexpr auto TextSuccess			= IM_COL32(118, 185, 0, 255);
 		constexpr auto ValidPrefab			= IM_COL32(82, 179, 222, 255);
 	}

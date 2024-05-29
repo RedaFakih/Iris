@@ -264,6 +264,7 @@ namespace Iris::UI {
 
 	void Separator(ImVec2 size, ImVec4 color);
 
+	void TextWrapped(const char* value, bool isError = false);
 	bool PropertyString(const char* label, const char* value, bool isError = false);
 	bool PropertyStringReadOnly(const char* label, const char* value, bool isErorr = false);
 	bool PropertyFloat(const char* label, float& value, float delta = 0.1f, float min = 0.0f, float max = 0.0f, const char* helpText = "");

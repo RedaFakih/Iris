@@ -192,7 +192,7 @@ namespace Iris {
 
 		{
 			UI::ImGuiScopedStyle windowPadding(ImGuiStyleVar_WindowPadding, { 0.0f, 0.0f });
-			ImGui::Begin("Properties");
+			ImGui::Begin("Properties", nullptr, ImGuiWindowFlags_NoCollapse);
 			m_IsHierarchyOrPropertiesFocused = m_IsWindowFocused || ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
 			DrawComponents(SelectionManager::GetSelections(s_ActiveSelectionContext));
 			ImGui::End();

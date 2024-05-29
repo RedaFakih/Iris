@@ -35,7 +35,7 @@ namespace Iris {
 		float RendererScale = 1.0f;
 		bool JumpFloodPass = true;
 
-		// Means application winow size
+		// Means application window size
 		uint32_t ViewportWidth = 0;
 		uint32_t ViewportHeight = 0;
 	};
@@ -45,10 +45,12 @@ namespace Iris {
 	public:
 		struct Statistics
 		{
-			uint32_t DrawCalls = 0;
+			uint32_t TotalDrawCalls = 0;
+
+			uint32_t ColorPassDrawCalls = 0;
 			uint32_t Meshes = 0;
 			uint32_t Instances = 0;
-			uint32_t SavedDraw = 0;
+			uint32_t ColorPassSavedDraws = 0;
 		};
 
 		enum class ViewMode

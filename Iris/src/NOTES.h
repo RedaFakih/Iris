@@ -8,6 +8,8 @@
  *  - Fix assimp copying the dll to the exe dir for the runtime if we need to do that... because the runtime should not be using assimp it should be using an assetpack
  * 
  * TODO Creative Ideas:
+ * - Project Settings panel to edit all the project related settings (Project directories... Log filtering... Some renderer stuff)
+ * - Provide an option for the SceneRenderer to show the ACTUAL draw call count since now it only accounts for the color pass draws
  * - Need to rename the assimp bin directory since it is getting git ignored
  * - Need to fix everything regarding orthographic projection views
  * - For any object other than the primitives we always have an extra material for some reason
@@ -16,6 +18,9 @@
  *		- Gizmo controls and orthographic camera movement collision
  *		- Fix bugs in orthogrpahic view
  *		- Fix mouse picking in orthographic view
+ * - Once we request a Mesh Asset from the AssetManager we should submit a lambda into a queue in the editor layer so that we wait until the asset is ready then we
+ *		InstantiateStaticMesh for that mesh from the scene so that we get the whole scene entity hierarchy however for now we have a problem that when we InstantiateMesh
+ *		we do get the correct entity hierarchy however every child entity is its own complete model
  * - Fix the grid highlighting for Z and X axes
  * - Look into auto exposure because its SO COOL
  *		- 1: https://bruop.github.io/exposure/
@@ -31,9 +36,11 @@
  * LATEST UPDATES:
  *  ** 25/05/2024 **
  * - Problem for the invalid pipeline layout discovered and temporarily fixed in a bad way (Was that we were using different command buffers for material and pipeline)
- * - We need to continue writing the TextureCube class to determine the final image layout amd also generate mips for it
+ * - We need to continue writing the TextureCube class to determine the final image layout and also generate mips for it
  * - Setup pipeline barriers and image transitions for the cube image
- * - ComputePipeline needs a bit of a re-write with regards to the command buffer that it executes on...
+ * - ComputePipeline needs a bit of a re-write with regards to the command buffer that it executes on... Since currently we give it the physical VkCommandBuffer object to execute on
+ *   which we dont really want that type of architecture. Maybe add an Execute method that just does the whole pass in that function (also debatable) or find a way to pass the
+ *   command buffer to properly record the dispatch command with also the Compute pass commands.
  * 
  * LATEST UPDATES:
  *  ** 05/05/2024 **

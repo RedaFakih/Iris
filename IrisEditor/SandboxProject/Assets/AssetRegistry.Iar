@@ -116,6 +116,9 @@ Assets:
   - Handle: 5599009649531054923
     FilePath: Meshes/Evelynn/textures/DefaultMaterial_baseColor.jpeg
     Type: Texture
+  - Handle: 6082897608703548102
+    FilePath: Materials/TexturedMat.Imaterial
+    Type: Material
   - Handle: 6298352931551980823
     FilePath: EnvironmentMaps/pink_sunrise_4k.hdr
     Type: Texture
@@ -173,6 +176,9 @@ Assets:
   - Handle: 8356286198642734227
     FilePath: Meshes/LowPolySponza/6593109234861095314.jpg
     Type: Texture
+  - Handle: 8358819168041459212
+    FilePath: Scenes/Stormtrooper Test.Iscene
+    Type: Scene
   - Handle: 8492331187162521719
     FilePath: Meshes/Illaoi.Ismesh
     Type: StaticMesh

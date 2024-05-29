@@ -69,6 +69,12 @@ namespace Iris {
 		m_MaxSize = glm::vec2(static_cast<float>(width), static_cast<float>(height));
 	}
 
+	ImGuiWindowFlags AssetEditor::GetWindowFlags()
+	{
+		// Default window flag to use with all asset editors
+		return ImGuiWindowFlags_NoCollapse;
+	}
+
 	void AssetEditorPanel::RegisterDefaultEditors()
 	{
 		RegisterEditor<MaterialEditor>(AssetType::Material);

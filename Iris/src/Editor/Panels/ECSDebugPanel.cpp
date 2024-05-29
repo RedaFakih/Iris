@@ -28,7 +28,7 @@ namespace Iris {
 
 	void ECSDebugPanel::OnImGuiRender(bool& open)
 	{
-		if (ImGui::Begin("ECS Debug", &open) && m_Context)
+		if (ImGui::Begin("ECS Debug", &open, ImGuiWindowFlags_NoCollapse) && m_Context)
 		{
 			auto view = m_Context->m_Registry.view<IDComponent>();
 			ImGui::Text("Entities: %i", view.size());
