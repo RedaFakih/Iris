@@ -1369,7 +1369,7 @@ namespace Iris {
 				float verticalFOV = camComponent.Camera.GetDegPerspectiveVerticalFOV();
 				ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiEdit && IsInconsistentPrimitive<float, CameraComponent>([](const CameraComponent& other) { return other.Camera.GetDegPerspectiveVerticalFOV(); }));
 
-				if (UI::PropertyFloat("Vertical FOV", verticalFOV))
+				if (UI::Property("Vertical FOV", verticalFOV))
 				{
 					for (auto& entityID : entities)
 					{
@@ -1383,7 +1383,7 @@ namespace Iris {
 				float nearClip = camComponent.Camera.GetPerspectiveNearClip();
 				ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiEdit && IsInconsistentPrimitive<float, CameraComponent>([](const CameraComponent& other) { return other.Camera.GetPerspectiveNearClip(); }));
 
-				if (UI::PropertyFloat("Near Clip", nearClip))
+				if (UI::Property("Near Clip", nearClip))
 				{
 					for (auto& entityID : entities)
 					{
@@ -1397,7 +1397,7 @@ namespace Iris {
 				float farClip = camComponent.Camera.GetPerspectiveFarClip();
 				ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiEdit && IsInconsistentPrimitive<float, CameraComponent>([](const CameraComponent& other) { return other.Camera.GetPerspectiveFarClip(); }));
 
-				if (UI::PropertyFloat("Far Clip", farClip))
+				if (UI::Property("Far Clip", farClip))
 				{
 					for (auto& entityID : entities)
 					{
@@ -1418,7 +1418,7 @@ namespace Iris {
 				float orthoSize = camComponent.Camera.GetOrthographicSize();
 				ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiEdit && IsInconsistentPrimitive<float, CameraComponent>([](const CameraComponent& other) { return other.Camera.GetOrthographicSize(); }));
 
-				if (UI::PropertyFloat("Size", orthoSize))
+				if (UI::Property("Size", orthoSize))
 				{
 					for (auto& entityID : entities)
 					{
@@ -1432,7 +1432,7 @@ namespace Iris {
 				float nearClip = camComponent.Camera.GetOrthographicNearClip();
 				ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiEdit && IsInconsistentPrimitive<float, CameraComponent>([](const CameraComponent& other) { return other.Camera.GetOrthographicNearClip(); }));
 
-				if (UI::PropertyFloat("Near Clip", nearClip))
+				if (UI::Property("Near Clip", nearClip))
 				{
 					for (auto& entityID : entities)
 					{
@@ -1446,7 +1446,7 @@ namespace Iris {
 				float farClip = camComponent.Camera.GetOrthographicFarClip();
 				ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiEdit && IsInconsistentPrimitive<float, CameraComponent>([](const CameraComponent& other) { return other.Camera.GetOrthographicFarClip(); }));
 
-				if (UI::PropertyFloat("Far Clip", farClip))
+				if (UI::Property("Far Clip", farClip))
 				{
 					for (auto& entityID : entities)
 					{
@@ -1460,7 +1460,7 @@ namespace Iris {
 
 			ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiEdit && IsInconsistentPrimitive<bool, CameraComponent>([](const CameraComponent& other) { return other.Primary; }));
 
-			if (UI::PropertyBool("Main Camera", camComponent.Primary))
+			if (UI::Property("Main Camera", camComponent.Primary))
 			{
 				// If we set the current camera as the main camera then we need to go through all the other cameras make them NOT primary since
 				// we should only have one primary camera
@@ -1544,7 +1544,7 @@ namespace Iris {
 
 			ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<float, SpriteRendererComponent>([](const SpriteRendererComponent& other) { return other.TilingFactor; }));
 
-			if (UI::PropertyFloat("Tiling Factor", spriteComponent.TilingFactor))
+			if (UI::Property("Tiling Factor", spriteComponent.TilingFactor))
 			{
 				for (auto& entityID : entities)
 				{
@@ -1557,7 +1557,7 @@ namespace Iris {
 
 			ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<glm::vec2 , SpriteRendererComponent>([](const SpriteRendererComponent& other) { return other.UV0; }));
 
-			if (UI::PropertyDragFloat2("UV Start", spriteComponent.UV0))
+			if (UI::PropertyDrag("UV Start", spriteComponent.UV0))
 			{
 				for (auto& entityID : entities)
 				{
@@ -1570,7 +1570,7 @@ namespace Iris {
 
 			ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<glm::vec2, SpriteRendererComponent>([](const SpriteRendererComponent& other) { return other.UV1; }));
 
-			if (UI::PropertyDragFloat2("UV End", spriteComponent.UV1))
+			if (UI::PropertyDrag("UV End", spriteComponent.UV1))
 			{
 				for (auto& entityID : entities)
 				{
@@ -1615,7 +1615,7 @@ namespace Iris {
 				uint32_t subMeshIndex = meshComp.SubMeshIndex;
 				const bool inconsistentSubMeshIndex = IsInconsistentPrimitive<uint32_t, StaticMeshComponent>([](const StaticMeshComponent& other) { return other.SubMeshIndex; });
 				ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && inconsistentSubMeshIndex);
-				if (UI::PropertyUInt("Submesh Index", subMeshIndex, 1, 0, static_cast<uint32_t>(meshSource->GetSubMeshes().size()) - 1))
+				if (UI::Property("Submesh Index", subMeshIndex, 1, 0, static_cast<uint32_t>(meshSource->GetSubMeshes().size()) - 1))
 				{
 					for (auto& entityID : entities)
 					{
@@ -1629,7 +1629,7 @@ namespace Iris {
 
 			ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<bool, StaticMeshComponent>([](const StaticMeshComponent& other) { return other.Visible; }));
 
-			if (UI::PropertyBool("Visible", meshComp.Visible))
+			if (UI::Property("Visible", meshComp.Visible))
 			{
 				for (auto& entityID : entities)
 				{

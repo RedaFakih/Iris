@@ -16,8 +16,8 @@ namespace Iris {
 
 	enum class PanelCategory
 	{
-		View = 0,
-		Edit = 1,
+		Edit = 0,
+		View = 1,
 		_SIZE
 	};
 

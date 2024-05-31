@@ -146,6 +146,7 @@ namespace Iris {
 		bool m_ShowImGuiStyleEditor = false;
 		bool m_ShowOnlyViewport = false;
 		bool m_ShowRendererInfoOverlay = false;
+		bool m_ShowPipelineStatisticsOverlay = false;
 
 		// Just references
 		Ref<Texture2D> m_CurrentlySelectedViewIcon = nullptr;

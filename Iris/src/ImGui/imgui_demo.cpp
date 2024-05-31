@@ -6177,17 +6177,17 @@ void ImGui::ShowStyleEditor(ImGuiStyle* ref, int* outThemeID)
     *outThemeID = selectedThemeStyle; // Set the theme id to be used in serialization
 
     // Simplified Settings (expose floating-pointer border sizes as boolean representing 0.0f or 1.0f)
-    if (UI::PropertySliderFloat("FrameRounding", style.FrameRounding, 0.0f, 12.0f, "%.0f"))
+    if (UI::PropertySlider("FrameRounding", style.FrameRounding, 0.0f, 12.0f, "%.0f"))
         style.GrabRounding = style.FrameRounding; // Make GrabRounding always the same value as FrameRounding
 
     bool border = (style.WindowBorderSize > 0.0f);
-    if (UI::PropertyBool("WindowBorder", border))
+    if (UI::Property("WindowBorder", border))
         style.WindowBorderSize = border ? 1.0f : 0.0f;
     border = (style.FrameBorderSize > 0.0f);
-    if (UI::PropertyBool("FrameBorder", border))
+    if (UI::Property("FrameBorder", border))
         style.FrameBorderSize = border ? 1.0f : 0.0f;
     border = (style.PopupBorderSize > 0.0f);
-    if (UI::PropertyBool("PopupBorder", border))
+    if (UI::Property("PopupBorder", border))
         style.PopupBorderSize = border ? 1.0f : 0.0f;
 
     // Save/Revert button
@@ -6218,15 +6218,15 @@ void ImGui::ShowStyleEditor(ImGuiStyle* ref, int* outThemeID)
             {
                 UI::BeginPropertyGrid(2);
 
-                UI::PropertySliderFloat2("WindowPadding", style.WindowPadding, 0.0f, 20.0f, "%.0f");
-                UI::PropertySliderFloat2("FramePadding", style.FramePadding, 0.0f, 20.0f, "%.0f");
-                UI::PropertySliderFloat2("CellPadding", style.CellPadding, 0.0f, 20.0f, "%.0f");
-                UI::PropertySliderFloat2("ItemSpacing", style.ItemSpacing, 0.0f, 20.0f, "%.0f");
-                UI::PropertySliderFloat2("ItemInnerSpacing", style.ItemInnerSpacing, 0.0f, 20.0f, "%.0f");
-                UI::PropertySliderFloat2("TouchExtraPadding", style.TouchExtraPadding, 0.0f, 10.0f, "%.0f");
-                UI::PropertySliderFloat("IndentSpacing", style.IndentSpacing, 0.0f, 30.0f, "%.0f");
-                UI::PropertySliderFloat("ScrollbarSize", style.ScrollbarSize, 1.0f, 20.0f, "%.0f");
-                UI::PropertySliderFloat("GrabMinSize", style.GrabMinSize, 1.0f, 20.0f, "%.0f");
+                UI::PropertySlider("WindowPadding", style.WindowPadding, 0.0f, 20.0f, "%.0f");
+                UI::PropertySlider("FramePadding", style.FramePadding, 0.0f, 20.0f, "%.0f");
+                UI::PropertySlider("CellPadding", style.CellPadding, 0.0f, 20.0f, "%.0f");
+                UI::PropertySlider("ItemSpacing", style.ItemSpacing, 0.0f, 20.0f, "%.0f");
+                UI::PropertySlider("ItemInnerSpacing", style.ItemInnerSpacing, 0.0f, 20.0f, "%.0f");
+                UI::PropertySlider("TouchExtraPadding", style.TouchExtraPadding, 0.0f, 10.0f, "%.0f");
+                UI::PropertySlider("IndentSpacing", style.IndentSpacing, 0.0f, 30.0f, "%.0f");
+                UI::PropertySlider("ScrollbarSize", style.ScrollbarSize, 1.0f, 20.0f, "%.0f");
+                UI::PropertySlider("GrabMinSize", style.GrabMinSize, 1.0f, 20.0f, "%.0f");
 
                 UI::EndPropertyGrid();
                 ImGui::TreePop();
@@ -6236,11 +6236,11 @@ void ImGui::ShowStyleEditor(ImGuiStyle* ref, int* outThemeID)
             {
                 UI::BeginPropertyGrid(2);
 
-                UI::PropertySliderFloat("WindowBorderSize", style.WindowBorderSize, 0.0f, 1.0f, "%.0f");
-                UI::PropertySliderFloat("ChildBorderSize", style.ChildBorderSize, 0.0f, 1.0f, "%.0f");
-                UI::PropertySliderFloat("PopupBorderSize", style.PopupBorderSize, 0.0f, 1.0f, "%.0f");
-                UI::PropertySliderFloat("FrameBorderSize", style.FrameBorderSize, 0.0f, 1.0f, "%.0f");
-                UI::PropertySliderFloat("TabBorderSize", style.TabBorderSize, 0.0f, 1.0f, "%.0f");
+                UI::PropertySlider("WindowBorderSize", style.WindowBorderSize, 0.0f, 1.0f, "%.0f");
+                UI::PropertySlider("ChildBorderSize", style.ChildBorderSize, 0.0f, 1.0f, "%.0f");
+                UI::PropertySlider("PopupBorderSize", style.PopupBorderSize, 0.0f, 1.0f, "%.0f");
+                UI::PropertySlider("FrameBorderSize", style.FrameBorderSize, 0.0f, 1.0f, "%.0f");
+                UI::PropertySlider("TabBorderSize", style.TabBorderSize, 0.0f, 1.0f, "%.0f");
 
                 UI::EndPropertyGrid();
                 ImGui::TreePop();
@@ -6250,14 +6250,14 @@ void ImGui::ShowStyleEditor(ImGuiStyle* ref, int* outThemeID)
             {
                 UI::BeginPropertyGrid(2);
 
-                UI::PropertySliderFloat("WindowRounding", style.WindowRounding, 0.0f, 12.0f, "%.0f");
-                UI::PropertySliderFloat("ChildRounding", style.ChildRounding, 0.0f, 12.0f, "%.0f");
-                UI::PropertySliderFloat("FrameRounding", style.FrameRounding, 0.0f, 12.0f, "%.0f");
-                UI::PropertySliderFloat("PopupRounding", style.PopupRounding, 0.0f, 12.0f, "%.0f");
-                UI::PropertySliderFloat("ScrollbarRounding", style.ScrollbarRounding, 0.0f, 12.0f, "%.0f");
-                UI::PropertySliderFloat("GrabRounding", style.GrabRounding, 0.0f, 12.0f, "%.0f");
-                UI::PropertySliderFloat("LogSliderDeadzone", style.LogSliderDeadzone, 0.0f, 12.0f, "%.0f");
-                UI::PropertySliderFloat("TabRounding", style.TabRounding, 0.0f, 12.0f, "%.0f");
+                UI::PropertySlider("WindowRounding", style.WindowRounding, 0.0f, 12.0f, "%.0f");
+                UI::PropertySlider("ChildRounding", style.ChildRounding, 0.0f, 12.0f, "%.0f");
+                UI::PropertySlider("FrameRounding", style.FrameRounding, 0.0f, 12.0f, "%.0f");
+                UI::PropertySlider("PopupRounding", style.PopupRounding, 0.0f, 12.0f, "%.0f");
+                UI::PropertySlider("ScrollbarRounding", style.ScrollbarRounding, 0.0f, 12.0f, "%.0f");
+                UI::PropertySlider("GrabRounding", style.GrabRounding, 0.0f, 12.0f, "%.0f");
+                UI::PropertySlider("LogSliderDeadzone", style.LogSliderDeadzone, 0.0f, 12.0f, "%.0f");
+                UI::PropertySlider("TabRounding", style.TabRounding, 0.0f, 12.0f, "%.0f");
 
                 UI::EndPropertyGrid();
                 ImGui::TreePop();
@@ -6267,7 +6267,7 @@ void ImGui::ShowStyleEditor(ImGuiStyle* ref, int* outThemeID)
             {
                 UI::BeginPropertyGrid(2);
 
-                UI::PropertySliderFloat2("WindowTitleAlign", style.WindowTitleAlign, 0.0f, 1.0f, "%.2f");
+                UI::PropertySlider("WindowTitleAlign", style.WindowTitleAlign, 0.0f, 1.0f, "%.2f");
 
                 int window_menu_button_position = style.WindowMenuButtonPosition + 1;
                 static const char* windowMenuButtonPos[] = { "None", "Left", "Right" };
@@ -6278,8 +6278,8 @@ void ImGui::ShowStyleEditor(ImGuiStyle* ref, int* outThemeID)
 
                 static const char* colorButtonPos[] = { "Left", "Right" };
                 UI::PropertyDropdown("ColorButtonPosition", colorButtonPos, 2, &style.ColorButtonPosition);
-                UI::PropertySliderFloat2("ButtonTextAlign", style.ButtonTextAlign, 0.0f, 1.0f, "%.2f", "Alignment applies when a button is larger than its text content.");
-                UI::PropertySliderFloat2("SelectableTextAlign", style.SelectableTextAlign, 0.0f, 1.0f, "%.2f", "Alignment applies when a selectable is larger than its text content.");
+                UI::PropertySlider("ButtonTextAlign", style.ButtonTextAlign, 0.0f, 1.0f, "%.2f", "Alignment applies when a button is larger than its text content.");
+                UI::PropertySlider("SelectableTextAlign", style.SelectableTextAlign, 0.0f, 1.0f, "%.2f", "Alignment applies when a selectable is larger than its text content.");
 
                 UI::EndPropertyGrid();
                 ImGui::TreePop();
@@ -6290,7 +6290,7 @@ void ImGui::ShowStyleEditor(ImGuiStyle* ref, int* outThemeID)
                 ImGui::SameLine(); HelpMarker("Adjust if you cannot see the edges of your screen (e.g. on a TV where scaling has not been configured).");
                 UI::BeginPropertyGrid(2, 200.0f);
 
-                UI::PropertySliderFloat2("DisplaySafeAreaPadding", style.DisplaySafeAreaPadding, 0.0f, 30.0f, "%.0f");
+                UI::PropertySlider("DisplaySafeAreaPadding", style.DisplaySafeAreaPadding, 0.0f, 30.0f, "%.0f");
 
                 UI::EndPropertyGrid();
                 ImGui::TreePop();
@@ -6303,14 +6303,14 @@ void ImGui::ShowStyleEditor(ImGuiStyle* ref, int* outThemeID)
         {
             UI::BeginPropertyGrid(2, 250.0f);
 
-            UI::PropertyBool("Anti-aliased Lines", style.AntiAliasedLines, "When disabling anti-aliasing lines, you'll probably want to disable borders in your style as well.");
-            UI::PropertyBool("Anti-aliased Lines use texture", style.AntiAliasedLinesUseTex, "Faster lines using texture data. Require backend to render with bilinear filtering (not point/nearest filtering).");
-            UI::PropertyBool("Anti-aliased fill", style.AntiAliasedFill);
-            UI::PropertyFloat("Curve Tessellation Tolerance", style.CurveTessellationTol, 0.02f, 0.10f, 10.0f);
+            UI::Property("Anti-aliased Lines", style.AntiAliasedLines, "When disabling anti-aliasing lines, you'll probably want to disable borders in your style as well.");
+            UI::Property("Anti-aliased Lines use texture", style.AntiAliasedLinesUseTex, "Faster lines using texture data. Require backend to render with bilinear filtering (not point/nearest filtering).");
+            UI::Property("Anti-aliased fill", style.AntiAliasedFill);
+            UI::Property("Curve Tessellation Tolerance", style.CurveTessellationTol, 0.02f, 0.10f, 10.0f);
             if (style.CurveTessellationTol < 0.10f) style.CurveTessellationTol = 0.10f;
 
             // When editing the "Circle Segment Max Error" value, draw a preview of its effect on auto-tessellated circles.
-            UI::PropertyFloat("Circle Tessellation Max Error", style.CircleTessellationMaxError, 0.005f, 0.10f, 5.0f, "When drawing circle primitives with \"num_segments == 0\" tesselation will be calculated automatically.");
+            UI::Property("Circle Tessellation Max Error", style.CircleTessellationMaxError, 0.005f, 0.10f, 5.0f, "When drawing circle primitives with \"num_segments == 0\" tesselation will be calculated automatically.");
             if (ImGui::IsItemActive())
             {
                 ImGui::SetNextWindowPos(ImGui::GetCursorScreenPos());
@@ -6349,8 +6349,8 @@ void ImGui::ShowStyleEditor(ImGuiStyle* ref, int* outThemeID)
                 ImGui::EndTooltip();
             }
 
-            UI::PropertyFloat("Global Alpha", style.Alpha, 0.005f, 0.20f, 1.0f); // Not exposing zero here so user doesn't "lose" the UI (zero alpha clips all widgets). But application code could have a toggle to switch between zero and non-zero.
-            UI::PropertyFloat("Disabled Alpha", style.DisabledAlpha, 0.005f, 0.0f, 1.0f, "Additional alpha multiplier for disabled items (multiply over current value of Alpha).");
+            UI::Property("Global Alpha", style.Alpha, 0.005f, 0.20f, 1.0f); // Not exposing zero here so user doesn't "lose" the UI (zero alpha clips all widgets). But application code could have a toggle to switch between zero and non-zero.
+            UI::Property("Disabled Alpha", style.DisabledAlpha, 0.005f, 0.0f, 1.0f, "Additional alpha multiplier for disabled items (multiply over current value of Alpha).");
 
             UI::EndPropertyGrid();
             ImGui::EndTabItem();

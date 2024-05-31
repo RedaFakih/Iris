@@ -34,6 +34,7 @@ namespace Iris {
 		static bool OpenExternally(const std::filesystem::path& path);
 
 		static std::filesystem::path GetUniqueFilename(const std::filesystem::path& path);
+		static std::filesystem::path Absolute(const std::filesystem::path& path);
 
 		struct FileDialogFilterItem
 		{

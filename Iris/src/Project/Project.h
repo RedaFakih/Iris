@@ -18,7 +18,7 @@ namespace Iris {
 		std::string StartScene;
 
 		bool EnableAutoSave = false;
-		int AutoSaveIntervalSeconds = 300; // 5 minutes
+		uint32_t AutoSaveIntervalSeconds = 300; // 5 minutes
 
 		// Not serialized
 		std::string ProjectFileName;
@@ -84,6 +84,7 @@ namespace Iris {
 		inline static Ref<Project> s_ActiveProject;
 
 		friend struct ProjectSerializer;
+		friend class ProjectSettingsPanel;
 
 	};
 

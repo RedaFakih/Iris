@@ -4,7 +4,7 @@ Project:
   AssetRegistryPath: Assets/AssetRegistry.Iar
   MeshPath: Assets/Meshes/Default
   MeshSourcePath: Assets/Meshes/Default/Source
-  StartScene: scenes/Characters.Iscene
+  StartScene: Scenes/Characters.Iscene
   AutoSave: false
   AutoSaveInterval: 300
   Log:

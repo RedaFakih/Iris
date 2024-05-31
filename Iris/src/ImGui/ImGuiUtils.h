@@ -257,7 +257,7 @@ namespace Iris::UI {
 	void EndMenuBar();
 
 	bool PropertyGridHeader(const std::string& name, bool openByDefault = true);
-	void BeginPropertyGrid(uint32_t columns = 2, float width = 0.0f);
+	void BeginPropertyGrid(uint32_t columns = 2, float width = 0.0f, bool setWidth = true);
 	void EndPropertyGrid();
 
 	bool TreeNodeWithIcon(const std::string& label, const Ref<Texture2D>& icon, const ImVec2& size, bool openByDefault = true);
@@ -266,17 +266,19 @@ namespace Iris::UI {
 
 	void TextWrapped(const char* value, bool isError = false);
 	bool PropertyString(const char* label, const char* value, bool isError = false);
+	bool PropertyStringReadOnly(const char* label, const std::string& value, bool isErorr = false);
 	bool PropertyStringReadOnly(const char* label, const char* value, bool isErorr = false);
-	bool PropertyFloat(const char* label, float& value, float delta = 0.1f, float min = 0.0f, float max = 0.0f, const char* helpText = "");
-	bool PropertyUInt(const char* label, uint32_t& value, uint32_t delta = 1.0f, uint32_t min = 0, uint32_t max = 0, const char* helpText = "");
-	bool PropertyBool(const char* label, bool& value, const char* helpText = "");
-	bool PropertySliderFloat(const char* label, float& value, float min = 0.0f, float max = 0.0f, const char* format = "%.3f", const char* helpText = "");
-	bool PropertySliderFloat2(const char* label, ImVec2& value, float min = 0.0f, float max = 0.0f, const char* format = "%.3f", const char* helpText = "");
+	bool Property(const char* label, float& value, float delta = 0.1f, float min = 0.0f, float max = 0.0f, const char* helpText = "");
+	bool Property(const char* label, uint32_t& value, uint32_t delta = 1.0f, uint32_t min = 0, uint32_t max = 0, const char* helpText = "");
+	bool Property(const char* label, bool& value, const char* helpText = "", bool underLineProperty = false);
+	bool PropertySlider(const char* label, uint32_t& value, uint32_t min = 0, uint32_t max = 0, const char* format = "%.3f", const char* helpText = "");
+	bool PropertySlider(const char* label, float& value, float min = 0.0f, float max = 0.0f, const char* format = "%.3f", const char* helpText = "");
+	bool PropertySlider(const char* label, ImVec2& value, float min = 0.0f, float max = 0.0f, const char* format = "%.3f", const char* helpText = "");
 
-	bool PropertyDragFloat(const char* label, double& value, float delta = 0.1f, double min = 0.0, double max = 0.0, const char* helpText = "");
-	bool PropertyDragFloat2(const char* label, glm::vec2& value, float delta = 0.1f, double min = 0.0, double max = 0.0, const char* helpText = "");
-	bool PropertyDragFloat3(const char* label, glm::vec3& value, float delta = 0.1f, double min = 0.0, double max = 0.0, const char* helpText = "");
-	bool PropertyDragFloat4(const char* label, glm::vec4& value, float delta = 0.1f, double min = 0.0, double max = 0.0, const char* helpText = "");
+	bool PropertyDrag(const char* label, float& value, float delta = 0.1f, float min = 0.0, float max = 0.0, const char* helpText = "");
+	bool PropertyDrag(const char* label, glm::vec2& value, float delta = 0.1f, float min = 0.0, float max = 0.0, const char* helpText = "");
+	bool PropertyDrag(const char* label, glm::vec3& value, float delta = 0.1f, float min = 0.0, float max = 0.0, const char* helpText = "");
+	bool PropertyDrag(const char* label, glm::vec4& value, float delta = 0.1f, float min = 0.0, float max = 0.0, const char* helpText = "");
 
 	template<typename Enum, typename Type = int32_t>
 	inline bool PropertyDropdown(const char* label, const char** options, int optionCount, Enum& selected, const char* helpText = "")
@@ -329,6 +331,8 @@ namespace Iris::UI {
 	}
 
 	bool PropertyDropdown(const char* label, const char** options, int optionCount, int* selected, const char* helpText = "");
+
+	bool PropertyDropdownNoLabel(const char* strID, const char** options, int optionCount, int* selected);
 
 	bool MultiLineText(const char* label, std::string& value, const ImVec2& size = ImVec2(0, 0), ImGuiInputTextFlags flags = 0, ImGuiInputTextCallback callback = NULL, void* user_data = NULL);
 

@@ -103,6 +103,7 @@ namespace Iris {
 		const SceneRendererOptions& GetOptions() const { return m_Options; }
 		SceneRendererSpecification& GetSpecification() { return m_Specification; }
 		const SceneRendererSpecification& GetSpecification() const { return m_Specification; }
+		const PipelineStatistics& GetPipelineStatistics() const;
 
 	private:
 		struct MeshKey

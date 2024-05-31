@@ -138,6 +138,11 @@ namespace Iris {
 		return checkID(checkID);
 	}
 
+	std::filesystem::path FileSystem::Absolute(const std::filesystem::path& path)
+	{
+		return std::filesystem::absolute(path);
+	}
+
 	std::filesystem::path FileSystem::OpenFileDialog(const std::initializer_list<FileDialogFilterItem> inFilters)
 	{
 		NFD::UniquePath filePath;

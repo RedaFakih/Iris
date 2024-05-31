@@ -76,7 +76,7 @@ namespace Iris {
 		config.AssetDirectory = rootNode["AssetDirectory"].as<std::string>();
 		config.AssetRegistryPath = rootNode["AssetRegistryPath"].as<std::string>();
 
-		config.ProjectFileName = filePath.stem().string();
+		config.ProjectFileName = filePath.filename().string();
 		config.ProjectDirectory = filePath.parent_path().string();
 
 		config.MeshPath = rootNode["MeshPath"].as<std::string>();

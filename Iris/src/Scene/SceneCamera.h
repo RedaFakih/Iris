@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Renderer/Helpers/Camera.h"
+#include "Renderer/Camera/Camera.h"
 
 namespace Iris {
 

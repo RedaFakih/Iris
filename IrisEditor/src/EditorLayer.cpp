@@ -329,7 +329,7 @@ namespace Iris {
 		ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 3.0f);
 	
 		ImGui::PushStyleColor(ImGuiCol_MenuBarBg, ImVec4{ 0.0f, 0.0f, 0.0f, 0.0f });
-		ImGui::Begin("Dockspace Demo", nullptr, window_flags);
+		ImGui::Begin("MainEditorLayerDockSapce", nullptr, window_flags);
 		ImGui::PopStyleColor();
 		ImGui::PopStyleVar(2);
 
@@ -749,6 +749,8 @@ namespace Iris {
 
 					ImGui::MenuItem("Renderer Info", nullptr, &m_ShowRendererInfoOverlay);
 
+					ImGui::MenuItem("Pipeline Statistics", nullptr, &m_ShowPipelineStatisticsOverlay);
+
 					ImGui::PopStyleColor();
 					ImGui::EndMenu();
 				}
@@ -769,10 +771,6 @@ namespace Iris {
 
 					for (auto& [id, panelSpec] : m_PanelsManager->GetPanels(PanelCategory::Edit))
 						ImGui::MenuItem(panelSpec.Name, nullptr, &panelSpec.IsOpen);
-
-					ImGui::Separator();
-
-					ImGui::MenuItem("Whatever");
 
 					ImGui::PopStyleColor();
 					ImGui::EndMenu();
@@ -894,7 +892,12 @@ namespace Iris {
 			buttonRect.Min = { iconRect.Min.x, iconRect.Min.y };
 			buttonRect.Max = { iconRect.Min.x + width + labelSize.x + textOffset + 16.0f, iconRect.Max.y };
 			const bool clicked = ImGui::ButtonBehavior(buttonRect, ImGui::GetID(UI::GenerateID()), nullptr, nullptr, ImGuiButtonFlags_PressedOnClick);
-			UI::SetToolTip(hint);
+			if (ImGui::IsMouseHoveringRect(buttonRect.Min, buttonRect.Max))
+			{
+				UI::ImGuiScopedStyle tooltipPadding(ImGuiStyleVar_WindowPadding, { 5.0f, 5.0f });
+				UI::ImGuiScopedColor textCol(ImGuiCol_Text, Colors::Theme::TextBrighter);
+				ImGui::SetTooltip(hint);
+			}
 
 			ImColor color = IM_COL32(55, 55, 55, 127);
 			ImRect expanded = UI::RectExpanded(buttonRect, 4.0f, 4.0f);
@@ -1143,6 +1146,68 @@ namespace Iris {
 			ImGui::PopItemWidth();
 
 			return result;
+		};
+
+		auto snappingTable = [&](const char* tableID, float tableColumnWidth, const char** displaySnapValues, const float* snapValues, ImGuizmo::OPERATION oper, bool setSceneRendererSnapValue = false)
+		{
+			int sectionIndex = 0;
+			if (beginSection("Snapping", sectionIndex, false))
+			{
+				ImGui::TableNextRow();
+				ImGui::TableSetColumnIndex(0);
+
+				// Alternating row colors...
+				const ImU32 colRowAlternating = UI::ColorWithMultipliedValue(Colors::Theme::BackgroundDarkBlend, 1.3f);
+				UI::ImGuiScopedColor tableBGAlternating(ImGuiCol_TableRowBgAlt, colRowAlternating);
+
+				UI::ImGuiScopedColor tableBg(ImGuiCol_ChildBg, Colors::Theme::BackgroundDarkBlend);
+
+				ImGuiTableFlags tableFlags = ImGuiTableFlags_NoPadInnerX | ImGuiTableFlags_RowBg | ImGuiTableFlags_NoPadOuterX;
+				if (ImGui::BeginTable(tableID, 1, tableFlags))
+				{
+					ImGui::TableSetupColumn("Values", ImGuiTableColumnFlags_WidthFixed, tableColumnWidth);
+
+					
+					float* currentSnappingValue = nullptr;
+
+					switch (oper)
+					{
+						case ImGuizmo::OPERATION::TRANSLATE:	currentSnappingValue = &GetSnapValues().x; break;
+						case ImGuizmo::OPERATION::ROTATE:		currentSnappingValue = &GetSnapValues().y; break;
+						case ImGuizmo::OPERATION::SCALE:		currentSnappingValue = &GetSnapValues().z; break;
+					}
+
+					for (int i = 0; i < 6; i++)
+					{
+						constexpr float rowHeight = 21.0f;
+						ImGui::TableNextRow(0, rowHeight);
+						ImGui::TableNextColumn();
+
+						if (ImGui::Selectable(displaySnapValues[i], false, ImGuiSelectableFlags_SpanAllColumns))
+						{
+							float value = 0.0f;
+							switch (i)
+							{
+								case 0: value = snapValues[0]; break;
+								case 1: value = snapValues[1]; break;
+								case 2: value = snapValues[2]; break;
+								case 3: value = snapValues[3]; break;
+								case 4: value = snapValues[4]; break;
+								case 5: value = snapValues[5]; break;
+							}
+							*currentSnappingValue = value;
+							if (setSceneRendererSnapValue)
+								m_ViewportRenderer->SetTranslationSnapValue(value);
+
+							ImGui::CloseCurrentPopup();
+						}
+					}
+
+					ImGui::EndTable();
+				}
+
+				endSection();
+			}
 		};
 
 		// Top Left corner tools and icons
@@ -1398,55 +1463,9 @@ namespace Iris {
 				ImGui::SetNextWindowBgAlpha(0.7f);
 				if (ImGui::BeginPopup("Translate Snap Value", ImGuiWindowFlags_NoMove))
 				{
-					int sectionIndex = 0;
-					if (beginSection("Snapping", sectionIndex, false))
-					{
-						ImGui::TableNextRow();
-						ImGui::TableSetColumnIndex(0);
-
-						// Alternating row colors...
-						const ImU32 colRowAlternating = UI::ColorWithMultipliedValue(Colors::Theme::BackgroundDarkBlend, 1.3f);
-						UI::ImGuiScopedColor tableBGAlternating(ImGuiCol_TableRowBgAlt, colRowAlternating);
-
-						UI::ImGuiScopedColor tableBg(ImGuiCol_ChildBg, Colors::Theme::BackgroundDarkBlend);
-
-						ImGuiTableFlags tableFlags = ImGuiTableFlags_NoPadInnerX | ImGuiTableFlags_RowBg | ImGuiTableFlags_NoPadOuterX;
-						if (ImGui::BeginTable("##translate_snap_table", 1, tableFlags))
-						{
-							ImGui::TableSetupColumn("Values", ImGuiTableColumnFlags_WidthFixed, SnappingTableColumnWidth);
-
-							constexpr const char* translationSnapValues[] = { "  10cm", "  50cm", "  1m", "  2m", "  5m", "  10m" };
-							float& currentSnappingValue = GetSnapValues().x;
-							for (int i = 0; i < 6; i++)
-							{
-								constexpr float rowHeight = 21.0f;
-								ImGui::TableNextRow(0, rowHeight);
-								ImGui::TableNextColumn();
-
-								if (ImGui::Selectable(translationSnapValues[i], false, ImGuiSelectableFlags_SpanAllColumns))
-								{
-									float value = 0.0f;
-									switch (i)
-									{
-										case 0: value = 0.1f; break;
-										case 1: value = 0.5f; break;
-										case 2: value = 1.0f; break;
-										case 3: value = 2.0f; break;
-										case 4: value = 5.0f; break;
-										case 5: value = 10.0f; break;
-									}
-									currentSnappingValue = value;
-									m_ViewportRenderer->SetTranslationSnapValue(value);
-
-									ImGui::CloseCurrentPopup();
-								}
-							}
-
-							ImGui::EndTable();
-						}
-
-						endSection();
-					}
+					static const char* displayTranslationSnapValues[6] = { "  10cm", "  50cm", "  1m", "  2m", "  5m", "  10m" };
+					static const float translationSnapValues[6] = { 0.1f, 0.5f, 1.0f, 2.0f, 5.0f, 10.0f };
+					snappingTable("##translate_snap_table", SnappingTableColumnWidth, displayTranslationSnapValues, translationSnapValues, ImGuizmo::OPERATION::TRANSLATE, true);
 
 					ImGui::EndPopup();
 				}
@@ -1459,55 +1478,9 @@ namespace Iris {
 				ImGui::SetNextWindowBgAlpha(0.7f);
 				if (ImGui::BeginPopup("Rotate Snap Value", ImGuiWindowFlags_NoMove))
 				{
-					int sectionIndex = 0;
-					if (beginSection("Snapping", sectionIndex, false))
-					{
-						ImGui::TableNextRow();
-						ImGui::TableSetColumnIndex(0);
-
-						// Alternating row colors...
-						const ImU32 colRowAlternating = UI::ColorWithMultipliedValue(Colors::Theme::BackgroundDarkBlend, 1.3f);
-						UI::ImGuiScopedColor tableBGAlternating(ImGuiCol_TableRowBgAlt, colRowAlternating);
-
-						UI::ImGuiScopedColor tableBg(ImGuiCol_ChildBg, Colors::Theme::BackgroundDarkBlend);
-
-						ImGuiTableFlags tableFlags = ImGuiTableFlags_NoPadInnerX | ImGuiTableFlags_RowBg | ImGuiTableFlags_NoPadOuterX;
-						if (ImGui::BeginTable("##rotate_snap_table", 1, tableFlags))
-						{
-							ImGui::TableSetupColumn("Values", ImGuiTableColumnFlags_WidthFixed, SnappingTableColumnWidth + 10.0f);
-
-							constexpr const char* translationSnapValues[] = { "  5deg", "  10deg", "  30deg", "  45deg", "  90deg", "  180deg" };
-							float& currentSnappingValue = GetSnapValues().y;
-							for (int i = 0; i < 6; i++)
-							{
-								constexpr float rowHeight = 21.0f;
-								ImGui::TableNextRow(0, rowHeight);
-								ImGui::TableNextColumn();
-
-								static bool currentlySelected = false;
-								if (ImGui::Selectable(translationSnapValues[i], &currentlySelected, ImGuiSelectableFlags_SpanAllColumns))
-								{
-									float value = 0.0f;
-									switch (i)
-									{
-										case 0: value = 5.0f; break;
-										case 1: value = 10.0f; break;
-										case 2: value = 30.0f; break;
-										case 3: value = 45.0f; break;
-										case 4: value = 90.0f; break;
-										case 5: value = 180.0f; break;
-									}
-									currentSnappingValue = value;
-
-									ImGui::CloseCurrentPopup();
-								}
-							}
-
-							ImGui::EndTable();
-						}
-
-						endSection();
-					}
+					static const char* displayRotationSnapValues[6] = { "  5deg", "  10deg", "  30deg", "  45deg", "  90deg", "  180deg" };
+					static const float rotationSnapValues[6] = { 5.0f, 10.0f, 30.0f, 45.0f, 90.0f, 180.0f };
+					snappingTable("##rotate_snap_table", SnappingTableColumnWidth + 10.0f, displayRotationSnapValues, rotationSnapValues, ImGuizmo::OPERATION::ROTATE);
 
 					ImGui::EndPopup();
 				}
@@ -1520,54 +1493,9 @@ namespace Iris {
 				ImGui::SetNextWindowBgAlpha(0.7f);
 				if (ImGui::BeginPopup("Scale Snap Value", ImGuiWindowFlags_NoMove))
 				{
-					int sectionIndex = 0;
-					if (beginSection("Snapping", sectionIndex, false))
-					{
-						ImGui::TableNextRow();
-						ImGui::TableSetColumnIndex(0);
-
-						// Alternating row colors...
-						const ImU32 colRowAlternating = UI::ColorWithMultipliedValue(Colors::Theme::BackgroundDarkBlend, 1.3f);
-						UI::ImGuiScopedColor tableBGAlternating(ImGuiCol_TableRowBgAlt, colRowAlternating);
-
-						UI::ImGuiScopedColor tableBg(ImGuiCol_ChildBg, Colors::Theme::BackgroundDarkBlend);
-
-						ImGuiTableFlags tableFlags = ImGuiTableFlags_NoPadInnerX | ImGuiTableFlags_RowBg | ImGuiTableFlags_NoPadOuterX;
-						if (ImGui::BeginTable("##rotate_snap_table", 1, tableFlags))
-						{
-							ImGui::TableSetupColumn("Values", ImGuiTableColumnFlags_WidthFixed, SnappingTableColumnWidth);
-
-							constexpr const char* translationSnapValues[] = { "  10cm", "  50cm", "  1m", "  2m", "  5m", "  10m" };
-							float& currentSnappingValue = GetSnapValues().z;
-							for (int i = 0; i < 6; i++)
-							{
-								constexpr float rowHeight = 21.0f;
-								ImGui::TableNextRow(0, rowHeight);
-								ImGui::TableNextColumn();
-
-								if (ImGui::Selectable(translationSnapValues[i], false, ImGuiSelectableFlags_SpanAllColumns))
-								{
-									float value = 0.0f;
-									switch (i)
-									{
-										case 0: value = 0.1f; break;
-										case 1: value = 0.5f; break;
-										case 2: value = 1.0f; break;
-										case 3: value = 2.0f; break;
-										case 4: value = 5.0f; break;
-										case 5: value = 10.0f; break;
-									}
-									currentSnappingValue = value;
-
-									ImGui::CloseCurrentPopup();
-								}
-							}
-
-							ImGui::EndTable();
-						}
-
-						endSection();
-					}
+					static const char* displayScalingSnapValues[6] = { "  10cm", "  50cm", "  1m", "  2m", "  5m", "  10m" };
+					static const float scaleSnapValues[6] = { 0.1f, 0.5f, 1.0f, 2.0f, 5.0f, 10.0f };
+					snappingTable("##rotate_snap_table", SnappingTableColumnWidth, displayScalingSnapValues, scaleSnapValues, ImGuizmo::OPERATION::SCALE);
 
 					ImGui::EndPopup();
 				}
@@ -1686,7 +1614,7 @@ namespace Iris {
 		{
 			ImGui::SetNextWindowBgAlpha(0.5f);
 			ImGui::SetNextWindowSize({ 298.0f, 108.0f });
-			ImGui::SetNextWindowPos({ m_ViewportRect.Min.x + 12.0f, m_ViewportRect.Max.y - 120.0f });
+			ImGui::SetNextWindowPos({ m_ViewportRect.Min.x + 14.0f, m_ViewportRect.Max.y - 120.0f });
 			if (ImGui::Begin("Renderer Info", &m_ShowRendererInfoOverlay, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse))
 			{
 				UI::BeginPropertyGrid(2, 95.0f);
@@ -1697,6 +1625,27 @@ namespace Iris {
 				UI::PropertyStringReadOnly("Version", rendererCaps.Version.c_str());
 
 				UI::EndPropertyGrid();
+			}
+
+			ImGui::End();
+		}
+
+		if (m_ShowPipelineStatisticsOverlay)
+		{
+			ImGui::SetNextWindowPos({ m_ViewportRect.Min.x + 20.0f, m_ViewportRect.Min.y + 40.0f });
+			if (ImGui::Begin("Pipeline Statistics", &m_ShowPipelineStatisticsOverlay, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoInputs))
+			{
+				ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, { 8.0f, 8.0f });
+				ImGuiFontsLibrary& fontsLib = Application::Get().GetImGuiLayer()->GetFontsLibrary();
+				fontsLib.PushFont("RobotoBold");
+
+				ImGui::TextUnformatted(fmt::format("Input Vertices: {}", m_ViewportRenderer->GetPipelineStatistics().InputAssemblyVertices).c_str());
+				ImGui::TextUnformatted(fmt::format("Vertex Shader Invocations: {}", m_ViewportRenderer->GetPipelineStatistics().VertexShaderInvocations).c_str());
+				ImGui::TextUnformatted(fmt::format("Fragment Shader Invocations: {}", m_ViewportRenderer->GetPipelineStatistics().FragmentShaderInvocations).c_str());
+				ImGui::TextUnformatted(fmt::format("Compute Shader Invocations: {}", m_ViewportRenderer->GetPipelineStatistics().ComputeShaderInvocations).c_str());
+
+				fontsLib.PopFont();
+				ImGui::PopStyleVar();
 			}
 
 			ImGui::End();
@@ -2584,7 +2533,7 @@ namespace Iris {
 			IR_VERIFY(false); 
 
 		auto project = Project::GetActive();
-		ProjectSerializer::Serialize(project, project->GetConfig().ProjectDirectory + "/" + project->GetConfig().ProjectFileName + ".Iproj");
+		ProjectSerializer::Serialize(project, fmt::format("{}/{}", project->GetConfig().ProjectDirectory, project->GetConfig().ProjectFileName));
 
 		m_PanelsManager->Serialize();
 	}

@@ -46,7 +46,7 @@ namespace Iris {
 		UI::BeginPropertyGrid();
 
 		UI::PushID();
-		if (UI::PropertyBool("Transparent", transparent))
+		if (UI::Property("Transparent", transparent))
 		{
 			// TODO: Once we have a tranparent shader
 			//if (transparent)
@@ -62,7 +62,7 @@ namespace Iris {
 		}
 
 		bool doubleSided = m_MaterialAsset->IsDoubleSided();
-		if (UI::PropertyBool("Double Sided", doubleSided))
+		if (UI::Property("Double Sided", doubleSided))
 		{
 			m_MaterialAsset->SetDoubleSided(doubleSided);
 			needsSerialize = true;
@@ -150,7 +150,7 @@ namespace Iris {
 				needsSerialize = true;
 
 			float& emission = m_MaterialAsset->GetEmission();
-			UI::PropertyFloat("Emission", emission, 0.1f, 0.0f, 20.0f);
+			UI::Property("Emission", emission, 0.1f, 0.0f, 20.0f);
 			if (ImGui::IsItemDeactivated())
 				needsSerialize = true;
 
@@ -165,7 +165,7 @@ namespace Iris {
 				float& transparency = m_MaterialAsset->GetTransparency();
 
 				UI::BeginPropertyGrid();
-				UI::PropertyFloat("Transparency", transparency, 0.01f, 0.0f, 1.0f);
+				UI::Property("Transparency", transparency, 0.01f, 0.0f, 1.0f);
 				if (ImGui::IsItemDeactivated())
 					needsSerialize = true;
 				UI::EndPropertyGrid();

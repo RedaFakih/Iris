@@ -742,6 +742,11 @@ namespace Iris {
 			m_GeometryWireFramePass->GetPipeline()->GetSpecification().LineWidth = lineWidth;
 	}
 
+	const PipelineStatistics& SceneRenderer::GetPipelineStatistics() const
+	{
+		return m_CommandBuffer->GetPipelineStatistics(Renderer::GetCurrentFrameIndex());
+	}
+
 	void SceneRenderer::FlushDrawList()
 	{
 		if (m_ResourcesCreated && m_ViewportWidth > 0 && m_ViewportHeight > 0)

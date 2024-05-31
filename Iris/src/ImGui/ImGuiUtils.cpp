@@ -487,13 +487,14 @@ namespace Iris::UI {
 		return open;
 	}
 
-	void BeginPropertyGrid(uint32_t columns, float width)
+	void BeginPropertyGrid(uint32_t columns, float width, bool setWidth)
 	{
 		PushID();
 		ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2{ 8.0f, 8.0f });
 		ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2{ 4.0f, 4.0f });
 		ImGui::Columns(columns);
-		ImGui::SetColumnWidth(0, width == 0.0f ? 140.0f : width);
+		if (setWidth)
+			ImGui::SetColumnWidth(0, width == 0.0f ? 140.0f : width);
 	}
 
 	void EndPropertyGrid()
@@ -594,6 +595,11 @@ namespace Iris::UI {
 		return modified;
 	}
 
+	bool PropertyStringReadOnly(const char* label, const std::string& value, bool isErorr)
+	{
+		return PropertyStringReadOnly(label, value.c_str(), isErorr);
+	}
+
 	bool PropertyStringReadOnly(const char* label, const char* value, bool isErorr)
 	{
 		ShiftCursor(10.0f, 9.0f);
@@ -622,7 +628,7 @@ namespace Iris::UI {
 		return modified;
 	}
 
-	bool PropertyFloat(const char* label, float& value, float delta, float min, float max, const char* helpText)
+	bool Property(const char* label, float& value, float delta, float min, float max, const char* helpText)
 	{
 		ShiftCursor(10.0f, 9.0f);
 		ImGui::Text(label);
@@ -649,7 +655,7 @@ namespace Iris::UI {
 		return modified;
 	}
 
-	bool PropertyUInt(const char* label, uint32_t& value, uint32_t delta, uint32_t min, uint32_t max, const char* helpText)
+	bool Property(const char* label, uint32_t& value, uint32_t delta, uint32_t min, uint32_t max, const char* helpText)
 	{
 		ShiftCursor(10.0f, 9.0f);
 		ImGui::Text(label);
@@ -676,7 +682,7 @@ namespace Iris::UI {
 		return modified;
 	}
 
-	bool PropertyBool(const char* label, bool& value, const char* helpText)
+	bool Property(const char* label, bool& value, const char* helpText, bool underLineProperty)
 	{
 		ShiftCursor(10.0f, 9.0f);
 		ImGui::Text(label);
@@ -695,13 +701,43 @@ namespace Iris::UI {
 		if (!IsItemDisabled())
 			DrawItemActivityOutline();
 
+		if (underLineProperty)
+			UnderLine();
+
 		ImGui::NextColumn();
 		UnderLine();
 
 		return modified;
 	}
 
-	bool PropertySliderFloat(const char* label, float& value, float min, float max, const char* format, const char* helpText)
+	bool PropertySlider(const char* label, uint32_t& value, uint32_t min, uint32_t max, const char* format, const char* helpText)
+	{
+		ShiftCursor(10.0f, 9.0f);
+		ImGui::Text(label);
+
+		if (std::strlen(helpText) != 0)
+		{
+			ImGui::SameLine();
+			ShowHelpMarker(helpText);
+		}
+
+		ImGui::NextColumn();
+		ShiftCursorY(4.0f);
+
+		ImGui::PushItemWidth(-1);
+		bool modified = ImGui::SliderInt(fmt::format("##{0}", label).c_str(), reinterpret_cast<int*>(&value), min, max, format);
+
+		if (!IsItemDisabled())
+			DrawItemActivityOutline();
+		ImGui::PopItemWidth();
+
+		ImGui::NextColumn();
+		UnderLine();
+
+		return modified;
+	}
+
+	bool PropertySlider(const char* label, float& value, float min, float max, const char* format, const char* helpText)
 	{
 		ShiftCursor(10.0f, 9.0f);
 		ImGui::Text(label);
@@ -728,7 +764,7 @@ namespace Iris::UI {
 		return modified;
 	}
 
-	bool PropertySliderFloat2(const char* label, ImVec2& value, float min, float max, const char* format, const char* helpText)
+	bool PropertySlider(const char* label, ImVec2& value, float min, float max, const char* format, const char* helpText)
 	{
 		ShiftCursor(10.0f, 9.0f);
 		ImGui::Text(label);
@@ -755,7 +791,7 @@ namespace Iris::UI {
 		return modified;
 	}
 
-	bool PropertyDragFloat(const char* label, double& value, float delta, double min, double max, const char* helpText)
+	bool PropertyDrag(const char* label, float& value, float delta, float min, float max, const char* helpText)
 	{
 		ShiftCursor(10.0f, 9.0f);
 		ImGui::Text(label);
@@ -770,7 +806,7 @@ namespace Iris::UI {
 		ShiftCursorY(4.0f);
 		ImGui::PushItemWidth(-1);
 
-		bool modified = UI::DragDouble(fmt::format("##{0}", label).c_str(), &value, delta, min, max);
+		bool modified = UI::DragDouble(fmt::format("##{0}", label).c_str(), reinterpret_cast<double*>(&value), delta, min, max);
 
 		ImGui::PopItemWidth();
 		ImGui::NextColumn();
@@ -779,7 +815,7 @@ namespace Iris::UI {
 		return modified;
 	}
 
-	bool PropertyDragFloat2(const char* label, glm::vec2& value, float delta, double min, double max, const char* helpText)
+	bool PropertyDrag(const char* label, glm::vec2& value, float delta, float min, float max, const char* helpText)
 	{
 		ShiftCursor(10.0f, 9.0f);
 		ImGui::Text(label);
@@ -794,7 +830,7 @@ namespace Iris::UI {
 		ShiftCursorY(4.0f);
 		ImGui::PushItemWidth(-1);
 
-		bool modified = UI::DragFloat2(fmt::format("##{0}", label).c_str(), glm::value_ptr(value), delta, static_cast<float>(min), static_cast<float>(max));
+		bool modified = UI::DragFloat2(fmt::format("##{0}", label).c_str(), glm::value_ptr(value), delta, min, max);
 
 		ImGui::PopItemWidth();
 		ImGui::NextColumn();
@@ -803,7 +839,7 @@ namespace Iris::UI {
 		return modified;
 	}
 
-	bool PropertyDragFloat3(const char* label, glm::vec3& value, float delta, double min, double max, const char* helpText)
+	bool PropertyDrag(const char* label, glm::vec3& value, float delta, float min, float max, const char* helpText)
 	{
 		ShiftCursor(10.0f, 9.0f);
 		ImGui::Text(label);
@@ -818,7 +854,7 @@ namespace Iris::UI {
 		ShiftCursorY(4.0f);
 		ImGui::PushItemWidth(-1);
 
-		bool modified = UI::DragFloat3(fmt::format("##{0}", label).c_str(), glm::value_ptr(value), delta, static_cast<float>(min), static_cast<float>(max));
+		bool modified = UI::DragFloat3(fmt::format("##{0}", label).c_str(), glm::value_ptr(value), delta, min, max);
 
 		ImGui::PopItemWidth();
 		ImGui::NextColumn();
@@ -827,7 +863,7 @@ namespace Iris::UI {
 		return modified;
 	}
 
-	bool PropertyDragFloat4(const char* label, glm::vec4& value, float delta, double min, double max, const char* helpText)
+	bool PropertyDrag(const char* label, glm::vec4& value, float delta, float min, float max, const char* helpText)
 	{
 		ShiftCursor(10.0f, 9.0f);
 		ImGui::Text(label);
@@ -842,7 +878,7 @@ namespace Iris::UI {
 		ShiftCursorY(4.0f);
 		ImGui::PushItemWidth(-1);
 
-		bool modified = UI::DragFloat4(fmt::format("##{0}", label).c_str(), glm::value_ptr(value), delta, static_cast<float>(min), static_cast<float>(max));
+		bool modified = UI::DragFloat4(fmt::format("##{0}", label).c_str(), glm::value_ptr(value), delta, min, max);
 
 		ImGui::PopItemWidth();
 		ImGui::NextColumn();
@@ -870,6 +906,45 @@ namespace Iris::UI {
 
 		ImGui::PushItemWidth(-1);
 		const std::string id = fmt::format("##{0}", label);
+		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 5.0f, 5.0f });
+		if (ImGui::BeginCombo(id.c_str(), current))
+		{
+			for (int i = 0; i < optionCount; i++)
+			{
+				bool isSelected = (current == options[i]);
+				if (ImGui::Selectable(options[i], isSelected))
+				{
+					current = options[i];
+					*selected = i;
+					modified = true;
+				}
+
+				if (isSelected)
+					ImGui::SetItemDefaultFocus();
+			}
+
+			ImGui::EndCombo();
+		}
+		ImGui::PopStyleVar();
+
+		if (!IsItemDisabled())
+			DrawItemActivityOutline();
+
+		ImGui::PopItemWidth();
+		ImGui::NextColumn();
+		UnderLine();
+
+		return modified;
+	}
+
+	bool PropertyDropdownNoLabel(const char* strID, const char** options, int optionCount, int* selected)
+	{
+		bool modified = false;
+		const char* current = options[*selected];
+		ShiftCursorY(4.0f);
+
+		ImGui::PushItemWidth(-1);
+		const std::string id = fmt::format("##{0}", strID);
 		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 5.0f, 5.0f });
 		if (ImGui::BeginCombo(id.c_str(), current))
 		{

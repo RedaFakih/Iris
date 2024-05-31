@@ -15,15 +15,13 @@ namespace Iris::Logging {
 	public:
 		enum class Type : uint8_t
 		{
-			None = 0,
-			Core,
+			Core = 0,
 			Client
 		};
 
 		enum class Level : uint8_t
 		{
-			None = 0,
-			Trace,
+			Trace = 0,
 			Info,
 			Warn,
 			Error,

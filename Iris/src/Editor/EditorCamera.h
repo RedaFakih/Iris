@@ -3,7 +3,7 @@
 #include "Core/Events/Events.h"
 #include "Core/Events/MouseEvents.h"
 #include "Core/TimeStep.h"
-#include "Renderer/Helpers/Camera.h"
+#include "Renderer/Camera/Camera.h"
 
 namespace Iris {
 
