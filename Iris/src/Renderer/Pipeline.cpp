@@ -359,7 +359,7 @@ namespace Iris {
 			VK_CHECK_RESULT(vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &(instance->m_VulkanPipeline)));
 			VKUtils::SetDebugUtilsObjectName(device, VK_OBJECT_TYPE_PIPELINE, instance->m_Specification.DebugName, instance->m_VulkanPipeline);
 
-			// NOTE: We can not release the shader modules after the pipeline have been created
+			// TODO: We can not release the shader modules after the pipeline have been created
 			// since some systems in the engine (Renderer2D) may try to recreate their pipelines and so would need the shader modules again
 			// shader->ReleaseShaderModules();
 		});

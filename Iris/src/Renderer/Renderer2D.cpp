@@ -2,6 +2,7 @@
 #include "Renderer2D.h"
 
 #include "Renderer.h"
+#include "StorageBufferSet.h"
 
 namespace Iris {
 
@@ -47,13 +48,12 @@ namespace Iris {
 			.Samples = 1,
 			.SwapchainTarget = m_Specification.SwapChainTarget
 		};
-		Ref<Framebuffer> framebuffer = Framebuffer::Create(framebufferSpec);
 
 		{
 			PipelineSpecification pipelineSpecification = {
 				.DebugName = "Renderer2D-Quad",
 				.Shader = Renderer::GetShadersLibrary()->Get("Renderer2D_Quad"),
-				.TargetFramebuffer = framebuffer,
+				.TargetFramebuffer = Framebuffer::Create(framebufferSpec),
 				.VertexLayout = {
 					{ ShaderDataType::Float3, "a_Position" },
 					{ ShaderDataType::Float4, "a_Color" },

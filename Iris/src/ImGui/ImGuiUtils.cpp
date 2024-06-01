@@ -3,6 +3,9 @@
 
 #include "Core/Application.h"
 #include "Core/Input/Input.h"
+#include "Renderer/StorageBufferSet.h"
+#include "Renderer/Texture.h"
+#include "Renderer/UniformBufferSet.h"
 
 #include <imgui/imgui_impl_vulkan.h>
 

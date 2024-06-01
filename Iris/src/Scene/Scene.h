@@ -4,10 +4,9 @@
 
 #include "Core/TimeStep.h"
 #include "Core/UUID.h"
-
 #include "Editor/EditorCamera.h"
-
 #include "Renderer/Mesh/Mesh.h"
+#include "SceneEnvironment.h"
 
 namespace Iris {
 
@@ -120,11 +119,16 @@ namespace Iris {
 
 		EntityMap m_EntityIDMap;
 
+		//Ref<Environment> m_Environment;
+		//float m_EnvironmentIntensity = 0.0f;
+		//float m_SkyboxLod = 0.0f;
+
 		std::function<void(Entity)> m_OnEntityDestroyedCallback;
 
 		friend class Entity;
 		friend class ECSDebugPanel;
 		friend class SceneSerializer;
+		friend class SceneRenderer;
 
 	};
 

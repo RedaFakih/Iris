@@ -4,10 +4,38 @@
 #include "Renderer.h"
 #include "Renderer/Core/Vulkan.h"
 #include "Shaders/Shader.h"
+#include "StorageBufferSet.h"
 #include "Texture.h"
 #include "UniformBufferSet.h"
 
 namespace Iris {
+
+	namespace Utils {
+
+		inline constexpr DescriptorResourceType GetDefaultResourceType(VkDescriptorType type, spv::Dim dimension = spv::Dim::DimMax)
+		{
+			if (dimension != spv::Dim::DimMax)
+			{
+				if (type == VK_DESCRIPTOR_TYPE_STORAGE_IMAGE && dimension == spv::Dim::DimCube)
+					return DescriptorResourceType::TextureCube;
+			}
+			else
+			{
+				switch (type)
+				{
+					case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:			return DescriptorResourceType::UniformBuffer;
+					case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER:			return DescriptorResourceType::StorageBuffer;
+					case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
+					case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER: return DescriptorResourceType::Texture2D;
+					case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE:			return DescriptorResourceType::StorageImage;
+				}
+			}
+
+			IR_ASSERT(false);
+			return DescriptorResourceType::None;
+		}
+
+	}
 
 	DescriptorSetManager::DescriptorSetManager(const DescriptorSetManagerSpecification& spec)
 		: m_Specification(spec)
@@ -59,10 +87,56 @@ namespace Iris {
 				// The number of elements in the array or 1 if no array exists in the shader for this descriptor
 				inputDeclaration.Count = writeDescriptor.descriptorCount;
 
+				spv::Dim currentDimension = spv::Dim::DimMax;
+				if (shaderDescriptorSet.ImageSamplers.contains(binding))
+				{
+					const ShaderResources::ImageSampler& imageSampler = shaderDescriptorSet.ImageSamplers.at(binding);
+					spv::Dim dimension = imageSampler.Dimension;
+					if (writeDescriptor.descriptorType == VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE || writeDescriptor.descriptorType == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
+					{
+						switch (dimension)
+						{
+							case spv::Dim1D:
+								inputDeclaration.Type = RenderPassInputType::ImageSampler1D;
+								break;
+							case spv::Dim2D:
+								inputDeclaration.Type = RenderPassInputType::ImageSampler2D;
+								break;
+							case spv::Dim3D:
+								inputDeclaration.Type = RenderPassInputType::ImageSampler3D;
+								break;
+						}
+					}
+				}
+				else if (shaderDescriptorSet.StorageImages.contains(binding))
+				{
+					const ShaderResources::ImageSampler& imageSampler = shaderDescriptorSet.StorageImages.at(binding);
+					spv::Dim dimension = imageSampler.Dimension;
+					currentDimension = dimension;
+					if (writeDescriptor.descriptorType == VK_DESCRIPTOR_TYPE_STORAGE_IMAGE)
+					{
+						switch (dimension)
+						{
+							case spv::Dim1D:
+								inputDeclaration.Type = RenderPassInputType::StorageImage1D;
+								break;
+							case spv::Dim2D:
+								inputDeclaration.Type = RenderPassInputType::StorageImage2D;
+								break;
+							case spv::Dim3D:
+								inputDeclaration.Type = RenderPassInputType::StorageImage3D;
+								break;
+							case spv::DimCube:
+								inputDeclaration.Type = RenderPassInputType::TextureCube;
+								break;
+						}
+					}
+				}
+
 				if (m_Specification.DefaultResources)
 				{
 					RenderPassInput& input = m_InputResources[set][binding];
-					input.Type = Utils::GetDefaultResourceType(writeDescriptor.descriptorType);
+					input.Type = Utils::GetDefaultResourceType(writeDescriptor.descriptorType, currentDimension);
 					input.Input.resize(writeDescriptor.descriptorCount);
 
 					// Set default textures
@@ -75,41 +149,27 @@ namespace Iris {
 
 						IR_CORE_WARN_TAG("Renderer", "[RenderPass ({})::Init] Setting {} to white 2D texture.", m_Specification.DebugName, name);
 					}
-
-					if (inputDeclaration.Type == RenderPassInputType::ImageSampler2D)
+					else if (inputDeclaration.Type == RenderPassInputType::ImageSampler3D)
 					{
 						for (std::size_t i = 0; i < input.Input.size(); i++)
 						{
-							input.Input[i] = Renderer::GetWhiteTexture();
+							input.Input[i] = Renderer::GetBlackCubeTexture();
 						}
-
-						IR_CORE_WARN_TAG("Renderer", "[RenderPass ({})::Init] Setting {} to white 2D texture.", m_Specification.DebugName, name);
 					}
-
-					// TODO: Cube textures
+					else if (inputDeclaration.Type == RenderPassInputType::TextureCube)
+					{
+						for (std::size_t i = 0; i < input.Input.size(); i++)
+						{
+							input.Input[i] = Renderer::GetBlackCubeTexture();
+						}
+					}
 				}
 
 				for (uint32_t frameIndex = 0; frameIndex < framesInFlight; frameIndex++)
-					m_WriteDescriptorMap[frameIndex][set][binding] = { 
-						.WriteDescriptorSet = writeDescriptor, 
+					m_WriteDescriptorMap[frameIndex][set][binding] = {
+						.WriteDescriptorSet = writeDescriptor,
 						.ResourceHandles = std::vector<void*>(writeDescriptor.descriptorCount)
 					};
-
-				if (shaderDescriptorSet.ImageSamplers.contains(binding))
-				{
-					const ShaderResources::ImageSampler& imageSampler = shaderDescriptorSet.ImageSamplers.at(binding);
-					uint32_t dimension = imageSampler.Dimension;
-					if (writeDescriptor.descriptorType == VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE || writeDescriptor.descriptorType == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
-					{
-						switch (dimension)
-						{
-							case 1: inputDeclaration.Type = RenderPassInputType::ImageSampler1D; break;
-							case 2: inputDeclaration.Type = RenderPassInputType::ImageSampler2D; break;
-							case 3: inputDeclaration.Type = RenderPassInputType::ImageSampler3D; break;
-						}
-					}
-					// TODO: Storage images
-				}
 			}
 		}
 	}
@@ -278,6 +338,30 @@ namespace Iris {
 
 							break;
 						}
+						case DescriptorResourceType::StorageBuffer:
+						{
+							Ref<StorageBuffer> storageBuffer = input.Input[0];
+							writeDescriptor.pBufferInfo = &storageBuffer->GetDescriptorBufferInfo();
+							storedWriteDescriptor.ResourceHandles[0] = writeDescriptor.pBufferInfo->buffer;
+
+							// Defer the resource if it does not exist yet...
+							if (writeDescriptor.pBufferInfo->buffer == nullptr)
+								m_InvalidatedInputResources[set][binding] = input;
+
+							break;
+						}
+						case DescriptorResourceType::StorageBufferSet:
+						{
+							Ref<StorageBufferSet> storageBufferSet = input.Input[0];
+							writeDescriptor.pBufferInfo = &storageBufferSet->Get(frameIndex)->GetDescriptorBufferInfo();
+							storedWriteDescriptor.ResourceHandles[0] = writeDescriptor.pBufferInfo->buffer;
+
+							// Defer the resource if it does not exist yet...
+							if (writeDescriptor.pBufferInfo->buffer == nullptr)
+								m_InvalidatedInputResources[set][binding] = input;
+
+							break;
+						}
 						case DescriptorResourceType::Texture2D:
 						{
 							if (input.Input.size() > 1)
@@ -302,6 +386,38 @@ namespace Iris {
 							// Defer the resource if it does not exist yet...
 							if (writeDescriptor.pImageInfo->imageView == nullptr)
 								m_InvalidatedInputResources[set][binding] = input;
+
+							break;
+						}
+						case DescriptorResourceType::TextureCube:
+						{
+							Ref<TextureCube> textureCube = input.Input[0];
+							writeDescriptor.pImageInfo = &textureCube->GetDescriptorImageInfo();
+							storedWriteDescriptor.ResourceHandles[0] = writeDescriptor.pImageInfo->imageView;
+
+							// Defer the resource if it does not exist...
+							if (writeDescriptor.pImageInfo->imageView == nullptr)
+								m_InvalidatedInputResources[set][binding] = input;
+
+							break;
+						}
+						case DescriptorResourceType::StorageImage:
+						{
+							// TODO:
+							//Ref<StorageImage> storageImage = input.Input[0];
+							//if (storageImage == nullptr)
+							//{
+							//	// Defer the resource if it does not exist...
+							//	m_InvalidatedInputResources[set][binding] = input;
+							//	break;
+							//}
+
+							//writeDescriptor.pImageInfo = &storageImage->GetDescriptorImageInfo();
+							//storedWriteDescriptor.ResourceHandles[0] = writeDescriptor.pImageInfo->imageView;
+
+							//// Defer the resource if it does not exist...
+							//if (writeDescriptor.pImageInfo->imageView == nullptr)
+							//	m_InvalidatedInputResources[set][binding] = input;
 
 							break;
 						}
@@ -342,10 +458,7 @@ namespace Iris {
 						Ref<UniformBuffer> uniformBuffer = renderPassInput.Input[0];
 						const VkDescriptorBufferInfo& bufferInfo = uniformBuffer->GetDescriptorBufferInfo();
 						if (bufferInfo.buffer != m_WriteDescriptorMap[currentFrameIndex].at(set).at(binding).ResourceHandles[0])
-						{
 							m_InvalidatedInputResources[set][binding] = renderPassInput;
-							break;
-						}
 
 						break;
 					}
@@ -354,10 +467,25 @@ namespace Iris {
 						Ref<UniformBufferSet> uniformBufferSet = renderPassInput.Input[0];
 						const VkDescriptorBufferInfo& bufferInfo = uniformBufferSet->Get(currentFrameIndex)->GetDescriptorBufferInfo();
 						if (bufferInfo.buffer != m_WriteDescriptorMap[currentFrameIndex].at(set).at(binding).ResourceHandles[0])
-						{
 							m_InvalidatedInputResources[set][binding] = renderPassInput;
-							break;
-						}
+
+						break;
+					}
+					case DescriptorResourceType::StorageBuffer:
+					{
+						Ref<StorageBuffer> storageBuffer = renderPassInput.Input[0];
+						const VkDescriptorBufferInfo& bufferInfo = storageBuffer->GetDescriptorBufferInfo();
+						if (bufferInfo.buffer != m_WriteDescriptorMap[currentFrameIndex].at(set).at(binding).ResourceHandles[0])
+							m_InvalidatedInputResources[set][binding] = renderPassInput;
+
+						break;
+					}
+					case DescriptorResourceType::StorageBufferSet:
+					{
+						Ref<StorageBufferSet> storageBufferSet = renderPassInput.Input[0];
+						const VkDescriptorBufferInfo& bufferInfo = storageBufferSet->Get(currentFrameIndex)->GetDescriptorBufferInfo();
+						if (bufferInfo.buffer != m_WriteDescriptorMap[currentFrameIndex].at(set).at(binding).ResourceHandles[0])
+							m_InvalidatedInputResources[set][binding] = renderPassInput;
 
 						break;
 					}
@@ -373,6 +501,25 @@ namespace Iris {
 								break;
 							}
 						}
+
+						break;
+					}
+					case DescriptorResourceType::TextureCube:
+					{
+						Ref<TextureCube> textureCube = renderPassInput.Input[0];
+						const VkDescriptorImageInfo& imageInfo = textureCube->GetDescriptorImageInfo();
+						if (imageInfo.imageView != m_WriteDescriptorMap[currentFrameIndex].at(set).at(binding).ResourceHandles[0])
+							m_InvalidatedInputResources[set][binding] = renderPassInput;
+
+						break;
+					}
+					case DescriptorResourceType::StorageImage:
+					{
+						// TODO:
+						//Ref<StorageImage> storageImage = renderPassInput.Input[0];
+						//const VkDescriptorImageInfo& imageInfo = storageImage->GetDescriptorImageInfo();
+						//if (imageInfo.imageView != m_WriteDescriptorMap[currentFrameIndex].at(set).at(binding).ResourceHandles[0])
+						//	m_InvalidatedInputResources[set][binding] = renderPassInput;
 
 						break;
 					}
@@ -417,6 +564,22 @@ namespace Iris {
 
 						break;
 					}
+					case DescriptorResourceType::StorageBuffer:
+					{
+						Ref<StorageBuffer> storageBuffer = input.Input[0];
+						writeDescriptor.pBufferInfo = &storageBuffer->GetDescriptorBufferInfo();
+						storedWriteDescriptor.ResourceHandles[0] = writeDescriptor.pBufferInfo->buffer;
+
+						break;
+					}
+					case DescriptorResourceType::StorageBufferSet:
+					{
+						Ref<StorageBufferSet> storageBufferSet = input.Input[0];
+						writeDescriptor.pBufferInfo = &storageBufferSet->Get(currentFrameIndex)->GetDescriptorBufferInfo();
+						storedWriteDescriptor.ResourceHandles[0] = writeDescriptor.pBufferInfo->buffer;
+
+						break;
+					}
 					case DescriptorResourceType::Texture2D:
 					{
 						if (input.Input.size() > 1)
@@ -437,6 +600,23 @@ namespace Iris {
 							writeDescriptor.pImageInfo = &texture->GetDescriptorImageInfo();
 							storedWriteDescriptor.ResourceHandles[0] = writeDescriptor.pImageInfo->imageView;
 						}
+
+						break;
+					}
+					case DescriptorResourceType::TextureCube:
+					{
+						Ref<TextureCube> textureCube = input.Input[0];
+						writeDescriptor.pImageInfo = &textureCube->GetDescriptorImageInfo();
+						storedWriteDescriptor.ResourceHandles[0] = writeDescriptor.pImageInfo->imageView;
+
+						break;
+					}
+					case DescriptorResourceType::StorageImage:
+					{
+						// TODO:
+						//Ref<StorageImage> storageImage = input.Input[0];
+						//writeDescriptor.pImageInfo = &storageImage->GetDescriptorImageInfo();
+						//storedWriteDescriptor.ResourceHandles[0] = writeDescriptor.pImageInfo->imageView;
 
 						break;
 					}
@@ -475,6 +655,24 @@ namespace Iris {
 			IR_CORE_ERROR_TAG("Renderer", "[RenderPass ({})::SetInput] Input {} not found!", m_Specification.DebugName, name);
 	}
 
+	void DescriptorSetManager::SetInput(std::string_view name, Ref<StorageBuffer> storageBuffer)
+	{
+		const RenderPassInputDeclaration* decl = GetInputDeclaration(name);
+		if (decl)
+			m_InputResources.at(decl->Set).at(decl->Binding).Set(storageBuffer);
+		else
+			IR_CORE_ERROR_TAG("Renderer", "[RenderPass ({})::SetInput] Input {} not found!", m_Specification.DebugName, name);
+	}
+
+	void DescriptorSetManager::SetInput(std::string_view name, Ref<StorageBufferSet> storageBufferSet)
+	{
+		const RenderPassInputDeclaration* decl = GetInputDeclaration(name);
+		if (decl)
+			m_InputResources.at(decl->Set).at(decl->Binding).Set(storageBufferSet);
+		else
+			IR_CORE_ERROR_TAG("Renderer", "[RenderPass ({})::SetInput] Input {} not found!", m_Specification.DebugName, name);
+	}
+
 	void DescriptorSetManager::SetInput(std::string_view name, Ref<Texture2D> texture, uint32_t index)
 	{
 		const RenderPassInputDeclaration* decl = GetInputDeclaration(name);
@@ -486,6 +684,27 @@ namespace Iris {
 		else
 			IR_CORE_ERROR_TAG("Renderer", "[RenderPass ({})::SetInput] Input {} not found!", m_Specification.DebugName, name);
 	}
+
+	void DescriptorSetManager::SetInput(std::string_view name, Ref<TextureCube> textureCube)
+	{
+		const RenderPassInputDeclaration* decl = GetInputDeclaration(name);
+
+		if (decl)
+			m_InputResources.at(decl->Set).at(decl->Binding).Set(textureCube);
+		else
+			IR_CORE_ERROR_TAG("Renderer", "[RenderPass ({})::SetInput] Input {} not found!", m_Specification.DebugName, name);
+	}
+
+	// TODO:
+	//void DescriptorSetManager::SetInput(std::string_view name, Ref<StorageImage> storageImage, uint32_t index)
+	//{
+	//	const RenderPassInputDeclaration* decl = GetInputDeclaration(name);
+
+	//	if (decl)
+	//		m_InputResources.at(decl->Set).at(decl->Binding).Set(storageImage, index);
+	//	else
+	//		IR_CORE_ERROR_TAG("Renderer", "[RenderPass ({})::SetInput] Input {} not found!", m_Specification.DebugName, name);
+	//}
 
 	bool DescriptorSetManager::IsInvalidated(uint32_t set, uint32_t binding) const
 	{
@@ -506,7 +725,7 @@ namespace Iris {
 		{
 			for (auto& [binding, input] : data)
 			{
-				if (input.Type == DescriptorResourceType::UniformBufferSet)
+				if (input.Type == DescriptorResourceType::UniformBufferSet || input.Type == DescriptorResourceType::StorageBufferSet)
 				{
 					result.insert(set);
 					break;

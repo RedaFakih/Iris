@@ -2,6 +2,9 @@
 #include "CustomTreeNode.h"
 
 #include "ImGuiUtils.h"
+#include "Renderer/StorageBufferSet.h"
+#include "Renderer/Texture.h"
+#include "Renderer/UniformBufferSet.h"
 
 namespace ImGui {
 

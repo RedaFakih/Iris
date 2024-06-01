@@ -18,7 +18,10 @@ namespace Iris {
 	// Forward declares
 	class UniformBuffer;
 	class UniformBufferSet;
+	class StorageBuffer;
+	class StorageBufferSet;
 	class Texture2D;
+	class TextureCube;
 
 	class RenderPass : public RefCountedObject
 	{
@@ -34,7 +37,12 @@ namespace Iris {
 
 		void SetInput(std::string_view name, Ref<UniformBuffer> uniformBuffer);
 		void SetInput(std::string_view name, Ref<UniformBufferSet> uniformBufferSet);
+		void SetInput(std::string_view name, Ref<StorageBuffer> storageBuffer);
+		void SetInput(std::string_view name, Ref<StorageBufferSet> storageBufferSet);
 		void SetInput(std::string_view name, Ref<Texture2D> texture);
+		void SetInput(std::string_view name, Ref<TextureCube> textureCube);
+		// TODO:
+		//void SetInput(std::string_view name, Ref<StorageImage> storageImage);
 
 		// NOTE: ignoreMultisampled ignores whether the framebuffer is multisampled or not and return the original images even if resolve ones exist...
 		Ref<Texture2D> GetOutput(uint32_t index, bool ignoreMultiSampled = false) const;
@@ -43,7 +51,7 @@ namespace Iris {
 		uint32_t GetFirstSetIndex() const;
 
 		// We can just check if the pointer for the descriptor pool exists since that is only created in `DescriptorSetManager::Bake`
-		bool Baked() const { return (bool)m_DescriptorSetManager.GetDescriptorPool(); }
+		bool Baked() const { return static_cast<bool>(m_DescriptorSetManager.GetDescriptorPool()); }
 
 		bool HasDescriptorSets() const;
 		const std::vector<VkDescriptorSet>& GetDescriptorSets(uint32_t frameIndex) const;

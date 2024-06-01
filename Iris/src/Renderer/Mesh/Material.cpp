@@ -3,6 +3,7 @@
 
 #include "Renderer/Renderer.h"
 #include "Renderer/Shaders/Shader.h"
+#include "Renderer/StorageBufferSet.h"
 #include "Renderer/Texture.h"
 #include "Renderer/UniformBufferSet.h"
 
@@ -120,6 +121,11 @@ namespace Iris {
 	void Material::Set(std::string_view name, Ref<Texture2D> value, uint32_t arrayIndex)
 	{
 		SetVulkanDescriptor(name, value, arrayIndex);
+	}
+
+	void Material::Set(std::string_view name, Ref<TextureCube> value)
+	{
+		SetVulkanDescriptor(name, value);
 	}
 
 	int& Material::GetInt(std::string_view name)
@@ -248,6 +254,11 @@ namespace Iris {
 	void Material::SetVulkanDescriptor(std::string_view name, const Ref<Texture2D>& texture, uint32_t arrayIndex)
 	{
 		m_DescriptorSetManager.SetInput(name, texture, arrayIndex);
+	}
+
+	void Material::SetVulkanDescriptor(std::string_view name, const Ref<TextureCube>& texture)
+	{
+		m_DescriptorSetManager.SetInput(name, texture);
 	}
 
 	const ShaderUniform* Material::FindUniformDeclaration(std::string_view name) const

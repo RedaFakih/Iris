@@ -26,18 +26,25 @@ namespace Iris {
 		None = 0,
 		UniformBuffer,
 		UniformBufferSet,
-		Texture2D
-		// NOTE: Add more stuff as things are expanded
+		StorageBuffer,
+		StorageBufferSet,
+		Texture2D,
+		TextureCube,
+		StorageImage
 	};
 
 	enum class RenderPassInputType
 	{
 		None = 0,
 		UniformBuffer,
+		StorageBuffer,
 		ImageSampler1D,
 		ImageSampler2D,
-		ImageSampler3D
-		// NOTE: Add more stuff as things are expanded
+		ImageSampler3D,
+		StorageImage1D,
+		StorageImage2D,
+		StorageImage3D,
+		TextureCube
 	};
 
 	namespace Utils {
@@ -47,25 +54,14 @@ namespace Iris {
 			switch (type)
 			{
 				case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:			return RenderPassInputType::UniformBuffer;
+				case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER:			return RenderPassInputType::StorageBuffer;
 				case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
 				case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER: return RenderPassInputType::ImageSampler2D;
+				case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE:			return RenderPassInputType::StorageImage2D;
 			}
 
 			IR_ASSERT(false);
 			return RenderPassInputType::None;
-		}
-
-		inline constexpr DescriptorResourceType GetDefaultResourceType(VkDescriptorType type)
-		{
-			switch (type)
-			{
-				case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:			return DescriptorResourceType::UniformBuffer;
-				case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
-				case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER: return DescriptorResourceType::Texture2D;
-			}
-
-			IR_ASSERT(false);
-			return DescriptorResourceType::None;
 		}
 
 		inline constexpr const char* VkDescriptorTypeToString(VkDescriptorType type)
@@ -73,8 +69,10 @@ namespace Iris {
 			switch (type)
 			{
 				case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:			return "UniformBuffer";
+				case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER:			return "StorageBuffer";
 				case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
 				case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER: return "CombindImageSampler";
+				case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE:			return "StorageImage";
 			}
 
 			IR_ASSERT(false);
@@ -87,7 +85,11 @@ namespace Iris {
 			{
 				case DescriptorResourceType::UniformBuffer:
 				case DescriptorResourceType::UniformBufferSet:  return "UniformBuffer";
+				case DescriptorResourceType::StorageBuffer:
+				case DescriptorResourceType::StorageBufferSet:  return "StorageBuffer";
 				case DescriptorResourceType::Texture2D:			return "Texture2D";
+				case DescriptorResourceType::TextureCube:		return "TextureCube";
+				case DescriptorResourceType::StorageImage:		return "StorageImage";
 			}
 
 			IR_ASSERT(false);
@@ -98,14 +100,23 @@ namespace Iris {
 		{
 			switch (vkType)
 			{
+				case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
+				case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
+				{
+					return type == DescriptorResourceType::Texture2D || type == DescriptorResourceType::TextureCube || type == DescriptorResourceType::StorageImage;
+				}
 				case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
 				{
 					return (type == DescriptorResourceType::UniformBuffer) || (type == DescriptorResourceType::UniformBufferSet);
 				}
-				case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
-				case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
+				case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER:
 				{
-					return type == DescriptorResourceType::Texture2D;
+					return (type == DescriptorResourceType::StorageBuffer) || (type == DescriptorResourceType::StorageBufferSet);
+				}
+				case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE:
+				{
+					// Here we also test for textureCube since cube textures could be used as storage images also
+					return type == DescriptorResourceType::StorageImage || type == DescriptorResourceType::TextureCube;
 				}
 			}
 
@@ -118,8 +129,11 @@ namespace Iris {
 	// Forward declares
 	class Shader;
 	class Texture2D;
+	class TextureCube;
 	class UniformBuffer;
 	class UniformBufferSet;
+	class StorageBuffer;
+	class StorageBufferSet;
 
 	struct RenderPassInput
 	{
@@ -138,10 +152,31 @@ namespace Iris {
 		{
 		}
 
+		RenderPassInput(Ref<StorageBuffer> storageBuffer)
+			: Type(DescriptorResourceType::StorageBuffer), Input(std::vector<Ref<RefCountedObject>>(1, storageBuffer))
+		{
+		}
+
+		RenderPassInput(Ref<StorageBufferSet> storageBufferSet)
+			: Type(DescriptorResourceType::StorageBufferSet), Input(std::vector<Ref<RefCountedObject>>(1, storageBufferSet))
+		{
+		}
+
 		RenderPassInput(Ref<Texture2D> texture)
 			: Type(DescriptorResourceType::Texture2D), Input(std::vector<Ref<RefCountedObject>>(1, texture))
 		{
 		}
+
+		RenderPassInput(Ref<TextureCube> textureCube)
+			: Type(DescriptorResourceType::TextureCube), Input(std::vector<Ref<RefCountedObject>>(1, textureCube))
+		{
+		}
+
+		// TODO:
+		//RenderPassInput(Ref<StorageImage> storageImage)
+		//	: Type(DescriptorResourceType::StorageImage), Input(std::vector<Ref<RefCountedObject>>(1, storageImage))
+		//{
+		//}
 
 		void Set(Ref<UniformBuffer> uniformBuffer, uint32_t index = 0)
 		{
@@ -155,11 +190,36 @@ namespace Iris {
 			Input[index] = uniformBufferSet;
 		}
 
+		void Set(Ref<StorageBuffer> storageBuffer, uint32_t index = 0)
+		{
+			Type = DescriptorResourceType::StorageBuffer;
+			Input[index] = storageBuffer;
+		}
+
+		void Set(Ref<StorageBufferSet> storageBufferSet, uint32_t index = 0)
+		{
+			Type = DescriptorResourceType::StorageBufferSet;
+			Input[index] = storageBufferSet;
+		}
+
 		void Set(Ref<Texture2D> texture, uint32_t index = 0)
 		{
 			Type = DescriptorResourceType::Texture2D;
 			Input[index] = texture;
 		}
+
+		void Set(Ref<TextureCube> textureCube, uint32_t index = 0)
+		{
+			Type = DescriptorResourceType::TextureCube;
+			Input[index] = textureCube;
+		}
+
+		// TODO:
+		//void Set(Ref<StorageImage> storageImage, uint32_t index = 0)
+		//{
+		//	Type = DescriptorResourceType::StorageImage;
+		//	Input[index] = storageImage;
+		//}
 	};
 
 	struct RenderPassInputDeclaration
@@ -215,7 +275,12 @@ namespace Iris {
 
 		void SetInput(std::string_view name, Ref<UniformBuffer> uniformBuffer);
 		void SetInput(std::string_view name, Ref<UniformBufferSet> uniformBufferSet);
+		void SetInput(std::string_view name, Ref<StorageBuffer> storageBuffer);
+		void SetInput(std::string_view name, Ref<StorageBufferSet> storageBufferSet);
 		void SetInput(std::string_view name, Ref<Texture2D> texture, uint32_t index = 0);
+		void SetInput(std::string_view name, Ref<TextureCube> textureCube);
+		// TODO: 
+		//void SetInput(std::string_view name, Ref<StorageImage> storageImage, uint32_t index = 0);
 
 		template<typename T>
 		Ref<T> GetInput(std::string_view name)
@@ -270,6 +335,7 @@ namespace Iris {
 		std::vector<std::map<uint32_t, std::map<uint32_t, WriteDescriptor>>> m_WriteDescriptorMap;
 
 		friend class RenderPass;
+		friend class ComputePass;
 
 	};
 

@@ -6,6 +6,7 @@
 #include "Core/Layer.h"
 #include "Editor/EditorCamera.h"
 #include "Scene/Scene.h"
+#include "Renderer/StorageBufferSet.h"
 #include "Renderer/SceneRenderer.h"
 #include "Renderer/Renderer2D.h"
 

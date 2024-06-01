@@ -8,6 +8,7 @@
  *  - Fix assimp copying the dll to the exe dir for the runtime if we need to do that... because the runtime should not be using assimp it should be using an assetpack
  * 
  * TODO Creative Ideas:
+ * - Currently we do pass a render command buffer to Renderer::BeginComputePass however we do not use it so its useless for now needs rewriting with the compute pipelie rewrite
  * - Project Settings panel to edit all the project related settings (Project directories... Log filtering... Some renderer stuff)
  * - Provide an option for the SceneRenderer to show the ACTUAL draw call count since now it only accounts for the color pass draws
  * - Need to rename the assimp bin directory since it is getting git ignored
@@ -77,6 +78,7 @@
  * - Cube textures (Need testing, change the layout in the descriptor image info)
  * - Storage Images (Need testing and writing)
  * - Add compute passes to the engine so we can have environment maps and some IBL
+ * - Renderer2D Currently creates a placeholder framebuffer that uses memory for no reason... Change the way that is being handled
  * - Selecting what submeshes to load through the mesh importer since in the Iris Mesh file we already know what submesh indices we want so just do not load them with assimp
  * - Add Mesh panel that prompts the user to create the Iris Mesh file if they load a MeshSource
  * - Renderer2D problem with rendering ALOT of lines... (Vertexbuffer not resizing / no extra buffer is being createad)

@@ -1,6 +1,7 @@
 #include "IrisPCH.h"
 #include "Entity.h"
 
+#include "Renderer/StorageBufferSet.h"
 #include "Renderer/Texture.h"
 #include "Renderer/UniformBufferSet.h"
 #include "Scene.h"

@@ -5,11 +5,6 @@
 #include "Renderer/Core/Vulkan.h"
 #include "Utils/TextureImporter.h"
 
-/*
- * NOTE: If we ever get validation layers about something related to iamge layouts and pipeline stage bits/masks or aspectMasks directly check
- * whatever is being set to the mentioned states since it could be hard coded instead of decided according to the specification
- */
-
 namespace Iris {
 
     namespace Utils {
@@ -66,6 +61,10 @@ namespace Iris {
 
     }
 
+    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    /// Texture2D
+    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
     Ref<Texture2D> Texture2D::CreateNull(const TextureSpecification& spec)
     {
         return CreateRef<Texture2D>(spec);
@@ -104,6 +103,7 @@ namespace Iris {
             m_ImageData = Utils::TextureImporter::LoadImageFromFile("assets/textures/cap.jpg", m_Specification.Format, m_Specification.Width, m_Specification.Height);
         }
 
+        m_Specification.GenerateMips = m_Specification.Usage == ImageUsage::Attachment ? false : true;
         m_Specification.Mips = m_Specification.GenerateMips ? GetMipLevelCount() : 1;
 
         IR_VERIFY(m_Specification.Format != ImageFormat::None);
@@ -210,8 +210,7 @@ namespace Iris {
 
         // 1. Create image object
         VkDeviceSize gpuAllocationSize = 0;
-        VmaMemoryUsage memUsage = VMA_MEMORY_USAGE_GPU_ONLY;
-        // VmaMemoryUsage memUsage = m_Specification.Usage == ImageUsage::HostRead ? VMA_MEMORY_USAGE_GPU_TO_CPU : VMA_MEMORY_USAGE_GPU_ONLY;
+        constexpr VmaMemoryUsage memUsage = VMA_MEMORY_USAGE_GPU_ONLY;
         m_MemoryAllocation = allocator.AllocateImage(&imageCI, memUsage, &m_Image, &gpuAllocationSize);
         VKUtils::SetDebugUtilsObjectName(device, VK_OBJECT_TYPE_IMAGE, m_Specification.DebugName, m_Image);
 
@@ -537,6 +536,7 @@ namespace Iris {
         if(m_Specification.CreateSampler)
             m_Sampler = nullptr;
         m_MemoryAllocation = nullptr;
+        m_DescriptorInfo = {};
     }
 
     void Texture2D::CopyToHostBuffer(Buffer& buffer, bool writeMips) const
@@ -683,6 +683,241 @@ namespace Iris {
             width /= 2;
             height /= 2;
             --mip;
+        }
+
+        return { width, height };
+    }
+
+    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    /// TextureCube
+    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    TextureCube::TextureCube(const TextureSpecification& spec, Buffer data)
+        : m_Specification(spec)
+    {
+        if (data)
+        {
+            uint32_t size = m_Specification.Width * m_Specification.Height * 4 * 6; // six layers
+            m_ImageData = Buffer::Copy(data.Data, size);
+        }
+
+        Invalidate();
+    }
+
+    TextureCube::~TextureCube()
+    {
+        Release();
+    }
+
+    void TextureCube::Invalidate()
+    {
+        // Try to release all the resources before starting to create resources
+        Release();
+
+        Ref<VulkanDevice> logicalDevice = RendererContext::GetCurrentDevice();
+        VkDevice device = RendererContext::GetCurrentDevice()->GetVulkanDevice();
+        VulkanAllocator allocator("TextureCube");
+
+        uint32_t mipCount = GetMipLevelCount();
+        // Cube textures will be used for sampling and as a storage image to write data into
+        // Transfer usages here is for generaeting mips
+        VkImageUsageFlags usage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+
+        VkImageCreateInfo imageCI = {
+            .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+            .flags = VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT,
+            .imageType = VK_IMAGE_TYPE_2D,
+            .format = Utils::GetVulkanImageFormat(m_Specification.Format),
+            .extent = { .width = m_Specification.Width, .height = m_Specification.Height, .depth = 1 },
+            .mipLevels = mipCount,
+            .arrayLayers = 6, // 6 layers => 6 images
+            .samples = Utils::GetSamplerCount(m_Specification.Samples), // Should default to 1
+            .tiling = VK_IMAGE_TILING_OPTIMAL,
+            .usage = usage,
+            .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+            .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED
+        };
+
+        VkDeviceSize gpuAllocationSize = 0;
+        constexpr VmaMemoryUsage memUsage = VMA_MEMORY_USAGE_GPU_ONLY;
+        m_MemoryAllocation = allocator.AllocateImage(&imageCI, memUsage, &m_Image, &gpuAllocationSize);
+        VKUtils::SetDebugUtilsObjectName(device, VK_OBJECT_TYPE_IMAGE, m_Specification.DebugName, m_Image);
+
+        VkCommandBuffer commandBuffer = logicalDevice->GetCommandBuffer(true);
+
+        // Copy data if present
+        if (m_ImageData)
+        {
+            // Create a staging buffer
+            VkBuffer stagingBuffer;
+            VkBufferCreateInfo stagingBufferCI = {
+                .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+                .size = m_ImageData.Size,
+                .usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                .sharingMode = VK_SHARING_MODE_EXCLUSIVE
+            };
+            VmaAllocation stagingBufferAllocation = allocator.AllocateBuffer(&stagingBufferCI, VMA_MEMORY_USAGE_CPU_TO_GPU, &stagingBuffer);
+
+            uint8_t* dstData = allocator.MapMemory<uint8_t>(stagingBufferAllocation);
+            std::memcpy(dstData, m_ImageData.Data, m_ImageData.Size);
+            allocator.UnmapMemory(stagingBufferAllocation);
+
+            Renderer::InsertImageMemoryBarrier(
+                commandBuffer,
+                m_Image,
+                0,
+                VK_ACCESS_TRANSFER_WRITE_BIT,
+                VK_IMAGE_LAYOUT_UNDEFINED,
+                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, // Wait for nothing
+                VK_PIPELINE_STAGE_TRANSFER_BIT, // Unblock transfer operations after this transition is done
+                { .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = 6 }
+            );
+
+            // Copy image
+            VkBufferImageCopy copyRegion = {
+                .bufferOffset = 0,
+                .bufferRowLength = 0,
+                .bufferImageHeight = 0,
+                .imageSubresource = {
+                    .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                    .mipLevel = 0,
+                    .baseArrayLayer = 0,
+                    .layerCount = 6
+                },
+                .imageOffset = { .x = 0, .y = 0, .z = 0 },
+                .imageExtent = { .width = m_Specification.Width, .height = m_Specification.Height, .depth = 1u }
+            };
+
+            vkCmdCopyBufferToImage(commandBuffer, stagingBuffer, m_Image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
+
+            Renderer::SetImageLayout(
+                commandBuffer,
+                m_Image,
+                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                VK_IMAGE_LAYOUT_GENERAL,
+                VK_PIPELINE_STAGE_TRANSFER_BIT,
+                VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                { .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = 6 }
+            );
+
+            allocator.DestroyBuffer(stagingBufferAllocation, stagingBuffer);
+        }
+
+        // TODO: Insert image memory barrier here so that sets the image in a layout to be filled with data from the shader
+        // TODO: Actualy maybe we do not need to insert a memory barrier here and do anything with the layout since that will be handled by the renderpass
+
+        VkImageViewCreateInfo imageView = {
+            .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+            .image = m_Image,
+            .viewType = VK_IMAGE_VIEW_TYPE_CUBE,
+            .format = Utils::GetVulkanImageFormat(m_Specification.Format),
+            .components = { .r = VK_COMPONENT_SWIZZLE_R, .g = VK_COMPONENT_SWIZZLE_G, .b = VK_COMPONENT_SWIZZLE_B, .a = VK_COMPONENT_SWIZZLE_A },
+            .subresourceRange = { .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .baseMipLevel = 0, .levelCount = mipCount, .baseArrayLayer = 0, .layerCount = 6 }
+        };
+        VK_CHECK_RESULT(vkCreateImageView(device, &imageView, nullptr, &m_ImageView));
+        VKUtils::SetDebugUtilsObjectName(device, VK_OBJECT_TYPE_IMAGE_VIEW, fmt::format("{} Image View", m_Specification.DebugName), m_ImageView);
+
+        VkSamplerCreateInfo samplerCI = {
+            .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
+            .magFilter = Utils::GetVulkanSamplerFilter(m_Specification.FilterMode),
+            .minFilter = Utils::GetVulkanSamplerFilter(m_Specification.FilterMode),
+            .mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR,
+            .addressModeU = Utils::GetVulkanSamplerWrap(m_Specification.WrapMode),
+            .addressModeV = Utils::GetVulkanSamplerWrap(m_Specification.WrapMode),
+            .addressModeW = Utils::GetVulkanSamplerWrap(m_Specification.WrapMode),
+            .mipLodBias = 0.0f,
+            .anisotropyEnable = VK_FALSE,
+            .maxAnisotropy = 1.0f,
+            .compareEnable = VK_FALSE,
+            .compareOp = VK_COMPARE_OP_NEVER,
+            .minLod = 0.0f,
+            .maxLod = static_cast<float>(mipCount),
+            .borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE,
+            // Use coordinate system [0, 1) in order to access texels in the texture instead of [0, textureWidth)
+            .unnormalizedCoordinates = VK_FALSE
+        };
+        VK_CHECK_RESULT(vkCreateSampler(device, &samplerCI, nullptr, &m_Sampler));
+
+        m_DescriptorInfo = VkDescriptorImageInfo{
+            .sampler = m_Sampler,
+            .imageView = m_ImageView,
+            .imageLayout = VK_IMAGE_LAYOUT_GENERAL // TODO: CHANGE WHEN I HAVE AN UNDERSTANDING OF WHAT THE LAYOUT HAS TO BE
+        };
+
+        m_ImageData.Release();
+    }
+
+    void TextureCube::GenerateMips(bool readonly)
+    {
+    }
+
+    void TextureCube::Release()
+    {
+        if (m_Image == nullptr)
+            return;
+
+        Renderer::SubmitReseourceFree([image = m_Image, imageView = m_ImageView, sampler = m_Sampler, allocation = m_MemoryAllocation]()
+        {
+            VkDevice device = RendererContext::GetCurrentDevice()->GetVulkanDevice();
+            VulkanAllocator allocator("TextureCube");
+            vkDestroySampler(device, sampler, nullptr);
+            vkDestroyImageView(device, imageView, nullptr);
+            allocator.DestroyImage(allocation, image);
+        });
+
+        m_Image = nullptr;
+        m_ImageView = nullptr;
+        if (m_Specification.CreateSampler)
+            m_Sampler = nullptr;
+        m_MemoryAllocation = nullptr;
+        m_DescriptorInfo = {};
+    }
+
+    VkImageView TextureCube::CreateImageViewSingleMip(uint32_t mip)
+    {
+        IR_ASSERT(mip < GetMipLevelCount());
+
+        Ref<VulkanDevice> logicalDevice = RendererContext::GetCurrentDevice();
+        VkDevice device = logicalDevice->GetVulkanDevice();
+
+        VkImageView result;
+        VkImageViewCreateInfo imageViewCI = {
+            .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+            .image = m_Image,
+            .viewType = VK_IMAGE_VIEW_TYPE_CUBE,
+            .format = Utils::GetVulkanImageFormat(m_Specification.Format),
+            .components = { .r = VK_COMPONENT_SWIZZLE_R, .g = VK_COMPONENT_SWIZZLE_G, .b = VK_COMPONENT_SWIZZLE_B, .a = VK_COMPONENT_SWIZZLE_A },
+            .subresourceRange = { .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .baseMipLevel = mip, .levelCount = 1, .baseArrayLayer = 0, .layerCount = 6 }
+        };
+        VK_CHECK_RESULT(vkCreateImageView(device, &imageViewCI, nullptr, &result));
+        VKUtils::SetDebugUtilsObjectName(device, VK_OBJECT_TYPE_IMAGE_VIEW, fmt::format("TextureCube mip: {} {} Image View", mip, m_Specification.DebugName), result);
+
+        return result;
+    }
+
+    void TextureCube::CopyToHostBuffer(Buffer& buffer, bool writeMips) const
+    {
+    }
+
+    void TextureCube::CopyFromBufer(const Buffer& buffer, uint32_t mips)
+    {
+    }
+    
+    uint32_t TextureCube::GetMipLevelCount() const
+    {
+        return Utils::CalculateMipCount(m_Specification.Width, m_Specification.Height);
+    }
+
+    glm::ivec2 TextureCube::GetMipSize(uint32_t mip) const
+    {
+        uint32_t width = m_Specification.Width;
+        uint32_t height = m_Specification.Height;
+        while (mip != 0)
+        {
+            width /= 2;
+            height /= 2;
+            mip--;
         }
 
         return { width, height };

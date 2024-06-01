@@ -5,10 +5,14 @@
 #include "Core/Ray.h"
 #include "Editor/AssetEditorPanel.h"
 #include "Editor/EditorResources.h"
+#include "Editor/Panels/AssetManagerPanel.h"
 #include "Editor/Panels/ECSDebugPanel.h"
 #include "Editor/Panels/SceneHierarchyPanel.h"
+#include "Editor/Panels/SceneRendererPanel.h"
 #include "Editor/Panels/ShadersPanel.h"
 #include "ImGui/ImGuizmo.h"
+#include "Panels/ContentBrowserPanel.h"
+#include "Panels/ProjectSettingsPanel.h"
 #include "Project/ProjectSerializer.h"
 #include "Renderer/Core/RenderCommandBuffer.h"
 #include "Renderer/Framebuffer.h"
@@ -92,11 +96,14 @@ namespace Iris {
 		m_CurrentlySelectedRenderIcon = EditorResources::LitMaterialIcon;
 		m_PanelsManager = PanelsManager::Create();
 
+		m_PanelsManager->AddPanel<ProjectSettingsPanel>(PanelCategory::Edit, "ProjectSettingsPanel", "Project Settings", false);
 		Ref<SceneHierarchyPanel> sceneHierarchyPanel = m_PanelsManager->AddPanel<SceneHierarchyPanel>(PanelCategory::View, "SceneHierarchyPanel", "Scene Hierarchy", true, m_CurrentScene, SelectionContext::Scene);
 		sceneHierarchyPanel->SetEntityDeletedCallback([this](Entity entity) { OnEntityDeleted(entity); });
 		sceneHierarchyPanel->AddEntityContextMenuPlugin([this](Entity entity) { SceneHierarchySetEditorCameraTransform(entity); });
 
 		m_PanelsManager->AddPanel<ShadersPanel>(PanelCategory::View, "ShadersPanel", "Shaders", false);
+		m_PanelsManager->AddPanel<AssetManagerPanel>(PanelCategory::View, "AssetManagerPanel", "Asset Manager", false);
+		Ref<SceneRendererPanel> sceneRendererPanel = m_PanelsManager->AddPanel<SceneRendererPanel>(PanelCategory::View, "SceneRendererPanel", "Scene Renderer", true);
 
 #ifdef IR_CONFIG_DEBUG
 		m_PanelsManager->AddPanel<ECSDebugPanel>(PanelCategory::View, "ECSDebugPanel", "ECS", false, m_CurrentScene);
@@ -119,6 +126,8 @@ namespace Iris {
 
 		m_ViewportRenderer = SceneRenderer::Create(m_CurrentScene, { .RendererScale = 1.0f });
 		m_ViewportRenderer->SetLineWidth(m_LineWidth);
+		sceneRendererPanel->SetRendererContext(m_ViewportRenderer);
+
 		m_Renderer2D = Renderer2D::Create();
 		m_Renderer2D->SetLineWidth(m_LineWidth);
 

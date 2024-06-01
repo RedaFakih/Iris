@@ -1,0 +1,11 @@
+Model Information:
+* title:	Jhin (League of Legends)
+* source:	https://sketchfab.com/3d-models/jhin-league-of-legends-62b0ef72d6e44f01837dca00b8573995
+* author:	SirDJCat (https://sketchfab.com/SirDJCat)
+
+Model License:
+* license type:	CC-BY-NC-4.0 (http://creativecommons.org/licenses/by-nc/4.0/)
+* requirements:	Author must be credited. No commercial use.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Jhin (League of Legends)" (https://sketchfab.com/3d-models/jhin-league-of-legends-62b0ef72d6e44f01837dca00b8573995) by SirDJCat (https://sketchfab.com/SirDJCat) licensed under CC-BY-NC-4.0 (http://creativecommons.org/licenses/by-nc/4.0/)

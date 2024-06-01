@@ -3,10 +3,13 @@
 
 #include "AssetManager/AssetManager.h"
 #include "Project/Project.h"
+//#include "Renderer/Core/RenderCommandBuffer.h" // TODO: Maybe remove this?
 #include "Renderer/Renderer.h"
+#include "Renderer/StorageBufferSet.h"
 #include "Renderer/Texture.h"
 #include "Renderer/UniformBufferSet.h"
 #include "Scene/Scene.h"
+#include "Scene/SceneEnvironment.h"
 #include "Utils/YAMLSerializationHelpers.h"
 
 #include <yaml-cpp/yaml.h>

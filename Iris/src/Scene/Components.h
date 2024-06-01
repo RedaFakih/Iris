@@ -150,13 +150,22 @@ namespace Iris {
 		bool Visible = true;
 	};
 
-	// TODO: DirectionalLight, SkyLight
+	// TODO: DirectionalLight, SkyLight (Actually handle the scene env)
+	struct SkyLightComponent
+	{
+		AssetHandle SceneEnvironment;
+		float Intensity = 1.0f;
+		float Lod = 0.0f;
+
+		bool DynamicSky = false;
+		glm::vec3 TurbidityAzimuthInclination = { 2.0, 0.0, 0.0 };
+	};
 
 	template<typename... Components>
 	struct ComponentGroup
 	{
 	};
 
-	using AllComponents = ComponentGroup<IDComponent, TagComponent, RelationshipComponent, TransformComponent, CameraComponent, SpriteRendererComponent, StaticMeshComponent>;
+	using AllComponents = ComponentGroup<IDComponent, TagComponent, RelationshipComponent, TransformComponent, CameraComponent, SpriteRendererComponent, StaticMeshComponent, SkyLightComponent>;
 
 }

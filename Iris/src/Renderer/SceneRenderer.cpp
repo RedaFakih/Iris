@@ -2,8 +2,11 @@
 #include "SceneRenderer.h"
 
 #include "AssetManager/AssetManager.h"
+#include "ComputePass.h"
 #include "Renderer/Renderer.h"
+#include "Scene/SceneEnvironment.h"
 #include "Shaders/Shader.h"
+#include "StorageBufferSet.h"
 #include "Texture.h"
 #include "UniformBufferSet.h"
 
@@ -27,6 +30,7 @@ namespace Iris {
 
 	// NOTE: We do not want any multisampling...
 	constexpr uint32_t c_Samples = 1;
+	static std::pair<Ref<TextureCube>, Ref<TextureCube>> s_CubeMap;
 
 	void SceneRenderer::Init()
 	{
@@ -141,6 +145,7 @@ namespace Iris {
 				.Attachments = { { ImageFormat::RGBA32F, AttachmentPassThroughUsage::Input } , { ImageFormat::RGBA16F, false }, ImageFormat::RGBA, { ImageFormat::DEPTH32F, AttachmentPassThroughUsage::Input } },
 				.Samples = c_Samples
 			};
+			geometryFBSpec.Attachments.Attachments[0].LoadOp = AttachmentLoadOp::Load; // Load since skybox pass writes to it
 			geometryFBSpec.Attachments.Attachments[1].Sampled = AttachmentPassThroughUsage::Input;
 			geometryFBSpec.Attachments.Attachments[2].Sampled = AttachmentPassThroughUsage::Input;
 
@@ -219,9 +224,7 @@ namespace Iris {
 				.DebugName = "SelectedGeoIsolationFB",
 				.ClearColorOnLoad = true,
 				.ClearColor = { 0.0f, 0.0f, 0.0f, 0.0f },
-				.ClearDepthOnLoad = true,
-				.DepthClearValue = 1.0f,
-				.Attachments = { { ImageFormat::RGBA32F, AttachmentPassThroughUsage::Input }, { ImageFormat::DEPTH32F, AttachmentPassThroughUsage::Input } },
+				.Attachments = { { ImageFormat::RGBA32F, AttachmentPassThroughUsage::Input } },
 				.Samples = 1
 			};
 
@@ -251,11 +254,10 @@ namespace Iris {
 					.DebugName = "DoubleSidedSelectedGeoFB",
 					.ClearColorOnLoad = false,
 					.ClearDepthOnLoad = false,
-					.Attachments = { ImageFormat::RGBA32F, ImageFormat::DEPTH32F },
+					.Attachments = { ImageFormat::RGBA32F },
 					.Samples = c_Samples
 				};
 				doubleSidedFBSpec.ExistingImages[0] = m_SelectedGeometryPass->GetOutput(0);
-				doubleSidedFBSpec.ExistingImages[1] = m_SelectedGeometryPass->GetDepthOutput();
 
 				selectedGeoPipeline.DebugName = "DoubleSidedSelectedGeoPipeline";
 				selectedGeoPipeline.TargetFramebuffer = Framebuffer::Create(doubleSidedFBSpec);
@@ -379,7 +381,41 @@ namespace Iris {
 
 		// Skybox
 		{
-			// TODO:
+			FramebufferSpecification skyboxFBSpec = {
+				.DebugName = "SkyboxFB",
+				.Attachments = { { ImageFormat::RGBA32F, AttachmentPassThroughUsage::Input } }
+			};
+			skyboxFBSpec.ExistingImages[0] = m_GeometryPass->GetOutput(0);
+
+			PipelineSpecification skyboxPipelineSpec = {
+				.DebugName = "SkyboxPipeline",
+				.Shader = Renderer::GetShadersLibrary()->Get("Skybox"),
+				.TargetFramebuffer = Framebuffer::Create(skyboxFBSpec),
+				.VertexLayout = {
+					{ ShaderDataType::Float3, "a_Position" },
+					{ ShaderDataType::Float2, "a_TexCoord" }
+				},
+				.DepthTest = false,
+				.DepthWrite = false,
+			};
+
+			RenderPassSpecification skyboxPassSpec = {
+				.DebugName = "SkyboxPass",
+				.Pipeline = Pipeline::Create(skyboxPipelineSpec),
+				.MarkerColor = { 1.0f, 1.0f, 1.0f, 1.0f }
+			};
+			m_SkyboxPass = RenderPass::Create(skyboxPassSpec);
+			m_SkyboxMaterial = Material::Create(skyboxPipelineSpec.Shader, "SkyboxMaterial");
+			m_SkyboxMaterial->SetFlag(MaterialFlag::DepthTest, false);
+
+			m_SkyboxPass->SetInput("Camera", m_UBSCamera);
+			m_SkyboxPass->Bake();
+
+			// TODO: REMOVE
+			m_CommandBuffer->Begin();
+			s_CubeMap = Renderer::CreateEnvironmentMap(m_CommandBuffer, "SandboxProject/Assets/EnvironmentMaps/pink_sunrise_4k.hdr");
+			m_CommandBuffer->End();
+			m_CommandBuffer->Submit();
 		}
 
 		// References: <https://bgolus.medium.com/the-quest-for-very-wide-outlines-ba82ed442cd9>
@@ -505,6 +541,9 @@ namespace Iris {
 	{
 		for (auto& transformBuffer : m_MeshTransformBuffers)
 			delete[] transformBuffer.Data;
+
+		// TODO: REMOVE
+		s_CubeMap = { nullptr, nullptr };
 	}
 
 	void SceneRenderer::SetScene(Ref<Scene> scene)
@@ -546,6 +585,11 @@ namespace Iris {
 			return;
 
 		m_SceneData.Camera = camera;
+		//m_SceneData.SceneEnvironment = m_Scene->m_Environment;
+		//m_SceneData.SceneEnvironmentIntensity = m_Scene->m_EnvironmentIntensity;
+		//m_SceneData.SkyboxLod = m_Scene->m_SkyboxLod;
+
+		// TODO: Here we should set the radiance and irradiance for the PBR shader
 
 		// Resize resources if needed
 		if (m_NeedsResize)
@@ -557,6 +601,7 @@ namespace Iris {
 			m_DoubleSidedPreDepthPass->GetTargetFramebuffer()->Resize(m_ViewportWidth, m_ViewportHeight);
 			m_GeometryPass->GetTargetFramebuffer()->Resize(m_ViewportWidth, m_ViewportHeight);
 			m_DoubleSidedGeometryPass->GetTargetFramebuffer()->Resize(m_ViewportWidth, m_ViewportHeight);
+			m_SkyboxPass->GetTargetFramebuffer()->Resize(m_ViewportWidth, m_ViewportHeight);
 			m_SelectedGeometryPass->GetTargetFramebuffer()->Resize(m_ViewportWidth, m_ViewportHeight);
 			m_DoubleSidedSelectedGeometryPass->GetTargetFramebuffer()->Resize(m_ViewportWidth, m_ViewportHeight);
 			m_CompositePass->GetTargetFramebuffer()->Resize(m_ViewportWidth, m_ViewportHeight);
@@ -756,6 +801,7 @@ namespace Iris {
 			m_CommandBuffer->Begin();
 
 			PreDepthPass();
+			SkyboxPass();
 			GeometryPass();
 
 			if (m_Specification.JumpFloodPass)
@@ -764,6 +810,8 @@ namespace Iris {
 			// NOTE: If we want to sample the depth texture in the composite pass we need to transition to shader read only then transition back
 			// to attachment since the renderer2D uses it.
 			CompositePass();
+
+			//Renderer::CreateEnvironmentMap(m_CommandBuffer, "SandboxProject/Assets/EnvironmentMaps/pink_sunrise_4k.hdr");
 
 			/*
 			 * Here PreDepthImage is in VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
@@ -882,6 +930,23 @@ namespace Iris {
 
 			Renderer::EndRenderPass(m_CommandBuffer);
 		}
+	}
+
+	void SceneRenderer::SkyboxPass()
+	{
+		//m_SkyboxMaterial->Set("u_Uniforms.TextureLod", m_SceneData.SkyboxLod);
+		//m_SkyboxMaterial->Set("u_Uniforms.Intensity", m_SceneData.SceneEnvironmentIntensity);
+		m_SkyboxMaterial->Set("u_Uniforms.TextureLod", 0.0f); // TODO: For now
+		m_SkyboxMaterial->Set("u_Uniforms.Intensity", 1.0f); // TODO: For now
+
+		//const Ref<TextureCube> radianceMap = m_SceneData.SceneEnvironment ? m_SceneData.SceneEnvironment->RadianceMap : Renderer::GetBlackCubeTexture();
+		//m_SkyboxMaterial->Set("u_Texture", radianceMap);
+		const Ref<TextureCube> radianceMap = Renderer::GetBlackCubeTexture(); // TODO: For now
+		m_SkyboxMaterial->Set("u_Texture", s_CubeMap.first);
+
+		Renderer::BeginRenderPass(m_CommandBuffer, m_SkyboxPass);
+		Renderer::SubmitFullScreenQuad(m_CommandBuffer, m_SkyboxPass->GetPipeline(), m_SkyboxMaterial);
+		Renderer::EndRenderPass(m_CommandBuffer);
 	}
 
 	void SceneRenderer::GeometryPass()

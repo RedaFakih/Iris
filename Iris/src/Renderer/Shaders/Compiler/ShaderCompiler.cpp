@@ -95,6 +95,7 @@ namespace Iris {
 
 	// set -> binding point -> buffer
 	static std::unordered_map<uint32_t, std::unordered_map<uint32_t, ShaderResources::UniformBuffer>> s_UniformBuffers;
+	static std::unordered_map<uint32_t, std::unordered_map<uint32_t, ShaderResources::StorageBuffer>> s_StorageBuffers;
 
 	ShaderCompiler::ShaderCompiler(const std::string& filePath, bool disableOptimization)
 		: m_FilePath(filePath), m_DisableOptimizations(disableOptimization)
@@ -141,6 +142,7 @@ namespace Iris {
 	void ShaderCompiler::ClearUniformAndStorageBuffers()
 	{
 		s_UniformBuffers.clear();
+		s_StorageBuffers.clear();
 	}
 
 	Ref<Shader> ShaderCompiler::Compile(const std::string& filePath, bool forceCompile, bool disableOptimizations)
@@ -374,7 +376,9 @@ namespace Iris {
 		{
 			ShaderResources::ShaderDescriptorSet& descriptorSet = m_ReflectionData.ShaderDescriptorSets.emplace_back();
 			reader.ReadMap(descriptorSet.UniformBuffers);
+			reader.ReadMap(descriptorSet.StorageBuffers);
 			reader.ReadMap(descriptorSet.ImageSamplers);
+			reader.ReadMap(descriptorSet.StorageImages);
 			reader.ReadMap(descriptorSet.WriteDescriptorSets);
 		}
 
@@ -402,7 +406,9 @@ namespace Iris {
 		for (const auto& descriptorSet : m_ReflectionData.ShaderDescriptorSets)
 		{
 			serializer.WriteMap(descriptorSet.UniformBuffers);
+			serializer.WriteMap(descriptorSet.StorageBuffers);
 			serializer.WriteMap(descriptorSet.ImageSamplers);
+			serializer.WriteMap(descriptorSet.StorageImages);
 			serializer.WriteMap(descriptorSet.WriteDescriptorSets);
 		}
 
@@ -435,9 +441,9 @@ namespace Iris {
 		IR_CORE_TRACE_TAG("ShaderCompiler", "{0} - {1}", m_FilePath, ShaderUtils::VkShaderStageToString(stage));
 		IR_CORE_TRACE_TAG("ShaderCompiler", "\t{0} Uniform Buffers", resources.uniform_buffers.size());
 		IR_CORE_TRACE_TAG("ShaderCompiler", "\t{0} Push Constant Buffers", resources.push_constant_buffers.size());
-		// IR_CORE_TRACE_TAG("Renderer", "\t{0} Storage Buffers", resources.storage_buffers.size());
+		IR_CORE_TRACE_TAG("ShaderCompiler", "\t{0} Storage Buffers", resources.storage_buffers.size());
 		IR_CORE_TRACE_TAG("ShaderCompiler", "\t{0} Sampled Images", resources.sampled_images.size());
-		// IR_CORE_TRACE_TAG("Renderer", "\t{0} Storage Images", resources.storage_images.size());
+		IR_CORE_TRACE_TAG("ShaderCompiler", "\t{0} Storage Images", resources.storage_images.size());
 
 		IR_CORE_TRACE_TAG("ShaderCompiler", "============================");
 		IR_CORE_WARN_TAG("ShaderCompiler", "Uniform Buffers:");
@@ -479,6 +485,53 @@ namespace Iris {
 				}
 
 				shaderDescriptorSet.UniformBuffers[binding] = s_UniformBuffers.at(descriptorSet).at(binding);
+
+				IR_CORE_TRACE_TAG("ShaderCompiler", " \tName: {0} (Set: {1}, Binding: {2})", name, descriptorSet, binding);
+				IR_CORE_TRACE_TAG("ShaderCompiler", " \tMember Count: {0}", memberCount);
+				IR_CORE_TRACE_TAG("ShaderCompiler", " \tSize: {0}", bufferSize);
+				IR_CORE_TRACE_TAG("ShaderCompiler", "-------------------");
+			}
+		}
+
+		IR_CORE_TRACE_TAG("ShaderCompiler", "============================");
+		IR_CORE_WARN_TAG("ShaderCompiler", "Storage Buffers:");
+		for (const spirv_cross::Resource& res : resources.storage_buffers)
+		{
+			spirv_cross::SmallVector activeBuffer = compiler.get_active_buffer_ranges(res.id);
+
+			if (activeBuffer.size())
+			{
+				const std::string& name = res.name;
+				const spirv_cross::SPIRType& bufferType = compiler.get_type(res.base_type_id);
+				uint32_t memberCount = static_cast<uint32_t>(bufferType.member_types.size());
+
+				uint32_t descriptorSet = compiler.get_decoration(res.id, spv::DecorationDescriptorSet);
+				uint32_t binding = compiler.get_decoration(res.id, spv::DecorationBinding);
+				uint32_t bufferSize = static_cast<uint32_t>(compiler.get_declared_struct_size(bufferType));
+
+				if (descriptorSet >= m_ReflectionData.ShaderDescriptorSets.size())
+					m_ReflectionData.ShaderDescriptorSets.resize(descriptorSet + 1);
+
+				ShaderResources::ShaderDescriptorSet& shaderDescriptorSet = m_ReflectionData.ShaderDescriptorSets[descriptorSet];
+				if (s_StorageBuffers[descriptorSet].contains(shaderDescriptorSet))
+				{
+					ShaderResources::StorageBuffer& sbo = s_StorageBuffers.at(descriptorSet).at(binding);
+					if (bufferSize > sbo.Size)
+						sbo.Size = bufferSize;
+				}
+				else
+				{
+					ShaderResources::StorageBuffer& sbo = s_StorageBuffers.at(descriptorSet)[binding];
+					sbo.Name = name;
+					sbo.BindingPoint = binding;
+					sbo.Size = bufferSize;
+					sbo.ShaderStage = VK_SHADER_STAGE_ALL;
+					// NOTE: Here we set `VK_SHADER_STAGE_ALL` since `contains` only tries to compare the keys of the map so if we set a specific
+					// stage, say a uniform buffer was shared in 2 stages then for the fragment shader the uniformbuffer would be already cached
+					// and the shader stage would be `VK_SHADER_STAGE_VERTEX` which is obviously wrong so we just set `VK_SHADER_STAGE_ALL`
+				}
+
+				shaderDescriptorSet.StorageBuffers[binding] = s_StorageBuffers.at(descriptorSet).at(binding);
 
 				IR_CORE_TRACE_TAG("ShaderCompiler", " \tName: {0} (Set: {1}, Binding: {2})", name, descriptorSet, binding);
 				IR_CORE_TRACE_TAG("ShaderCompiler", " \tMember Count: {0}", memberCount);
@@ -540,7 +593,7 @@ namespace Iris {
 
 			uint32_t binding = compiler.get_decoration(res.id, spv::DecorationBinding);
 			uint32_t descriptorSet = compiler.get_decoration(res.id, spv::DecorationDescriptorSet);
-			uint32_t dimension = baseType.image.dim;
+			spv::Dim dimension = baseType.image.dim;
 			uint32_t arraySize = type.array[0];
 			// Array size in case we have an array of samplers (2D batch rendering texture array) (sampler2D arr[32], NOT A sampler2DArray arr)
 			// in case the array size was 0 meaning there is no array we set it to 1 since there is 1 single image attachment instead of an array
@@ -556,6 +609,38 @@ namespace Iris {
 				.BindingPoint = binding,
 				.Dimension = dimension,
 				.ArraySize = arraySize, 
+				.ShaderStage = stage
+			};
+
+			IR_CORE_TRACE_TAG("ShaderCompiler", " \tName: {0} (Set: {1}, Binding: {2})", name, descriptorSet, binding);
+		}
+
+		IR_CORE_TRACE_TAG("ShaderCompiler", "============================");
+		IR_CORE_WARN_TAG("ShaderCompiler", "Storages Images:");
+		for (const spirv_cross::Resource& res : resources.storage_images)
+		{
+			const std::string& name = res.name;
+			const spirv_cross::SPIRType& baseType = compiler.get_type(res.base_type_id);
+			const spirv_cross::SPIRType& type = compiler.get_type(res.type_id);
+
+			uint32_t binding = compiler.get_decoration(res.id, spv::DecorationBinding);
+			uint32_t descriptorSet = compiler.get_decoration(res.id, spv::DecorationDescriptorSet);
+			spv::Dim dimension = baseType.image.dim;
+			uint32_t arraySize = type.array[0];
+			// Array size in case we have an array of samplers (2D batch rendering texture array) (sampler2D arr[32], NOT A sampler2DArray arr)
+			// in case the array size was 0 meaning there is no array we set it to 1 since there is 1 single image attachment instead of an array
+			if (arraySize == 0)
+				arraySize = 1;
+			if (descriptorSet >= m_ReflectionData.ShaderDescriptorSets.size())
+				m_ReflectionData.ShaderDescriptorSets.resize(descriptorSet + 1);
+
+			ShaderResources::ShaderDescriptorSet& shaderDescriptorSet = m_ReflectionData.ShaderDescriptorSets[descriptorSet];
+			shaderDescriptorSet.StorageImages[binding] = ShaderResources::ImageSampler{
+				.Name = name,
+				.DescriptorSet = descriptorSet,
+				.BindingPoint = binding,
+				.Dimension = dimension,
+				.ArraySize = arraySize,
 				.ShaderStage = stage
 			};
 

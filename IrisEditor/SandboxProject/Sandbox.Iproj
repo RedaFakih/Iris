@@ -22,7 +22,7 @@ Project:
       LevelFilter: Trace
     Renderer:
       Enabled: true
-      LevelFilter: Trace
+      LevelFilter: Debug
     Shader:
       Enabled: true
       LevelFilter: Trace

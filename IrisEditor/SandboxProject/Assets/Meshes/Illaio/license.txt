@@ -1,0 +1,11 @@
+Model Information:
+* title:	Illaoi (League of Legends character)
+* source:	https://sketchfab.com/3d-models/illaoi-league-of-legends-character-76bcc06d7e384c44b45ffa0ef202219a
+* author:	SirDJCat (https://sketchfab.com/SirDJCat)
+
+Model License:
+* license type:	CC-BY-NC-4.0 (http://creativecommons.org/licenses/by-nc/4.0/)
+* requirements:	Author must be credited. No commercial use.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Illaoi (League of Legends character)" (https://sketchfab.com/3d-models/illaoi-league-of-legends-character-76bcc06d7e384c44b45ffa0ef202219a) by SirDJCat (https://sketchfab.com/SirDJCat) licensed under CC-BY-NC-4.0 (http://creativecommons.org/licenses/by-nc/4.0/)

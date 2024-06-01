@@ -1,0 +1,11 @@
+Model Information:
+* title:	Galio (League of Legends character)
+* source:	https://sketchfab.com/3d-models/galio-league-of-legends-character-983be1f5d0904b8aaf8ecab6c3ba96e4
+* author:	SirDJCat (https://sketchfab.com/SirDJCat)
+
+Model License:
+* license type:	CC-BY-NC-4.0 (http://creativecommons.org/licenses/by-nc/4.0/)
+* requirements:	Author must be credited. No commercial use.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Galio (League of Legends character)" (https://sketchfab.com/3d-models/galio-league-of-legends-character-983be1f5d0904b8aaf8ecab6c3ba96e4) by SirDJCat (https://sketchfab.com/SirDJCat) licensed under CC-BY-NC-4.0 (http://creativecommons.org/licenses/by-nc/4.0/)

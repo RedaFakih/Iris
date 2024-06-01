@@ -150,6 +150,7 @@ namespace Iris {
 		void ClearPass();
 
 		void PreDepthPass();
+		void SkyboxPass();
 		void GeometryPass();
 		void JumpFloodPass();
 		void CompositePass();
@@ -169,7 +170,12 @@ namespace Iris {
 		{
 			SceneRendererCamera Camera;
 
-			// TODO: Info about lighting and scene environment
+			// TODO:
+			//Ref<Environment> SceneEnvironment;
+			//float SceneEnvironmentIntensity = 0.0f;
+			//float SkyboxLod = 1.0f;
+
+			// TODO: DirLight and LightEnvironment
 		} m_SceneData;
 
 		struct UBCamera // (set = 1, binding = 0)
@@ -200,6 +206,10 @@ namespace Iris {
 		Ref<RenderPass> m_DoubleSidedPreDepthPass;
 		Ref<RenderPass> m_WireframeViewPreDepthPass; // For having wireframe view in the future
 		Ref<Material> m_PreDepthMaterial;
+
+		// Skybox
+		Ref<RenderPass> m_SkyboxPass;
+		Ref<Material> m_SkyboxMaterial;
 
 		// Geometry
 		Ref<RenderPass> m_GeometryPass;

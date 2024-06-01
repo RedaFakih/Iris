@@ -125,7 +125,9 @@ namespace Iris {
 		{
 			ShaderResources::ShaderDescriptorSet& descriptorSet = m_ReflectionData.ShaderDescriptorSets.emplace_back();
 			reader->ReadMap(descriptorSet.UniformBuffers);
+			reader->ReadMap(descriptorSet.StorageBuffers);
 			reader->ReadMap(descriptorSet.ImageSamplers);
+			reader->ReadMap(descriptorSet.StorageImages);
 			reader->ReadMap(descriptorSet.WriteDescriptorSets);
 		}
 		
@@ -142,7 +144,9 @@ namespace Iris {
 		for (const auto& descriptorSet : m_ReflectionData.ShaderDescriptorSets)
 		{
 			serializer->WriteMap(descriptorSet.UniformBuffers);
+			serializer->WriteMap(descriptorSet.StorageBuffers);
 			serializer->WriteMap(descriptorSet.ImageSamplers);
+			serializer->WriteMap(descriptorSet.StorageImages);
 			serializer->WriteMap(descriptorSet.WriteDescriptorSets);
 		}
 
@@ -237,13 +241,23 @@ namespace Iris {
 			// Add to the global VkDescriptorPoolSize for the global descriptor pool in the DescriptorSetManager
 			if (shaderDescriptorSet.UniformBuffers.size())
 			{
-				m_DescriptorPoolTypeCounts[VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER] += (uint32_t)shaderDescriptorSet.UniformBuffers.size();
+				m_DescriptorPoolTypeCounts[VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER] += static_cast<uint32_t>(shaderDescriptorSet.UniformBuffers.size());
+			}
+
+			if (shaderDescriptorSet.StorageBuffers.size())
+			{
+				m_DescriptorPoolTypeCounts[VK_DESCRIPTOR_TYPE_STORAGE_BUFFER] += static_cast<uint32_t>(shaderDescriptorSet.StorageBuffers.size());
 			}
 
 			if (shaderDescriptorSet.ImageSamplers.size())
 			{
 				// TODO: Maybe also do it for `VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE`
-				m_DescriptorPoolTypeCounts[VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER] += (uint32_t)shaderDescriptorSet.ImageSamplers.size();
+				m_DescriptorPoolTypeCounts[VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER] += static_cast<uint32_t>(shaderDescriptorSet.ImageSamplers.size());
+			}
+
+			if (shaderDescriptorSet.StorageImages.size())
+			{
+				m_DescriptorPoolTypeCounts[VK_DESCRIPTOR_TYPE_STORAGE_IMAGE] += static_cast<uint32_t>(shaderDescriptorSet.StorageImages.size());
 			}
 
 			/////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -269,6 +283,25 @@ namespace Iris {
 				};
 			}
 
+			for (auto& [binding, storageBuffer] : shaderDescriptorSet.StorageBuffers)
+			{
+				VkDescriptorSetLayoutBinding& layoutBinding = layoutBindings.emplace_back();
+				layoutBinding.binding = binding;
+				layoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+				layoutBinding.descriptorCount = 1;
+				layoutBinding.stageFlags = storageBuffer.ShaderStage;
+				layoutBinding.pImmutableSamplers = nullptr;
+				IR_ASSERT(!shaderDescriptorSet.UniformBuffers.contains(binding), "Binding is already present!");
+
+				// All the other fields will be filled inside the DescriptorSetManager class which will be owned by a renderpass
+				shaderDescriptorSet.WriteDescriptorSets[storageBuffer.Name] = {
+					.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+					.dstBinding = layoutBinding.binding,
+					.descriptorCount = 1,
+					.descriptorType = layoutBinding.descriptorType
+				};
+			}
+
 			for (auto& [binding, imageSampler] : shaderDescriptorSet.ImageSamplers)
 			{
 				VkDescriptorSetLayoutBinding& layoutBinding = layoutBindings.emplace_back();
@@ -278,10 +311,33 @@ namespace Iris {
 				layoutBinding.stageFlags = imageSampler.ShaderStage;
 				layoutBinding.pImmutableSamplers = nullptr;
 
-				IR_VERIFY(shaderDescriptorSet.UniformBuffers.contains(binding) == false, "Binding already present!");
+				IR_ASSERT(!shaderDescriptorSet.UniformBuffers.contains(binding), "Binding already present!");
+				IR_ASSERT(!shaderDescriptorSet.StorageBuffers.contains(binding), "Binding already present!");
 
 				// All the other fields will be filled inside the DescriptorSetManager class which will be owned by a renderpass
 				shaderDescriptorSet.WriteDescriptorSets[imageSampler.Name] = {
+					.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+					.dstBinding = layoutBinding.binding,
+					.descriptorCount = layoutBinding.descriptorCount,
+					.descriptorType = layoutBinding.descriptorType,
+				};
+			}
+
+			for (auto& [binding, storageImage] : shaderDescriptorSet.StorageImages)
+			{
+				VkDescriptorSetLayoutBinding& layoutBinding = layoutBindings.emplace_back();
+				layoutBinding.binding = binding;
+				layoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+				layoutBinding.descriptorCount = storageImage.ArraySize;
+				layoutBinding.stageFlags = storageImage.ShaderStage;
+				layoutBinding.pImmutableSamplers = nullptr;
+
+				IR_ASSERT(!shaderDescriptorSet.UniformBuffers.contains(binding), "Binding already present!");
+				IR_ASSERT(!shaderDescriptorSet.StorageBuffers.contains(binding), "Binding already present!");
+				IR_ASSERT(!shaderDescriptorSet.ImageSamplers.contains(binding), "Binding already present!");
+
+				// All the other fields will be filled inside the DescriptorSetManager class which will be owned by a renderpass
+				shaderDescriptorSet.WriteDescriptorSets[storageImage.Name] = {
 					.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
 					.dstBinding = layoutBinding.binding,
 					.descriptorCount = layoutBinding.descriptorCount,
@@ -296,9 +352,11 @@ namespace Iris {
 				.pBindings = layoutBindings.data()
 			};
 
-			IR_CORE_INFO_TAG("Shader", "Creating descriptor set {} with {} ubo's, {} samplers", set, 
+			IR_CORE_INFO_TAG("Shader", "Creating descriptor set {} with {} ubo's, {} sbo's, {} samplers, {} storage Images", set, 
 				shaderDescriptorSet.UniformBuffers.size(),
-				shaderDescriptorSet.ImageSamplers.size()
+				shaderDescriptorSet.StorageBuffers.size(),
+				shaderDescriptorSet.ImageSamplers.size(),
+				shaderDescriptorSet.StorageImages.size()
 			);
 
 			m_ExistingSets.insert(set);

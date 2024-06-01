@@ -73,7 +73,7 @@ namespace Iris {
 
 		// Gets set internally if there was a filepath given, otherwise it is specified by user
 		ImageFormat Format = ImageFormat::RGBA;
-		// Set by User and Also set internally if needed
+		// Set by User and Also set internally if needed, ignored in case of storage images
 		ImageUsage Usage = ImageUsage::Texture;
 
 		// Set by user
@@ -89,7 +89,7 @@ namespace Iris {
 		// Used for Transfer operations? (Affects the usage of the image)
 		bool Trasnfer = false;
 
-		// Set by user. Generate Mipmap
+		// Set internally! true if the usage is texture, false if usage is attachment
 		bool GenerateMips = false;
 		// DO NOT SET THIS. This will be determined up on invalidation and is there for debugging purposes.
 		uint32_t Mips = 0;
@@ -120,7 +120,7 @@ namespace Iris {
 		void GenerateMips();
 		void Release();
 
-		uint64_t GetHash() const { return (uint64_t)m_ImageView; }
+		uint64_t GetHash() const { return reinterpret_cast<uint64_t>(m_ImageView); }
 
 		void CopyToHostBuffer(Buffer& buffer, bool writeMips = false) const;
 
@@ -128,7 +128,7 @@ namespace Iris {
 		ImageFormat GetFormat() const noexcept { return m_Specification.Format; }
 		uint32_t GetWidth() const noexcept { return m_Specification.Width; }
 		uint32_t GetHeight() const noexcept { return m_Specification.Height; }
-		const glm::vec2& GetSize() const noexcept { return { m_Specification.Width, m_Specification.Height }; }
+		glm::vec2 GetSize() const noexcept { return { m_Specification.Width, m_Specification.Height }; }
 		bool Loaded() const { return m_ImageView != nullptr; }
 
 		const VkImage GetVulkanImage() const { return m_Image; }
@@ -160,6 +160,68 @@ namespace Iris {
 		Buffer m_ImageData; // Local storage of the image
 
 		VkDescriptorImageInfo m_DescriptorInfo = {};
+	};
+
+	class TextureCube : public Asset
+	{
+	public:
+		TextureCube(const TextureSpecification& spec, Buffer data = Buffer());
+		~TextureCube();
+
+		[[nodiscard]] inline static Ref<TextureCube> Create(const TextureSpecification& spec, Buffer data = Buffer())
+		{
+			return CreateRef<TextureCube>(spec, data);
+		}
+
+		void Invalidate();
+		void GenerateMips(bool readonly = false);
+		void Release();
+		VkImageView CreateImageViewSingleMip(uint32_t mip);
+
+		uint64_t GetHash() const { return reinterpret_cast<uint64_t>(m_ImageView); }
+
+		void CopyToHostBuffer(Buffer& buffer, bool writeMips = false) const;
+		void CopyFromBufer(const Buffer& buffer, uint32_t mips);
+
+		const std::string& GetAssetPath() const noexcept { return m_AssetPath; }
+		ImageFormat GetFormat() const { return m_Specification.Format; }
+		uint32_t GetWidth() const { return m_Specification.Width; }
+		uint32_t GetHeight() const { return m_Specification.Height; }
+		glm::vec2 GetSize() const noexcept { return { m_Specification.Width, m_Specification.Height }; }
+		bool Loaded() const { return m_ImageView != nullptr; }
+
+		const VkImage GetVulkanImage() const { return m_Image; }
+		const VkImageView GetVulkanImageView() const { return m_ImageView; }
+		const VkSampler GetVulkanSampler() const { return m_Sampler; }
+		const VmaAllocation GetMemoryAllocation() const { return m_MemoryAllocation; }
+
+		const VkDescriptorImageInfo& GetDescriptorImageInfo() const { return m_DescriptorInfo; }
+
+		TextureSpecification& GetTextureSpecification() { return m_Specification; }
+		const TextureSpecification& GetTextureSpecification() const { return m_Specification; }
+
+		uint32_t GetMipLevelCount() const;
+		glm::ivec2 GetMipSize(uint32_t mip) const;
+
+		static AssetType GetStaticType() { return AssetType::EnvironmentMap; }
+		virtual AssetType GetAssetType() const override { return GetStaticType(); }
+
+	private:
+		std::string m_AssetPath; // TODO: Is this gonna be here? since the 
+		TextureSpecification m_Specification;
+
+		// Image ifno
+		VkImage m_Image = nullptr;
+		VkImageView m_ImageView = nullptr;
+		VkSampler m_Sampler = nullptr;
+		VmaAllocation m_MemoryAllocation = nullptr;
+
+		Buffer m_ImageData; // Local storage of the image
+
+		bool m_MipsGenerated = false;
+
+		VkDescriptorImageInfo m_DescriptorInfo = {};
+
 	};
 
 	namespace Utils {

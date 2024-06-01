@@ -1,6 +1,7 @@
 #include "IrisPCH.h"
 #include "RenderPass.h"
 
+#include "StorageBufferSet.h"
 #include "UniformBufferSet.h"
 
 namespace Iris {
@@ -52,10 +53,31 @@ namespace Iris {
 		m_DescriptorSetManager.SetInput(name, uniformBufferSet);
 	}
 
+	void RenderPass::SetInput(std::string_view name, Ref<StorageBuffer> storageBuffer)
+	{
+		m_DescriptorSetManager.SetInput(name, storageBuffer);
+	}
+
+	void RenderPass::SetInput(std::string_view name, Ref<StorageBufferSet> storageBufferSet)
+	{
+		m_DescriptorSetManager.SetInput(name, storageBufferSet);
+	}
+
 	void RenderPass::SetInput(std::string_view name, Ref<Texture2D> texture)
 	{
 		m_DescriptorSetManager.SetInput(name, texture);
 	}
+
+	void RenderPass::SetInput(std::string_view name, Ref<TextureCube> textureCube)
+	{
+		m_DescriptorSetManager.SetInput(name, textureCube);
+	}
+
+	// TODO:
+	//void RenderPass::SetInput(std::string_view name, Ref<Image2D> image)
+	//{
+	//	m_DescriptorSetManager.SetInput(name, image);
+	//}
 
 	Ref<Texture2D> RenderPass::GetOutput(uint32_t index, bool ignoreMultiSampled) const
 	{

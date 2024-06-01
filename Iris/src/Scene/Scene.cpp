@@ -3,8 +3,10 @@
 
 #include "AssetManager/AssetManager.h"
 #include "Editor/SelectionManager.h"
+#include "Renderer/Renderer.h"
 #include "Renderer/SceneRenderer.h"
 #include "Renderer/Shaders/Shader.h"
+#include "Renderer/StorageBufferSet.h"
 #include "Renderer/Texture.h"
 #include "Renderer/UniformBufferSet.h"
 
@@ -49,6 +51,32 @@ namespace Iris {
 	void Scene::OnRenderEditor(Ref<SceneRenderer> renderer, TimeStep ts, const EditorCamera& camera)
 	{
 		// Render the scene
+
+		// TODO: Skylight
+		//{
+		//	auto lights = m_Registry.group<SkyLightComponent>(entt::get<TransformComponent>);
+
+		//	for (auto entity : lights)
+		//	{
+		//		auto skyLightComponent = lights.get<SkyLightComponent>(entity);
+
+		//		// TODO: REMOVE THIS SINCE IT IS JUST HERE TO FIX A BUG IN A HACKY WAY
+		//		static bool createdPreethamSky = false;
+		//		if (!AssetManager::IsAssetHandleValid(skyLightComponent.SceneEnvironment) && skyLightComponent.DynamicSky)
+		//		{
+		//			if (!createdPreethamSky)
+		//			{
+		//				Ref<TextureCube> preethamEnv = Renderer::CreatePreethamSky(skyLightComponent.TurbidityAzimuthInclination.x, skyLightComponent.TurbidityAzimuthInclination.y, skyLightComponent.TurbidityAzimuthInclination.z);
+		//				skyLightComponent.SceneEnvironment = AssetManager::CreateMemoryOnlyAsset<Environment>(preethamEnv, preethamEnv);
+		//				createdPreethamSky = true;
+		//			}
+		//		}
+
+		//		m_Environment = AssetManager::GetAsset<Environment>(skyLightComponent.SceneEnvironment);
+		//		m_EnvironmentIntensity = skyLightComponent.Intensity;
+		//		m_SkyboxLod = skyLightComponent.Lod;
+		//	}
+		//}
 
 		{
 			renderer->SetScene(this);
@@ -288,6 +316,7 @@ namespace Iris {
 		CopyComponentIfExists<StaticMeshComponent>(newEntity.m_EntityHandle, m_Registry, entity);
 		CopyComponentIfExists<CameraComponent>(newEntity.m_EntityHandle, m_Registry, entity);
 		CopyComponentIfExists<SpriteRendererComponent>(newEntity.m_EntityHandle, m_Registry, entity);
+		CopyComponentIfExists<SkyLightComponent>(newEntity.m_EntityHandle, m_Registry, entity);
 
 		// Need to copy the children here because the collection is mutated below
 		std::vector<UUID> childIDs = entity.Children();

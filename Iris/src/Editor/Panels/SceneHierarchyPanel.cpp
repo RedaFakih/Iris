@@ -9,6 +9,8 @@
 #include "ImGui/FontAwesome.h"
 #include "ImGui/ImGuiUtils.h"
 #include "Project/Project.h"
+#include "Renderer/StorageBufferSet.h"
+#include "Scene/SceneEnvironment.h"
 
 #include <imgui/imgui.h>
 #include <imgui/imgui_internal.h>

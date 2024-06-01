@@ -17,8 +17,11 @@ namespace Iris {
 	class Shader;
 	class ShadersLibrary;
 	class Texture2D;
+	class TextureCube;
 	class RenderPass;
+	class ComputePass;
 	class Pipeline;
+	class ComputePipeline;
 	class Material;
 	class MaterialTable;
 	class StaticMesh;
@@ -26,6 +29,7 @@ namespace Iris {
 	class RenderCommandBuffer;
 	class VertexBuffer;
 	class IndexBuffer;
+	class Environment;
 
 	class Renderer
 	{
@@ -115,19 +119,40 @@ namespace Iris {
 		static void RenderStaticMeshWithMaterial(Ref<RenderCommandBuffer> renderCommandBuffer, Ref<Pipeline> pipeline, Ref<StaticMesh> staticMesh, Ref<MeshSource> meshSource, uint32_t subMeshIndex, Ref<Material> material, Ref<VertexBuffer> transformBuffer, uint32_t transformOffset, uint32_t instanceCount);
 		static void RenderGeometry(Ref<RenderCommandBuffer> renderCommandBuffer, Ref<Pipeline> pipeline, Ref<Material> material, Ref<VertexBuffer> vertexBuffer, Ref<IndexBuffer> indexBuffer, const glm::mat4& transform, uint32_t indexCount = 0);
 
+		// Compute passes
+		static void BeginComputePass(Ref<RenderCommandBuffer> renderCommandBuffer, Ref<ComputePass> computePass);
+		static void EndComputePass(Ref<RenderCommandBuffer> renderCommandBuffer, Ref<ComputePass> computePass);
+		static void DispatchComputePass(Ref<RenderCommandBuffer> renderCommandBuffer, Ref<ComputePass> computePass, Ref<Material> material, const glm::uvec3& workGroups, Buffer constants = Buffer());
+
+		static std::pair<Ref<TextureCube>, Ref<TextureCube>> CreateEnvironmentMap(Ref<RenderCommandBuffer> renderCommandBuffer, const std::string& filepath);
+		//static Ref<TextureCube> CreatePreethamSky(float turbidity, float azimuth, float inclination);
+
 		static VkDescriptorSet RT_AllocateDescriptorSet(VkDescriptorSetAllocateInfo& allocInfo);
 
 		static Ref<Texture2D> GetWhiteTexture();
 		static Ref<Texture2D> GetBlackTexture();
 		static Ref<Texture2D> GetErrorTexture();
+		static Ref<TextureCube> GetBlackCubeTexture();
+		static Ref<Environment> GetEmptyEnvironment();
+		static uint32_t GetTotalDrawCallCount();
 
 		static RenderCommandQueue& GetRenderCommandQueue();
 		static RenderCommandQueue& GetRendererResourceReleaseQueue(uint32_t index);
 
-		// TODO: Register all the dependencies (Compute Pipelines)
 		static void RegisterShaderDependency(Ref<Shader> shader, Ref<Pipeline> pipeline);
+		static void RegisterShaderDependency(Ref<Shader> shader, Ref<ComputePipeline> computePipeline);
 		static void RegisterShaderDependency(Ref<Shader> shader, Ref<Material> material);
 		static void OnShaderReloaded(std::size_t hash);
+
+		static void SetImageLayout(
+			VkCommandBuffer cmdbuffer,
+			VkImage image,
+			VkImageLayout oldImageLayout,
+			VkImageLayout newImageLayout,
+			VkPipelineStageFlags srcStageMask,
+			VkPipelineStageFlags dstStageMask,
+			VkImageSubresourceRange subresourceRange
+		);
 
 		static void InsertMemoryBarrier(VkCommandBuffer commandBuffer,
 			VkAccessFlags srcAccessMask,

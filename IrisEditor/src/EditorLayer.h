@@ -11,6 +11,7 @@
 #include "Project/UserPreferences.h"
 #include "Renderer/Renderer2D.h"
 #include "Renderer/SceneRenderer.h"
+#include "Renderer/StorageBufferSet.h"
 #include "Scene/Scene.h"
 #include "Utils/FileSystem.h"
 

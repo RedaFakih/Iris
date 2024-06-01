@@ -1,6 +1,7 @@
 #include "IrisPCH.h"
 #include "SelectionManager.h"
 
+#include "Renderer/StorageBufferSet.h"
 #include "Renderer/Texture.h"
 #include "Renderer/UniformBufferSet.h"
 

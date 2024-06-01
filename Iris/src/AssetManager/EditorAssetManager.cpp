@@ -6,6 +6,7 @@
 #include "Importers/AssetImporter.h"
 #include "Project/Project.h"
 #include "Renderer/Mesh/Mesh.h"
+#include "Renderer/StorageBufferSet.h"
 #include "Renderer/Texture.h"
 #include "Renderer/UniformBufferSet.h"
 #include "Utils/StringUtils.h"

@@ -89,6 +89,9 @@ Assets:
   - Handle: 3940274146037626887
     FilePath: Meshes/LowPolySponza/13196865903111448057.jpg
     Type: Texture
+  - Handle: 4083877476958322575
+    FilePath: Meshes/Donut/DonutTexturePaint.png
+    Type: Texture
   - Handle: 4166739070440988600
     FilePath: Meshes/LowPolySponza/14267839433702832875.jpg
     Type: Texture
@@ -305,6 +308,9 @@ Assets:
   - Handle: 15234478160944648528
     FilePath: Meshes/LowPolySponza/466164707995436622.jpg
     Type: Texture
+  - Handle: 15418210643110079839
+    FilePath: Meshes/Donut/Donut.gltf
+    Type: MeshSource
   - Handle: 15493729770200428798
     FilePath: Meshes/LowPolySponza/Sponza.gltf
     Type: MeshSource
@@ -344,6 +350,9 @@ Assets:
   - Handle: 17444303624668688037
     FilePath: Meshes/Evelynn/textures/DefaultMaterial_normal.png
     Type: Texture
+  - Handle: 17681878077841557574
+    FilePath: Meshes/Donut.Ismesh
+    Type: StaticMesh
   - Handle: 17762338661310433355
     FilePath: Meshes/LowPolySponza/2411100444841994089.jpg
     Type: Texture

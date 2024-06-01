@@ -3,6 +3,7 @@
 
 #include "Renderer/Renderer.h"
 #include "Renderer/Texture.h"
+#include "Scene/SceneEnvironment.h"
 
 namespace Iris {
 
@@ -10,7 +11,7 @@ namespace Iris {
 
 	static std::unordered_map<AssetType, GetDefualtPlaceholderResourceFunc> s_AssetPlaceHolderTable = {
 		{ AssetType::Texture, []() -> Ref<Asset> { return Renderer::GetWhiteTexture(); } },
-		// TODO: { AssetType::EnvironmentMap, Renderer::GetEmptyEnvironment() }
+		{ AssetType::EnvironmentMap, []() -> Ref<Asset> { return Renderer::GetEmptyEnvironment(); } }
 	};
 
 	Ref<Asset> AssetManager::GetPlaceHolderAsset(AssetType type)
