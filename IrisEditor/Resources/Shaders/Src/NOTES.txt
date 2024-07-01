@@ -26,3 +26,16 @@ layout(std140, set = 1, binding = 1) uniform ScreenData
     vec2 HalfResolution;
 	vec2 InverseHalfResolution;
 } u_ScreenData;
+
+struct DirectionalLight
+{
+	vec4 Direction; // The alpha channel is the ShadowAmount
+	vec4 Radiance; // The alpha channel is the multiplier of the directional light
+};
+
+layout(std140, set = 1, binding = 2) uniform SceneData
+{
+	DirectionalLight DirLight;
+	vec3 CameraPosition; // Offset 32
+	float EnvironmentMapIntensity; // This is used in the PBR shader and it mirrors the intensity that is used in the Skybox shader
+} u_Scene;

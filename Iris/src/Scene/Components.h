@@ -150,7 +150,19 @@ namespace Iris {
 		bool Visible = true;
 	};
 
-	// TODO: DirectionalLight, SkyLight (Actually handle the scene env)
+	struct TextComponent
+	{
+		std::string TextString = "";
+		size_t TextHash;
+
+		AssetHandle Font;
+		glm::vec4 Color = { 1.0f, 1.0f, 1.0f, 1.0f };
+		float LineSpacing = 1.0f;
+		float Kerning = 1.0f;
+
+		float MaxWidth = 20.0f;
+	};
+
 	struct SkyLightComponent
 	{
 		AssetHandle SceneEnvironment;
@@ -158,7 +170,14 @@ namespace Iris {
 		float Lod = 0.0f;
 
 		bool DynamicSky = false;
-		glm::vec3 TurbidityAzimuthInclination = { 2.0, 0.0, 0.0 };
+		glm::vec3 TurbidityAzimuthInclination = { 2.0f, 0.0f, 0.0f };
+	};
+
+	struct DirectionalLightComponent
+	{
+		glm::vec3 Radiance = { 1.0f, 1.0f, 1.0f };
+		float Intensity = 1.0f;
+		// TODO: Shadow stuff
 	};
 
 	template<typename... Components>

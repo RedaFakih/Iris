@@ -113,6 +113,41 @@ namespace Iris {
 		return true;
 	}
 
+	bool FileSystem::WriteBytes(const std::filesystem::path& filepath, const Buffer& buffer)
+	{
+		std::ofstream stream(filepath, std::ios::binary | std::ios::trunc);
+
+		if (!stream)
+		{
+			stream.close();
+			return false;
+		}
+
+		stream.write(reinterpret_cast<char*>(buffer.Data), buffer.Size);
+		stream.close();
+
+		return true;
+	}
+
+	Buffer FileSystem::ReadBytes(const std::filesystem::path& filepath)
+	{
+		Buffer buffer;
+
+		std::ifstream stream(filepath, std::ios::binary | std::ios::ate);
+		IR_ASSERT(stream);
+
+		auto end = stream.tellg();
+		stream.seekg(0, std::ios::beg);
+		auto size = end - stream.tellg();
+		IR_ASSERT(size != 0);
+
+		buffer.Allocate((uint32_t)size);
+		stream.read(reinterpret_cast<char*>(buffer.Data), buffer.Size);
+		stream.close();
+
+		return buffer;
+	}
+
 	std::filesystem::path FileSystem::GetUniqueFilename(const std::filesystem::path& path)
 	{
 		if (!Exists(path))

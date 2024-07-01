@@ -212,7 +212,7 @@ namespace Iris {
 
 			VkPipelineMultisampleStateCreateInfo multiSampleState = {
 				.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
-				.rasterizationSamples = Utils::GetSamplerCount(instance->m_Specification.TargetFramebuffer->GetSpecification().Samples), // Adding support for Multi sampled framebuffers
+				.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT,
 				.pSampleMask = nullptr,
 			};
 
@@ -278,30 +278,31 @@ namespace Iris {
 
 					switch (blendMode)
 					{
-					case FramebufferBlendMode::OneZero:
-					{
-						blendAttachmentStates[i].srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
-						blendAttachmentStates[i].dstColorBlendFactor = VK_BLEND_FACTOR_ZERO;
+						case FramebufferBlendMode::OneZero:
+						{
+							blendAttachmentStates[i].srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
+							blendAttachmentStates[i].dstColorBlendFactor = VK_BLEND_FACTOR_ZERO;
 
-						break;
-					}
-					case FramebufferBlendMode::SrcAlphaOneMinusSrcAlpha:
-					{
-						blendAttachmentStates[i].srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
-						blendAttachmentStates[i].dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-						blendAttachmentStates[i].srcAlphaBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
-						blendAttachmentStates[i].dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+							break;
+						}
+						case FramebufferBlendMode::SrcAlphaOneMinusSrcAlpha:
+						{
+							blendAttachmentStates[i].srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+							blendAttachmentStates[i].dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+							blendAttachmentStates[i].srcAlphaBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+							blendAttachmentStates[i].dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
 
-						break;
-					}
-					case FramebufferBlendMode::ZeroSrcColor:
-					{
-						blendAttachmentStates[i].srcColorBlendFactor = VK_BLEND_FACTOR_ZERO;
-						blendAttachmentStates[i].dstColorBlendFactor = VK_BLEND_FACTOR_SRC_COLOR;
+							break;
+						}
+						case FramebufferBlendMode::ZeroSrcColor:
+						{
+							blendAttachmentStates[i].srcColorBlendFactor = VK_BLEND_FACTOR_ZERO;
+							blendAttachmentStates[i].dstColorBlendFactor = VK_BLEND_FACTOR_SRC_COLOR;
 
-						break;
-					}
-					default: IR_ASSERT(false);
+							break;
+						}
+						default:
+							IR_ASSERT(false);
 					}
 				}
 			}
@@ -341,8 +342,17 @@ namespace Iris {
 
 			const auto& shaderStages = shader->GetPipelineShaderStageCreateInfos();
 
+			VkPipelineRenderingCreateInfo pipelineRenderingInfo = {
+				.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO,
+				.colorAttachmentCount = static_cast<uint32_t>(colorAttachmentCount),
+				.pColorAttachmentFormats = framebuffer->GetColorAttachmentImageFormats().data(),
+				.depthAttachmentFormat = framebuffer->HasDepthAttachment() ? framebuffer->GetDepthAttachmentImageFormat() : VK_FORMAT_UNDEFINED,
+				.stencilAttachmentFormat = framebuffer->HasDepthAttachment() ? framebuffer->GetDepthAttachmentImageFormat() : VK_FORMAT_UNDEFINED
+			};
+
 			VkGraphicsPipelineCreateInfo pipelineInfo = {};
 			pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+			pipelineInfo.pNext = &pipelineRenderingInfo;
 			pipelineInfo.stageCount = static_cast<uint32_t>(shaderStages.size());
 			pipelineInfo.pStages = shaderStages.data();
 			pipelineInfo.pVertexInputState = &vertexInputState;
@@ -354,14 +364,13 @@ namespace Iris {
 			pipelineInfo.pColorBlendState = &colorBlendState;
 			pipelineInfo.pDynamicState = &dynamicState;
 			pipelineInfo.layout = instance->m_PipelineLayout;
-			pipelineInfo.renderPass = instance->m_Specification.TargetFramebuffer->GetVulkanRenderPass();
+			pipelineInfo.renderPass = VK_NULL_HANDLE;
 
 			VK_CHECK_RESULT(vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &(instance->m_VulkanPipeline)));
 			VKUtils::SetDebugUtilsObjectName(device, VK_OBJECT_TYPE_PIPELINE, instance->m_Specification.DebugName, instance->m_VulkanPipeline);
 
-			// TODO: We can not release the shader modules after the pipeline have been created
-			// since some systems in the engine (Renderer2D) may try to recreate their pipelines and so would need the shader modules again
-			// shader->ReleaseShaderModules();
+			if (instance->m_Specification.ReleaseShaderModules)
+				shader->ReleaseShaderModules();
 		});
 	}
 

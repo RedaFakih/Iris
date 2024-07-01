@@ -30,6 +30,7 @@ namespace Iris {
 		StorageBufferSet,
 		Texture2D,
 		TextureCube,
+		ImageView,
 		StorageImage
 	};
 
@@ -130,6 +131,7 @@ namespace Iris {
 	class Shader;
 	class Texture2D;
 	class TextureCube;
+	class ImageView;
 	class UniformBuffer;
 	class UniformBufferSet;
 	class StorageBuffer;
@@ -169,6 +171,11 @@ namespace Iris {
 
 		RenderPassInput(Ref<TextureCube> textureCube)
 			: Type(DescriptorResourceType::TextureCube), Input(std::vector<Ref<RefCountedObject>>(1, textureCube))
+		{
+		}
+
+		RenderPassInput(Ref<ImageView> imageView)
+			: Type(DescriptorResourceType::ImageView), Input(std::vector<Ref<RefCountedObject>>(1, imageView))
 		{
 		}
 
@@ -212,6 +219,12 @@ namespace Iris {
 		{
 			Type = DescriptorResourceType::TextureCube;
 			Input[index] = textureCube;
+		}
+
+		void Set(Ref<ImageView> imageView, uint32_t index = 0)
+		{
+			Type = DescriptorResourceType::ImageView;
+			Input[index] = imageView;
 		}
 
 		// TODO:
@@ -279,6 +292,7 @@ namespace Iris {
 		void SetInput(std::string_view name, Ref<StorageBufferSet> storageBufferSet);
 		void SetInput(std::string_view name, Ref<Texture2D> texture, uint32_t index = 0);
 		void SetInput(std::string_view name, Ref<TextureCube> textureCube);
+		void SetInput(std::string_view name, Ref<ImageView> imageView);
 		// TODO: 
 		//void SetInput(std::string_view name, Ref<StorageImage> storageImage, uint32_t index = 0);
 

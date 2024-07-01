@@ -68,6 +68,9 @@ Assets:
   - Handle: 2996722834544417821
     FilePath: Meshes/LowPolySponza/4675343432951571524.jpg
     Type: Texture
+  - Handle: 3086571681816161946
+    FilePath: Materials/FloorMaterial.Imaterial
+    Type: Material
   - Handle: 3157465373486071481
     FilePath: Meshes/Jhin/textures/base_mat_baseColor.png
     Type: Texture
@@ -101,9 +104,6 @@ Assets:
   - Handle: 4680852554536855250
     FilePath: Meshes/LowPolySponza/3827035219084910048.jpg
     Type: Texture
-  - Handle: 4786713185340225801
-    FilePath: Materials/GreenMaterial.Imaterial
-    Type: Material
   - Handle: 4835715805608920513
     FilePath: Meshes/Default/Capsule.Ismesh
     Type: StaticMesh
@@ -122,8 +122,8 @@ Assets:
   - Handle: 6082897608703548102
     FilePath: Materials/TexturedMat.Imaterial
     Type: Material
-  - Handle: 6298352931551980823
-    FilePath: EnvironmentMaps/pink_sunrise_4k.hdr
+  - Handle: 6377058224575319417
+    FilePath: Textures/elegant-stone-tiles-bl/elegant-stone-tiles_metallic.png
     Type: Texture
   - Handle: 6439264742179415899
     FilePath: Meshes/LowPolySponza/4871783166746854860.jpg
@@ -188,6 +188,9 @@ Assets:
   - Handle: 8499499654652707041
     FilePath: Meshes/Default/Source/Cube.gltf
     Type: MeshSource
+  - Handle: 8577445622296034549
+    FilePath: Textures/elegant-stone-tiles-bl/elegant-stone-tiles_normal-ogl.png
+    Type: Texture
   - Handle: 8602806748587412089
     FilePath: Textures/qiyana.png
     Type: Texture
@@ -206,6 +209,9 @@ Assets:
   - Handle: 8995406122497898274
     FilePath: Meshes/LowPolySponza/11872827283454512094.jpg
     Type: Texture
+  - Handle: 9111623399177370701
+    FilePath: EnvironmentMaps/pink_sunrise_4k.hdr
+    Type: EnvironmentMap
   - Handle: 9477776448957584059
     FilePath: Meshes/LowPolySponza/4477655471536070370.jpg
     Type: Texture
@@ -217,6 +223,9 @@ Assets:
     Type: StaticMesh
   - Handle: 9891509226969151992
     FilePath: Meshes/LowPolySponza/2374361008830720677.jpg
+    Type: Texture
+  - Handle: 10248026832697820046
+    FilePath: Textures/elegant-stone-tiles-bl/elegant-stone-tiles_roughness.png
     Type: Texture
   - Handle: 10458728352753821727
     FilePath: Meshes/LowPolySponza/8783994986360286082.jpg
@@ -248,6 +257,9 @@ Assets:
   - Handle: 11579347592044811175
     FilePath: Meshes/LowPolySponza/4975155472559461469.jpg
     Type: Texture
+  - Handle: 11665470405078421778
+    FilePath: Fonts/Roboto-Bold.ttf
+    Type: Font
   - Handle: 11733034874740757145
     FilePath: Meshes/stormtrooper.Ismesh
     Type: StaticMesh
@@ -290,6 +302,9 @@ Assets:
   - Handle: 13686750258206424161
     FilePath: Meshes/Galio/scene.gltf
     Type: MeshSource
+  - Handle: 13824674546722255803
+    FilePath: Textures/elegant-stone-tiles-bl/elegant-stone-tiles_albedo.png
+    Type: Texture
   - Handle: 14753657999470155821
     FilePath: Meshes/Default/Source/Torus.gltf
     Type: MeshSource
@@ -350,6 +365,9 @@ Assets:
   - Handle: 17444303624668688037
     FilePath: Meshes/Evelynn/textures/DefaultMaterial_normal.png
     Type: Texture
+  - Handle: 17569616831467014791
+    FilePath: EnvironmentMaps/dikhololo_night_4k.hdr
+    Type: EnvironmentMap
   - Handle: 17681878077841557574
     FilePath: Meshes/Donut.Ismesh
     Type: StaticMesh

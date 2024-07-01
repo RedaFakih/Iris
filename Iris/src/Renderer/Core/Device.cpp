@@ -33,14 +33,8 @@ namespace Iris {
 		VkPhysicalDevice selectedDevice = nullptr;
 		for (VkPhysicalDevice device : physicalDevices)
 		{
-			m_DepthStencilResolveProperties = {
-				.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DEPTH_STENCIL_RESOLVE_PROPERTIES
-			};
-
-			// Pass the depthstencil resolve properties in the pNext chain to fill it
 			m_Properties = {
-				.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2,
-				.pNext = &m_DepthStencilResolveProperties
+				.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2
 			};
 
 			vkGetPhysicalDeviceProperties2(device, &m_Properties);
@@ -291,9 +285,21 @@ namespace Iris {
 
 		// TODO: Some more extensions to check and add Aftermath maybe..??
 
+		VkPhysicalDeviceSynchronization2Features synchronization2Feature = {
+			.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SYNCHRONIZATION_2_FEATURES,
+			.pNext = nullptr,
+			.synchronization2 = VK_TRUE
+		};
+
+		VkPhysicalDeviceDynamicRenderingFeatures dynamicRenderingFeature = {
+			.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES,
+			.pNext = &synchronization2Feature,
+			.dynamicRendering = VK_TRUE
+		};
+
 		VkDeviceCreateInfo createInfo = {
 			.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
-			.pNext = nullptr, // TODO: If we ever implement aftermath it will be passed into here...
+			.pNext = &dynamicRenderingFeature,
 			.queueCreateInfoCount = (uint32_t)physicalDevice->m_QueueCreateInfos.size(),
 			.pQueueCreateInfos = physicalDevice->m_QueueCreateInfos.data(),
 			.pEnabledFeatures = &enabledFeatures

@@ -124,14 +124,15 @@ namespace Iris {
 		static void EndComputePass(Ref<RenderCommandBuffer> renderCommandBuffer, Ref<ComputePass> computePass);
 		static void DispatchComputePass(Ref<RenderCommandBuffer> renderCommandBuffer, Ref<ComputePass> computePass, Ref<Material> material, const glm::uvec3& workGroups, Buffer constants = Buffer());
 
-		static std::pair<Ref<TextureCube>, Ref<TextureCube>> CreateEnvironmentMap(Ref<RenderCommandBuffer> renderCommandBuffer, const std::string& filepath);
-		//static Ref<TextureCube> CreatePreethamSky(float turbidity, float azimuth, float inclination);
+		static std::pair<Ref<TextureCube>, Ref<TextureCube>> CreateEnvironmentMap(const std::string& filepath);
+		static Ref<TextureCube> CreatePreethamSky(float turbidity, float azimuth, float inclination);
 
 		static VkDescriptorSet RT_AllocateDescriptorSet(VkDescriptorSetAllocateInfo& allocInfo);
 
 		static Ref<Texture2D> GetWhiteTexture();
 		static Ref<Texture2D> GetBlackTexture();
 		static Ref<Texture2D> GetErrorTexture();
+		static Ref<Texture2D> GetBRDFLutTexture();
 		static Ref<TextureCube> GetBlackCubeTexture();
 		static Ref<Environment> GetEmptyEnvironment();
 		static uint32_t GetTotalDrawCallCount();
@@ -144,41 +145,31 @@ namespace Iris {
 		static void RegisterShaderDependency(Ref<Shader> shader, Ref<Material> material);
 		static void OnShaderReloaded(std::size_t hash);
 
-		static void SetImageLayout(
-			VkCommandBuffer cmdbuffer,
-			VkImage image,
-			VkImageLayout oldImageLayout,
-			VkImageLayout newImageLayout,
-			VkPipelineStageFlags srcStageMask,
-			VkPipelineStageFlags dstStageMask,
-			VkImageSubresourceRange subresourceRange
-		);
-
 		static void InsertMemoryBarrier(VkCommandBuffer commandBuffer,
-			VkAccessFlags srcAccessMask,
-			VkAccessFlags dstAccessMask,
-			VkPipelineStageFlags srcStageMask,
-			VkPipelineStageFlags dstStageMask
+			VkAccessFlags2 srcAccessMask,
+			VkAccessFlags2 dstAccessMask,
+			VkPipelineStageFlags2 srcStageMask,
+			VkPipelineStageFlags2 dstStageMask
 		);
 
 		static void InsertBufferMemoryBarrier(
 			VkCommandBuffer commandBuffer,
 			VkBuffer buffer,
-			VkAccessFlags srcAccessMask,
-			VkAccessFlags dstAccessMask,
-			VkPipelineStageFlags srcStageMask,
-			VkPipelineStageFlags dstStageMask
+			VkAccessFlags2 srcAccessMask,
+			VkAccessFlags2 dstAccessMask,
+			VkPipelineStageFlags2 srcStageMask,
+			VkPipelineStageFlags2 dstStageMask
 		);
 
 		static void InsertImageMemoryBarrier(
 			VkCommandBuffer commandBuffer,
 			VkImage image,
-			VkAccessFlags srcAccessMask,
-			VkAccessFlags dstAccessMask,
+			VkAccessFlags2 srcAccessMask,
+			VkAccessFlags2 dstAccessMask,
 			VkImageLayout oldImageLayout,
 			VkImageLayout newImageLayout,
-			VkPipelineStageFlags srcStageMask,
-			VkPipelineStageFlags dstStageMask,
+			VkPipelineStageFlags2 srcStageMask,
+			VkPipelineStageFlags2 dstStageMask,
 			VkImageSubresourceRange subresourceRange
 		);
 

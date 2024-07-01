@@ -52,31 +52,56 @@ namespace Iris {
 	{
 		// Render the scene
 
-		// TODO: Skylight
-		//{
-		//	auto lights = m_Registry.group<SkyLightComponent>(entt::get<TransformComponent>);
+		// Process all lighting data in the scene
+		{
+			m_LightEnvironment = LightEnvironment();
 
-		//	for (auto entity : lights)
-		//	{
-		//		auto skyLightComponent = lights.get<SkyLightComponent>(entity);
+			// Directional Light (NOTE: Should ONLY have ONE in the scene and no more!)
+			{
+				auto view = GetAllEntitiesWith<TransformComponent, DirectionalLightComponent>();
 
-		//		// TODO: REMOVE THIS SINCE IT IS JUST HERE TO FIX A BUG IN A HACKY WAY
-		//		static bool createdPreethamSky = false;
-		//		if (!AssetManager::IsAssetHandleValid(skyLightComponent.SceneEnvironment) && skyLightComponent.DynamicSky)
-		//		{
-		//			if (!createdPreethamSky)
-		//			{
-		//				Ref<TextureCube> preethamEnv = Renderer::CreatePreethamSky(skyLightComponent.TurbidityAzimuthInclination.x, skyLightComponent.TurbidityAzimuthInclination.y, skyLightComponent.TurbidityAzimuthInclination.z);
-		//				skyLightComponent.SceneEnvironment = AssetManager::CreateMemoryOnlyAsset<Environment>(preethamEnv, preethamEnv);
-		//				createdPreethamSky = true;
-		//			}
-		//		}
+				uint32_t dirLightCountIndex = 0;
+				for (auto entity : view)
+				{
+					IR_VERIFY(dirLightCountIndex++ < LightEnvironment::MaxDirectionalLights, "We can't have more than {} directional lights in one scene!", LightEnvironment::MaxDirectionalLights);
+					const auto& [transformComp, dirLightComp] = view.get<TransformComponent, DirectionalLightComponent>(entity);
+					glm::vec3 direction = -glm::normalize(glm::mat3(transformComp.GetTransform()) * glm::vec3(1.0f));
+					m_LightEnvironment.DirectionalLight = SceneDirectionalLight{
+						.Direction = direction,
+						.Radiance = dirLightComp.Radiance,
+						.Intensity = dirLightComp.Intensity,
+						.ShadowAmount = 1.0f // TODO: Should come from component
+					};
+				}
+			}
+		}
 
-		//		m_Environment = AssetManager::GetAsset<Environment>(skyLightComponent.SceneEnvironment);
-		//		m_EnvironmentIntensity = skyLightComponent.Intensity;
-		//		m_SkyboxLod = skyLightComponent.Lod;
-		//	}
-		//}
+		// Skylights (NOTE: Should only really have one in the scene and no more!)
+		{
+			auto view = GetAllEntitiesWith<SkyLightComponent>();
+
+			for (auto entity : view)
+			{
+				SkyLightComponent& skyLightComponent = view.get<SkyLightComponent>(entity);
+
+				if (!AssetManager::IsAssetHandleValid(skyLightComponent.SceneEnvironment) && skyLightComponent.DynamicSky)
+				{
+					Ref<TextureCube> preethamEnv = Renderer::CreatePreethamSky(skyLightComponent.TurbidityAzimuthInclination.x, skyLightComponent.TurbidityAzimuthInclination.y, skyLightComponent.TurbidityAzimuthInclination.z);
+					skyLightComponent.SceneEnvironment = AssetManager::CreateMemoryOnlyAsset<Environment>(preethamEnv, preethamEnv);
+				}
+
+				m_Environment = AssetManager::GetAssetAsync<Environment>(skyLightComponent.SceneEnvironment);
+				m_EnvironmentIntensity = skyLightComponent.Intensity;
+				m_SkyboxLod = skyLightComponent.Lod;
+			}
+
+			if (!m_Environment || view.empty()) // Invalid skylight (We dont have one or the handle was invalid)
+			{
+				m_Environment = Environment::Create(Renderer::GetBlackCubeTexture(), Renderer::GetBlackCubeTexture());
+				m_EnvironmentIntensity = 1.0f;
+				m_SkyboxLod = 0.0f;
+			}
+		}
 
 		{
 			renderer->SetScene(this);
@@ -86,7 +111,7 @@ namespace Iris {
 			auto entities = GetAllEntitiesWith<StaticMeshComponent>();
 			for (auto entity : entities)
 			{
-				auto& staticMeshComponenet = entities.get<StaticMeshComponent>(entity);
+				const StaticMeshComponent& staticMeshComponenet = entities.get<StaticMeshComponent>(entity);
 				if (!staticMeshComponenet.Visible)
 					continue;
 
@@ -115,18 +140,17 @@ namespace Iris {
 			if (renderer->GetFinalPassImage())
 			{
 				Ref<Renderer2D> renderer2D = renderer->GetRenderer2D();
-
+			
 				renderer2D->ResetStats();
 				renderer2D->BeginScene(camera.GetViewProjection(), camera.GetViewMatrix());
-				renderer2D->SetTargetFramebuffer(renderer->GetExternalCompositeFramebuffer());
-
+			
 				// Render 2D sprites
 				{
 					auto view = GetAllEntitiesWith<TransformComponent, SpriteRendererComponent>();
 					for (auto entity : view)
 					{
 						Entity e = { entity, this };
-
+			
 						const auto& [transformComponent, spriteRendererComponent] = view.get<TransformComponent, SpriteRendererComponent>(entity);
 						if (spriteRendererComponent.Texture)
 						{
@@ -150,12 +174,25 @@ namespace Iris {
 					}
 				}
 
+				// Render Text
+				{
+					auto view = GetAllEntitiesWith<TransformComponent, TextComponent>();
+					for (auto entity : view)
+					{
+						Entity e = { entity, this };
+
+						const auto& [transformComponent, textComponent] = view.get<TransformComponent, TextComponent>(entity);
+						Ref<Font> font = Font::GetFontAssetForTextComponent(textComponent.Font);
+						renderer2D->DrawString(textComponent.TextString, font, GetWorldSpaceTransformMatrix(e), textComponent.MaxWidth, textComponent.Color, textComponent.LineSpacing, textComponent.Kerning);
+					}
+				}
+			
 				// Save line width since debug renderer may change that...
 				float lineWidth = renderer2D->GetLineWidth();
-
+			
 				// TODO: Debug Renderer, eventhough the line width here might conflict with the renderer2D's line width since the vulkan command to change
 				// it is only called once on EndScene so if the debug renderer sets it then all the lines will be rendered with that width
-
+			
 				renderer2D->EndScene();
 				// Restore the line width
 				renderer2D->SetLineWidth(lineWidth);
@@ -174,13 +211,15 @@ namespace Iris {
 		auto view = m_Registry.view<CameraComponent>();
 		for (auto entity : view)
 		{
-			auto& comp = view.get<CameraComponent>(entity);
+			CameraComponent& comp = view.get<CameraComponent>(entity);
 			if (comp.Primary)
 			{
 				IR_ASSERT(comp.Camera.GetOrthographicSize() || comp.Camera.GetDegPerspectiveVerticalFOV(), "Camera is not fully initialized");
+
 				return { entity, this };
 			}
 		}
+
 		return {};
 	}
 
@@ -317,6 +356,8 @@ namespace Iris {
 		CopyComponentIfExists<CameraComponent>(newEntity.m_EntityHandle, m_Registry, entity);
 		CopyComponentIfExists<SpriteRendererComponent>(newEntity.m_EntityHandle, m_Registry, entity);
 		CopyComponentIfExists<SkyLightComponent>(newEntity.m_EntityHandle, m_Registry, entity);
+		// CopyComponentIfExists<DirectionalLightComponent>(newEntity.m_EntityHandle, m_Registry, entity); // NOTE: You can not duplicate directional lights since you should only have one
+		CopyComponentIfExists<TextComponent>(newEntity.m_EntityHandle, m_Registry, entity);
 
 		// Need to copy the children here because the collection is mutated below
 		std::vector<UUID> childIDs = entity.Children();

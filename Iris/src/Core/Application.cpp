@@ -4,6 +4,9 @@
 #include "Input/Input.h"
 #include "Project/Project.h"
 #include "Renderer/Renderer.h"
+#include "Renderer/StorageBufferSet.h"
+#include "Renderer/Text/Font.h"
+#include "Renderer/UniformBufferSet.h"
 
 #include <glfw/glfw3.h>
 #include <nfd.hpp>
@@ -34,7 +37,7 @@ namespace Iris {
 		};
 		m_Window = Window::Create(windowSpec);
 		m_Window->Init();
-		m_Window->SetEventCallbackFunction([this](Events::Event& e) { Application::OnEvent(e); });
+		m_Window->SetEventCallbackFunction([](Events::Event& e) { s_Instance->Application::OnEvent(e); });
 
 		IR_VERIFY(NFD::Init() == NFD_OKAY);
 
@@ -53,6 +56,8 @@ namespace Iris {
 			m_ImGuiLayer = ImGuiLayer::Create();
 			PushOverlay(m_ImGuiLayer);
 		}
+
+		Font::Init();
 
 		// Render one frame
 		m_RenderThread.Pump();
@@ -78,6 +83,7 @@ namespace Iris {
 		}
 
 		Project::SetActive(nullptr);
+		Font::Shutdown();
 
 		Renderer::Shutdown();
 

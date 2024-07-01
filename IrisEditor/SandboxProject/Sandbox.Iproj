@@ -22,7 +22,10 @@ Project:
       LevelFilter: Trace
     Renderer:
       Enabled: true
-      LevelFilter: Debug
+      LevelFilter: Trace
+    Scene:
+      Enabled: true
+      LevelFilter: Trace
     Shader:
       Enabled: true
       LevelFilter: Trace
@@ -30,5 +33,8 @@ Project:
       Enabled: true
       LevelFilter: Trace
     VulkanAllocator:
+      Enabled: true
+      LevelFilter: Trace
+    Window:
       Enabled: true
       LevelFilter: Trace

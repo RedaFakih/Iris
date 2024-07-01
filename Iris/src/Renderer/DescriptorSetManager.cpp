@@ -401,6 +401,26 @@ namespace Iris {
 
 							break;
 						}
+						case DescriptorResourceType::ImageView:
+						{
+							Ref<ImageView> imageView = input.Input[0].As<ImageView>();
+
+							// Defer the resource if it does not exist...
+							if (imageView == nullptr)
+							{
+								m_InvalidatedInputResources[set][binding] = input;
+								break;
+							}
+
+							writeDescriptor.pImageInfo = &imageView->GetDescriptorImageInfo();
+							storedWriteDescriptor.ResourceHandles[0] = writeDescriptor.pImageInfo->imageView;
+
+							// Defer the resource if it does not exist...
+							if (writeDescriptor.pImageInfo->imageView == nullptr)
+								m_InvalidatedInputResources[set][binding] = input;
+
+							break;
+						}
 						case DescriptorResourceType::StorageImage:
 						{
 							// TODO:
@@ -455,7 +475,7 @@ namespace Iris {
 				{
 					case DescriptorResourceType::UniformBuffer:
 					{
-						Ref<UniformBuffer> uniformBuffer = renderPassInput.Input[0];
+						Ref<UniformBuffer> uniformBuffer = renderPassInput.Input[0].As<UniformBuffer>();
 						const VkDescriptorBufferInfo& bufferInfo = uniformBuffer->GetDescriptorBufferInfo();
 						if (bufferInfo.buffer != m_WriteDescriptorMap[currentFrameIndex].at(set).at(binding).ResourceHandles[0])
 							m_InvalidatedInputResources[set][binding] = renderPassInput;
@@ -464,7 +484,7 @@ namespace Iris {
 					}
 					case DescriptorResourceType::UniformBufferSet:
 					{
-						Ref<UniformBufferSet> uniformBufferSet = renderPassInput.Input[0];
+						Ref<UniformBufferSet> uniformBufferSet = renderPassInput.Input[0].As<UniformBufferSet>();
 						const VkDescriptorBufferInfo& bufferInfo = uniformBufferSet->Get(currentFrameIndex)->GetDescriptorBufferInfo();
 						if (bufferInfo.buffer != m_WriteDescriptorMap[currentFrameIndex].at(set).at(binding).ResourceHandles[0])
 							m_InvalidatedInputResources[set][binding] = renderPassInput;
@@ -473,7 +493,7 @@ namespace Iris {
 					}
 					case DescriptorResourceType::StorageBuffer:
 					{
-						Ref<StorageBuffer> storageBuffer = renderPassInput.Input[0];
+						Ref<StorageBuffer> storageBuffer = renderPassInput.Input[0].As<StorageBuffer>();
 						const VkDescriptorBufferInfo& bufferInfo = storageBuffer->GetDescriptorBufferInfo();
 						if (bufferInfo.buffer != m_WriteDescriptorMap[currentFrameIndex].at(set).at(binding).ResourceHandles[0])
 							m_InvalidatedInputResources[set][binding] = renderPassInput;
@@ -482,7 +502,7 @@ namespace Iris {
 					}
 					case DescriptorResourceType::StorageBufferSet:
 					{
-						Ref<StorageBufferSet> storageBufferSet = renderPassInput.Input[0];
+						Ref<StorageBufferSet> storageBufferSet = renderPassInput.Input[0].As<StorageBufferSet>();
 						const VkDescriptorBufferInfo& bufferInfo = storageBufferSet->Get(currentFrameIndex)->GetDescriptorBufferInfo();
 						if (bufferInfo.buffer != m_WriteDescriptorMap[currentFrameIndex].at(set).at(binding).ResourceHandles[0])
 							m_InvalidatedInputResources[set][binding] = renderPassInput;
@@ -493,7 +513,7 @@ namespace Iris {
 					{
 						for (std::size_t i = 0; i < renderPassInput.Input.size(); i++)
 						{
-							Ref<Texture2D> texture = renderPassInput.Input[i];
+							Ref<Texture2D> texture = renderPassInput.Input[i].As<Texture2D>();
 							const VkDescriptorImageInfo& imageInfo = texture->GetDescriptorImageInfo();
 							if (imageInfo.imageView != m_WriteDescriptorMap[currentFrameIndex].at(set).at(binding).ResourceHandles[i])
 							{
@@ -506,8 +526,17 @@ namespace Iris {
 					}
 					case DescriptorResourceType::TextureCube:
 					{
-						Ref<TextureCube> textureCube = renderPassInput.Input[0];
+						Ref<TextureCube> textureCube = renderPassInput.Input[0].As<TextureCube>();
 						const VkDescriptorImageInfo& imageInfo = textureCube->GetDescriptorImageInfo();
+						if (imageInfo.imageView != m_WriteDescriptorMap[currentFrameIndex].at(set).at(binding).ResourceHandles[0])
+							m_InvalidatedInputResources[set][binding] = renderPassInput;
+
+						break;
+					}
+					case DescriptorResourceType::ImageView:
+					{
+						Ref<ImageView> imageView = renderPassInput.Input[0].As<ImageView>();
+						const VkDescriptorImageInfo& imageInfo = imageView->GetDescriptorImageInfo();
 						if (imageInfo.imageView != m_WriteDescriptorMap[currentFrameIndex].at(set).at(binding).ResourceHandles[0])
 							m_InvalidatedInputResources[set][binding] = renderPassInput;
 
@@ -516,7 +545,7 @@ namespace Iris {
 					case DescriptorResourceType::StorageImage:
 					{
 						// TODO:
-						//Ref<StorageImage> storageImage = renderPassInput.Input[0];
+						//Ref<StorageImage> storageImage = renderPassInput.Input[0].As<StorageImage>();
 						//const VkDescriptorImageInfo& imageInfo = storageImage->GetDescriptorImageInfo();
 						//if (imageInfo.imageView != m_WriteDescriptorMap[currentFrameIndex].at(set).at(binding).ResourceHandles[0])
 						//	m_InvalidatedInputResources[set][binding] = renderPassInput;
@@ -550,7 +579,7 @@ namespace Iris {
 				{
 					case DescriptorResourceType::UniformBuffer:
 					{
-						Ref<UniformBuffer> uniformBuffer = input.Input[0];
+						Ref<UniformBuffer> uniformBuffer = input.Input[0].As<UniformBuffer>();
 						writeDescriptor.pBufferInfo = &uniformBuffer->GetDescriptorBufferInfo();
 						storedWriteDescriptor.ResourceHandles[0] = writeDescriptor.pBufferInfo->buffer;
 
@@ -558,7 +587,7 @@ namespace Iris {
 					}
 					case DescriptorResourceType::UniformBufferSet:
 					{
-						Ref<UniformBufferSet> uniformBufferSet = input.Input[0];
+						Ref<UniformBufferSet> uniformBufferSet = input.Input[0].As<UniformBufferSet>();
 						writeDescriptor.pBufferInfo = &uniformBufferSet->Get(currentFrameIndex)->GetDescriptorBufferInfo();
 						storedWriteDescriptor.ResourceHandles[0] = writeDescriptor.pBufferInfo->buffer;
 
@@ -566,7 +595,7 @@ namespace Iris {
 					}
 					case DescriptorResourceType::StorageBuffer:
 					{
-						Ref<StorageBuffer> storageBuffer = input.Input[0];
+						Ref<StorageBuffer> storageBuffer = input.Input[0].As<StorageBuffer>();
 						writeDescriptor.pBufferInfo = &storageBuffer->GetDescriptorBufferInfo();
 						storedWriteDescriptor.ResourceHandles[0] = writeDescriptor.pBufferInfo->buffer;
 
@@ -574,7 +603,7 @@ namespace Iris {
 					}
 					case DescriptorResourceType::StorageBufferSet:
 					{
-						Ref<StorageBufferSet> storageBufferSet = input.Input[0];
+						Ref<StorageBufferSet> storageBufferSet = input.Input[0].As<StorageBufferSet>();
 						writeDescriptor.pBufferInfo = &storageBufferSet->Get(currentFrameIndex)->GetDescriptorBufferInfo();
 						storedWriteDescriptor.ResourceHandles[0] = writeDescriptor.pBufferInfo->buffer;
 
@@ -587,7 +616,7 @@ namespace Iris {
 							imageInfoStorage.emplace_back(input.Input.size());
 							for (uint32_t i = 0; i < input.Input.size(); i++)
 							{
-								Ref<Texture2D> texture = input.Input[i];
+								Ref<Texture2D> texture = input.Input[i].As<Texture2D>();
 								imageInfoStorage[imageInfoStorageIndex][i] = texture->GetDescriptorImageInfo();
 								storedWriteDescriptor.ResourceHandles[i] = imageInfoStorage[imageInfoStorageIndex][i].imageView;
 							}
@@ -596,7 +625,7 @@ namespace Iris {
 						}
 						else
 						{
-							Ref<Texture2D> texture = input.Input[0];
+							Ref<Texture2D> texture = input.Input[0].As<Texture2D>();
 							writeDescriptor.pImageInfo = &texture->GetDescriptorImageInfo();
 							storedWriteDescriptor.ResourceHandles[0] = writeDescriptor.pImageInfo->imageView;
 						}
@@ -605,8 +634,17 @@ namespace Iris {
 					}
 					case DescriptorResourceType::TextureCube:
 					{
-						Ref<TextureCube> textureCube = input.Input[0];
+						Ref<TextureCube> textureCube = input.Input[0].As<TextureCube>();
 						writeDescriptor.pImageInfo = &textureCube->GetDescriptorImageInfo();
+						storedWriteDescriptor.ResourceHandles[0] = writeDescriptor.pImageInfo->imageView;
+
+						break;
+					}
+					case DescriptorResourceType::ImageView:
+					{
+						Ref<ImageView> imageView = input.Input[0].As<ImageView>();
+						writeDescriptor.pImageInfo = &imageView->GetDescriptorImageInfo();
+						IR_VERIFY(writeDescriptor.pImageInfo->imageView);
 						storedWriteDescriptor.ResourceHandles[0] = writeDescriptor.pImageInfo->imageView;
 
 						break;
@@ -691,6 +729,16 @@ namespace Iris {
 
 		if (decl)
 			m_InputResources.at(decl->Set).at(decl->Binding).Set(textureCube);
+		else
+			IR_CORE_ERROR_TAG("Renderer", "[RenderPass ({})::SetInput] Input {} not found!", m_Specification.DebugName, name);
+	}
+
+	void DescriptorSetManager::SetInput(std::string_view name, Ref<ImageView> imageView)
+	{
+		const RenderPassInputDeclaration* decl = GetInputDeclaration(name);
+
+		if (decl)
+			m_InputResources.at(decl->Set).at(decl->Binding).Set(imageView);
 		else
 			IR_CORE_ERROR_TAG("Renderer", "[RenderPass ({})::SetInput] Input {} not found!", m_Specification.DebugName, name);
 	}

@@ -60,7 +60,7 @@ layout(push_constant) uniform Uniforms
 	float Scale;
 } u_Uniforms;
 
-vec4 Grid(vec3 fragPos, float scale)
+vec4 Grid(vec3 fragPos, float scale, out int onAxis)
 {
 	vec2 coord = fragPos.xz * scale;
 	vec2 derivative = fwidth(coord * 0.8f);
@@ -74,13 +74,21 @@ vec4 Grid(vec3 fragPos, float scale)
 	float minX = min(derivative.x, 2.0f);
 	float minZ = min(derivative.y, 2.0f);
 
+	onAxis = 0;
+
 	// X axis
-	if (fragPos.z > -0.2f * minZ && fragPos.z < 0.2f * minZ)
-		color = vec4(1.0f, 0.0f, 0.0f, 1.0f);
+	if (fragPos.z > -0.88f * u_Uniforms.Scale * minZ && fragPos.z < 0.88f * u_Uniforms.Scale * minZ)
+	{
+		color = vec4(1.0f, 0.0f, 0.0f, 0.95f);
+		onAxis = 1;
+	}
 
 	// Z axis
-	if (fragPos.x > -0.2f * minX && fragPos.x < 0.2f * minX)
-		color = vec4(0.0f, 0.0f, 1.0f, 1.0f);
+	if (fragPos.x > -0.88f * u_Uniforms.Scale * minX && fragPos.x < 0.88f * u_Uniforms.Scale  * minX)
+	{
+		color = vec4(0.0f, 0.0f, 1.0f, 0.95f);
+		onAxis = 1;
+	}
 
 	return color;
 }
@@ -110,12 +118,14 @@ void main()
 	gl_FragDepth = fragmentDepth;
 
 	float linearDepth = 1.0f / LinearizeDepth(fragmentDepth);
-	float fading = max(0.0f, linearDepth + 0.02f);
+	float fading = max(0.0f, linearDepth + 0.1f);
 	
 	// Add resolution on the 1x1 squares
 	// o_Color = (Grid(fragPos, 1.0f / u_Uniforms.Scale) + Grid(fragPos, (1.0f / (u_Uniforms.Scale / 2.0f)))) * float(t > 0.0f);
-	o_Color = Grid(fragPos, 1.0f / u_Uniforms.Scale) * float(t > 0.0f);
-	o_Color.a *= fading;
+	int onAxis;
+	o_Color = Grid(fragPos, 1.0f / u_Uniforms.Scale, onAxis) * float(t > 0.0f);
+	if (onAxis == 0)
+		o_Color.a *= fading;
 
 	if (o_Color.a <= 0.0f)
 		discard;

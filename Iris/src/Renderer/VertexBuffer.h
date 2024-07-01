@@ -138,8 +138,15 @@ namespace Iris {
 		VertexBuffer(uint32_t size, VertexBufferUsage usage = VertexBufferUsage::Dynamic);
 		~VertexBuffer();
 
-		[[nodiscard]] static Ref<VertexBuffer> Create(void* data, uint32_t size, VertexBufferUsage usage = VertexBufferUsage::Static);
-		[[nodiscard]] static Ref<VertexBuffer> Create(uint32_t size, VertexBufferUsage usage = VertexBufferUsage::Static);
+		[[nodiscard]] static Ref<VertexBuffer> Create(const void* data, uint32_t size, VertexBufferUsage usage = VertexBufferUsage::Static)
+		{
+			return CreateRef<VertexBuffer>(data, size, usage);
+		}
+
+		[[nodiscard]] static Ref<VertexBuffer> Create(uint32_t size, VertexBufferUsage usage = VertexBufferUsage::Dynamic)
+		{
+			return CreateRef<VertexBuffer>(size, usage);
+		}
 
 		// NOTE: Does not work if you created the buffer without giving it data directly
 		void SetData(const void* data, uint32_t size, uint32_t offset = 0);

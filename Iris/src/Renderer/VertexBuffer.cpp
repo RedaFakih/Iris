@@ -97,16 +97,6 @@ namespace Iris {
 		m_LocalData.Release();
 	}
 
-	Ref<VertexBuffer> VertexBuffer::Create(void* data, uint32_t size, VertexBufferUsage usage)
-	{
-		return CreateRef<VertexBuffer>(data, size, usage);
-	}
-
-	Ref<VertexBuffer> VertexBuffer::Create(uint32_t size, VertexBufferUsage usage)
-	{
-		return CreateRef<VertexBuffer>(size, usage);
-	}
-
 	void VertexBuffer::SetData(const void* data, uint32_t size, uint32_t offset)
 	{
 		IR_ASSERT(size <= m_LocalData.Size);

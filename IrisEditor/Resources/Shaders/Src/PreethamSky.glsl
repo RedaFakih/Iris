@@ -6,7 +6,6 @@
 // Heavily adapted from https://www.shadertoy.com/view/llSSDR
 
 const float PI = 3.14159265358979323846f;
-const float TwoPI = 2 * PI;
 
 layout(set = 3, binding = 0, rgba16f) restrict writeonly uniform imageCube o_OutputCubeMap;
 
@@ -27,7 +26,6 @@ vec3 GetCubeMapTexCoord(vec2 outputImageSize)
     vec2 uv = 2.0f * vec2(st.x, 1.0f - st.y) - vec2(1.0f);
 
     vec3 ret;
-
     if (gl_GlobalInvocationID.z == 0u)      ret = vec3( 1.0f,  uv.y, -uv.x);
     else if (gl_GlobalInvocationID.z == 1u) ret = vec3(-1.0f,  uv.y,  uv.x);
     else if (gl_GlobalInvocationID.z == 2u) ret = vec3( uv.x,  1.0f, -uv.y);
@@ -131,15 +129,13 @@ vec3 CalculateSkyLuminanceRGB(vec3 s, vec3 e, float t)
 	return YxyToRGB(Yp);
 }
 
-// Specify the size of invocations per workgroup (size of workgroups was specified on C++ land via glDispatchCompute(x, y, z))
 layout(local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
-
 void main()
 {
 	vec3 cubeTC = GetCubeMapTexCoord(vec2(imageSize(o_OutputCubeMap)));
 
 	float turbidity     =  u_Uniforms.TurbidityAzimuthInclination.x;
-    float azimuth       = u_Uniforms.TurbidityAzimuthInclination.y;;
+    float azimuth       = u_Uniforms.TurbidityAzimuthInclination.y;
     float inclination   = u_Uniforms.TurbidityAzimuthInclination.z;
     vec3 sunDir     	= normalize(vec3(sin(inclination) * cos(azimuth), cos(inclination), sin(inclination) * sin(azimuth)));
     vec3 viewDir  		= cubeTC;

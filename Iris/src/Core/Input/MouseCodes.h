@@ -40,4 +40,4 @@ namespace Iris {
 
 #define IR_MOUSE_BUTTON_LEFT     ::Iris::MouseButton::Left
 #define IR_MOUSE_BUTTON_RIGHT    ::Iris::MouseButton::Right
-#define IR_MOUSE_BUTTON_MIDDLE   ::Iris::MouseButton::Middle#pragma once
+#define IR_MOUSE_BUTTON_MIDDLE   ::Iris::MouseButton::Middle

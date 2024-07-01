@@ -194,9 +194,9 @@ namespace Iris::UI {
 		return colRaw;
 	}
 
-	bool PropertyColor3(const char* label, glm::vec3& color, bool showAsWheel = true);
+	bool PropertyColor3(const char* label, glm::vec3& color, bool showAsWheel = false);
 
-	bool PropertyColor4(const char* label, glm::vec4& color, bool showAsWheel = true);
+	bool PropertyColor4(const char* label, glm::vec4& color, bool showAsWheel = false);
 
 	//////////////////////////////////////////////////////////////////////////
 	//////// DrawList Utils /////////
@@ -266,6 +266,7 @@ namespace Iris::UI {
 
 	void TextWrapped(const char* value, bool isError = false);
 	bool PropertyString(const char* label, const char* value, bool isError = false);
+	bool PropertyStringMultiline(const char* label, std::string& value, const char* helpText = "");
 	bool PropertyStringReadOnly(const char* label, const std::string& value, bool isErorr = false);
 	bool PropertyStringReadOnly(const char* label, const char* value, bool isErorr = false);
 	bool Property(const char* label, float& value, float delta = 0.1f, float min = 0.0f, float max = 0.0f, const char* helpText = "");
@@ -1091,5 +1092,19 @@ namespace Iris::UI {
 
 		return modified;
 	}
+
+	/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	/// Used by the SceneHierarchyPanel and EditorLayer for now for creating -Sections------------- of that format inside windows
+	/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+	bool BeginSection(const char* name, int& sectionIndex, bool columns2 = true, float column1Width = 0.0f, float column2Width = 0.0f);
+
+	void EndSection();
+
+	void SectionText(const char* label, const char* text);
+	bool SectionCheckbox(const char* label, bool& value, const char* hint = "");
+	bool SectionSlider(const char* label, float& value, float min = 0.0f, float max = 0.0f, const char* hint = "");
+	bool SectionDrag(const char* label, float& value, float delta = 1.0f, float min = 0.0f, float max = 0.0f, const char* hint = "");
+	bool SectionDropdown(const char* label, const char** options, int32_t optionCount, int32_t* selected, const char* hint = "");
 
 }

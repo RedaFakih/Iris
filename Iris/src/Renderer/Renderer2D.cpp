@@ -3,6 +3,7 @@
 
 #include "Renderer.h"
 #include "StorageBufferSet.h"
+#include "Text/MSDFData.h"
 
 namespace Iris {
 
@@ -39,21 +40,14 @@ namespace Iris {
 
 		uint32_t framesInFlight = Renderer::GetConfig().FramesInFlight;
 
-		// NOTE: This is just a place holder framebuffer and is not used... Waste of memory to be fixed.
-		FramebufferSpecification framebufferSpec = {
-			.DebugName = "PlaceholderFramebuffer",
-			.ClearColorOnLoad = false,
-			.ClearColor = { 0.1f, 0.5f, 0.5f, 1.0f },
-			.Attachments = { ImageFormat::RGBA },
-			.Samples = 1,
-			.SwapchainTarget = m_Specification.SwapChainTarget
-		};
+		// We do not release shader modules for the 2D renderer since we could have multiple instances of it
+		constexpr bool releaseShaderModules = false;
 
 		{
 			PipelineSpecification pipelineSpecification = {
 				.DebugName = "Renderer2D-Quad",
 				.Shader = Renderer::GetShadersLibrary()->Get("Renderer2D_Quad"),
-				.TargetFramebuffer = Framebuffer::Create(framebufferSpec),
+				.TargetFramebuffer = m_Specification.TargetFramebuffer,
 				.VertexLayout = {
 					{ ShaderDataType::Float3, "a_Position" },
 					{ ShaderDataType::Float4, "a_Color" },
@@ -62,8 +56,7 @@ namespace Iris {
 					{ ShaderDataType::Float, "a_TilingFactor" }
 				},
 				.BackFaceCulling = false,
-				// Do not register as shader dependency on creation...
-				.RegisterAsShaderDependency = false
+				.ReleaseShaderModules = releaseShaderModules
 			};
 
 			RenderPassSpecification quadSpec = {
@@ -110,6 +103,7 @@ namespace Iris {
 				m_QuadIndexBuffer = IndexBuffer::Create(quadIndices, static_cast<uint32_t>(allocationSize));
 				m_MemoryStats.TotalAllocated += allocationSize;
 			}
+
 			delete[] quadIndices;
 		}
 
@@ -128,27 +122,24 @@ namespace Iris {
 			PipelineSpecification pipelineSpecification = {
 				.DebugName = "Renderer2D-Line",
 				.Shader = Renderer::GetShadersLibrary()->Get("Renderer2D_Line"),
-				.TargetFramebuffer = framebuffer,
+				.TargetFramebuffer = m_Specification.TargetFramebuffer,
 				.VertexLayout = {
 					{ ShaderDataType::Float3, "a_Position" },
 					{ ShaderDataType::Float4, "a_Color" }
 				},
 				.Topology = PrimitiveTopology::Lines,
 				.LineWidth = 2.0f,
-				// Do not register as shader dependency on creation...
-				.RegisterAsShaderDependency = false
+				.ReleaseShaderModules = releaseShaderModules
 			};
 
-			{
-				RenderPassSpecification lineSpec = {
-					.DebugName = "Renderer2D-Line",
-					.Pipeline = Pipeline::Create(pipelineSpecification),
-					.MarkerColor = { 0.0f, 0.0f, 1.0f, 1.0f }
-				};
-				m_LinePass = RenderPass::Create(lineSpec);
-				m_LinePass->SetInput("Camera", m_UBSCamera);
-				m_LinePass->Bake();
-			}
+			RenderPassSpecification lineSpec = {
+				.DebugName = "Renderer2D-Line",
+				.Pipeline = Pipeline::Create(pipelineSpecification),
+				.MarkerColor = { 0.0f, 0.0f, 1.0f, 1.0f }
+			};
+			m_LinePass = RenderPass::Create(lineSpec);
+			m_LinePass->SetInput("Camera", m_UBSCamera);
+			m_LinePass->Bake();
 
 			m_LineVertexBuffers.resize(1);
 			m_LineVertexBufferBases.resize(1);
@@ -173,11 +164,76 @@ namespace Iris {
 				m_LineIndexBuffer = IndexBuffer::Create(lineIndices, static_cast<uint32_t>(allocationSize));
 				m_MemoryStats.TotalAllocated += allocationSize;
 			}
+
 			delete[] lineIndices;
 		}
 
-		m_QuadMaterial = Material::Create(m_QuadPass->GetPipeline()->GetShader(), "QuadMaterial");
-		m_LineMaterial = Material::Create(m_LinePass->GetPipeline()->GetShader(), "LineMaterial");
+		{
+			PipelineSpecification spec = {
+				.DebugName = "Renderer2D-Text",
+				.Shader = Renderer::GetShadersLibrary()->Get("Renderer2D_Text"),
+				.TargetFramebuffer = m_Specification.TargetFramebuffer,
+				.VertexLayout = {
+					{ ShaderDataType::Float3, "a_Position" },
+					{ ShaderDataType::Float4, "a_Color" },
+					{ ShaderDataType::Float2, "a_TexCoord" },
+					{ ShaderDataType::Float, "a_TexIndex" }
+				},
+				.BackFaceCulling = false,
+				.ReleaseShaderModules = releaseShaderModules
+			};
+
+			RenderPassSpecification passSpec = {
+				.DebugName = "Renderer2D-Text",
+				.Pipeline = Pipeline::Create(spec),
+				.MarkerColor = { 0.0f, 0.0f, 1.0f, 1.0f }
+			};
+			m_TextPass = RenderPass::Create(passSpec);
+			m_TextPass->SetInput("Camera", m_UBSCamera);
+			m_TextPass->Bake();
+
+			m_TextVertexBuffers.resize(1);
+			m_TextVertexBufferBases.resize(1);
+			m_TextVertexBufferPtr.resize(1);
+
+			m_TextVertexBuffers[0].resize(framesInFlight);
+			m_TextVertexBufferBases[0].resize(framesInFlight);
+			for (uint32_t i = 0; i < framesInFlight; i++)
+			{
+				uint64_t allocationSize = c_MaxVertices * sizeof(TextVertex);
+				m_TextVertexBuffers[0][i] = VertexBuffer::Create(static_cast<uint32_t>(allocationSize));
+				m_MemoryStats.TotalAllocated += allocationSize;
+				m_TextVertexBufferBases[0][i] = new TextVertex[c_MaxVertices];
+			}
+
+			uint32_t* textQuadIndices = new uint32_t[c_MaxIndices];
+
+			uint32_t offset = 0;
+			for (uint32_t i = 0; i < c_MaxIndices; i += 6)
+			{
+				textQuadIndices[i + 0] = offset + 0;
+				textQuadIndices[i + 1] = offset + 1;
+				textQuadIndices[i + 2] = offset + 2;
+
+				textQuadIndices[i + 3] = offset + 2;
+				textQuadIndices[i + 4] = offset + 3;
+				textQuadIndices[i + 5] = offset + 0;
+
+				offset += 4;
+			}
+
+			{
+				uint64_t allocationSize = c_MaxIndices * sizeof(uint32_t);
+				m_TextIndexBuffer = IndexBuffer::Create(textQuadIndices, static_cast<uint32_t>(allocationSize));
+				m_MemoryStats.TotalAllocated += allocationSize;
+			}
+
+			delete[] textQuadIndices;
+		}
+
+		m_QuadMaterial = Material::Create(Renderer::GetShadersLibrary()->Get("Renderer2D_Quad"), "QuadMaterial");
+		m_LineMaterial = Material::Create(Renderer::GetShadersLibrary()->Get("Renderer2D_Line"), "LineMaterial");
+		m_TextMaterial = Material::Create(Renderer::GetShadersLibrary()->Get("Renderer2D_Text"), "TextMaterial");
 	}
 
 	void Renderer2D::Shutdown()
@@ -189,6 +245,12 @@ namespace Iris {
 		}
 
 		for (auto& buffers : m_LineVertexBufferBases)
+		{
+			for (auto buffer : buffers)
+				delete[] buffer;
+		}
+
+		for (auto& buffers : m_TextVertexBufferBases)
 		{
 			for (auto buffer : buffers)
 				delete[] buffer;
@@ -208,8 +270,6 @@ namespace Iris {
 			instance->m_UBSCamera->RT_Get()->RT_SetData(&viewProj, sizeof(UBCamera));
 		});
 
-		// IR_CORE_TRACE_TAG("Renderer", "Renderer2D::BeginScene frame {}", frameIndex);
-
 		m_QuadIndexCount = 0;
 		for (uint32_t i = 0; i < m_QuadVertexBufferPtr.size(); i++)
 			m_QuadVertexBufferPtr[i] = m_QuadVertexBufferBases[i][frameIndex];
@@ -218,11 +278,20 @@ namespace Iris {
 		for (uint32_t i = 0; i < m_LineVertexBufferPtr.size(); i++)
 			m_LineVertexBufferPtr[i] = m_LineVertexBufferBases[i][frameIndex];
 
+		m_TextIndexCount = 0;
+		for (uint32_t i = 0; i < m_TextVertexBufferPtr.size(); i++)
+			m_TextVertexBufferPtr[i] = m_TextVertexBufferBases[i][frameIndex];
+
 		m_TextureSlotIndex = 1;
+		m_FontTextureSlotIndex = 0;
+		m_TextBufferWriteIndex = 0;
 
 		// Set all other texture slots to null and keep only the first slot for the white texture
 		for (uint32_t i = 1; i < m_TextureSlots.size(); i++)
 			m_TextureSlots[i] = nullptr;
+
+		for (uint32_t i = 0; i < m_TextureSlots.size(); i++)
+			m_FontTextureSlots[i] = nullptr;
 	}
 
 	void Renderer2D::EndScene(bool prepareForRendering)
@@ -237,7 +306,7 @@ namespace Iris {
 		// Quads
 		for (uint32_t i = 0; i <= m_QuadBufferWriteIndex; i++)
 		{
-			dataSize = (uint32_t)((uint8_t*)m_QuadVertexBufferPtr[i] - (uint8_t*)m_QuadVertexBufferBases[i][frameIndex]);
+			dataSize = static_cast<uint32_t>(reinterpret_cast<uint8_t*>(m_QuadVertexBufferPtr[i]) - reinterpret_cast<uint8_t*>(m_QuadVertexBufferBases[i][frameIndex]));
 			if (dataSize)
 			{
 				uint32_t indexCount = i == m_QuadBufferWriteIndex ? m_QuadIndexCount - (c_MaxIndices * i) : c_MaxIndices;
@@ -258,14 +327,39 @@ namespace Iris {
 				m_DrawStats.DrawCalls++;
 				m_MemoryStats.Used += dataSize;
 			}
+		}
 
+		// Text
+		for (uint32_t i = 0; i <= m_TextBufferWriteIndex; i++)
+		{
+			dataSize = static_cast<uint32_t>(reinterpret_cast<uint8_t*>(m_TextVertexBufferPtr[i]) - reinterpret_cast<uint8_t*>(m_TextVertexBufferBases[i][frameIndex]));
+			if (dataSize)
+			{
+				uint32_t indexCount = i == m_TextBufferWriteIndex ? m_TextIndexCount - (c_MaxIndices * i) : c_MaxIndices;
+				m_TextVertexBuffers[i][frameIndex]->SetData(m_TextVertexBufferBases[i][frameIndex], dataSize);
+
+				for (uint32_t i = 0; i < m_FontTextureSlots.size(); i++)
+				{
+					if (m_FontTextureSlots[i])
+						m_TextMaterial->Set("u_FontAtlases", m_FontTextureSlots[i], i);
+					else
+						m_TextMaterial->Set("u_FontAtlases", m_WhiteTexture, i);
+				}
+
+				Renderer::BeginRenderPass(m_RenderCommandBuffer, m_TextPass);
+				Renderer::RenderGeometry(m_RenderCommandBuffer, m_TextPass->GetPipeline(), m_TextMaterial, m_TextVertexBuffers[i][frameIndex], m_TextIndexBuffer, glm::mat4(1.0f), indexCount);
+				Renderer::EndRenderPass(m_RenderCommandBuffer);
+
+				m_DrawStats.DrawCalls++;
+				m_MemoryStats.Used += dataSize;
+			}
 		}
 
 		// Lines
 		VkCommandBuffer commandBuffer = m_RenderCommandBuffer->GetActiveCommandBuffer();
 		for (uint32_t i = 0; i <= m_LineBufferWriteIndex; i++)
 		{
-			dataSize = (uint32_t)((uint8_t*)m_LineVertexBufferPtr[i] - (uint8_t*)m_LineVertexBufferBases[i][frameIndex]);
+			dataSize = static_cast<uint32_t>(reinterpret_cast<uint8_t*>(m_LineVertexBufferPtr[i]) - reinterpret_cast<uint8_t*>(m_LineVertexBufferBases[i][frameIndex]));
 			if (dataSize)
 			{
 				uint32_t indexCount = i == m_LineBufferWriteIndex ? m_LineIndexCount - (c_MaxLineIndices * i) : c_MaxLineIndices;
@@ -278,7 +372,6 @@ namespace Iris {
 				m_DrawStats.DrawCalls++;
 				m_MemoryStats.Used += dataSize;
 			}
-
 		}
 
 		// Insert image barriers to prepare the images for rendering
@@ -294,30 +387,30 @@ namespace Iris {
 		Ref<Renderer2D> instance = this;
 		Renderer::Submit([instance]() mutable
 		{
-			// For rendering the color image
+			// For rendering the final SceneRenderer + Renderer2D color image
 			Renderer::InsertImageMemoryBarrier(
 				instance->m_RenderCommandBuffer->GetActiveCommandBuffer(),
 				instance->m_LinePass->GetOutput(0)->GetVulkanImage(),
-				VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
-				VK_ACCESS_SHADER_READ_BIT,
+				VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
+				VK_ACCESS_2_SHADER_READ_BIT,
 				VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
 				VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-				VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-				VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+				VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
+				VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,
 				{ .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = 1 }
 			);
 
-			// For rendering the depth image
+			// For rendering the final SceneRenderer + Renderer2D depth image
 			Renderer::InsertImageMemoryBarrier(
 				instance->m_RenderCommandBuffer->GetActiveCommandBuffer(),
 				instance->m_LinePass->GetDepthOutput()->GetVulkanImage(),
-				VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
-				VK_ACCESS_SHADER_READ_BIT,
+				VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+				VK_ACCESS_2_SHADER_READ_BIT,
 				VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
 				VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL,
-				VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT,
-				VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-				{ .aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = 1 }
+				VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT,
+				VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,
+				{ .aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = 1 }
 			);
 		});
 	}
@@ -330,19 +423,25 @@ namespace Iris {
 		{
 			{
 				PipelineSpecification pipelineSpec = m_QuadPass->GetSpecification().Pipeline->GetSpecification();
-				pipelineSpec.TargetFramebuffer = nullptr; // Release whatever framebuffer was before
 				pipelineSpec.TargetFramebuffer = framebuffer;
-				pipelineSpec.RegisterAsShaderDependency = true; // Start tracking the pipeline as a shader dependency in the renderer
+				pipelineSpec.ReleaseShaderModules = true;
 				RenderPassSpecification& renderpassSpec = m_QuadPass->GetSpecification();
 				renderpassSpec.Pipeline = Pipeline::Create(pipelineSpec);
 			}
 
 			{
 				PipelineSpecification pipelineSpec = m_LinePass->GetSpecification().Pipeline->GetSpecification();
-				pipelineSpec.TargetFramebuffer = nullptr; // Release whatever framebuffer was before
 				pipelineSpec.TargetFramebuffer = framebuffer;
-				pipelineSpec.RegisterAsShaderDependency = true; // Start tracking the pipeline as a shader dependency in the renderer
+				pipelineSpec.ReleaseShaderModules = true;
 				RenderPassSpecification& renderpassSpec = m_LinePass->GetSpecification();
+				renderpassSpec.Pipeline = Pipeline::Create(pipelineSpec);
+			}
+			
+			{
+				PipelineSpecification pipelineSpec = m_TextPass->GetSpecification().Pipeline->GetSpecification();
+				pipelineSpec.TargetFramebuffer = framebuffer;
+				pipelineSpec.ReleaseShaderModules = true;
+				RenderPassSpecification& renderpassSpec = m_TextPass->GetSpecification();
 				renderpassSpec.Pipeline = Pipeline::Create(pipelineSpec);
 			}
 		}
@@ -390,6 +489,24 @@ namespace Iris {
 		}
 	}
 
+	void Renderer2D::AddTextBuffer()
+	{
+		uint32_t framesInFlight = Renderer::GetConfig().FramesInFlight;
+
+		VertexBufferPerFrame& newVertexBuffer = m_TextVertexBuffers.emplace_back();
+		TextVertexBasePerFrame& newVertexBufferBase = m_TextVertexBufferBases.emplace_back();
+
+		newVertexBuffer.resize(framesInFlight);
+		newVertexBufferBase.resize(framesInFlight);
+		for (uint32_t i = 0; i < framesInFlight; i++)
+		{
+			uint64_t allocationSize = c_MaxVertices * sizeof(TextVertex);
+			newVertexBuffer[i] = VertexBuffer::Create(static_cast<uint32_t>(allocationSize));
+			m_MemoryStats.TotalAllocated += allocationSize;
+			newVertexBufferBase[i] = new TextVertex[c_MaxVertices];
+		}
+	}
+
 	Renderer2D::QuadVertex*& Renderer2D::GetWriteableQuadBuffer()
 	{
 		uint32_t frameIndex = Renderer::GetCurrentFrameIndex();
@@ -418,6 +535,21 @@ namespace Iris {
 		}
 
 		return m_LineVertexBufferPtr[m_LineBufferWriteIndex];
+	}
+
+	Renderer2D::TextVertex*& Renderer2D::GetWriteableTextBuffer()
+	{
+		uint32_t frameIndex = Renderer::GetCurrentFrameIndex();
+
+		m_TextBufferWriteIndex = m_TextIndexCount / c_MaxIndices;
+		if (m_TextBufferWriteIndex >= m_TextVertexBufferBases.size())
+		{
+			AddTextBuffer();
+			m_TextVertexBufferPtr.emplace_back();
+			m_TextVertexBufferPtr[m_TextBufferWriteIndex] = m_TextVertexBufferBases[m_TextBufferWriteIndex][frameIndex];
+		}
+
+		return m_TextVertexBufferPtr[m_TextBufferWriteIndex];
 	}
 
 	void Renderer2D::DrawQuad(const glm::mat4& transform, const glm::vec4& color)
@@ -916,6 +1048,192 @@ namespace Iris {
 
 		for (uint32_t i = 0; i < 4; i++)
 			DrawLine(corners[i], corners[i + 4], color);
+	}
+
+	void Renderer2D::DrawString(const std::string& string, const glm::vec3& position, float maxWidth, const glm::vec4& color)
+	{
+		DrawString(string, Font::GetDefaultFont(), position, maxWidth, color);
+	}
+
+	void Renderer2D::DrawString(const std::string& string, Ref<Font> font, const glm::vec3& position, float maxWidth, const glm::vec4& color)
+	{
+		DrawString(string, font, glm::translate(glm::mat4(1.0f), position), maxWidth, color);
+	}
+
+	void Renderer2D::DrawString(const std::string& string, Ref<Font> font, const glm::mat4& transform, float maxWidth, const glm::vec4& color, float lineHeightOffset, float kerning)
+	{
+		if (string.empty())
+			return;
+
+		Ref<Texture2D> fontAtlas = font->GetFontAtlas();
+		IR_ASSERT(fontAtlas);
+		float textureIndex = -1.0f;
+
+		for (uint32_t i = 0; i < m_FontTextureSlotIndex; i++)
+		{
+			if (*m_FontTextureSlots[i].Raw() == *fontAtlas.Raw())
+			{
+				textureIndex = static_cast<float>(i);
+				break;
+			}
+		}
+
+		if (textureIndex == -1.0f)
+		{
+			textureIndex = static_cast<float>(m_FontTextureSlotIndex);
+			m_FontTextureSlots[m_FontTextureSlotIndex] = fontAtlas;
+			m_FontTextureSlotIndex++;
+		}
+
+		const msdf_atlas::FontGeometry& fontGeometry = font->GetMSDFData()->FontGeometry;
+		const msdfgen::FontMetrics& metrics = fontGeometry.getMetrics();
+
+		// TODO: Clean up these font metrics <https://freetype.org/freetype2/docs/glyphs/glyphs-3.html>
+		std::vector<int> nextLines;
+		{
+			double x = 0.0;
+			double fsScale = 1.0 / (metrics.ascenderY - metrics.descenderY);
+			double y = -fsScale * metrics.ascenderY;
+			int lastSpace = -1;
+
+			for (int i = 0; i < static_cast<int>(string.size()); i++)
+			{
+				char character = string[i];
+
+				if (character == '\n')
+				{
+					x = 0;
+					y -= fsScale * metrics.lineHeight + lineHeightOffset;
+					continue;
+				}
+
+				if (character == '\r')
+					continue;
+
+				const msdf_atlas::GlyphGeometry* glyph = fontGeometry.getGlyph(character);
+				if (!glyph)
+					continue;
+
+				if (character != ' ')
+				{
+					double pl, pb, pr, pt;
+					glyph->getQuadPlaneBounds(pl, pb, pr, pt);
+					glm::vec2 quadMin = { static_cast<float>(pl), static_cast<float>(pb) };
+					glm::vec2 quadMax = { static_cast<float>(pr), static_cast<float>(pt) };
+
+					quadMin *= fsScale;
+					quadMax *= fsScale;
+					quadMin += glm::vec2{ x, y };
+					quadMax += glm::vec2{ x, y };
+
+					if (quadMax.x > maxWidth && lastSpace != -1)
+					{
+						i = lastSpace;
+						nextLines.emplace_back(lastSpace);
+						lastSpace = -1;
+						x = 0;
+						y -= fsScale * metrics.lineHeight + lineHeightOffset;
+					}
+				}
+				else
+				{
+					lastSpace = i;
+				}
+
+				double advance = glyph->getAdvance();
+				fontGeometry.getAdvance(advance, character, string[i + 1]);
+				x += fsScale * advance + kerning;
+			}
+		}
+
+		{
+			double x = 0.0;
+			double fsScale = 1.0 / (metrics.ascenderY - metrics.descenderY);
+			double y = 0.0;
+
+			auto NextLine = [](int index, const std::vector<int>& lines)
+			{
+				for (int line : lines)
+				{
+					if (line == index)
+						return true;
+				}
+				
+				return false;
+			};
+
+			for (int i = 0; i < static_cast<int>(string.size()); i++)
+			{
+				char character = string[i];
+
+				if (character == '\n' || NextLine(i, nextLines))
+				{
+					x = 0;
+					y -= fsScale * metrics.lineHeight + lineHeightOffset;
+					continue;
+				}
+
+				const msdf_atlas::GlyphGeometry* glyph = fontGeometry.getGlyph(character);
+				if (!glyph)
+					continue;
+
+				double l, b, r, t;
+				glyph->getQuadAtlasBounds(l, b, r, t);
+
+				double pl, pb, pr, pt;
+				glyph->getQuadPlaneBounds(pl, pb, pr, pt);
+
+				pl *= fsScale;
+				pb *= fsScale;
+				pr *= fsScale;
+				pt *= fsScale;
+
+				pl += x;
+				pb += y;
+				pr += x;
+				pt += y;
+
+				double texelWidth = 1.0 / fontAtlas->GetWidth();
+				double texelHeight = 1.0 / fontAtlas->GetHeight();
+
+				l *= texelWidth;
+				b *= texelHeight;
+				r *= texelWidth;
+				t *= texelHeight;
+
+				auto& bufferPtr = GetWriteableTextBuffer();
+				bufferPtr->Position = transform * glm::vec4{ pl, pb, 0.0f, 1.0f };
+				bufferPtr->Color = color;
+				bufferPtr->TexCoord = { l, b };
+				bufferPtr->TexIndex = textureIndex;
+				bufferPtr++;
+
+				bufferPtr->Position = transform * glm::vec4{ pl, pt, 0.0f, 1.0f };
+				bufferPtr->Color = color;
+				bufferPtr->TexCoord = { l, t };
+				bufferPtr->TexIndex = textureIndex;
+				bufferPtr++;
+
+				bufferPtr->Position = transform * glm::vec4{ pr, pt, 0.0f, 1.0f };
+				bufferPtr->Color = color;
+				bufferPtr->TexCoord = { r, t };
+				bufferPtr->TexIndex = textureIndex;
+				bufferPtr++;
+
+				bufferPtr->Position = transform * glm::vec4{ pr, pb, 0.0f, 1.0f };
+				bufferPtr->Color = color;
+				bufferPtr->TexCoord = { r, b };
+				bufferPtr->TexIndex = textureIndex;
+				bufferPtr++;
+
+				double advance = glyph->getAdvance();
+				fontGeometry.getAdvance(advance, character, string[i + 1]);
+				x += fsScale * advance * kerning;
+
+				m_TextIndexCount += 6;
+				m_DrawStats.QuadCount++;
+			}
+		}
 	}
 
 	void Renderer2D::SetLineWidth(float lineWidth)

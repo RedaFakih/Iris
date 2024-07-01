@@ -113,17 +113,22 @@ namespace Iris {
 		Set<glm::mat4>(name, value);
 	}
 
-	void Material::Set(std::string_view name, Ref<Texture2D> value)
+	void Material::Set(std::string_view name, const Ref<Texture2D>& value)
 	{
 		SetVulkanDescriptor(name, value);
 	}
 
-	void Material::Set(std::string_view name, Ref<Texture2D> value, uint32_t arrayIndex)
+	void Material::Set(std::string_view name, const Ref<Texture2D>& value, uint32_t arrayIndex)
 	{
 		SetVulkanDescriptor(name, value, arrayIndex);
 	}
 
-	void Material::Set(std::string_view name, Ref<TextureCube> value)
+	void Material::Set(std::string_view name, const Ref<TextureCube>& value)
+	{
+		SetVulkanDescriptor(name, value);
+	}
+
+	void Material::Set(std::string_view name, const Ref<ImageView>& value)
 	{
 		SetVulkanDescriptor(name, value);
 	}
@@ -259,6 +264,11 @@ namespace Iris {
 	void Material::SetVulkanDescriptor(std::string_view name, const Ref<TextureCube>& texture)
 	{
 		m_DescriptorSetManager.SetInput(name, texture);
+	}
+
+	void Material::SetVulkanDescriptor(std::string_view name, const Ref<ImageView>& imageView)
+	{
+		m_DescriptorSetManager.SetInput(name, imageView);
 	}
 
 	const ShaderUniform* Material::FindUniformDeclaration(std::string_view name) const

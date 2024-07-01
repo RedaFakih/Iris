@@ -29,12 +29,17 @@ namespace Iris {
 		bool DeserializeFromYAML(const std::string& yamlString, Ref<MaterialAsset>& targetAsset, AssetHandle handle) const;
 	};
 
-	// TODO:
-	// struct EnvironmentSerializer : public AssetSerializer
-	// {
-	// 	virtual void Serialize(const AssetMetaData& metaData, const Ref<Asset>& asset) const override {}
-	// 	virtual bool TryLoadData(const AssetMetaData& metaData, Ref<Asset>& asset) const override;
-	// };
+	struct FontSerializer : public AssetSerializer
+	{
+		virtual void Serialize(const AssetMetaData& metaData, const Ref<Asset>& asset) const override {}
+		virtual bool TryLoadData(const AssetMetaData& metaData, Ref<Asset>& asset) const override;
+	};
+
+	struct EnvironmentSerializer : public AssetSerializer
+	{
+		virtual void Serialize(const AssetMetaData& metaData, const Ref<Asset>& asset) const override {}
+		virtual bool TryLoadData(const AssetMetaData& metaData, Ref<Asset>& asset) const override;
+	};
 
 	// TODO:
 	// struct SceneAssetSerializer : public AssetSerializer

@@ -125,6 +125,8 @@ namespace Iris {
 	{
 		VkDevice device = RendererContext::GetCurrentDevice()->GetVulkanDevice();
 
+		Release();
+
 		std::vector<VkDescriptorSetLayout> descriptorSetLayouts = m_Shader->GetAllDescriptorSetLayouts();
 
 		VkPipelineLayoutCreateInfo pipelineLayoutCI = {

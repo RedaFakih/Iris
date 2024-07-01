@@ -2,6 +2,9 @@
 #include "AssetManager.h"
 
 #include "Renderer/Renderer.h"
+#include "Renderer/StorageBufferSet.h"
+#include "Renderer/Text/Font.h"
+#include "Renderer/UniformBufferSet.h"
 #include "Renderer/Texture.h"
 #include "Scene/SceneEnvironment.h"
 
@@ -11,6 +14,7 @@ namespace Iris {
 
 	static std::unordered_map<AssetType, GetDefualtPlaceholderResourceFunc> s_AssetPlaceHolderTable = {
 		{ AssetType::Texture, []() -> Ref<Asset> { return Renderer::GetWhiteTexture(); } },
+		{ AssetType::Font, []() -> Ref<Asset> { return Font::GetDefaultFont(); } },
 		{ AssetType::EnvironmentMap, []() -> Ref<Asset> { return Renderer::GetEmptyEnvironment(); } }
 	};
 

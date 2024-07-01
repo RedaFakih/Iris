@@ -69,6 +69,11 @@ namespace Iris {
 		m_DescriptorSetManager.SetInput(name, textureCube);
 	}
 
+	void ComputePass::SetInput(std::string_view name, Ref<ImageView> imageView)
+	{
+		m_DescriptorSetManager.SetInput(name, imageView);
+	}
+
 	// TODO:
 	// void ComputePass::SetInput(std::string_view name, Ref<StorageImage> storageImage)
 	// {

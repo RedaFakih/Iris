@@ -7,14 +7,13 @@ Entities:
     Children:
       []
     TransformComponent:
-      Position: [1.4827373, 0, -0.521002054]
+      Position: [1.64311528, 0, -0.521002054]
       Rotation: [0, 0, 0]
       Scale: [0.00880004372, 0.00880004372, 0.00880004372]
     StaticMeshComponent:
       AssetID: 3448222499160019637
       MaterialTable:
         0: 0
-        1: 0
       Visible: true
   - Entity: 978865093965260794
     TagComponent:
@@ -45,7 +44,110 @@ Entities:
       AssetID: 8492331187162521719
       MaterialTable:
         0: 0
+        1: 0
+        2: 0
       Visible: true
+  - Entity: 1368807949253593945
+    TagComponent:
+      Tag: Sky Light
+    Parent: 0
+    Children:
+      []
+    TransformComponent:
+      Position: [0, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    SkyLightComponent:
+      EnvironmentMap: 0
+      Intensity: 1
+      Lod: 0
+      DynamicSky: true
+      TurbidityAzimuthInclination: [6.17000008, -1.06465089, 1.57079637]
+  - Entity: 3336264825032574400
+    TagComponent:
+      Tag: Text
+    Parent: 0
+    Children:
+      []
+    TransformComponent:
+      Position: [-3.09943843, 2.85278869, -6.10351562e-05]
+      Rotation: [0, 0, -1.57079649]
+      Scale: [0.649999917, 0.649999917, 0.649999976]
+    TextComponent:
+      TextString: ">"
+      Font: 11665470405078421778
+      Color: [1, 1, 1, 1]
+      LineSpacing: 1
+      Kerning: 1
+      MaxWidth: 20
+  - Entity: 4296353483543206196
+    TagComponent:
+      Tag: Text
+    Parent: 0
+    Children:
+      []
+    TransformComponent:
+      Position: [1.31596899, 2.85278869, -6.10351562e-05]
+      Rotation: [0, 0, -1.57079649]
+      Scale: [0.649999917, 0.649999917, 0.649999976]
+    TextComponent:
+      TextString: ">"
+      Font: 11665470405078421778
+      Color: [1, 1, 1, 1]
+      LineSpacing: 1
+      Kerning: 1
+      MaxWidth: 20
+  - Entity: 4439269851208675914
+    TagComponent:
+      Tag: Text
+    Parent: 0
+    Children:
+      []
+    TransformComponent:
+      Position: [-1.65878081, 2.85278869, -6.10351562e-05]
+      Rotation: [0, 0, -1.57079649]
+      Scale: [0.649999917, 0.649999917, 0.649999976]
+    TextComponent:
+      TextString: ">"
+      Font: 11665470405078421778
+      Color: [1, 1, 1, 1]
+      LineSpacing: 1
+      Kerning: 1
+      MaxWidth: 20
+  - Entity: 4851329808349976608
+    TagComponent:
+      Tag: Text
+    Parent: 0
+    Children:
+      []
+    TransformComponent:
+      Position: [-0.189488828, 2.85278869, -6.10351562e-05]
+      Rotation: [0, 0, -1.57079649]
+      Scale: [0.649999917, 0.649999917, 0.649999976]
+    TextComponent:
+      TextString: ">"
+      Font: 11665470405078421778
+      Color: [1, 1, 1, 1]
+      LineSpacing: 1
+      Kerning: 1
+      MaxWidth: 20
+  - Entity: 6491956793521529070
+    TagComponent:
+      Tag: Text
+    Parent: 0
+    Children:
+      []
+    TransformComponent:
+      Position: [-3.57711792, 3.03393769, 0]
+      Rotation: [0, 0, 0]
+      Scale: [0.701445341, 0.701445341, 0.701445341]
+    TextComponent:
+      TextString: Galio Jhin Illaoi Reda Eve
+      Font: 11665470405078421778
+      Color: [1, 1, 1, 1]
+      LineSpacing: 1
+      Kerning: 1
+      MaxWidth: 53.2000008
   - Entity: 8131771692437708439
     TagComponent:
       Tag: Jhin
@@ -53,7 +155,7 @@ Entities:
     Children:
       []
     TransformComponent:
-      Position: [-1.55481577, -0.00633020699, 0.0879173279]
+      Position: [-1.49947, -0.00633020699, 0.0879173279]
       Rotation: [-2.38418579e-07, 0, -2.38418579e-07]
       Scale: [0.627000213, 0.627000034, 0.626999855]
     StaticMeshComponent:
@@ -61,6 +163,23 @@ Entities:
       MaterialTable:
         0: 0
       Visible: true
+  - Entity: 8545933700389056436
+    TagComponent:
+      Tag: Text
+    Parent: 0
+    Children:
+      []
+    TransformComponent:
+      Position: [2.58908653, 2.85278869, -6.10351562e-05]
+      Rotation: [0, 0, -1.57079649]
+      Scale: [0.649999917, 0.649999917, 0.649999976]
+    TextComponent:
+      TextString: ">"
+      Font: 11665470405078421778
+      Color: [1, 1, 1, 1]
+      LineSpacing: 1
+      Kerning: 1
+      MaxWidth: 20
   - Entity: 14449481804758652680
     TagComponent:
       Tag: Plane
@@ -70,11 +189,11 @@ Entities:
     TransformComponent:
       Position: [0, -0.0792695284, 0]
       Rotation: [0, 0, 0]
-      Scale: [10, 10, 10]
+      Scale: [30, 30, 30]
     StaticMeshComponent:
       AssetID: 2732277024539045285
       MaterialTable:
-        0: 4786713185340225801
+        0: 3086571681816161946
       Visible: true
   - Entity: 14915367868508491852
     TagComponent:
@@ -83,7 +202,7 @@ Entities:
     Children:
       []
     TransformComponent:
-      Position: [-2.94812489, 0, 0.108948946]
+      Position: [-2.90724564, 0, 0.108948946]
       Rotation: [0, 2.98023224e-08, 0]
       Scale: [0.0100000584, 0.0100000501, 0.0100000584]
     StaticMeshComponent:
@@ -91,3 +210,16 @@ Entities:
       MaterialTable:
         0: 0
       Visible: true
+  - Entity: 17466798807360167507
+    TagComponent:
+      Tag: Directional Light
+    Parent: 0
+    Children:
+      []
+    TransformComponent:
+      Position: [0, 0, 0]
+      Rotation: [0.774876654, -0.113687009, -2.89656448]
+      Scale: [1, 1, 1]
+    DirectionalLightComponent:
+      Radiance: [1, 0.678719997, 0.00403225422]
+      Intensity: 0.300000012

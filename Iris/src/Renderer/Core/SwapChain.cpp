@@ -108,23 +108,23 @@ namespace Iris {
 
 		// The VK_PRESENT_MODE_FIFO_KHR mode must always be present as per spec
 		// This mode waits for the vertical blank ("v-sync")
-		VkPresentModeKHR swapchainPresentMode = VK_PRESENT_MODE_FIFO_KHR;
+		VkPresentModeKHR swapchainPresentMode = VK_PRESENT_MODE_FIFO_RELAXED_KHR;
 
-		// If v-sync is not requested, try to find a mailbox mode
-		// It's the lowest latency non-tearing present mode available
+		// If v-sync is not requested, try to find an immediate presentation mode
+		// It's the lowest latency present mode available however it does have tearing. However should not be anything near major so its fine
 		if (!vsync)
 		{
 			for (size_t i = 0; i < presentModeCount; i++)
 			{
-				if (presentModes[i] == VK_PRESENT_MODE_MAILBOX_KHR)
-				{
-					swapchainPresentMode = VK_PRESENT_MODE_MAILBOX_KHR;
-					break;
-				}
-
-				if ((swapchainPresentMode != VK_PRESENT_MODE_MAILBOX_KHR) && (presentModes[i] == VK_PRESENT_MODE_IMMEDIATE_KHR))
+				if (presentModes[i] == VK_PRESENT_MODE_IMMEDIATE_KHR)
 				{
 					swapchainPresentMode = VK_PRESENT_MODE_IMMEDIATE_KHR;
+					break;
+				}
+		
+				if ((swapchainPresentMode != VK_PRESENT_MODE_IMMEDIATE_KHR) && (presentModes[i] == VK_PRESENT_MODE_MAILBOX_KHR))
+				{
+					swapchainPresentMode = VK_PRESENT_MODE_MAILBOX_KHR;
 				}
 			}
 		}
@@ -234,6 +234,9 @@ namespace Iris {
 			vkDestroyImageView(device, image.ImageView, nullptr);
 		m_Images.clear();
 
+		// Clear rendering attachmentInfo
+		m_SwapChainImagesInfo.clear();
+
 		// Get the swap chain images
 		VK_CHECK_RESULT(vkGetSwapchainImagesKHR(device, m_SwapChain, &m_ImageCount, nullptr));
 		IR_VERIFY(m_ImageCount, "");
@@ -243,6 +246,8 @@ namespace Iris {
 		m_Images.resize(m_ImageCount);
 		m_VulkanImages.resize(m_ImageCount);
 		VK_CHECK_RESULT(vkGetSwapchainImagesKHR(device, m_SwapChain, &m_ImageCount, m_VulkanImages.data()));
+
+		m_SwapChainImagesInfo.resize(m_ImageCount);
 
 		// Get the swap chain buffers containing the image and imageview
 		for (uint32_t i = 0; i < m_ImageCount; i++)
@@ -273,6 +278,18 @@ namespace Iris {
 
 			VK_CHECK_RESULT(vkCreateImageView(device, &createInfo, nullptr, &m_Images[i].ImageView));
 			VKUtils::SetDebugUtilsObjectName(device, VK_OBJECT_TYPE_IMAGE_VIEW, "SwapChain ImageView: " + std::to_string(i), m_Images[i].ImageView);
+
+			m_SwapChainImagesInfo[i] = VkRenderingAttachmentInfo{
+				.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+				.pNext = nullptr,
+				.imageView = m_Images[i].ImageView,
+				.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, // We need to transition into this iamge layout at the beginning of the frame
+				.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+				.storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+				.clearValue = VkClearValue{
+					.color = { .float32 = { 0.1f, 0.1f, 0.1f, 1.0f } }
+				}
+			};
 		}
 
 		// Command buffers
@@ -351,93 +368,6 @@ namespace Iris {
 				}
 			}
 		}
-
-		// RenderPass
-		{
-			// NOTE: We dont need to recreate the RenderPass every time we resize so we can put behind a gaurd as long as the renderpass is valid
-			if (!m_RenderPass)
-			{
-				VkAttachmentDescription colorAttachment = {
-					.format = m_ColorFormat,
-					.samples = VK_SAMPLE_COUNT_1_BIT,
-					.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
-					.storeOp = VK_ATTACHMENT_STORE_OP_STORE,
-					.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
-					.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
-					.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-					.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
-				};
-
-				VkAttachmentReference colorAttachmentsRef = {
-					.attachment = 0,
-					.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
-				};
-
-				VkSubpassDescription subpassDesc = {
-					.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
-					.inputAttachmentCount = 0,
-					.pInputAttachments = nullptr,
-					.colorAttachmentCount = 1,
-					.pColorAttachments = &colorAttachmentsRef,
-					.pResolveAttachments = nullptr,
-					.pDepthStencilAttachment = nullptr,
-					.preserveAttachmentCount = 0,
-					.pPreserveAttachments = nullptr
-				};
-
-				// NOTE: Specify memory and execution dependencies between subpasses!
-				// There are 2 built-in dependencies that take care of transitions at the start and end of the renderpass
-				// but the former (start) does not occur at the right time. It assumes that the transition occurs at the start of the pipeline
-				// but at that point we have not acquired the image yet!
-				VkSubpassDependency subPassDependency = {
-					.srcSubpass = VK_SUBPASS_EXTERNAL, // Refers to implicit subpass
-					.dstSubpass = 0, // Refers to our subpass (it is the first and only one).
-					// We need to wait for the swapchain to finish reading from the image before we can access it
-					.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-					// Operation that should wait are in the color attachment stage and involve writing to it
-					.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-					.srcAccessMask = 0,
-					.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT
-				};
-
-				VkRenderPassCreateInfo renderPassInfo = {
-					.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
-					.attachmentCount = 1,
-					.pAttachments = &colorAttachment,
-					.subpassCount = 1,
-					.pSubpasses = &subpassDesc,
-					.dependencyCount = 1,
-					.pDependencies = &subPassDependency
-				};
-
-				VK_CHECK_RESULT(vkCreateRenderPass(device, &renderPassInfo, nullptr, &m_RenderPass));
-				VKUtils::SetDebugUtilsObjectName(device, VK_OBJECT_TYPE_RENDER_PASS, "Swapchain RenderPass", m_RenderPass);
-			}
-		}
-
-		// Create Framebuffers for every swapchain image
-		{
-			// NOTE: This here is to handle the case when we are resizing
-			for (VkFramebuffer& framebuffer : m_Framebuffers)
-				vkDestroyFramebuffer(device, framebuffer, nullptr);
-
-			VkFramebufferCreateInfo fbInfo = {
-				.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
-				.renderPass = m_RenderPass,
-				.attachmentCount = 1,
-				.width = m_Width,
-				.height = m_Height,
-				.layers = 1
-			};
-
-			m_Framebuffers.resize(m_ImageCount);
-			for (uint32_t i = 0; i < m_Framebuffers.size(); i++)
-			{
-				fbInfo.pAttachments = &m_Images[i].ImageView;
-				VK_CHECK_RESULT(vkCreateFramebuffer(device, &fbInfo, nullptr, &m_Framebuffers[i]));
-				VKUtils::SetDebugUtilsObjectName(device, VK_OBJECT_TYPE_FRAMEBUFFER, fmt::format("Swapchain Framebuffer (Frame in flight: {})", i), m_Framebuffers[i]);
-			}
-		}
 	}
 	
 	void SwapChain::Destroy()
@@ -453,16 +383,11 @@ namespace Iris {
 			vkDestroyImageView(device, image.ImageView, nullptr);
 		m_Images.clear();
 
+		m_SwapChainImagesInfo.clear();
+
 		for (auto& commandBuffer : m_CommandBuffers)
 			vkDestroyCommandPool(device, commandBuffer.CommandPool, nullptr);
 		m_CommandBuffers.clear();
-
-		if(m_RenderPass)
-			vkDestroyRenderPass(device, m_RenderPass, nullptr);
-
-		for (VkFramebuffer& framebuffer : m_Framebuffers)
-			vkDestroyFramebuffer(device, framebuffer, nullptr);
-		m_Framebuffers.clear();
 
 		for (VkSemaphore& semaphore : m_ImageAvailableSemaphores)
 			vkDestroySemaphore(device, semaphore, nullptr);
@@ -507,6 +432,8 @@ namespace Iris {
 
 		// We reset the current command pool since it will reset its command buffer
 		VK_CHECK_RESULT(vkResetCommandPool(m_Device->GetVulkanDevice(), m_CommandBuffers[m_CurrentFrameIndex].CommandPool, 0));
+
+
 	}
 
 	void SwapChain::Present()
@@ -575,6 +502,38 @@ namespace Iris {
 			// Here we would have to wait for the GPU to finish rendering that image so that we can acquire the swapchain image of that frame to render into
 			// again.
 			VK_CHECK_RESULT(vkWaitForFences(m_Device->GetVulkanDevice(), 1, &m_WaitFences[m_CurrentFrameIndex], VK_TRUE, UINT64_MAX));
+		}
+	}
+
+	void SwapChain::TransitionImageLayout(SwapChain::ImageLayout layout)
+	{
+		if (layout == SwapChain::ImageLayout::Attachment)
+		{
+			Renderer::InsertImageMemoryBarrier(
+				GetCurrentDrawCommandBuffer(),
+				m_Images[m_CurrentImageIndex].Image,
+				0,
+				VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
+				VK_IMAGE_LAYOUT_UNDEFINED,
+				VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+				VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT,
+				VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
+				{ .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = 1 }
+			);
+		}
+		else if (layout == SwapChain::ImageLayout::Present)
+		{
+			Renderer::InsertImageMemoryBarrier(
+				GetCurrentDrawCommandBuffer(),
+				m_Images[m_CurrentImageIndex].Image,
+				VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+				0,
+				VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+				VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+				VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+				VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
+				{ .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = 1 }
+			);
 		}
 	}
 

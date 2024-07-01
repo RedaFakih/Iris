@@ -22,7 +22,7 @@ namespace Iris {
 		void DestroyBuffer(VmaAllocation allocation, VkBuffer buffer);
 
 		[[nodiscard]] VmaAllocation AllocateImage(const VkImageCreateInfo* imageCreateInfo, VmaMemoryUsage usage, VkImage* image, VkDeviceSize* allocatedSize = nullptr);
-		void DestroyImage(VmaAllocation allocation, VkImage image);
+		void DestroyImage(VmaAllocation allocation, VkImage image, const std::string_view name = "");
 		
 		template<typename T>
 		[[nodiscard]]

@@ -14,6 +14,8 @@ namespace Iris {
 	 *  - Handle uniform buffer updating
 	 *  - Handle Pipeline/Framebuffer/Images invalidation in case of screen resize
 	 *  - Keep track of viewport size...
+	 * 
+	 * NOTE: If we are planning to create multiple instances of the SceneRenderer then we CAN NOT release shader modules since the modules will be needed for the other instances' pipelines to be loaded and initialized
 	 */
 
 	struct SceneRendererCamera
@@ -143,6 +145,7 @@ namespace Iris {
 		};
 
 	private:
+		void ResetImageLayouts();
 		void FlushDrawList();
 
 		// For filling the instance buffer transform data
@@ -158,6 +161,14 @@ namespace Iris {
 		void UpdateStatistics();
 
 	private:
+		// Shader structs
+		struct DirLight
+		{
+			glm::vec4 Direction; // Alpha channel is the ShadowAmount
+			glm::vec4 Radiance; // Alpha channel is the Intensity
+		};
+
+	private:
 		Ref<Scene> m_Scene;
 		SceneRendererSpecification m_Specification;
 		SceneRendererOptions m_Options;
@@ -170,13 +181,12 @@ namespace Iris {
 		{
 			SceneRendererCamera Camera;
 
-			// TODO:
-			//Ref<Environment> SceneEnvironment;
-			//float SceneEnvironmentIntensity = 0.0f;
-			//float SkyboxLod = 1.0f;
+			Ref<Environment> SceneEnvironment;
+			float SceneEnvironmentIntensity = 1.0f;
+			float SkyboxLod = 0.0f;
 
-			// TODO: DirLight and LightEnvironment
-		} m_SceneData;
+			LightEnvironment SceneLightEnvironment;
+		} m_SceneInfo;
 
 		struct UBCamera // (set = 1, binding = 0)
 		{
@@ -188,7 +198,6 @@ namespace Iris {
 			glm::mat4 InverseViewMatrix;
 			glm::vec2 DepthUnpackConsts;
 		} m_CameraDataUB;
-
 		Ref<UniformBufferSet> m_UBSCamera;
 
 		struct UBScreenData // (set = 1, binding = 1)
@@ -198,8 +207,15 @@ namespace Iris {
 			glm::vec2 HalfResolution;
 			glm::vec2 InverseHalfResolution;
 		} m_ScreenDataUB;
-
 		Ref<UniformBufferSet> m_UBSScreenData;
+
+		struct UBScene
+		{
+			DirLight Light;
+			glm::vec3 CameraPosition;
+			float EnvironmentMapIntensity = 1.0f;
+		} m_SceneDataUB;
+		Ref<UniformBufferSet> m_UBSSceneData;
 
 		// PreDepth
 		Ref<RenderPass> m_PreDepthPass;
@@ -229,7 +245,7 @@ namespace Iris {
 		// Grid
 		Ref<RenderPass> m_GridPass;
 		Ref<Material> m_GridMaterial;
-		float m_TranslationSnapValue = 0.5f;
+		float m_TranslationSnapValue = 1.0f; // Default one meter grid
 
 		// Composite
 		Ref<Material> m_CompositeMaterial;
@@ -238,11 +254,11 @@ namespace Iris {
 		// Jump Flood
 		Ref<RenderPass> m_JumpFloodInitPass;
 		Ref<Material> m_JumpFloodInitMaterial;
-		Ref<RenderPass> m_JumpFloodPass[2];
-		Ref<Material> m_JumpFloodPassMaterial[2];
+		std::array<Ref<RenderPass>, 2> m_JumpFloodPass;
+		std::array<Ref<Material>, 2> m_JumpFloodPassMaterial;
 		Ref<RenderPass> m_JumpFloodCompositePass;
 		Ref<Material> m_JumpFloodCompositeMaterial;
-		Ref<Framebuffer> m_JumpFloodFramebuffers[2];
+		std::array<Ref<Framebuffer>, 2> m_JumpFloodFramebuffers;
 
 		// For external compositing
 		Ref<Framebuffer> m_CompositingFramebuffer;

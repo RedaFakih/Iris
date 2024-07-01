@@ -40,7 +40,7 @@ namespace Iris {
 	class Window
 	{
 	public:
-		using EventCallbackFn = std::function<void(Events::Event&)>;
+		using EventCallbackFn = void(*)(Events::Event&);
 
 	public:
 		Window(const WindowSpecification& spec);

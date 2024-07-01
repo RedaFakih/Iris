@@ -33,7 +33,6 @@ namespace Iris {
 		const VkPhysicalDeviceMemoryProperties& GetPhysicalDeviceMemoryProps() const { return m_MemoryProperties.memoryProperties; }
 		const VkPhysicalDeviceLimits& GetPhysicalDeviceLimits() const { return m_Properties.properties.limits; }
 		const VkPhysicalDeviceFeatures& GetPhysicalDeviceFeatures() const { return m_Features.features; }
-		const VkPhysicalDeviceDepthStencilResolveProperties& GetDepthStencilResolveProperties() const { return m_DepthStencilResolveProperties; }
 
 		bool IsExtensionSupported(const std::string& extensionName) const;
 		uint32_t FindMemoryTypeIndex(uint32_t typeFilter, VkMemoryPropertyFlags props) const;
@@ -50,7 +49,6 @@ namespace Iris {
 		VkPhysicalDeviceProperties2 m_Properties;
 		VkPhysicalDeviceFeatures2 m_Features;
 		VkPhysicalDeviceMemoryProperties2 m_MemoryProperties;
-		VkPhysicalDeviceDepthStencilResolveProperties m_DepthStencilResolveProperties;
 
 		QueueFamilyIndices m_QueueFamilyIndices;
 
@@ -83,6 +81,8 @@ namespace Iris {
 	 *   beginning of the next frame that way nothing is using that buffer.
 	 * 
 	 *   Potential Obstacles: Copying attachments to host buffers...? We will have to queue the copying to host buffer to the next frame so that the data is available
+	 *
+	 *   Provide a flag that allows us to instantly submit that command buffer or queue it up until the next vkQueueSubmit
 	 */
 	class VulkanCommandPool : public RefCountedObject
 	{

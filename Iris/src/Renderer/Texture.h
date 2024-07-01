@@ -36,7 +36,6 @@ namespace Iris {
 		SRGBA,
 
 		DEPTH32FSTENCIL8UINT, // UINT
-		DEPTH32F, // FLOAT
 		DEPTH24STENCIL8, // Default device depth format
 	};
 
@@ -83,7 +82,7 @@ namespace Iris {
 		// Set by user
 		TextureFilter FilterMode = TextureFilter::Linear;
 
-		// Multisampled Image... (1, 2, 4, 8, 16, 32, 64)
+		// Multisampled Image... (1, 2, 4, 8, 16, 32, 64). NOTE: NOT SUPPORTED
 		uint32_t Samples = 1;
 
 		// Used for Transfer operations? (Affects the usage of the image)
@@ -104,9 +103,9 @@ namespace Iris {
 	{
 	public:
 		// NOTE: If the first constructor is used then an Invalidate call should follow to get a valid image
-		Texture2D(const TextureSpecification& spec);
-		Texture2D(const TextureSpecification& spec, const std::string& filePath);
-		Texture2D(const TextureSpecification& spec, Buffer imageData);
+		explicit Texture2D(const TextureSpecification& spec);
+		explicit Texture2D(const TextureSpecification& spec, const std::string& filePath);
+		explicit Texture2D(const TextureSpecification& spec, Buffer imageData);
 		~Texture2D();
 
 		// NOTE: If CreateNull is used then an Invalidate call should follow to get a valid image
@@ -162,10 +161,12 @@ namespace Iris {
 		VkDescriptorImageInfo m_DescriptorInfo = {};
 	};
 
+	class ImageView;
+
 	class TextureCube : public Asset
 	{
 	public:
-		TextureCube(const TextureSpecification& spec, Buffer data = Buffer());
+		explicit TextureCube(const TextureSpecification& spec, Buffer data = Buffer());
 		~TextureCube();
 
 		[[nodiscard]] inline static Ref<TextureCube> Create(const TextureSpecification& spec, Buffer data = Buffer())
@@ -176,12 +177,12 @@ namespace Iris {
 		void Invalidate();
 		void GenerateMips(bool readonly = false);
 		void Release();
-		VkImageView CreateImageViewSingleMip(uint32_t mip);
+		Ref<ImageView> CreateImageViewSingleMip(uint32_t mip);
 
 		uint64_t GetHash() const { return reinterpret_cast<uint64_t>(m_ImageView); }
 
 		void CopyToHostBuffer(Buffer& buffer, bool writeMips = false) const;
-		void CopyFromBufer(const Buffer& buffer, uint32_t mips);
+		void CopyFromHostBufer(const Buffer& buffer, uint32_t mips);
 
 		const std::string& GetAssetPath() const noexcept { return m_AssetPath; }
 		ImageFormat GetFormat() const { return m_Specification.Format; }
@@ -207,7 +208,7 @@ namespace Iris {
 		virtual AssetType GetAssetType() const override { return GetStaticType(); }
 
 	private:
-		std::string m_AssetPath; // TODO: Is this gonna be here? since the 
+		std::string m_AssetPath;
 		TextureSpecification m_Specification;
 
 		// Image ifno
@@ -219,6 +220,45 @@ namespace Iris {
 		Buffer m_ImageData; // Local storage of the image
 
 		bool m_MipsGenerated = false;
+
+		VkDescriptorImageInfo m_DescriptorInfo = {};
+
+	};
+
+	struct ImageViewSpecification
+	{
+		std::string DebugName;
+
+		// IMPORTANT: Only set ONE of these, DO NOT SET BOTH. Depending on what the user sets the image view type and other info will be determined / deduced
+		Ref<Texture2D> Image = nullptr;
+		Ref<TextureCube> CubeImage = nullptr;
+
+		// Desired mip for the image view
+		uint32_t Mip = 0;
+	};
+
+	class ImageView : public Asset
+	{
+	public:
+		explicit ImageView(const ImageViewSpecification& spec, bool deferInvalidation = true);
+		virtual ~ImageView();
+
+		[[nodiscard]] static Ref<ImageView> Create(const ImageViewSpecification& spec, bool deferInvalidation = true)
+		{
+			return CreateRef<ImageView>(spec, deferInvalidation);
+		}
+
+		void Invalidate();
+		void RT_Invalidate();
+
+		VkImageView GetVulkanImageView() const { return m_ImageView; }
+
+		const VkDescriptorImageInfo& GetDescriptorImageInfo() const { return m_DescriptorInfo; }
+
+	private:
+		ImageViewSpecification m_Specificaton;
+
+		VkImageView m_ImageView = nullptr;
 
 		VkDescriptorImageInfo m_DescriptorInfo = {};
 
@@ -245,7 +285,6 @@ namespace Iris {
 				case ImageFormat::B10R11G11UF:	return 4;
 				case ImageFormat::SRGB:			return 3;
 				case ImageFormat::SRGBA:		return 4;
-				case ImageFormat::DEPTH32F:		return 4;
 			}
 
 			IR_ASSERT(false);
@@ -273,7 +312,6 @@ namespace Iris {
 				case ImageFormat::B10R11G11UF:
 				case ImageFormat::SRGB:
 				case ImageFormat::SRGBA:
-				case ImageFormat::DEPTH32F:
 				case ImageFormat::DEPTH24STENCIL8:
 					return false;
 			}
@@ -294,7 +332,7 @@ namespace Iris {
 
 		inline constexpr bool IsDepthFormat(ImageFormat format)
 		{
-			if (format == ImageFormat::DEPTH24STENCIL8 || format == ImageFormat::DEPTH32F || format == ImageFormat::DEPTH32FSTENCIL8UINT)
+			if (format == ImageFormat::DEPTH24STENCIL8 || format == ImageFormat::DEPTH32FSTENCIL8UINT)
 				return true;
 
 			return false;
@@ -320,7 +358,6 @@ namespace Iris {
 				case ImageFormat::SRGB:					return VK_FORMAT_R8G8B8_SRGB;
 				case ImageFormat::SRGBA:				return VK_FORMAT_R8G8B8A8_SRGB;
 				case ImageFormat::DEPTH32FSTENCIL8UINT: return VK_FORMAT_D32_SFLOAT_S8_UINT;
-				case ImageFormat::DEPTH32F:				return VK_FORMAT_D32_SFLOAT;
 				case ImageFormat::DEPTH24STENCIL8:		return RendererContext::GetCurrentDevice()->GetPhysicalDevice()->GetDepthFormat();
 			}
 

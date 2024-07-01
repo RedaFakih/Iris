@@ -69,7 +69,7 @@ namespace Iris {
 			// This descriptor pool serves the purpose which is mainly allocating descriptor sets for the font textures of ImGui because other image descriptors
 			// will be handled by the Renderer's descriptor pool
 			// Create Descriptor Pool (vkGuide)
-			VkDescriptorPoolSize poolSizes[] =
+			constexpr VkDescriptorPoolSize poolSizes[] =
 			{
 				{ VK_DESCRIPTOR_TYPE_SAMPLER, 100 },
 				{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 100 },
@@ -98,9 +98,10 @@ namespace Iris {
 				.MinImageCount = Renderer::GetConfig().FramesInFlight,
 				.ImageCount = app.GetWindow().GetSwapChain().GetImageCount(),
 				.Allocator = nullptr,
+				.ColorAttachmentFormat = app.GetWindow().GetSwapChain().GetColorFormat(),
 				.CheckVkResultFn = Utils::VulkanCheckResult
 			};
-			ImGui_ImplVulkan_Init(&initInfo, app.GetWindow().GetSwapChain().GetRenderPass());
+			ImGui_ImplVulkan_Init(&initInfo);
 
 			// Upload fonts
 			{
@@ -143,10 +144,6 @@ namespace Iris {
 	{
 		ImGui::Render();
 
-		// Begin render pass that renders to swap chain
-		// render
-		// end renderpass
-
 		SwapChain& swapChain = Application::Get().GetWindow().GetSwapChain();
 
 		uint32_t width = swapChain.GetWidth();
@@ -162,24 +159,32 @@ namespace Iris {
 		VkCommandBuffer drawCommandBuffer = swapChain.GetCurrentDrawCommandBuffer();
 		VK_CHECK_RESULT(vkBeginCommandBuffer(drawCommandBuffer, &drawCmdBufferBeginInfo));
 
-		VkClearValue clearValue = {
-			.color = { .float32{ 0.1f, 0.1f, 0.1f, 1.0f } }
+		VkDebugUtilsLabelEXT debugLabel = {
+			.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT,
+			.pLabelName = "ImGui - RenderPass"
 		};
+		glm::vec4 debugLabelMarkerColor = { 1.0f, 0.0f, 0.317f, 1.0f };
+		std::memcpy(&debugLabel.color, glm::value_ptr(debugLabelMarkerColor), 4 * sizeof(float));
+		fpCmdBeginDebugUtilsLabelEXT(drawCommandBuffer, &debugLabel);
 
-		VkRenderPassBeginInfo renderPassBeginInfo = {
-			.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
+		swapChain.TransitionImageLayout(SwapChain::ImageLayout::Attachment);
+
+		VkRenderingAttachmentInfo imageAttachmentInfo = swapChain.GetCurrentImageInfo();
+		VkRenderingInfo renderingInfo = {
+			.sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
 			.pNext = nullptr,
-			.renderPass = swapChain.GetRenderPass(),
-			.framebuffer = swapChain.GetCurrentFramebuffer(),
 			.renderArea = {
-				.offset = { 0, 0 },
-				.extent = { width, height }
+				.offset = { .x = 0, .y = 0 },
+				.extent = { .width = width, .height = height }
 			},
-			.clearValueCount = 1,
-			.pClearValues = &clearValue
+			.layerCount = 1,
+			.colorAttachmentCount = 1,
+			.pColorAttachments = &imageAttachmentInfo,
+			.pDepthAttachment = nullptr,
+			.pStencilAttachment = nullptr
 		};
 
-		vkCmdBeginRenderPass(drawCommandBuffer, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+		vkCmdBeginRendering(drawCommandBuffer, &renderingInfo);
 
 		VkViewport viewport = {
 			.x = 0.0f,
@@ -200,7 +205,11 @@ namespace Iris {
 		ImDrawData* mainDrawData = ImGui::GetDrawData();
 		ImGui_ImplVulkan_RenderDrawData(mainDrawData, drawCommandBuffer);
 
-		vkCmdEndRenderPass(drawCommandBuffer);
+		vkCmdEndRendering(drawCommandBuffer);
+
+		swapChain.TransitionImageLayout(SwapChain::ImageLayout::Present);
+
+		fpCmdEndDebugUtilsLabelEXT(drawCommandBuffer);
 
 		VK_CHECK_RESULT(vkEndCommandBuffer(drawCommandBuffer));
 
@@ -329,13 +338,6 @@ namespace Iris {
 			.MergeWithLast = true
 		};
 		m_FontsLibrary.Load(fontAwesome);
-
-		FontSpecification mochiyPop = {
-			.FontName = "MochiyPopOne",
-			.Filepath = "Resources/Editor/Fonts/MochiyPopOne/MochiyPopOne-Regular.ttf",
-			.Size = 18.0f
-		};
-		m_FontsLibrary.Load(mochiyPop);
 	}
 
 }

@@ -1,3 +1,0 @@
-- vkInstance, PhysicalDevice and LogicalDevice all are stored, Created, Destroyed in the RendererContext!
-
-- EditorPanel settings and layout are stored in Users/User/AppData/Roaming

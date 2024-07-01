@@ -111,6 +111,26 @@ namespace Iris {
 		// m_DescriptorPoolTypeCounts.clear();
 	}
 
+	void Shader::ReleaseShaderModules()
+	{
+		auto& pipelineCIs = m_PipelineShaderStageCreateInfos;
+		Renderer::SubmitReseourceFree([pipelineCIs]()
+		{
+			const VkDevice device = RendererContext::Get()->GetDevice()->GetVulkanDevice();
+
+			for (const auto& pipelineShaderStageCI : pipelineCIs)
+			{
+				if (pipelineShaderStageCI.module)
+					vkDestroyShaderModule(device, pipelineShaderStageCI.module, nullptr);
+			}
+		});
+
+		for (auto& pipelineShaderStageCI : m_PipelineShaderStageCreateInfos)
+			pipelineShaderStageCI.module = nullptr;
+
+		m_PipelineShaderStageCreateInfos.clear();
+	}
+
 	std::size_t Shader::GetHash() const
 	{
 		return Hash::GenerateFNVHash(m_FilePath);

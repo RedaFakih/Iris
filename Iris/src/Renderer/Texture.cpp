@@ -129,7 +129,7 @@ namespace Iris {
         else if (imageData)
         {
             Utils::ValidateSpecification(m_Specification);
-            uint32_t size = (uint32_t)Utils::GetMemorySize(m_Specification.Format, m_Specification.Width, m_Specification.Height);
+            uint32_t size = static_cast<uint32_t>(Utils::GetMemorySize(m_Specification.Format, m_Specification.Width, m_Specification.Height));
             m_ImageData = Buffer::Copy(imageData);
         }
         else // Fallback
@@ -137,7 +137,7 @@ namespace Iris {
             if (m_Specification.Usage != ImageUsage::Attachment)
             {
                 Utils::ValidateSpecification(m_Specification);
-                uint32_t size = (uint32_t)Utils::GetMemorySize(m_Specification.Format, m_Specification.Width, m_Specification.Height);
+                uint32_t size = static_cast<uint32_t>(Utils::GetMemorySize(m_Specification.Format, m_Specification.Width, m_Specification.Height));
                 m_ImageData.Allocate(size);
                 std::memset(m_ImageData.Data, 0, m_ImageData.Size);
             }
@@ -202,7 +202,6 @@ namespace Iris {
             .arrayLayers = 1, // TODO (whether the texture is an array)
             .samples = Utils::GetSamplerCount(m_Specification.Samples),
             .tiling = VK_IMAGE_TILING_OPTIMAL,
-            // .tiling = m_Specification.Usage == ImageUsage::HostRead ? VK_IMAGE_TILING_LINEAR : VK_IMAGE_TILING_OPTIMAL,
             .usage = usage,
             .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
             .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED // Not usable by gpu and first transition will discard texels
@@ -265,11 +264,11 @@ namespace Iris {
                 commandBuffer,
                 m_Image,
                 0,
-                VK_ACCESS_TRANSFER_WRITE_BIT,
+                VK_ACCESS_2_TRANSFER_WRITE_BIT,
                 VK_IMAGE_LAYOUT_UNDEFINED,
                 VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, // Wait for nothing
-                VK_PIPELINE_STAGE_TRANSFER_BIT, // Unblock transfer operations after this transition is done
+                VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, // Wait for nothing
+                VK_PIPELINE_STAGE_2_TRANSFER_BIT, // Unblock transfer operations after this transition is done
                 { 
                     .aspectMask = aspectMask, 
                     .baseMipLevel = 0,
@@ -297,7 +296,7 @@ namespace Iris {
             vkCmdCopyBufferToImage(commandBuffer, stagingBuffer, m_Image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
 
             VkImageLayout finalImageLayout;
-            if (m_Specification.Format == ImageFormat::DEPTH24STENCIL8 || m_Specification.Format == ImageFormat::DEPTH32F || m_Specification.Format == ImageFormat::DEPTH32FSTENCIL8UINT)
+            if (m_Specification.Format == ImageFormat::DEPTH24STENCIL8 || m_Specification.Format == ImageFormat::DEPTH32FSTENCIL8UINT)
                 finalImageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
             else
                 finalImageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
@@ -308,12 +307,12 @@ namespace Iris {
                 Renderer::InsertImageMemoryBarrier(
                     commandBuffer,
                     m_Image,
-                    VK_ACCESS_TRANSFER_WRITE_BIT,
-                    VK_ACCESS_TRANSFER_READ_BIT,
+                    VK_ACCESS_2_TRANSFER_WRITE_BIT,
+                    VK_ACCESS_2_TRANSFER_READ_BIT,
                     VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                     VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                    VK_PIPELINE_STAGE_TRANSFER_BIT,
-                    VK_PIPELINE_STAGE_TRANSFER_BIT,
+                    VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+                    VK_PIPELINE_STAGE_2_TRANSFER_BIT,
                     // Here we transition only the original image to a transfer src since the generate mips starts from the first mip
                     // All the other mips (which yet do not exist) are still in IMAGE_LAYOUT_UNDEFINED untill now...
                     { .aspectMask = aspectMask, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = 1 }
@@ -325,12 +324,12 @@ namespace Iris {
                 Renderer::InsertImageMemoryBarrier(
                     commandBuffer, 
                     m_Image, 
-                    VK_ACCESS_TRANSFER_WRITE_BIT, 
-                    VK_ACCESS_SHADER_READ_BIT, 
+                    VK_ACCESS_2_TRANSFER_WRITE_BIT, 
+                    VK_ACCESS_2_SHADER_READ_BIT, 
                     VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                     finalImageLayout,
-                    VK_PIPELINE_STAGE_TRANSFER_BIT, // Wait for transfer opration to finish
-                    VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, // Unblock all fragment shader operations after this transfer is done
+                    VK_PIPELINE_STAGE_2_TRANSFER_BIT, // Wait for transfer opration to finish
+                    VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, // Unblock all fragment shader operations after this transfer is done
                     { .aspectMask = aspectMask, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = 1 }
                 );
             }
@@ -399,7 +398,7 @@ namespace Iris {
         
         // Update image descriptor info
         VkImageLayout finalImageLayout;
-        if (m_Specification.Format == ImageFormat::DEPTH24STENCIL8 || m_Specification.Format == ImageFormat::DEPTH32F || m_Specification.Format == ImageFormat::DEPTH32FSTENCIL8UINT)
+        if (m_Specification.Format == ImageFormat::DEPTH24STENCIL8 || m_Specification.Format == ImageFormat::DEPTH32FSTENCIL8UINT)
             finalImageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
         else
             finalImageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
@@ -447,12 +446,12 @@ namespace Iris {
             Renderer::InsertImageMemoryBarrier(
                 commandBuffer,
                 m_Image,
-                VK_ACCESS_TRANSFER_READ_BIT,
-                VK_ACCESS_TRANSFER_WRITE_BIT, // Before the blit we will write and after the blit we will read
+                VK_ACCESS_2_TRANSFER_READ_BIT,
+                VK_ACCESS_2_TRANSFER_WRITE_BIT, // Before the blit we will write and after the blit we will read
                 VK_IMAGE_LAYOUT_UNDEFINED, // Here it is UNDEFINED since when we copy the 
                 VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                VK_PIPELINE_STAGE_TRANSFER_BIT,
-                VK_PIPELINE_STAGE_TRANSFER_BIT,
+                VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+                VK_PIPELINE_STAGE_2_TRANSFER_BIT,
                 mipSubResourceRange
             );
 
@@ -464,7 +463,7 @@ namespace Iris {
                     .layerCount = 1
                 },
                 // Right shifting is basically division by 2
-                .srcOffsets = { { 0, 0, 0 }, { int32_t(m_Specification.Width >> (i - 1)), int32_t(m_Specification.Height >> (i - 1)), 1 } },
+                .srcOffsets = { { 0, 0, 0 }, { static_cast<int32_t>(m_Specification.Width >> (i - 1)), static_cast<int32_t>(m_Specification.Height >> (i - 1)), 1 } },
 
                 // Destination
                 .dstSubresource = {
@@ -472,7 +471,7 @@ namespace Iris {
                     .mipLevel = i,
                     .layerCount = 1
                 },
-                .dstOffsets = { { 0, 0, 0 }, { int32_t(m_Specification.Width >> i), int32_t(m_Specification.Height >> i), 1 } },
+                .dstOffsets = { { 0, 0, 0 }, { static_cast<int32_t>(m_Specification.Width >> i), static_cast<int32_t>(m_Specification.Height >> i), 1 } },
             };
 
             vkCmdBlitImage(
@@ -489,12 +488,12 @@ namespace Iris {
             Renderer::InsertImageMemoryBarrier(
                 commandBuffer,
                 m_Image,
-                VK_ACCESS_TRANSFER_WRITE_BIT,
-                VK_ACCESS_TRANSFER_READ_BIT,
+                VK_ACCESS_2_TRANSFER_WRITE_BIT,
+                VK_ACCESS_2_TRANSFER_READ_BIT,
                 VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                 VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                VK_PIPELINE_STAGE_TRANSFER_BIT,
-                VK_PIPELINE_STAGE_TRANSFER_BIT,
+                VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+                VK_PIPELINE_STAGE_2_TRANSFER_BIT,
                 mipSubResourceRange
             );
         }
@@ -502,12 +501,12 @@ namespace Iris {
         Renderer::InsertImageMemoryBarrier(
             commandBuffer,
             m_Image,
-            VK_ACCESS_TRANSFER_READ_BIT,
-            VK_ACCESS_SHADER_READ_BIT,
+            VK_ACCESS_2_TRANSFER_READ_BIT,
+            VK_ACCESS_2_SHADER_READ_BIT,
             VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
             VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-            VK_PIPELINE_STAGE_TRANSFER_BIT,
-            VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+            VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+            VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,
             { .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .levelCount = mipCount, .layerCount = 1 }
         );
 
@@ -522,18 +521,18 @@ namespace Iris {
 
         // TODO: Once we have per mip image views and per mip image layers views we need to also destroy those
 
-        Renderer::SubmitReseourceFree([image = m_Image, imageView = m_ImageView, sampler = m_Sampler, allocation = m_MemoryAllocation]()
+        Renderer::SubmitReseourceFree([image = m_Image, imageView = m_ImageView, sampler = m_Sampler, allocation = m_MemoryAllocation, name = m_Specification.DebugName]()
         {
             VkDevice device = RendererContext::GetCurrentDevice()->GetVulkanDevice();
             VulkanAllocator allocator("Texture2D");
             vkDestroySampler(device, sampler, nullptr);
             vkDestroyImageView(device, imageView, nullptr);
-            allocator.DestroyImage(allocation, image);
+            allocator.DestroyImage(allocation, image, name);
         });
 
         m_Image = nullptr;
         m_ImageView = nullptr;
-        if(m_Specification.CreateSampler)
+        if (m_Specification.CreateSampler)
             m_Sampler = nullptr;
         m_MemoryAllocation = nullptr;
         m_DescriptorInfo = {};
@@ -587,26 +586,26 @@ namespace Iris {
         if (m_Specification.Usage == ImageUsage::Texture) [[unlikely]]
         {
             // Logically this should never be hit since why would you want to copy a texture that is loaded by you?
-            srcPipelineStageMask = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT; // Wait for nothing if it is a texture.
+            srcPipelineStageMask = VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT; // Wait for nothing if it is a texture.
         }
         else if (m_Specification.Usage == ImageUsage::Attachment && Utils::IsDepthFormat(m_Specification.Format))
         {
-            srcPipelineStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT; // Wait for fragment shader to finish execution so the depth texture is written
+            srcPipelineStageMask = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT; // Wait for fragment shader to finish execution so the depth texture is written
         }
         else // if(m_Specification.Usage == ImageUsage::Attachment)
         {
-            srcPipelineStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT; // Wait for the color attachment to be outputted
+            srcPipelineStageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT; // Wait for the color attachment to be outputted
         }
 
         Renderer::InsertImageMemoryBarrier(
             commandBuffer,
             m_Image,
             0,
-            VK_ACCESS_TRANSFER_READ_BIT, // Since we would like to read FROM the image to the buffer
+            VK_ACCESS_2_TRANSFER_READ_BIT, // Since we would like to read FROM the image to the buffer
             m_DescriptorInfo.imageLayout,
             VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
             srcPipelineStageMask,
-            VK_PIPELINE_STAGE_TRANSFER_BIT,
+            VK_PIPELINE_STAGE_2_TRANSFER_BIT,
             {
                 .aspectMask = aspectMask,
                 .baseMipLevel = 0,
@@ -642,12 +641,12 @@ namespace Iris {
         Renderer::InsertImageMemoryBarrier(
             commandBuffer,
             m_Image,
-            VK_ACCESS_TRANSFER_READ_BIT,
+            VK_ACCESS_2_TRANSFER_READ_BIT,
             0,
             VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
             m_DescriptorInfo.imageLayout,
-            VK_PIPELINE_STAGE_TRANSFER_BIT,
-            VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, // Do not block any upcoming commands
+            VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+            VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, // Do not block any upcoming commands
             {
                 .aspectMask = aspectMask,
                 .baseMipLevel = 0,
@@ -701,6 +700,8 @@ namespace Iris {
             m_ImageData = Buffer::Copy(data.Data, size);
         }
 
+        m_Specification.Layers = 6; // Set it for debugging purposes
+
         Invalidate();
     }
 
@@ -721,7 +722,7 @@ namespace Iris {
         uint32_t mipCount = GetMipLevelCount();
         // Cube textures will be used for sampling and as a storage image to write data into
         // Transfer usages here is for generaeting mips
-        VkImageUsageFlags usage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+        VkImageUsageFlags usage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
 
         VkImageCreateInfo imageCI = {
             .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
@@ -748,6 +749,8 @@ namespace Iris {
         // Copy data if present
         if (m_ImageData)
         {
+            // If we have image data we only work with the first mip in regards to the pipeline barriers...
+
             // Create a staging buffer
             VkBuffer stagingBuffer;
             VkBufferCreateInfo stagingBufferCI = {
@@ -766,11 +769,11 @@ namespace Iris {
                 commandBuffer,
                 m_Image,
                 0,
-                VK_ACCESS_TRANSFER_WRITE_BIT,
+                VK_ACCESS_2_TRANSFER_WRITE_BIT,
                 VK_IMAGE_LAYOUT_UNDEFINED,
                 VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, // Wait for nothing
-                VK_PIPELINE_STAGE_TRANSFER_BIT, // Unblock transfer operations after this transition is done
+                VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, // Wait for nothing
+                VK_PIPELINE_STAGE_2_TRANSFER_BIT, // Unblock transfer operations after this transition is done
                 { .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = 6 }
             );
 
@@ -791,21 +794,40 @@ namespace Iris {
 
             vkCmdCopyBufferToImage(commandBuffer, stagingBuffer, m_Image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
 
-            Renderer::SetImageLayout(
+            Renderer::InsertImageMemoryBarrier(
                 commandBuffer,
                 m_Image,
+                VK_ACCESS_2_TRANSFER_WRITE_BIT,
+                VK_ACCESS_2_SHADER_READ_BIT,
                 VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                 VK_IMAGE_LAYOUT_GENERAL,
-                VK_PIPELINE_STAGE_TRANSFER_BIT,
-                VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                VK_PIPELINE_STAGE_2_TRANSFER_BIT, // Wait for nothing
+                VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, // Unblock transfer operations after this transition is done
                 { .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = 6 }
             );
 
+            logicalDevice->FlushCommandBuffer(commandBuffer);
+
             allocator.DestroyBuffer(stagingBufferAllocation, stagingBuffer);
         }
+        else
+        {
+            // Otherwise we transition all image barriers
 
-        // TODO: Insert image memory barrier here so that sets the image in a layout to be filled with data from the shader
-        // TODO: Actualy maybe we do not need to insert a memory barrier here and do anything with the layout since that will be handled by the renderpass
+            Renderer::InsertImageMemoryBarrier(
+                commandBuffer,
+                m_Image,
+                0,
+                0,
+                VK_IMAGE_LAYOUT_UNDEFINED,
+                VK_IMAGE_LAYOUT_GENERAL,
+                VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, // Wait for nothing
+                VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, // Unblock transfer operations after this transition is done
+                { .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .baseMipLevel = 0, .levelCount = mipCount, .baseArrayLayer = 0, .layerCount = 6 }
+            );
+
+            logicalDevice->FlushCommandBuffer(commandBuffer);
+        }
 
         VkImageViewCreateInfo imageView = {
             .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
@@ -842,7 +864,7 @@ namespace Iris {
         m_DescriptorInfo = VkDescriptorImageInfo{
             .sampler = m_Sampler,
             .imageView = m_ImageView,
-            .imageLayout = VK_IMAGE_LAYOUT_GENERAL // TODO: CHANGE WHEN I HAVE AN UNDERSTANDING OF WHAT THE LAYOUT HAS TO BE
+            .imageLayout = VK_IMAGE_LAYOUT_GENERAL
         };
 
         m_ImageData.Release();
@@ -850,6 +872,103 @@ namespace Iris {
 
     void TextureCube::GenerateMips(bool readonly)
     {
+        Ref<VulkanDevice> logicalDevice = RendererContext::GetCurrentDevice();
+        VkDevice device = RendererContext::GetCurrentDevice()->GetVulkanDevice();
+
+        VkCommandBuffer commandBuffer = logicalDevice->GetCommandBuffer(true);
+
+        // Transition first mip to TRANSFER_SRC so that we can blit from it to the next mip in the chain
+        Renderer::InsertImageMemoryBarrier(
+            commandBuffer,
+            m_Image,
+            0,
+            VK_ACCESS_2_TRANSFER_READ_BIT,
+            VK_IMAGE_LAYOUT_GENERAL,
+            VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+            VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+            VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+            { .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = 6 }
+        );
+
+        // Start from the the second mip in the chain and blit from previous mip into current mip
+        uint32_t mipCount = GetMipLevelCount();
+        for (uint32_t i = 1; i < mipCount; i++)
+        {
+            VkImageBlit imageBlit = {
+                // Source
+                .srcSubresource = {
+                    .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                    .mipLevel = i - 1,
+                    .baseArrayLayer = 0,
+                    .layerCount = 6
+                },
+                // Right shifting is basically division by 2
+                .srcOffsets = { { 0, 0, 0 }, { static_cast<int32_t>(m_Specification.Width >> (i - 1)), static_cast<int32_t>(m_Specification.Height >> (i - 1)), 1 } },
+
+                // Destination
+                .dstSubresource = {
+                    .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                    .mipLevel = i,
+                    .baseArrayLayer = 0,
+                    .layerCount = 6
+                },
+                .dstOffsets = { { 0, 0, 0 }, { static_cast<int32_t>(m_Specification.Width >> i), static_cast<int32_t>(m_Specification.Height >> i), 1 } },
+            };
+
+            // Prepare current mip to be destination of blit
+            Renderer::InsertImageMemoryBarrier(
+                commandBuffer,
+                m_Image,
+                0,
+                VK_ACCESS_2_TRANSFER_WRITE_BIT,
+                VK_IMAGE_LAYOUT_GENERAL,
+                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+                VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+                { .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .baseMipLevel = i, .levelCount = 1, .baseArrayLayer = 0, .layerCount = 6 }
+            );
+
+            vkCmdBlitImage(
+                commandBuffer,
+                m_Image,
+                VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                m_Image,
+                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                1, &imageBlit,
+                Utils::GetVulkanSamplerFilter(m_Specification.FilterMode)
+            );
+
+            // Prepare mip to be transfer source for next blit
+            Renderer::InsertImageMemoryBarrier(
+                commandBuffer,
+                m_Image,
+                VK_ACCESS_2_TRANSFER_WRITE_BIT,
+                VK_ACCESS_2_TRANSFER_READ_BIT,
+                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+                VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+                { .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .baseMipLevel = i, .levelCount = 1, .baseArrayLayer = 0, .layerCount = 6 }
+            );
+        }
+
+        // Now, all the mips are in TRANSFER_SRC layout so we can transition to SHADER_READ since we will only read from them from now on
+        Renderer::InsertImageMemoryBarrier(
+            commandBuffer,
+            m_Image,
+            VK_ACCESS_2_TRANSFER_READ_BIT,
+            VK_ACCESS_2_SHADER_READ_BIT,
+            VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+            readonly ? VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL : VK_IMAGE_LAYOUT_GENERAL,
+            VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+            VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,
+            { .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .baseMipLevel = 0, .levelCount = mipCount, .baseArrayLayer = 0, .layerCount = 6 }
+        );
+
+        logicalDevice->FlushCommandBuffer(commandBuffer);
+
+        m_MipsGenerated = true;
+        m_DescriptorInfo.imageLayout = readonly ? VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL : VK_IMAGE_LAYOUT_GENERAL;
     }
 
     void TextureCube::Release()
@@ -874,34 +993,28 @@ namespace Iris {
         m_DescriptorInfo = {};
     }
 
-    VkImageView TextureCube::CreateImageViewSingleMip(uint32_t mip)
+    Ref<ImageView> TextureCube::CreateImageViewSingleMip(uint32_t mip)
     {
         IR_ASSERT(mip < GetMipLevelCount());
 
-        Ref<VulkanDevice> logicalDevice = RendererContext::GetCurrentDevice();
-        VkDevice device = logicalDevice->GetVulkanDevice();
-
-        VkImageView result;
-        VkImageViewCreateInfo imageViewCI = {
-            .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
-            .image = m_Image,
-            .viewType = VK_IMAGE_VIEW_TYPE_CUBE,
-            .format = Utils::GetVulkanImageFormat(m_Specification.Format),
-            .components = { .r = VK_COMPONENT_SWIZZLE_R, .g = VK_COMPONENT_SWIZZLE_G, .b = VK_COMPONENT_SWIZZLE_B, .a = VK_COMPONENT_SWIZZLE_A },
-            .subresourceRange = { .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .baseMipLevel = mip, .levelCount = 1, .baseArrayLayer = 0, .layerCount = 6 }
+        ImageViewSpecification imageViewSpec = {
+            .DebugName = fmt::format("{}{}{}", m_Specification.DebugName, "imageViewMip", mip),
+            .CubeImage = this,
+            .Mip = mip
         };
-        VK_CHECK_RESULT(vkCreateImageView(device, &imageViewCI, nullptr, &result));
-        VKUtils::SetDebugUtilsObjectName(device, VK_OBJECT_TYPE_IMAGE_VIEW, fmt::format("TextureCube mip: {} {} Image View", mip, m_Specification.DebugName), result);
+        Ref<ImageView> result = ImageView::Create(imageViewSpec, false);
 
         return result;
     }
 
     void TextureCube::CopyToHostBuffer(Buffer& buffer, bool writeMips) const
     {
+        IR_VERIFY(false, "Not Implemented");
     }
 
-    void TextureCube::CopyFromBufer(const Buffer& buffer, uint32_t mips)
+    void TextureCube::CopyFromHostBufer(const Buffer& buffer, uint32_t mips)
     {
+        IR_VERIFY(false, "Not Implemented");
     }
     
     uint32_t TextureCube::GetMipLevelCount() const
@@ -921,6 +1034,100 @@ namespace Iris {
         }
 
         return { width, height };
+    }
+
+    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    /// ImageView
+    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    ImageView::ImageView(const ImageViewSpecification& spec, bool deferInvalidation)
+        : m_Specificaton(spec)
+    {
+        if (deferInvalidation)
+            Invalidate();
+        else
+            RT_Invalidate();
+    }
+
+    ImageView::~ImageView()
+    {
+        Renderer::SubmitReseourceFree([imageView = m_ImageView]()
+        {
+            vkDestroyImageView(RendererContext::GetCurrentDevice()->GetVulkanDevice(), imageView, nullptr);
+        });
+
+        m_ImageView = nullptr;
+        m_DescriptorInfo = {};
+
+        m_Specificaton.Image = nullptr;
+        m_Specificaton.CubeImage = nullptr;
+    }
+
+    void ImageView::Invalidate()
+    {
+        Ref<ImageView> instance = this;
+        Renderer::Submit([instance]() mutable
+        {
+            instance->RT_Invalidate();
+        });
+    }
+
+    void ImageView::RT_Invalidate()
+    {
+        Ref<VulkanDevice> logicalDevice = RendererContext::GetCurrentDevice();
+        VkDevice device = logicalDevice->GetVulkanDevice();
+
+        TextureSpecification imageSpec;
+        if (m_Specificaton.Image)
+            imageSpec = m_Specificaton.Image->GetTextureSpecification();
+
+        if (m_Specificaton.CubeImage)
+            imageSpec = m_Specificaton.CubeImage->GetTextureSpecification();
+
+        VkImageAspectFlags aspectMask = Utils::IsDepthFormat(imageSpec.Format) ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
+        if (imageSpec.Format == ImageFormat::DEPTH24STENCIL8 || imageSpec.Format == ImageFormat::DEPTH32FSTENCIL8UINT)
+            aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
+
+        VkImageViewCreateInfo imageViewCI = {
+            .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+            .pNext = nullptr,
+            .flags = 0,
+            .format = Utils::GetVulkanImageFormat(imageSpec.Format),
+            .subresourceRange = {
+                .aspectMask = aspectMask,
+                .baseMipLevel = m_Specificaton.Mip,
+                .levelCount = 1,
+                .baseArrayLayer = 0,
+                .layerCount = imageSpec.Layers
+            }
+        };
+
+        if (m_Specificaton.Image)
+        {
+            imageViewCI.image = m_Specificaton.Image->GetVulkanImage();
+            imageViewCI.viewType = imageSpec.Layers > 1 ? VK_IMAGE_VIEW_TYPE_2D_ARRAY : VK_IMAGE_VIEW_TYPE_2D;
+        }
+
+        if (m_Specificaton.CubeImage)
+        {
+            imageViewCI.image = m_Specificaton.CubeImage->GetVulkanImage();
+            imageViewCI.viewType = VK_IMAGE_VIEW_TYPE_CUBE;
+        }
+
+        VK_CHECK_RESULT(vkCreateImageView(device, &imageViewCI, nullptr, &m_ImageView));
+        VKUtils::SetDebugUtilsObjectName(device, VK_OBJECT_TYPE_IMAGE_VIEW, m_Specificaton.DebugName, m_ImageView);
+    
+        if (m_Specificaton.Image)
+        {
+            m_DescriptorInfo = m_Specificaton.Image->GetDescriptorImageInfo();
+            m_DescriptorInfo.imageView = m_ImageView;
+        }
+
+        if (m_Specificaton.CubeImage)
+        {
+            m_DescriptorInfo = m_Specificaton.CubeImage->GetDescriptorImageInfo();
+            m_DescriptorInfo.imageView = m_ImageView;
+        }
     }
 
 }

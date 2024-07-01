@@ -36,17 +36,7 @@ namespace Iris {
             {
                 if (Utils::IsDepthFormat(attachmentSpec.Format))
                 {
-                    if (spec.Samples > 1)
-                    {
-                        return spec.ClearDepthOnLoad ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-                    }
-
                     return spec.ClearDepthOnLoad ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD;
-                }
-
-                if (spec.Samples > 1)
-                {
-                    return spec.ClearColorOnLoad ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_DONT_CARE;
                 }
 
                 return spec.ClearColorOnLoad ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD;
@@ -84,45 +74,27 @@ namespace Iris {
             {
                 TextureSpecification spec = {
                     .DebugName = fmt::format("{} - DepthAttachment{}", m_Specification.DebugName.empty() ? "Unnamed FB" : m_Specification.DebugName, attachmentIndex),
-                    //.Width = static_cast<uint32_t>(m_Width * m_Specification.Scale),
-                    //.Height = static_cast<uint32_t>(m_Height * m_Specification.Scale),
                     .Width = m_Width,
                     .Height = m_Height,
                     .Format = attachmentSpec.Format,
                     .Usage = ImageUsage::Attachment,
-                    .Samples = m_Specification.Samples,
+                    .Samples = 1,
                     .Trasnfer = m_Specification.Transfer
                 };
                 m_DepthAttachmentImage = Texture2D::CreateNull(spec);
-
-                if (m_Specification.Samples > 1)
-                {
-                    spec.DebugName = fmt::format("{} - ResolveDepthAttachment{}", m_Specification.DebugName.empty() ? "Unamed FB" : m_Specification.DebugName, attachmentIndex),
-                    spec.Samples = 1;
-                    m_DepthResolveImage = Texture2D::CreateNull(spec);
-                }
             }
             else
             {
                 TextureSpecification spec = {
                     .DebugName = fmt::format("{} - ColorAttachment{}", m_Specification.DebugName.empty() ? "Unnamed FB" : m_Specification.DebugName, attachmentIndex),
-                    //.Width = static_cast<uint32_t>(m_Width * m_Specification.Scale),
-                    //.Height = static_cast<uint32_t>(m_Height * m_Specification.Scale),
                     .Width = m_Width,
                     .Height = m_Height,
                     .Format = attachmentSpec.Format,
                     .Usage = ImageUsage::Attachment,
-                    .Samples = m_Specification.Samples,
+                    .Samples = 1,
                     .Trasnfer = m_Specification.Transfer
                 };
                 m_ColorAttachmentImages.emplace_back(Texture2D::CreateNull(spec));
-
-                if (m_Specification.Samples > 1)
-                {
-                    spec.DebugName = fmt::format("{} - ResolveColorAttachment{}", m_Specification.DebugName.empty() ? "Unnamed FB" : m_Specification.DebugName, attachmentIndex),
-                    spec.Samples = 1;
-                    m_ColorResolveImages.emplace_back(Texture2D::CreateNull(spec));
-                }
             }
 
             ++attachmentIndex;
@@ -152,14 +124,6 @@ namespace Iris {
 
         Release();
 
-        m_ClearValues.clear();
-        m_ClearValues.reserve(m_Specification.Attachments.Attachments.size());
-
-        std::vector<VkAttachmentDescription2> attachmentDescriptions;
-
-        std::vector<VkAttachmentReference2> colorAttachmentReferences;
-        VkAttachmentReference2 depthAttachmentReference;
-
         uint32_t attachmentIndex = 0;
         for (const auto& attachmentSpec : m_Specification.Attachments.Attachments)
         {
@@ -179,53 +143,23 @@ namespace Iris {
                     m_DepthAttachmentImage->Invalidate();
                 }
 
-                VkAttachmentDescription2& attachmentDescription = attachmentDescriptions.emplace_back();
-                attachmentDescription.sType = VK_STRUCTURE_TYPE_ATTACHMENT_DESCRIPTION_2;
-                attachmentDescription.pNext = nullptr;
-                attachmentDescription.flags = 0;
-                attachmentDescription.format = Utils::GetVulkanImageFormat(attachmentSpec.Format);
-                attachmentDescription.samples = Utils::GetSamplerCount(m_Specification.Samples);
-                attachmentDescription.loadOp = Utils::GetVulkanAttachmentLoadOp(m_Specification, attachmentSpec);
-                // NOTE: If we are sampling it need to be store otherwise DONT_CARE
-                attachmentDescription.storeOp = m_Specification.Samples > 1 ? VK_ATTACHMENT_STORE_OP_DONT_CARE : VK_ATTACHMENT_STORE_OP_STORE;
-                attachmentDescription.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-                attachmentDescription.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-                attachmentDescription.initialLayout = attachmentDescription.loadOp == VK_ATTACHMENT_LOAD_OP_CLEAR ? VK_IMAGE_LAYOUT_UNDEFINED : VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
-                // This is always hit since we can set VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL only if we have separateDepthStencilLayout feature enabled
-                if (true || attachmentSpec.Format == ImageFormat::DEPTH24STENCIL8 || attachmentSpec.Format == ImageFormat::DEPTH32FSTENCIL8UINT)
-                {
-                    VkImageLayout finalLayout = attachmentSpec.Sampled == AttachmentPassThroughUsage::Sampled ? VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL : VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-                    attachmentDescription.finalLayout = m_Specification.Samples > 1 ? VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL : finalLayout;
-                    // We override here in case we have a sampled image since a sampled image can not be read from directly
-
-                    depthAttachmentReference = {
-                        .sType = VK_STRUCTURE_TYPE_ATTACHMENT_REFERENCE_2,
-                        .pNext = nullptr,
-                        .attachment = attachmentIndex,
-                        .layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
-                    };
-                }
-                else
-                {
-                    VkImageLayout finalLayout = attachmentSpec.Sampled == AttachmentPassThroughUsage::Sampled ? VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL : VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL;
-                    attachmentDescription.finalLayout = m_Specification.Samples > 1 ? VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL : finalLayout;
-                    // We override here in case we have a sampled image since a sampled image can not be read from directly
-
-                    depthAttachmentReference = {
-                        .sType = VK_STRUCTURE_TYPE_ATTACHMENT_REFERENCE_2,
-                        .pNext = nullptr,
-                        .attachment = attachmentIndex,
-                        .layout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL
-                    };
-                }
+                m_DepthAttachmentInfo = VkRenderingAttachmentInfo{
+                    .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+                    .pNext = nullptr,
+                    .imageView = m_DepthAttachmentImage->GetVulkanImageView(),
+                    .imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, // This is the layout that the image will be in DURING rendering. We still have to manually transition INTO and OUT OF
+                    .loadOp = Utils::GetVulkanAttachmentLoadOp(m_Specification, attachmentSpec),
+                    .storeOp = VK_ATTACHMENT_STORE_OP_STORE
+                };
 
                 if (m_Specification.ClearDepthOnLoad)
                 {
-                    m_ClearValues.emplace(m_ClearValues.begin() + attachmentIndex, VkClearValue{
+                    m_DepthAttachmentInfo.clearValue = VkClearValue{
                         .depthStencil = { m_Specification.DepthClearValue, 0 }
-                    });
+                    };
                 }
+
+                m_DepthAttachmentImageFormat = Utils::GetVulkanImageFormat(attachmentSpec.Format);
             }
             else
             {
@@ -245,279 +179,39 @@ namespace Iris {
                     image->Invalidate();
                 }
 
-                VkAttachmentDescription2& attachmentDescription = attachmentDescriptions.emplace_back();
-                attachmentDescription.sType = VK_STRUCTURE_TYPE_ATTACHMENT_DESCRIPTION_2;
-                attachmentDescription.pNext = nullptr;
-                attachmentDescription.flags = 0;
-                attachmentDescription.format = Utils::GetVulkanImageFormat(attachmentSpec.Format);
-                attachmentDescription.samples = Utils::GetSamplerCount(m_Specification.Samples);
-                attachmentDescription.loadOp = Utils::GetVulkanAttachmentLoadOp(m_Specification, attachmentSpec);
-                // NOTE: If we are sampling it need to be store otherwise DONT_CARE
-                attachmentDescription.storeOp = m_Specification.Samples > 1 ? VK_ATTACHMENT_STORE_OP_DONT_CARE : VK_ATTACHMENT_STORE_OP_STORE;
-                attachmentDescription.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-                attachmentDescription.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-                attachmentDescription.initialLayout = attachmentDescription.loadOp == VK_ATTACHMENT_LOAD_OP_CLEAR ? VK_IMAGE_LAYOUT_UNDEFINED : VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
-                VkImageLayout finalLayout = attachmentSpec.Sampled == AttachmentPassThroughUsage::Sampled ? VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL : VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-                attachmentDescription.finalLayout = m_Specification.Samples > 1 ? VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL : finalLayout;
-
-                colorAttachmentReferences.emplace_back(VkAttachmentReference2{
-                    .sType = VK_STRUCTURE_TYPE_ATTACHMENT_REFERENCE_2,
+                VkRenderingAttachmentInfo& attachmentInfo = m_ColorAttachmentInfo.emplace_back();
+                attachmentInfo = VkRenderingAttachmentInfo{
+                    .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
                     .pNext = nullptr,
-                    .attachment = attachmentIndex,
-                    .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
-                });
+                    .imageView = m_ColorAttachmentImages[attachmentIndex]->GetVulkanImageView(),
+                    .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                    .loadOp = Utils::GetVulkanAttachmentLoadOp(m_Specification, attachmentSpec),
+                    .storeOp = VK_ATTACHMENT_STORE_OP_STORE
+                };
 
                 if (m_Specification.ClearColorOnLoad)
                 {
-                    m_ClearValues.emplace(m_ClearValues.begin() + attachmentIndex, VkClearValue{
+                    attachmentInfo.clearValue = VkClearValue{
                         .color = {
                             m_Specification.ClearColor.r,
                             m_Specification.ClearColor.g,
                             m_Specification.ClearColor.b,
                             m_Specification.ClearColor.a
                         }
-                    });
+                    };
                 }
+
+                m_ColorAttachmentImageFormats.emplace_back() = Utils::GetVulkanImageFormat(attachmentSpec.Format);
             }
 
             attachmentIndex++;
         }
-
-        // In case of multisampling we need a resolve image
-        VkAttachmentReference2 depthStencilResolveAttachment;
-        VkSubpassDescriptionDepthStencilResolve depthStencilResolve;
-        if (m_Specification.Samples > 1)
-        {
-            uint32_t attachmentDescriptionIndex;
-            for (attachmentDescriptionIndex = 0; attachmentDescriptionIndex < m_ColorResolveImages.size(); attachmentDescriptionIndex++)
-            {
-                // Invalidate the image...
-                Ref<Texture2D> image = m_ColorResolveImages[attachmentDescriptionIndex];
-                TextureSpecification& spec = image->GetTextureSpecification();
-                spec.Width = m_Width;
-                spec.Height = m_Height;
-                image->Invalidate();
-
-                VkAttachmentDescription2& resolveAttachmentDescription = attachmentDescriptions.emplace_back();
-                resolveAttachmentDescription = VkAttachmentDescription2{
-                    .sType = VK_STRUCTURE_TYPE_ATTACHMENT_DESCRIPTION_2,
-                    .pNext = nullptr,
-                    .flags = 0,
-                    .format = Utils::GetVulkanImageFormat(image->GetFormat()),
-                    .samples = VK_SAMPLE_COUNT_1_BIT,
-                    .loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
-                    .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
-                    .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
-                    .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
-                    .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-                    .finalLayout = m_Specification.Attachments.Attachments[attachmentDescriptionIndex].Sampled == AttachmentPassThroughUsage::Sampled ?
-                                                VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL :
-                                                attachmentDescriptions[attachmentDescriptionIndex].finalLayout
-                };
-
-                // attachmentIndex here should have been incremented
-                colorAttachmentReferences.emplace_back(VkAttachmentReference2{
-                    .sType = VK_STRUCTURE_TYPE_ATTACHMENT_REFERENCE_2,
-                    .pNext = nullptr,
-                    .attachment = attachmentIndex,
-                    .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
-                });
-
-                attachmentIndex++;
-            }
-
-
-            if (m_DepthAttachmentImage)
-            {
-                // Invalidate the image...
-                TextureSpecification& spec = m_DepthResolveImage->GetTextureSpecification();
-                spec.Width = m_Width;
-                spec.Height = m_Height;
-                m_DepthResolveImage->Invalidate();
-
-                VkAttachmentDescription2& depthResolveAttachmentDesc = attachmentDescriptions.emplace_back();
-                depthResolveAttachmentDesc = VkAttachmentDescription2{
-                    .sType = VK_STRUCTURE_TYPE_ATTACHMENT_DESCRIPTION_2,
-                    .pNext = nullptr,
-                    .flags = 0,
-                    .format = Utils::GetVulkanImageFormat(m_DepthResolveImage->GetFormat()),
-                    .samples = VK_SAMPLE_COUNT_1_BIT,
-                    .loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
-                    .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
-                    .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
-                    .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
-                    .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-                    .finalLayout = m_Specification.Attachments.Attachments[attachmentDescriptionIndex].Sampled == AttachmentPassThroughUsage::Sampled ?
-                                                VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL :
-                                                attachmentDescriptions[attachmentDescriptionIndex].finalLayout
-                };
-
-                depthStencilResolveAttachment = {
-                    .sType = VK_STRUCTURE_TYPE_ATTACHMENT_REFERENCE_2,
-                    .pNext = nullptr,
-                    .attachment = attachmentIndex,
-                    .layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
-                };
-
-                depthStencilResolve = {
-                    .sType = VK_STRUCTURE_TYPE_SUBPASS_DESCRIPTION_DEPTH_STENCIL_RESOLVE,
-                    .pNext = nullptr,
-                    .depthResolveMode = VK_RESOLVE_MODE_AVERAGE_BIT,
-                    .stencilResolveMode = VK_RESOLVE_MODE_NONE,
-                    .pDepthStencilResolveAttachment = &depthStencilResolveAttachment
-                };
-            }
-        }
-
-        VkSubpassDescription2 subPassDesc = {
-            .sType = VK_STRUCTURE_TYPE_SUBPASS_DESCRIPTION_2,
-            .pNext = (m_Specification.Samples > 1 && m_DepthAttachmentImage != nullptr) ? &depthStencilResolve : nullptr,
-            .pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
-            .colorAttachmentCount = static_cast<uint32_t>(colorAttachmentReferences.size() - m_ColorResolveImages.size()),
-            .pColorAttachments = colorAttachmentReferences.data(),
-        };
-        if (m_DepthAttachmentImage)
-            subPassDesc.pDepthStencilAttachment = &depthAttachmentReference;
-        if (m_Specification.Samples > 1)
-            subPassDesc.pResolveAttachments = (colorAttachmentReferences.data() + m_ColorAttachmentImages.size());
-
-        // Use subpass dependencies for layout transitions...
-        std::vector<VkSubpassDependency2> dependencies;
-        dependencies.reserve((m_ColorAttachmentImages.size() ? 2 : 0) + (m_DepthAttachmentImage ? 2 : 0));
-        if (m_ColorAttachmentImages.size())
-        {
-            {
-                VkSubpassDependency2& dependency = dependencies.emplace_back();
-                dependency = VkSubpassDependency2{
-                    .sType = VK_STRUCTURE_TYPE_SUBPASS_DEPENDENCY_2,
-                    .pNext = nullptr,
-                    .srcSubpass = VK_SUBPASS_EXTERNAL,
-                    .dstSubpass = 0,
-                    .srcStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-                    .dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-                    .srcAccessMask = VK_ACCESS_SHADER_READ_BIT,
-                    .dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
-                    .dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT
-                };
-            }
-
-            {
-                VkSubpassDependency2& dependency = dependencies.emplace_back();
-                dependency = VkSubpassDependency2{
-                    .sType = VK_STRUCTURE_TYPE_SUBPASS_DEPENDENCY_2,
-                    .pNext = nullptr,
-                    .srcSubpass = 0,
-                    .dstSubpass = VK_SUBPASS_EXTERNAL,
-                    .srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-                    .dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-                    .srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
-                    .dstAccessMask = VK_ACCESS_SHADER_READ_BIT,
-                    .dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT
-                };
-            }
-        }
-
-        if (m_DepthAttachmentImage)
-        {
-            {
-                VkSubpassDependency2& dependency = dependencies.emplace_back();
-                dependency = VkSubpassDependency2{
-                    .sType = VK_STRUCTURE_TYPE_SUBPASS_DEPENDENCY_2,
-                    .pNext = nullptr,
-                    .srcSubpass = VK_SUBPASS_EXTERNAL,
-                    .dstSubpass = 0,
-                    .srcStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-                    .dstStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT,
-                    .srcAccessMask = VK_ACCESS_SHADER_READ_BIT,
-                    .dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
-                    .dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT
-                };
-            }
-
-            {
-                VkSubpassDependency2& dependency = dependencies.emplace_back();
-                dependency = VkSubpassDependency2{
-                    .sType = VK_STRUCTURE_TYPE_SUBPASS_DEPENDENCY_2,
-                    .pNext = nullptr,
-                    .srcSubpass = 0,
-                    .dstSubpass = VK_SUBPASS_EXTERNAL,
-                    .srcStageMask = VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT,
-                    .dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-                    .srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
-                    .dstAccessMask = VK_ACCESS_SHADER_READ_BIT,
-                    .dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT
-                };
-            }
-        }
-
-        VkRenderPassCreateInfo2 renderPassCI = {
-            .sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO_2,
-            .attachmentCount = static_cast<uint32_t>(attachmentDescriptions.size()),
-            .pAttachments = attachmentDescriptions.data(),
-            .subpassCount = 1,
-            .pSubpasses = &subPassDesc,
-            .dependencyCount = static_cast<uint32_t>(dependencies.size()),
-            .pDependencies = dependencies.data()
-        };
-
-        VK_CHECK_RESULT(vkCreateRenderPass2(device, &renderPassCI, nullptr, &m_VulkanRenderPass));
-        VKUtils::SetDebugUtilsObjectName(device, VK_OBJECT_TYPE_RENDER_PASS, fmt::format("{} - Renderpass object", m_Specification.DebugName), m_VulkanRenderPass);
-
-        uint32_t numberOfAttachmentImages = static_cast<uint32_t>(m_ColorAttachmentImages.size() + ((m_DepthAttachmentImage != nullptr) ? 1 : 0));
-        uint32_t numberOfResolveImages = static_cast<uint32_t>(m_ColorResolveImages.size() + ((m_DepthResolveImage != nullptr) ? 1 : 0));
-        std::vector<VkImageView> attachmentImageViews(numberOfAttachmentImages + numberOfResolveImages);
-
-        uint32_t attachementViewsIndex = 0;
-        for (; attachementViewsIndex < m_ColorAttachmentImages.size(); attachementViewsIndex++)
-        {
-            Ref<Texture2D> image = m_ColorAttachmentImages[attachementViewsIndex];
-            attachmentImageViews[attachementViewsIndex] = image->GetVulkanImageView();
-            IR_ASSERT(attachmentImageViews[attachementViewsIndex]);
-        }
-
-        if (m_DepthAttachmentImage)
-        {
-            attachmentImageViews[attachementViewsIndex] = m_DepthAttachmentImage->GetVulkanImageView();
-            IR_ASSERT(attachmentImageViews[attachementViewsIndex]);
-
-            attachementViewsIndex++;
-        }
-
-        if (m_Specification.Samples > 1)
-        {
-            for (uint32_t i = 0; i < m_ColorResolveImages.size(); i++, attachementViewsIndex++)
-            {
-                attachmentImageViews[attachementViewsIndex] = m_ColorResolveImages[i]->GetVulkanImageView();
-                IR_ASSERT(attachmentImageViews[attachementViewsIndex]);
-            }
-
-            if (m_DepthAttachmentImage)
-            {
-                attachmentImageViews[attachementViewsIndex] = m_DepthResolveImage->GetVulkanImageView();
-                IR_ASSERT(attachmentImageViews[attachementViewsIndex]);
-            }
-        }
-
-        VkFramebufferCreateInfo framebufferCI = {
-            .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
-            .renderPass = m_VulkanRenderPass,
-            .attachmentCount = static_cast<uint32_t>(attachmentImageViews.size()),
-            .pAttachments = attachmentImageViews.data(),
-            .width = m_Width,
-            .height = m_Height,
-            .layers = 1
-        };
-
-        VK_CHECK_RESULT(vkCreateFramebuffer(device, &framebufferCI, nullptr, &m_VulkanFramebuffer));
-        VKUtils::SetDebugUtilsObjectName(device, VK_OBJECT_TYPE_FRAMEBUFFER, m_Specification.DebugName, m_VulkanFramebuffer);
     }
 
     void Framebuffer::Resize(uint32_t width, uint32_t height, bool forceRecreate)
     {
         if (!forceRecreate && (m_Width == width && m_Height == height))
             return;
-
 
         Ref<Framebuffer> instance = this;
         Renderer::Submit([instance, width, height]() mutable
@@ -529,57 +223,52 @@ namespace Iris {
                 instance->RT_Invalidate();
             else
             {
-                SwapChain& swapChain = Application::Get().GetWindow().GetSwapChain();
-                instance->m_VulkanRenderPass = swapChain.GetRenderPass();
+                instance->m_ColorAttachmentImageFormats.clear();
 
-                instance->m_ClearValues.clear();
-                instance->m_ClearValues.emplace_back().color = { 0.0f, 0.0f, 0.0f, 1.0f };
+                // We get the first attachment since in case of SwapChainTarget we will only have one image in the specification which is the format of the swapchain image
+                // TODO: Needs checking, Is this the right thing to do? The runtime works in debug mode but not in release mode tho...
+                instance->m_ColorAttachmentImageFormats.emplace_back() = Utils::GetVulkanImageFormat(instance->m_Specification.Attachments.Attachments.front().Format);
             }
         });
     }
 
     void Framebuffer::Release()
     {
-        if (m_VulkanFramebuffer)
+        // Here we just need to release the images that the framebuffer stores
+        uint32_t attachmentIndex = 0;
+        for (Ref<Texture2D> image : m_ColorAttachmentImages)
         {
-            Renderer::SubmitReseourceFree([framebuffer = m_VulkanFramebuffer, renderpass = m_VulkanRenderPass]()
-            {
-                VkDevice device = RendererContext::GetCurrentDevice()->GetVulkanDevice();
-                vkDestroyFramebuffer(device, framebuffer, nullptr);
-                vkDestroyRenderPass(device, renderpass, nullptr);
-            });
+            // Do not free the image if we do not own it...
+            if (m_Specification.ExistingImages.contains(attachmentIndex))
+                continue;
+            // TODO: A bug will be here when we have image layers
+            image->Release();
+            attachmentIndex++;
+        }
 
-            uint32_t attachmentIndex = 0;
-            for (Ref<Texture2D> image : m_ColorAttachmentImages)
+        if (m_DepthAttachmentImage)
+        {
+            // Do we own it?
+            uint32_t depthAttachmentIndex;
+            uint32_t i = 0;
+            for (const FramebufferTextureSpecification& attachmentSpec : m_Specification.Attachments.Attachments)
             {
-                // Do not free the image if we do not own it...
-                if (m_Specification.ExistingImages.contains(attachmentIndex))
-                    continue;
-                // TODO: A bug will be here when we have image layers
-                image->Release();
-                attachmentIndex++;
-            }
-
-            if (m_DepthAttachmentImage)
-            {
-                // Do we own it?
-                uint32_t depthAttachmentIndex;
-                uint32_t i = 0;
-                for (const FramebufferTextureSpecification& attachmentSpec : m_Specification.Attachments.Attachments)
+                if (m_DepthAttachmentImage->GetFormat() == attachmentSpec.Format)
                 {
-                    if (m_DepthAttachmentImage->GetFormat() == attachmentSpec.Format)
-                    {
-                        depthAttachmentIndex = i;
-                        break;
-                    }
-
-                    i++;
+                    depthAttachmentIndex = i;
+                    break;
                 }
 
-                if (!m_Specification.ExistingImages.contains(depthAttachmentIndex))
-                    m_DepthAttachmentImage->Release();
+                i++;
             }
+
+            if (!m_Specification.ExistingImages.contains(depthAttachmentIndex))
+                m_DepthAttachmentImage->Release();
         }
+
+        // Clear attachment infos that clears all references to all image views
+        m_ColorAttachmentInfo.clear();
+        m_DepthAttachmentInfo = {};
     }
 
 }

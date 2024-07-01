@@ -7,6 +7,8 @@
 
 namespace Iris {
 
+	class Texture2D;
+
 	// Implementation is in EditorAssetManager and RuntimeAssetManager
 	class AssetManagerBase : public RefCountedObject
 	{

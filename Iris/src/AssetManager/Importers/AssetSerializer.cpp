@@ -3,11 +3,11 @@
 
 #include "AssetManager/AssetManager.h"
 #include "Project/Project.h"
-//#include "Renderer/Core/RenderCommandBuffer.h" // TODO: Maybe remove this?
 #include "Renderer/Renderer.h"
 #include "Renderer/StorageBufferSet.h"
 #include "Renderer/Texture.h"
 #include "Renderer/UniformBufferSet.h"
+#include "Renderer/Text/Font.h"
 #include "Scene/Scene.h"
 #include "Scene/SceneEnvironment.h"
 #include "Utils/YAMLSerializationHelpers.h"
@@ -219,22 +219,32 @@ namespace Iris {
 	}
 
 	//////////////////////////////////////////////
+	/// FontSerializer
+	//////////////////////////////////////////////
+
+	bool FontSerializer::TryLoadData(const AssetMetaData& metaData, Ref<Asset>& asset) const
+	{
+		asset = Font::Create(Project::GetEditorAssetManager()->GetFileSystemPathString(metaData));
+		asset->Handle = metaData.Handle;
+
+		return true;
+	}
+
+	//////////////////////////////////////////////
 	/// EnvironmentSerializer
 	//////////////////////////////////////////////
 
-	// TODO:
-	// bool EnvironmentSerializer::TryLoadData(const AssetMetaData& metaData, Ref<Asset>& asset) const
-	// {
-	// 	// TODO: REMOVE THE nullptr FROM HERE
-	// 	auto [radiance, irradiance] = Renderer::CreateEnvironmentMap(nullptr, Project::GetEditorAssetManager()->GetFileSystemPathString(metaData));
-	// 
-	// 	if (!radiance || !irradiance)
-	// 		return false;
-	// 
-	// 	asset = Environment::Create(radiance, irradiance);
-	// 	asset->Handle = metaData.Handle;
-	// 	return true;
-	// }
+	bool EnvironmentSerializer::TryLoadData(const AssetMetaData& metaData, Ref<Asset>& asset) const
+	{
+		auto [radiance, irradiance] = Renderer::CreateEnvironmentMap(Project::GetEditorAssetManager()->GetFileSystemPathString(metaData));
+	
+		if (!radiance || !irradiance)
+			return false;
+	
+		asset = Environment::Create(radiance, irradiance);
+		asset->Handle = metaData.Handle;
+		return true;
+	}
 
 	//////////////////////////////////////////////
 	/// SceneAssetSerializer

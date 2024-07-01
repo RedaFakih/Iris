@@ -12,6 +12,26 @@ namespace Iris {
 
 	class SceneRenderer;
 
+	// Just a POD type that holds all the data (from the DirectionalLightComponent and also other places) needed for a directional light in the scene
+	struct SceneDirectionalLight
+	{
+		glm::vec3 Direction = { 0.0f, 0.0f, 0.0f };
+		glm::vec3 Radiance = { 1.0f, 1.0f, 1.0f };
+		float Intensity = 1.0f;
+		float ShadowAmount = 1.0f;
+
+		// TODO: boolean for shadows
+	};
+
+	// Hold the data related to all lighting in the scene: Directional/Point/Spot Lights...
+	struct LightEnvironment
+	{
+		constexpr static uint32_t MaxDirectionalLights = 1; // We can only have one directional light in the scene
+
+		SceneDirectionalLight DirectionalLight;
+		// NOTE: Other type of lights data will be stored here also...
+	};
+
 	using EntityMap = std::unordered_map<UUID, Entity>;
 
 	class Scene : public Asset
@@ -83,6 +103,7 @@ namespace Iris {
 		glm::vec2 GetViewportSize() const { return { m_ViewportWidth, m_ViewportHeight }; }
 
 		const EntityMap& GetEntityMap() const { return m_EntityIDMap; }
+		const Ref<Environment>& GetEnvironment() const { return m_Environment; }
 
 		template<typename TComponent>
 		void CopyComponentIfExists(entt::entity dst, entt::registry& dstRegistry, entt::entity src)
@@ -119,9 +140,10 @@ namespace Iris {
 
 		EntityMap m_EntityIDMap;
 
-		//Ref<Environment> m_Environment;
-		//float m_EnvironmentIntensity = 0.0f;
-		//float m_SkyboxLod = 0.0f;
+		Ref<Environment> m_Environment;
+		float m_EnvironmentIntensity = 1.0f;
+		float m_SkyboxLod = 0.0f;
+		LightEnvironment m_LightEnvironment;
 
 		std::function<void(Entity)> m_OnEntityDestroyedCallback;
 

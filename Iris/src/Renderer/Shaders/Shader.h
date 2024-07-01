@@ -36,6 +36,7 @@ namespace Iris {
 		void RT_Reload();
 
 		void Release();
+		void ReleaseShaderModules();
 
 		std::size_t GetHash() const;
 		const std::string_view GetName() const { return m_Name; }

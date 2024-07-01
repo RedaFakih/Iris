@@ -11,7 +11,7 @@ namespace Iris {
 	class FileStreamWriter : public StreamWriter
 	{
 	public:
-		FileStreamWriter(const std::filesystem::path& filePath);
+		FileStreamWriter(const std::filesystem::path& filePath, const bool truncate = false);
 		FileStreamWriter(const FileStreamWriter&) = delete;
 		FileStreamWriter& operator=(const FileStreamWriter&) = delete;
 		~FileStreamWriter();

@@ -26,6 +26,8 @@ namespace Iris {
 		void SetPushConstants(Buffer pushConstants) const;
 		void CreatePipeline();
 
+		bool IsUsingComputeQueue() const { return m_UsingGraphicsQueue == false; }
+
 		VkPipelineLayout GetPipelineLayout() const { return m_PipelineLayout; }
 		VkCommandBuffer GetActiveCommandBuffer() const { return m_ActiveComputeCommandBuffer; }
 		Ref<Shader> GetShader() const { return m_Shader; }

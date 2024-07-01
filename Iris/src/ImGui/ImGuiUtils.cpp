@@ -155,6 +155,7 @@ namespace Iris::UI {
 		ImGui::TextDisabled(" (?)");
 		if (ImGui::IsItemHovered())
 		{
+			UI::ImGuiScopedStyle padding(ImGuiStyleVar_WindowPadding, { 8.0f, 8.0f });
 			ImGui::BeginTooltip();
 			ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
 			ImGui::TextUnformatted(description);
@@ -589,6 +590,31 @@ namespace Iris::UI {
 		}
 		if (isError)
 			ImGui::PopStyleColor();
+
+		ImGui::PopItemWidth();
+
+		ImGui::NextColumn();
+		UnderLine();
+
+		return modified;
+	}
+
+	bool PropertyStringMultiline(const char* label, std::string& value, const char* helpText)
+	{
+		bool modified = false;
+
+		ImGui::Text(label);
+
+		if (std::strlen(helpText) != 0)
+		{
+			ImGui::SameLine();
+			ShowHelpMarker(helpText);
+		}
+
+		ImGui::NextColumn();
+		ImGui::PushItemWidth(-1);
+
+		modified = UI::InputTextMultiline(std::format("##{0}", label).c_str(), &value);
 
 		ImGui::PopItemWidth();
 
@@ -1992,6 +2018,154 @@ namespace Iris::UI {
 		}
 
 		return { valid, name };
+	}
+
+	bool BeginSection(const char* name, int& sectionIndex, bool columns2, float column1Width, float column2Width)
+	{
+		constexpr float popupWidth = 310.0f;
+
+		ImGuiFontsLibrary& fontsLib = Application::Get().GetImGuiLayer()->GetFontsLibrary();
+
+		if (sectionIndex > 0)
+			UI::ShiftCursorY(5.5f);
+
+		fontsLib.PushFont("RobotoBold");
+
+		float halfHeight = ImGui::CalcTextSize(name).y / 2.0f;
+		ImVec2 p1 = { 0.0f, halfHeight };
+		ImVec2 p2 = { 14.0f, halfHeight };
+		UI::UnderLine(Colors::Theme::TextDarker, false, p1, p2, 3.0f);
+		UI::ShiftCursorX(17.0f);
+
+		ImGui::TextUnformatted(name);
+
+		fontsLib.PopFont();
+
+		ImVec2 cursorPos = ImGui::GetCursorPos();
+		ImGui::SameLine();
+
+		UI::UnderLine(false, 3.0f, halfHeight, 3.0f, Colors::Theme::TextDarker);
+		ImGui::SetCursorPos(cursorPos);
+
+		bool result = ImGui::BeginTable("##section_table", columns2 ? 2 : 1, ImGuiTableFlags_SizingStretchSame);
+		if (result)
+		{
+			ImGui::TableSetupColumn("Labels", ImGuiTableColumnFlags_WidthFixed, column1Width == 0.0f ? popupWidth * 0.5f : column1Width);
+			if (columns2)
+				ImGui::TableSetupColumn("Widgets", ImGuiTableColumnFlags_WidthFixed, column2Width == 0.0f ? popupWidth * 0.5f : column2Width);
+		}
+
+		sectionIndex++;
+		return result;
+	}
+
+	void EndSection()
+	{
+		ImGui::EndTable();
+	}
+
+	void SectionText(const char* label, const char* text)
+	{
+		ImGui::TableNextRow();
+		ImGui::TableSetColumnIndex(0);
+		ImGui::TextUnformatted(label);
+		ImGui::TableSetColumnIndex(1);
+		ImGuiTable* table = ImGui::GetCurrentTable();
+		float columnWidth = ImGui::TableGetMaxColumnWidth(table, 1);
+		UI::ShiftCursor(columnWidth - ImGui::GetFrameHeight() - ImGui::GetStyle().ItemInnerSpacing.x, -GImGui->Style.FramePadding.y);
+		ImGui::TextUnformatted(text);
+	}
+
+	bool SectionCheckbox(const char* label, bool& value, const char* hint)
+	{
+		ImGui::TableNextRow();
+		ImGui::TableSetColumnIndex(0);
+		ImVec2 cursorPos = ImGui::GetCursorPos();
+		ImGui::TextUnformatted(label);
+		ImVec2 size = ImGui::CalcTextSize(label);
+		ImVec2 cursorPosToReset = ImGui::GetCursorPos();
+		ImGui::SetCursorPos(cursorPos);
+		ImGui::InvisibleButton(UI::GenerateID(), size);
+		UI::SetToolTip(hint);
+		ImGui::SetCursorPos(cursorPosToReset);
+		ImGui::TableSetColumnIndex(1);
+		ImGuiTable* table = ImGui::GetCurrentTable();
+		float columnWidth = ImGui::TableGetMaxColumnWidth(table, 1);
+		UI::ShiftCursor(columnWidth - ImGui::GetFrameHeight() - ImGui::GetStyle().ItemInnerSpacing.x, -GImGui->Style.FramePadding.y);
+		return UI::Checkbox(UI::GenerateID(), &value);
+	}
+
+	bool SectionSlider(const char* label, float& value, float min, float max, const char* hint)
+	{
+		ImGui::TableNextRow();
+		ImGui::TableSetColumnIndex(0);
+		ImVec2 cursorPos = ImGui::GetCursorPos();
+		ImGui::TextUnformatted(label);
+		ImVec2 size = ImGui::CalcTextSize(label);
+		ImVec2 cursorPosToReset = ImGui::GetCursorPos();
+		ImGui::SetCursorPos(cursorPos);
+		ImGui::InvisibleButton(UI::GenerateID(), size);
+		UI::SetToolTip(hint);
+		ImGui::TableSetColumnIndex(1);
+		ImGui::SetNextItemWidth(-1);
+		UI::ShiftCursor(GImGui->Style.FramePadding.x, -GImGui->Style.FramePadding.y);
+		return UI::SliderFloat(UI::GenerateID(), &value, min, max);
+	}
+
+	bool SectionDrag(const char* label, float& value, float delta, float min, float max, const char* hint)
+	{
+		ImGui::TableNextRow();
+		ImGui::TableSetColumnIndex(0);
+		ImVec2 cursorPos = ImGui::GetCursorPos();
+		ImGui::TextUnformatted(label);
+		ImVec2 size = ImGui::CalcTextSize(label);
+		ImVec2 cursorPosToReset = ImGui::GetCursorPos();
+		ImGui::SetCursorPos(cursorPos);
+		ImGui::InvisibleButton(UI::GenerateID(), size);
+		UI::SetToolTip(hint);
+		ImGui::TableSetColumnIndex(1);
+		ImGui::SetNextItemWidth(-1);
+		UI::ShiftCursor(GImGui->Style.FramePadding.x, -GImGui->Style.FramePadding.y);
+		return UI::DragFloat(UI::GenerateID(), &value, delta, min, max);
+	}
+
+	bool SectionDropdown(const char* label, const char** options, int32_t optionCount, int32_t* selected, const char* hint)
+	{
+		const char* current = options[*selected];
+		ImGui::TableNextRow();
+		ImGui::TableSetColumnIndex(0);
+		ImVec2 cursorPos = ImGui::GetCursorPos();
+		ImGui::TextUnformatted(label);
+		ImVec2 size = ImGui::CalcTextSize(label);
+		ImVec2 cursorPosToReset = ImGui::GetCursorPos();
+		ImGui::SetCursorPos(cursorPos);
+		ImGui::InvisibleButton(UI::GenerateID(), size);
+		UI::SetToolTip(hint);
+		ImGui::TableSetColumnIndex(1);
+		ImGui::PushItemWidth(-1);
+
+		bool result = false;
+		UI::ShiftCursor(GImGui->Style.FramePadding.x, -GImGui->Style.FramePadding.y);
+		if (UI::BeginCombo(UI::GenerateID(), current))
+		{
+			for (int i = 0; i < optionCount; i++)
+			{
+				const bool is_selected = (current == options[i]);
+				if (ImGui::Selectable(options[i], is_selected))
+				{
+					current = options[i];
+					*selected = i;
+					result = true;
+				}
+
+				if (is_selected)
+					ImGui::SetItemDefaultFocus();
+			}
+			UI::EndCombo();
+		}
+		ImGui::PopItemWidth();
+
+		return result;
 	}
 
 }

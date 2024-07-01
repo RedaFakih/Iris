@@ -7,6 +7,8 @@
 #undef MoveFile
 #endif
 
+#include "Core/Buffer.h"
+
 #include <filesystem>
 
 namespace Iris {
@@ -32,6 +34,9 @@ namespace Iris {
 		static bool ShowFileInExplorer(const std::filesystem::path& path);
 		static bool OpenDirectoryInExplorer(const std::filesystem::path& directory);
 		static bool OpenExternally(const std::filesystem::path& path);
+
+		static bool WriteBytes(const std::filesystem::path& filepath, const Buffer& buffer);
+		static Buffer ReadBytes(const std::filesystem::path& filepath);
 
 		static std::filesystem::path GetUniqueFilename(const std::filesystem::path& path);
 		static std::filesystem::path Absolute(const std::filesystem::path& path);

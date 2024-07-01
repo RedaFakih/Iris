@@ -49,6 +49,10 @@ namespace Iris {
 		bool WireFrame = false;
 		float LineWidth = 1.0f;
 
+		// NOTE: Shader modules are usually not needed after the pipeline has been created, however we have pipelines that depend on the same shader so we cant release
+		// the modules directly after the first pipeline is created
+		bool ReleaseShaderModules = false;
+
 		// NOTE: This determines whether the renderer keeps track of this dependecy. You may NOT want that since you are creating just some placeholder pipeline that
 		// you do not want the renderer to keep track of.
 		bool RegisterAsShaderDependency = true;

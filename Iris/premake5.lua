@@ -38,6 +38,8 @@ project "Iris"
         "%{IncludeDir.stb}",
         "%{IncludeDir.spdlog}",
         "%{IncludeDir.EnTT}",
+        "%{IncludeDir.msdfAtlasGen}",
+        "%{IncludeDir.msdfGen}",
         "%{IncludeDir.NFDExtended}",
         "%{IncludeDir.Yaml}",
         "%{IncludeDir.MagicEnum}"
@@ -46,6 +48,7 @@ project "Iris"
     links {
         "GLFW",
         "ImGui",
+        "msdf-atlas-gen",
         "NFD-Extended",
         "%{Library.dxc}",
         "%{Library.Vulkan}"

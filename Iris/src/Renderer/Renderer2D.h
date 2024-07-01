@@ -5,6 +5,7 @@
 #include "Mesh/Material.h"
 #include "Renderer/Core/RenderCommandBuffer.h"
 #include "RenderPass.h"
+#include "Text/Font.h"
 #include "UniformBufferSet.h"
 #include "VertexBuffer.h"
 
@@ -13,11 +14,14 @@
 namespace Iris {
 
 	/*
-	 * TODO: Ass support to rendering filled circles and also TEXT RENDERING
+	 * NOTE: If you do not provide a TargetFramebuffer in the specification the Renderer2D will crash even if you call `SetTargetFramebuffer`. The point is that is supposed to make the renderer more dynamic.
+	 *       But to completely implement that feature we need to provide some way to defer the resource creation from the `Init` function to the `SetTargetFramebuffer` function and a way to check if we have changed framebuffer
+	 *       without using the pre-existing passes since at that point (for the first frame at least), they have not been created yet.
 	 */
 
 	struct Renderer2DSpecification
 	{
+		Ref<Framebuffer> TargetFramebuffer = nullptr;
 		bool SwapChainTarget = false;
 		uint32_t MaxQuads = 5000; // For both quads and text
 		uint32_t MaxLines = 2000;
@@ -57,6 +61,7 @@ namespace Iris {
 		void BeginScene(const glm::mat4& viewProj, const glm::mat4& view);
 		void EndScene(bool prepareForRendering = false);
 
+		// This is now an optional thing which makes the renderer2D class dynamic in terms of render target. Since we should provide a target framebuffer on initialization of the renderer2D
 		void SetTargetFramebuffer(Ref<Framebuffer> framebuffer);
 
 		void OnRecreateSwapchain();
@@ -85,9 +90,15 @@ namespace Iris {
 		void DrawCircle(const glm::vec3& p0, const glm::vec3& rotation, float radius, const glm::vec4& color);
 		void DrawCircle(const glm::mat4& transform, const glm::vec4& color);
 
+		// TODO: Add Filled circles
+
 		void DrawLine(const glm::vec3& p0, const glm::vec3& p1, const glm::vec4& color = glm::vec4(1.0f));
 
 		void DrawAABB(const AABB& aabb, const glm::mat4& transform, const glm::vec4& color = glm::vec4(1.0f));
+
+		void DrawString(const std::string& string, const glm::vec3& position, float maxWidth, const glm::vec4& color = { 1.0f, 1.0f, 1.0f, 1.0f });
+		void DrawString(const std::string& string, Ref<Font> font, const glm::vec3& position, float maxWidth, const glm::vec4& color = { 1.0f, 1.0f, 1.0f, 1.0f });
+		void DrawString(const std::string& string, Ref<Font> font, const glm::mat4& transform, float maxWidth, const glm::vec4& color = { 1.0f, 1.0f, 1.0f, 1.0f }, float lineHeightOffset = 0.0f, float kerning = 0.0f);
 
 		float GetLineWidth() const { return m_LineWidth; }
 		void SetLineWidth(float lineWidth);
@@ -98,12 +109,12 @@ namespace Iris {
 
 		const Renderer2DSpecification& GetSpecification() const { return m_Specification; }
 
-
 	private:
 		void PrepareImagesForRendering();
 
 		void AddQuadBuffer();
 		void AddLineBuffer();
+		void AddTextBuffer();
 
 		struct QuadVertex
 		{
@@ -120,14 +131,23 @@ namespace Iris {
 			glm::vec4 Color;
 		};
 
+		struct TextVertex
+		{
+			glm::vec3 Position;
+			glm::vec4 Color;
+			glm::vec2 TexCoord;
+			float TexIndex;
+		};
+
 		QuadVertex*& GetWriteableQuadBuffer();
 		LineVertex*& GetWriteableLineBuffer();
+		TextVertex*& GetWriteableTextBuffer();
 		
 	private:
 		Renderer2DSpecification m_Specification;
 		Ref<RenderCommandBuffer> m_RenderCommandBuffer;
 
-		static const uint32_t MaxTextureSlots = 32; // TODO: RenderCaps
+		static const uint32_t MaxTextureSlots = 32; // NOTE: Better to derive from RenderCaps
 
 		const uint32_t c_MaxVertices;
 		const uint32_t c_MaxIndices;
@@ -157,7 +177,7 @@ namespace Iris {
 
 		glm::vec4 m_QuadVertexPositions[4];
 
-		// Lines
+		// Lines TODO: Lines on top pass? (no depth testing)
 		Ref<RenderPass> m_LinePass;
 		std::vector<VertexBufferPerFrame> m_LineVertexBuffers;
 		Ref<IndexBuffer> m_LineIndexBuffer;
@@ -168,6 +188,20 @@ namespace Iris {
 		std::vector<LineVertexBasePerFrame> m_LineVertexBufferBases;
 		std::vector<LineVertex*> m_LineVertexBufferPtr;
 		uint32_t m_LineBufferWriteIndex = 0;
+
+		// Text
+		Ref<RenderPass> m_TextPass;
+		std::vector<VertexBufferPerFrame> m_TextVertexBuffers;
+		Ref<IndexBuffer> m_TextIndexBuffer;
+		Ref<Material> m_TextMaterial;
+		std::array<Ref<Texture2D>, MaxTextureSlots> m_FontTextureSlots;
+		uint32_t m_FontTextureSlotIndex = 0;
+
+		uint32_t m_TextIndexCount = 0;
+		using TextVertexBasePerFrame = std::vector<TextVertex*>;
+		std::vector<TextVertexBasePerFrame> m_TextVertexBufferBases;
+		std::vector<TextVertex*> m_TextVertexBufferPtr;
+		uint32_t m_TextBufferWriteIndex = 0;
 
 		glm::mat4 m_CameraViewProj;
 		glm::mat4 m_CameraView;

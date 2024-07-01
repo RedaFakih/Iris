@@ -56,7 +56,7 @@ namespace Iris {
 		std::queue<AssetLoadRequest> m_AssetLoadingQueue;
 		std::mutex m_AssetLoadingQueueMutex;
 
-		std::vector<AssetLoadRequest> m_LoadedAssets;
+		std::vector<AssetLoadRequest> m_LoadedAssets; // These are local to the thread and are not yet visible to the engine untill the next sync between AssetManager and AssetThread is done.
 		std::mutex m_LoadedAssetsVectorMutex;
 
 		std::unordered_map<AssetHandle, Ref<Asset>> m_AMLoadedAssets;

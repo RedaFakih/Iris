@@ -4,6 +4,7 @@
 #include "ImGui/ImGuiUtils.h"
 #include "Renderer/SceneRenderer.h"
 #include "Renderer/StorageBufferSet.h"
+#include "Renderer/Text/Font.h"
 #include "Renderer/Texture.h"
 #include "Renderer/UniformBufferSet.h"
 
@@ -28,6 +29,8 @@ namespace Iris {
 			UI::PropertyStringReadOnly("Color Pass Saved Draw Calls", fmt::format("{}", statistics.ColorPassSavedDraws).c_str());
 
 			UI::EndPropertyGrid();
+
+			UI::Image(Font::GetDefaultFont()->GetFontAtlas(), ImGui::GetContentRegionAvail(), {0, 1}, {1, 0});
 		}
 
 		ImGui::End();

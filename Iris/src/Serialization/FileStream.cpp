@@ -3,8 +3,8 @@
 
 namespace Iris {
 
-    FileStreamWriter::FileStreamWriter(const std::filesystem::path& filePath)
-        : m_Stream(filePath, std::ios::out | std::ios::binary)
+    FileStreamWriter::FileStreamWriter(const std::filesystem::path& filePath, const bool truncate)
+        : m_Stream(filePath, std::ios::out | std::ios::binary | (truncate ? std::ios::trunc : 0))
     {
     }
 

@@ -14,6 +14,9 @@ namespace Iris {
 		inline static Ref<Texture2D> AssetIcon = nullptr;
 		inline static Ref<Texture2D> CameraIcon = nullptr;
 		inline static Ref<Texture2D> StaticMeshIcon = nullptr;
+		inline static Ref<Texture2D> SkyLightIcon = nullptr;
+		inline static Ref<Texture2D> DirectionalLightIcon = nullptr;
+		inline static Ref<Texture2D> TextIcon = nullptr;
 		inline static Ref<Texture2D> SpriteIcon = nullptr;
 		inline static Ref<Texture2D> EyeIcon = nullptr;
 		inline static Ref<Texture2D> ClosedEyeIcon = nullptr;
@@ -63,6 +66,9 @@ namespace Iris {
 			AssetIcon = LoadTexture("Icons/Generic.png", "AssetIcon", spec);
 			CameraIcon = LoadTexture("Icons/Camera.png", "CameraIcon", spec);
 			StaticMeshIcon = LoadTexture("Icons/StaticMesh.png", "StaticMeshIcon", spec);
+			SkyLightIcon = LoadTexture("Icons/SkyLight.png", "SkyLightIcon", spec);
+			DirectionalLightIcon = LoadTexture("Icons/DirectionalLight.png", "DirectionalLightIcon", spec);
+			TextIcon = LoadTexture("Icons/Text.png", "TextIcon", spec);
 			SpriteIcon = LoadTexture("Icons/SpriteRenderer.png", "SpriteIcon", spec);
 			TransformIcon = LoadTexture("Icons/Transform.png", "TransformIcon", spec);
 
@@ -109,6 +115,9 @@ namespace Iris {
 			AssetIcon.Reset();
 			CameraIcon.Reset();
 			StaticMeshIcon.Reset();
+			SkyLightIcon.Reset();
+			DirectionalLightIcon.Reset();
+			TextIcon.Reset();
 			SpriteIcon.Reset();
 			TransformIcon.Reset();
 			EyeIcon.Reset();

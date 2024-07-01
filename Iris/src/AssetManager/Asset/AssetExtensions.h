@@ -12,7 +12,7 @@ namespace Iris {
 		{ ".ismesh", AssetType::StaticMesh },
 		{ ".imaterial", AssetType::Material },
 	
-		// meshSource types
+		// Mesh Source types
 		{ ".gltf", AssetType::MeshSource },
 		{ ".glb", AssetType::MeshSource },
 		{ ".fbx", AssetType::MeshSource },
@@ -21,8 +21,15 @@ namespace Iris {
 		// Textures
 		{ ".png", AssetType::Texture },
 		{ ".jpg", AssetType::Texture },
-		{ ".hdr", AssetType::Texture },
-		{ ".jpeg", AssetType::Texture }
+		{ ".jpeg", AssetType::Texture },
+
+		// Envrionment Maps
+		{ ".hdr", AssetType::EnvironmentMap },
+
+		// Fonts
+		{ ".ttf", AssetType::Font },
+		{ ".ttc", AssetType::Font },
+		{ ".otf", AssetType::Font }
 	};
 
 }

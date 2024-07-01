@@ -53,10 +53,10 @@ project "IrisRuntime"
     -- TODO: For now these are here but when we have asset packing they should be removed!
     filter { "system:windows", "configurations:Debug" }
         postbuildcommands {
-            '{COPY} "../Iris/dependencies/assimp/bin/Debug/assimp-vc143-mtd.dll" "%{cfg.targetdir}"'
+            '{COPY} "%{Library.AssimpDebug}" "%{cfg.targetdir}"'
         }
 
     filter { "system:windows", "configurations:Release" }
         postbuildcommands {
-            '{COPY} "../Iris/dependencies/assimp/bin/Release/assimp-vc143-mt.dll" "%{cfg.targetdir}"'
+            '{COPY} "%{Library.AssimpRelease}" "%{cfg.targetdir}"'
         }

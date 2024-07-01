@@ -7,7 +7,7 @@
 const float PI = 3.14159265358979323846f;
 const float TwoPI = 2 * PI;
 
-layout(set = 3, binding = 0, rgba16f) restrict writeonly uniform imageCube o_OutputCubeMap;
+layout(set = 3, binding = 0, rgba32f) restrict writeonly uniform imageCube o_OutputCubeMap;
 layout(set = 3, binding = 1) uniform sampler2D u_EquirectangularTexture;
 
 // So we get a 3D vector that points to a pixel inside on one of the cubemap faces based on the GlobalInvocationID inside
@@ -33,7 +33,7 @@ vec3 GetCubeMapTexCoord(vec2 outputImageSize)
     return normalize(ret);
 }
 
-// Specify the size of invocations per workgroup (size of workgroups was specified on C++ land via glDispatchCompute(x, y, z))
+// Specify the size of invocations per workgroup
 layout(local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
 
 void main()

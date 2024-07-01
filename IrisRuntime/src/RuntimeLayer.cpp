@@ -10,6 +10,11 @@ bool g_WireFrame = false;
 
 namespace Iris {
 
+	/*
+	 * TODO: For now this does not work with dynamic rendering... Since we have a SwapChainTarget framebuffer the VkRenderingAttachmentInfo has not been created and set for the image
+	 * since it is done in Framebuffer::RT_Invalidate and that is never called for SwapChainTarget framebuffers
+	 */
+
 	RuntimeLayer::RuntimeLayer()
 		: m_EditorCamera(45.0f, 1280.0f, 720.0f, 0.1f, 1000.0f)
 	{
@@ -28,7 +33,7 @@ namespace Iris {
 
 		m_ViewportRenderer = SceneRenderer::Create(m_RuntimeScene, { .RendererScale = 1.0f, .JumpFloodPass = false });
 		m_ViewportRenderer->SetLineWidth(m_LineWidth);
-		m_Renderer2D = Renderer2D::Create();
+		m_Renderer2D = Renderer2D::Create({ .TargetFramebuffer = m_ViewportRenderer->GetExternalCompositeFramebuffer() });
 		m_Renderer2D->SetLineWidth(m_LineWidth);
 		
 		// Setup swapchain renderpass

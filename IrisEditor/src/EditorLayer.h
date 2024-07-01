@@ -115,7 +115,7 @@ namespace Iris {
 
 		int m_GizmoType = -1; // -1 = No gizmo
 		int m_GizmoMode = 0; // 0 = local
-		glm::vec3 m_GizmoSnapValues = { 0.5f, 45.0f, 0.5f }; // Translation, Rotation, Scale
+		glm::vec3 m_GizmoSnapValues = { 1.0f, 45.0f, 1.0f }; // Translation, Rotation, Scale. Defaults: 1 meter, 45 degress, 1 meter
 
 		float m_LineWidth = 2.0f;
 

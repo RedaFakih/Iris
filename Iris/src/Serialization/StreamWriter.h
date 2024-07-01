@@ -39,6 +39,7 @@ namespace Iris {
 		}
 
 		template<typename T>
+		requires requires (StreamWriter* writer, const T& obj) { T::Serialize(writer, obj); }
 		void WriteObject(const T& obj)
 		{
 			T::Serialize(this, obj);

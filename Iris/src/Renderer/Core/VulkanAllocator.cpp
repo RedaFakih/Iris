@@ -164,7 +164,7 @@ namespace Iris {
 		return allocation;
 	}
 
-	void VulkanAllocator::DestroyImage(VmaAllocation allocation, VkImage image)
+	void VulkanAllocator::DestroyImage(VmaAllocation allocation, VkImage image, const std::string_view name)
 	{
 		IR_ASSERT(image);
 		IR_ASSERT(allocation);
@@ -174,7 +174,7 @@ namespace Iris {
 		auto it = s_AllocationMap.find(allocation);
 		if (it != s_AllocationMap.end())
 		{
-			IR_CORE_TRACE_TAG("VulkanAllocator", "{}: Destroying image with size: {}", m_Name, Utils::BytesToString(it->second.AllocatedSize));
+			IR_CORE_TRACE_TAG("VulkanAllocator", "{}: Destroying image {} with size: {}", m_Name, name, Utils::BytesToString(it->second.AllocatedSize));
 
 			s_Data->MemoryUsage -= it->second.AllocatedSize;
 			s_AllocationMap.erase(it);

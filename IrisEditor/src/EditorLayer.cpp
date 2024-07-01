@@ -30,7 +30,6 @@
 #include "ImGui/ImGuiUtils.h"
 
 #include <glfw/include/glfw/glfw3.h>
-
 #include <imgui/imgui.h>
 
 #include <glm/glm.hpp>
@@ -118,7 +117,7 @@ namespace Iris {
 			EmptyProject();
 
 		// TODO: Move to before the project creation after we remove the Project::GetAssetDirectory call from the constructor of the ContentBrowserPanel
-		Ref<ContentBrowserPanel> contentBrowser = m_PanelsManager->AddPanel<ContentBrowserPanel>(PanelCategory::View, "ContentBrowserPanel", "Content Browser", true);
+		Ref<ContentBrowserPanel> contentBrowser = m_PanelsManager->AddPanel<ContentBrowserPanel>(PanelCategory::View, "ContentBrowserPanel", "Content Browser", false);
 		//contentBrowser->RegisterItemActivateCallbackForType(AssetType::Scene, [this](const AssetMetadata& metadata)
 		//{
 		//	OpenScene(metadata);
@@ -128,7 +127,7 @@ namespace Iris {
 		m_ViewportRenderer->SetLineWidth(m_LineWidth);
 		sceneRendererPanel->SetRendererContext(m_ViewportRenderer);
 
-		m_Renderer2D = Renderer2D::Create();
+		m_Renderer2D = Renderer2D::Create({ .TargetFramebuffer = m_ViewportRenderer->GetExternalCompositeFramebuffer() });
 		m_Renderer2D->SetLineWidth(m_LineWidth);
 
 		AssetEditorPanel::RegisterDefaultEditors();
@@ -143,6 +142,7 @@ namespace Iris {
 
 	void EditorLayer::OnUpdate(TimeStep ts)
 	{
+		// Sync with the asset thread: Any assets loaded by the asset thread are returned to the asset manager so that they become visible to the engine
 		AssetManager::SyncWithAssetThread();
 
 		// TODO: Do this only in SceneState::Edit
@@ -192,7 +192,6 @@ namespace Iris {
 
 		m_Renderer2D->ResetStats();
 		m_Renderer2D->BeginScene(m_EditorCamera.GetViewProjection(), m_EditorCamera.GetViewMatrix());
-		m_Renderer2D->SetTargetFramebuffer(m_ViewportRenderer->GetExternalCompositeFramebuffer());
 
 		if (m_ShowBoundingBoxes)
 		{
@@ -204,7 +203,7 @@ namespace Iris {
 					Entity entity = m_CurrentScene->GetEntityWithUUID(entityID);
 
 					const auto& staticMeshComponent = entity.TryGetComponent<StaticMeshComponent>();
-					if (staticMeshComponent)
+					if (staticMeshComponent && staticMeshComponent->Visible)
 					{
 						Ref<StaticMesh> staticMesh = AssetManager::GetAssetAsync<StaticMesh>(staticMeshComponent->StaticMesh);
 						if (staticMesh)
@@ -241,15 +240,18 @@ namespace Iris {
 				for (auto e : staticMeshEntities)
 				{
 					Entity entity = { e, m_CurrentScene.Raw() };
-					glm::mat4 transform = m_CurrentScene->GetWorldSpaceTransformMatrix(entity);
-					Ref<StaticMesh> staticMesh = AssetManager::GetAssetAsync<StaticMesh>(entity.GetComponent<StaticMeshComponent>().StaticMesh);
-					if (staticMesh)
+					if (entity.GetComponent<StaticMeshComponent>().Visible)
 					{
-						Ref<MeshSource> meshSource = AssetManager::GetAssetAsync<MeshSource>(staticMesh->GetMeshSource());
-						if (meshSource)
+						glm::mat4 transform = m_CurrentScene->GetWorldSpaceTransformMatrix(entity);
+						Ref<StaticMesh> staticMesh = AssetManager::GetAssetAsync<StaticMesh>(entity.GetComponent<StaticMeshComponent>().StaticMesh);
+						if (staticMesh)
 						{
-							const AABB& aabb = meshSource->GetBoundingBox();
-							m_Renderer2D->DrawAABB(aabb, transform, { 1.0f, 1.0f, 1.0f, 1.0f });
+							Ref<MeshSource> meshSource = AssetManager::GetAssetAsync<MeshSource>(staticMesh->GetMeshSource());
+							if (meshSource)
+							{
+								const AABB& aabb = meshSource->GetBoundingBox();
+								m_Renderer2D->DrawAABB(aabb, transform, { 1.0f, 1.0f, 1.0f, 1.0f });
+							}
 						}
 					}
 				}
@@ -885,6 +887,7 @@ namespace Iris {
 		const ImColor SelectedGizmoButtonColor = Colors::Theme::Accent;
 		const ImColor UnselectedGizmoButtonColor = Colors::Theme::TextBrighter;
 
+		// NOTE: These couple lambdas here will not be moved in with the UI::SectionXXX functions since they are kinda editor layer specific for now...
 		auto labelIconButton = [](const Ref<Texture2D>& icon, const ImColor& tint, const char* label, ImVec2 labelSize, const ImRect& windowRect, const char* hint = "")
 		{
 			ImGuiWindow* window = ImGui::GetCurrentWindow();
@@ -977,50 +980,6 @@ namespace Iris {
 			return std::pair{ clicked, dropdownClicked };
 		};
 
-		auto beginSection = [](const char* name, int& sectionIndex, bool columns2 = true, float column1Width = 0.0f, float column2Width = 0.0f)
-		{
-			constexpr float popupWidth = 310.0f;
-
-			ImGuiFontsLibrary& fontsLib = Application::Get().GetImGuiLayer()->GetFontsLibrary();
-
-			if (sectionIndex > 0)
-				UI::ShiftCursorY(5.5f);
-
-			fontsLib.PushFont("RobotoBold");
-
-			float halfHeight = ImGui::CalcTextSize(name).y / 2.0f;
-			ImVec2 p1 = { 0.0f, halfHeight };
-			ImVec2 p2 = { 14.0f, halfHeight };
-			UI::UnderLine(Colors::Theme::TextDarker, false, p1, p2, 3.0f);
-			UI::ShiftCursorX(17.0f);
-
-			ImGui::TextUnformatted(name);
-
-			fontsLib.PopFont();
-
-			ImVec2 cursorPos = ImGui::GetCursorPos();
-			ImGui::SameLine();
-
-			UI::UnderLine(false, 3.0f, halfHeight, 3.0f, Colors::Theme::TextDarker);
-			ImGui::SetCursorPos(cursorPos);
-
-			bool result = ImGui::BeginTable("##section_table", columns2 ? 2 : 1, ImGuiTableFlags_SizingStretchSame);
-			if (result)
-			{
-				ImGui::TableSetupColumn("Labels", ImGuiTableColumnFlags_WidthFixed, column1Width == 0.0f ? popupWidth * 0.5f : column1Width);
-				if (columns2)
-					ImGui::TableSetupColumn("Widgets", ImGuiTableColumnFlags_WidthFixed, column2Width == 0.0f ? popupWidth * 0.5f : column2Width);
-			}
-
-			sectionIndex++;
-			return result;
-		};
-
-		auto endSection = []()
-		{
-			ImGui::EndTable();
-		};
-
 		auto selection = [](const char* label, Ref<Texture2D> icon, const char* hint = "")
 		{
 			float height = std::min(static_cast<float>(icon->GetHeight()), buttonSize);
@@ -1053,114 +1012,10 @@ namespace Iris {
 			return clicked;
 		};
 
-		auto text = [](const char* label, const char* text)
-		{
-			ImGui::TableNextRow();
-			ImGui::TableSetColumnIndex(0);
-			ImGui::TextUnformatted(label);
-			ImGui::TableSetColumnIndex(1);
-			ImGuiTable* table = ImGui::GetCurrentTable();
-			float columnWidth = ImGui::TableGetMaxColumnWidth(table, 1);
-			UI::ShiftCursor(columnWidth - ImGui::GetFrameHeight() - ImGui::GetStyle().ItemInnerSpacing.x, -GImGui->Style.FramePadding.y);
-			ImGui::TextUnformatted(text);
-		};
-
-		auto checkbox = [](const char* label, bool& value, const char* hint = "")
-		{
-			ImGui::TableNextRow();
-			ImGui::TableSetColumnIndex(0);
-			ImVec2 cursorPos = ImGui::GetCursorPos();
-			ImGui::TextUnformatted(label);
-			ImVec2 size = ImGui::CalcTextSize(label);
-			ImVec2 cursorPosToReset = ImGui::GetCursorPos();
-			ImGui::SetCursorPos(cursorPos);
-			ImGui::InvisibleButton(UI::GenerateID(), size);
-			UI::SetToolTip(hint);
-			ImGui::SetCursorPos(cursorPosToReset);
-			ImGui::TableSetColumnIndex(1);
-			ImGuiTable* table = ImGui::GetCurrentTable();
-			float columnWidth = ImGui::TableGetMaxColumnWidth(table, 1);
-			UI::ShiftCursor(columnWidth - ImGui::GetFrameHeight() - ImGui::GetStyle().ItemInnerSpacing.x, -GImGui->Style.FramePadding.y);
-			return UI::Checkbox(UI::GenerateID(), &value);
-		};
-
-		auto slider = [](const char* label, float& value, float min = 0.0f, float max = 0.0f, const char* hint = "")
-		{
-			ImGui::TableNextRow();
-			ImGui::TableSetColumnIndex(0);
-			ImVec2 cursorPos = ImGui::GetCursorPos();
-			ImGui::TextUnformatted(label);
-			ImVec2 size = ImGui::CalcTextSize(label);
-			ImVec2 cursorPosToReset = ImGui::GetCursorPos();
-			ImGui::SetCursorPos(cursorPos);
-			ImGui::InvisibleButton(UI::GenerateID(), size);
-			UI::SetToolTip(hint);
-			ImGui::TableSetColumnIndex(1);
-			ImGui::SetNextItemWidth(-1);
-			UI::ShiftCursor(GImGui->Style.FramePadding.x, -GImGui->Style.FramePadding.y);
-			return UI::SliderFloat(UI::GenerateID(), &value, min, max);
-		};
-
-		auto drag = [](const char* label, float& value, float delta = 1.0f, float min = 0.0f, float max = 0.0f, const char* hint = "")
-		{
-			ImGui::TableNextRow();
-			ImGui::TableSetColumnIndex(0);
-			ImVec2 cursorPos = ImGui::GetCursorPos();
-			ImGui::TextUnformatted(label);
-			ImVec2 size = ImGui::CalcTextSize(label);
-			ImVec2 cursorPosToReset = ImGui::GetCursorPos();
-			ImGui::SetCursorPos(cursorPos);
-			ImGui::InvisibleButton(UI::GenerateID(), size);
-			UI::SetToolTip(hint);
-			ImGui::TableSetColumnIndex(1);
-			ImGui::SetNextItemWidth(-1);
-			UI::ShiftCursor(GImGui->Style.FramePadding.x, -GImGui->Style.FramePadding.y);
-			return UI::DragFloat(UI::GenerateID(), &value, delta, min, max);
-		};
-
-		auto dropdown = [](const char* label, const char** options, int32_t optionCount, int32_t* selected, const char* hint = "")
-		{
-			const char* current = options[*selected];
-			ImGui::TableNextRow();
-			ImGui::TableSetColumnIndex(0);
-			ImVec2 cursorPos = ImGui::GetCursorPos();
-			ImGui::TextUnformatted(label);
-			ImVec2 size = ImGui::CalcTextSize(label);
-			ImVec2 cursorPosToReset = ImGui::GetCursorPos();
-			ImGui::SetCursorPos(cursorPos);
-			ImGui::InvisibleButton(UI::GenerateID(), size);
-			UI::SetToolTip(hint);
-			ImGui::TableSetColumnIndex(1);
-			ImGui::PushItemWidth(-1);
-
-			bool result = false;
-			UI::ShiftCursor(GImGui->Style.FramePadding.x, -GImGui->Style.FramePadding.y);
-			if (UI::BeginCombo(UI::GenerateID(), current))
-			{
-				for (int i = 0; i < optionCount; i++)
-				{
-					const bool is_selected = (current == options[i]);
-					if (ImGui::Selectable(options[i], is_selected))
-					{
-						current = options[i];
-						*selected = i;
-						result = true;
-					}
-
-					if (is_selected)
-						ImGui::SetItemDefaultFocus();
-				}
-				UI::EndCombo();
-			}
-			ImGui::PopItemWidth();
-
-			return result;
-		};
-
 		auto snappingTable = [&](const char* tableID, float tableColumnWidth, const char** displaySnapValues, const float* snapValues, ImGuizmo::OPERATION oper, bool setSceneRendererSnapValue = false)
 		{
 			int sectionIndex = 0;
-			if (beginSection("Snapping", sectionIndex, false))
+			if (UI::BeginSection("Snapping", sectionIndex, false))
 			{
 				ImGui::TableNextRow();
 				ImGui::TableSetColumnIndex(0);
@@ -1192,7 +1047,8 @@ namespace Iris {
 						ImGui::TableNextRow(0, rowHeight);
 						ImGui::TableNextColumn();
 
-						if (ImGui::Selectable(displaySnapValues[i], false, ImGuiSelectableFlags_SpanAllColumns))
+						bool selectedRow = *currentSnappingValue == snapValues[i];
+						if (ImGui::Selectable(displaySnapValues[i], selectedRow, ImGuiSelectableFlags_SpanAllColumns))
 						{
 							float value = 0.0f;
 							switch (i)
@@ -1215,7 +1071,7 @@ namespace Iris {
 					ImGui::EndTable();
 				}
 
-				endSection();
+				UI::EndSection();
 			}
 		};
 
@@ -1270,7 +1126,7 @@ namespace Iris {
 				if (ImGui::BeginPopup("View Selection Popup", ImGuiWindowFlags_NoMove))
 				{
 					int sectionIndex = 0;
-					if (beginSection("Perspective", sectionIndex, false))
+					if (UI::BeginSection("Perspective", sectionIndex, false))
 					{
 						if (selection("Perspective", EditorResources::PerspectiveIcon))
 						{
@@ -1281,10 +1137,10 @@ namespace Iris {
 							ImGui::CloseCurrentPopup();
 						}
 
-						endSection();
+						UI::EndSection();
 					}
 
-					if (beginSection("Orthographic", sectionIndex, false))
+					if (UI::BeginSection("Orthographic", sectionIndex, false))
 					{
 						if (selection("Top", EditorResources::TopSquareIcon))
 						{
@@ -1340,7 +1196,7 @@ namespace Iris {
 							ImGui::CloseCurrentPopup();
 						}
 
-						endSection();
+						UI::EndSection();
 					}
 
 					ImGui::EndPopup();
@@ -1354,7 +1210,7 @@ namespace Iris {
 				if (ImGui::BeginPopup("Render Selection Popup"))
 				{
 					int sectionIndex = 0;
-					if (beginSection("View Mode", sectionIndex, true, 0.0f, 48.0f)) // 48.0f is ImGui::CalcTextSize("Shift + 1").x
+					if (UI::BeginSection("View Mode", sectionIndex, true, 0.0f, 48.0f)) // 48.0f is ImGui::CalcTextSize("Shift + 1").x
 					{
 						if (selection("Lit", EditorResources::LitMaterialIcon, "Shift + 1"))
 						{
@@ -1383,7 +1239,7 @@ namespace Iris {
 							ImGui::CloseCurrentPopup();
 						}
 
-						endSection();
+						UI::EndSection();
 					}
 
 					ImGui::EndPopup();
@@ -1526,87 +1382,87 @@ namespace Iris {
 					{
 						int sectionIndex = 0;
 
-						if (beginSection("General", sectionIndex))
+						if (UI::BeginSection("General", sectionIndex))
 						{
 							static const char* s_SelectionModes[] = { "Entity", "Submesh" };
-							dropdown("Selection Mode", s_SelectionModes, 2, reinterpret_cast<int32_t*>(&m_SelectionMode), "Mode of how submeshes are selected");
+							UI::SectionDropdown("Selection Mode", s_SelectionModes, 2, reinterpret_cast<int32_t*>(&m_SelectionMode), "Mode of how submeshes are selected");
 
 							static const char* s_TransformTargetNames[] = { "Median Point", "Individual Origins" };
-							dropdown("Multi-Transform Target", s_TransformTargetNames, 2, reinterpret_cast<int32_t*>(&m_MultiTransformTarget), "Transform around the origin or each entity while in multiselection\nor around a median point with respect to all selected entites");
+							UI::SectionDropdown("Multi-Transform Target", s_TransformTargetNames, 2, reinterpret_cast<int32_t*>(&m_MultiTransformTarget), "Transform around the origin or each entity while in multiselection\nor around a median point with respect to all selected entites");
 
 							static const char* s_TransformAroundOrigin[] = { "Local", "World" };
-							dropdown("Transformation Origin", s_TransformAroundOrigin, 2, reinterpret_cast<int32_t*>(&m_TransformationOrigin), "Transform around origin of the entity/entities\nor around the origin of the world");
+							UI::SectionDropdown("Transformation Origin", s_TransformAroundOrigin, 2, reinterpret_cast<int32_t*>(&m_TransformationOrigin), "Transform around origin of the entity/entities\nor around the origin of the world");
 
-							endSection();
+							UI::EndSection();
 						}
 
-						if (beginSection("Display", sectionIndex))
+						if (UI::BeginSection("Display", sectionIndex))
 						{
-							checkbox("Show Gizmos", m_ShowGizmos, "Show transform gizmos");
-							if (checkbox("Allow Gizmo Axis Flip", m_GizmoAxisFlip, "Allow transform gizmos to flip their\naxes with respect to the camera"))
+							UI::SectionCheckbox("Show Gizmos", m_ShowGizmos, "Show transform gizmos");
+							if (UI::SectionCheckbox("Allow Gizmo Axis Flip", m_GizmoAxisFlip, "Allow transform gizmos to flip their\naxes with respect to the camera"))
 								ImGuizmo::AllowAxisFlip(m_GizmoAxisFlip);
-							checkbox("Show Bounding Boxes", m_ShowBoundingBoxes, "Show mesh entities bounding boxes, Ctrl + B");
+							UI::SectionCheckbox("Show Bounding Boxes", m_ShowBoundingBoxes, "Show mesh entities bounding boxes, Ctrl + B");
 							if (m_ShowBoundingBoxes)
 							{
-								checkbox("Selected Entity", m_ShowBoundingBoxSelectedMeshOnly, "Show bounding boxes only for the\ncurrently selected entity");
+								UI::SectionCheckbox("Selected Entity", m_ShowBoundingBoxSelectedMeshOnly, "Show bounding boxes only for the\ncurrently selected entity");
 
 								if (m_ShowBoundingBoxSelectedMeshOnly)
-									checkbox("Submeshes", m_ShowBoundingBoxSubMeshes, "Show submesh bounding boxes for the\ncurrently selected entity");
+									UI::SectionCheckbox("Submeshes", m_ShowBoundingBoxSubMeshes, "Show submesh bounding boxes for the\ncurrently selected entity");
 							}
 							SceneRendererOptions& rendererOptions = m_ViewportRenderer->GetOptions();
-							checkbox("Show Grid", rendererOptions.ShowGrid, "Show Grid, Ctrl + G");
-							checkbox("Selected in Wireframe", rendererOptions.ShowSelectedInWireFrame, "Show selected mesh in wireframe mode");
+							UI::SectionCheckbox("Show Grid", rendererOptions.ShowGrid, "Show Grid, Ctrl + G");
+							UI::SectionCheckbox("Selected in Wireframe", rendererOptions.ShowSelectedInWireFrame, "Show selected mesh in wireframe mode");
 
-							if (drag("Line Width", m_LineWidth, 0.1f, 0.1f, 10.0f, "Change pipeline line width"))
+							if (UI::SectionDrag("Line Width", m_LineWidth, 0.1f, 0.1f, 10.0f, "Change pipeline line width"))
 							{
 								m_Renderer2D->SetLineWidth(m_LineWidth);
 								m_ViewportRenderer->SetLineWidth(m_LineWidth);
 							}
 
-							endSection();
+							UI::EndSection();
 						}
 
-						if (beginSection("Scene Camera", sectionIndex))
+						if (UI::BeginSection("Scene Camera", sectionIndex))
 						{
 							float fov = glm::degrees(m_EditorCamera.GetFOV());
-							if (slider("Field of View", fov, 30, 120, "Field of view of the viewport camera"))
+							if (UI::SectionSlider("Field of View", fov, 30, 120, "Field of view of the viewport camera"))
 								m_EditorCamera.SetFOV(fov);
-							slider("Exposure", m_EditorCamera.GetExposure(), 0.0f, 10.0f, "Exposure of viewport camera,\nalso extends into rendered scene");
+							UI::SectionSlider("Exposure", m_EditorCamera.GetExposure(), 0.0f, 10.0f, "Exposure of viewport camera,\nalso extends into rendered scene");
 							static float& cameraSpeed = m_EditorCamera.GetNormalSpeed();
 							float displayCameraSpeed = cameraSpeed / 0.0002f;
-							if (drag("Speed", displayCameraSpeed, 0.5f, 0.0002f, 100.0f, "Speed of viewport camera in fly mode, RightAlt + Scroll"))
+							if (UI::SectionDrag("Speed", displayCameraSpeed, 0.5f, 0.0002f, 100.0f, "Speed of viewport camera in fly mode, RightAlt + Scroll"))
 								cameraSpeed = displayCameraSpeed * 0.0002f;
 							float nearClip = m_EditorCamera.GetNearClip();
-							if (drag("Near Clip", nearClip, 0.1f, 0.002f, 100.0f, "Viewport camera near clip"))
+							if (UI::SectionDrag("Near Clip", nearClip, 0.1f, 0.002f, 100.0f, "Viewport camera near clip"))
 								m_EditorCamera.SetNearClip(nearClip);
 							float farClip = m_EditorCamera.GetFarClip();
-							if (drag("Far Clip", farClip, 2.0f, 100.1f, 1'000'000.0f, "Viewport camera far clip"))
+							if (UI::SectionDrag("Far Clip", farClip, 2.0f, 100.1f, 1'000'000.0f, "Viewport camera far clip"))
 								m_EditorCamera.SetFarClip(farClip);
 
-							endSection();
+							UI::EndSection();
 						}
 
-						if (beginSection("Viewport Renderer", sectionIndex))
+						if (UI::BeginSection("Viewport Renderer", sectionIndex))
 						{
 							std::string string = fmt::format("{}", static_cast<uint32_t>(1.0f / Application::Get().GetFrameTime().GetSeconds()));
-							text("Framerate (FPS)", string.c_str());
+							UI::SectionText("Framerate (FPS)", string.c_str());
 
 							bool isVSync = Application::Get().GetWindow().IsVSync();
-							if (checkbox("Vertical Sync", isVSync, "Toggle monitor vertical sync"))
+							if (UI::SectionCheckbox("Vertical Sync", isVSync, "Toggle monitor vertical sync"))
 								Application::Get().GetWindow().SetVSync(isVSync);
 
-							slider("Opacity", m_ViewportRenderer->GetOpacity(), 0.0f, 1.0f, "Viewport renderer opacity");
+							UI::SectionSlider("Opacity", m_ViewportRenderer->GetOpacity(), 0.0f, 1.0f, "Viewport renderer opacity");
 
 							static float renderScale = m_ViewportRenderer->GetSpecification().RendererScale;
 							const float prevRenderScale = m_ViewportRenderer->GetSpecification().RendererScale;
-							if (slider("Rendering Scale", renderScale, 0.1f, 2.0f, "Viewport renderer rendering scale,\nincrease for better quality result"))
+							if (UI::SectionSlider("Rendering Scale", renderScale, 0.1f, 2.0f, "Viewport renderer rendering scale,\nincrease for better quality result"))
 								m_ViewportRenderer->SetViewportSize(
 									static_cast<uint32_t>(m_ViewportRenderer->GetViewportWidth() / prevRenderScale),
 									static_cast<uint32_t>(m_ViewportRenderer->GetViewportHeight() / prevRenderScale),
 									renderScale
 								);
 
-							endSection();
+							UI::EndSection();
 						}
 
 						ImGui::EndPopup();

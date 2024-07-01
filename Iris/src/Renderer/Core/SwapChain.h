@@ -13,6 +13,14 @@ namespace Iris {
 	class SwapChain
 	{
 	public:
+		enum class ImageLayout : uint8_t
+		{
+			None = 0,
+			Attachment,
+			Present
+		};
+
+	public:
 		SwapChain() = default;
 		~SwapChain() = default;
 
@@ -26,12 +34,9 @@ namespace Iris {
 		void BeginFrame();
 		void Present();	
 
-		// TODO: TEMPORARY
-		//VkCommandPool GetCurrentCommandPool() { return m_CommandBuffers[m_CurrentFrameIndex].CommandPool; }
+		void TransitionImageLayout(SwapChain::ImageLayout layout);
 
-		VkRenderPass GetRenderPass() { return m_RenderPass; }
-		VkFramebuffer GetCurrentFramebuffer() { return GetFramebuffer(m_CurrentImageIndex); }
-		VkFramebuffer GetFramebuffer(uint32_t index) { IR_ASSERT(index < m_Framebuffers.size(), "Index should be less than amount of framebuffers"); return m_Framebuffers[index]; }
+		VkRenderingAttachmentInfo GetCurrentImageInfo() const { return m_SwapChainImagesInfo[m_CurrentImageIndex]; }
 
 		uint32_t GetCurrentBufferIndex() const { return m_CurrentFrameIndex; }
 		VkCommandBuffer GetCurrentDrawCommandBuffer() { return GetDrawCommandBuffer(m_CurrentFrameIndex); }
@@ -70,8 +75,7 @@ namespace Iris {
 		};
 		std::vector<SwapChainImages> m_Images;
 
-		VkRenderPass m_RenderPass = nullptr;
-		std::vector<VkFramebuffer> m_Framebuffers;
+		std::vector<VkRenderingAttachmentInfo> m_SwapChainImagesInfo;
 
 		struct SwapchainCommandBuffer
 		{

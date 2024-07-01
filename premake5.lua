@@ -33,6 +33,8 @@ group "Dependencies"
     include "Iris/dependencies/glfw"
     include "Iris/dependencies/ImGui/imgui"
     include "Iris/dependencies/NFD-Extended"
+    group "Dependencies/msdf"
+    include "Iris/dependencies/msdf-atlas-gen"
 group ""
 
 group "Core"

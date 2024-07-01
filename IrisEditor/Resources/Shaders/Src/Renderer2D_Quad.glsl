@@ -31,15 +31,17 @@ void main()
 {
 	Output.Color = a_Color;
 	Output.TexCoord = a_TexCoord;
-	TexIndex = a_TexIndex;
 	Output.TilingFactor = a_TilingFactor;
+
+	TexIndex = a_TexIndex;
+
 	gl_Position = u_ViewProjection * u_Renderer.Transform * vec4(a_Position, 1.0f);
 }
 
 #version 450 core
 #stage fragment
 
-layout(location = 0) out vec4 color;
+layout(location = 0) out vec4 o_Color;
 
 struct VertexOutput
 {
@@ -55,9 +57,9 @@ layout (set = 3, binding = 0) uniform sampler2D u_Textures[32];
 
 void main()
 {
-	color = texture(u_Textures[int(TexIndex)], Input.TexCoord * Input.TilingFactor) * Input.Color;
+	o_Color = texture(u_Textures[int(TexIndex)], Input.TexCoord * Input.TilingFactor) * Input.Color;
 
 	// Discard to avoid depth write
-	if (color.a == 0.0)
+	if (o_Color.a == 0.0)
 		discard;
 }

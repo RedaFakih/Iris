@@ -10,6 +10,7 @@
 #include "ImGui/ImGuiUtils.h"
 #include "Project/Project.h"
 #include "Renderer/StorageBufferSet.h"
+#include "Renderer/Text/Font.h"
 #include "Scene/SceneEnvironment.h"
 
 #include <imgui/imgui.h>
@@ -311,55 +312,10 @@ namespace Iris {
 		});
 	}
 
-	// Switch to be its own imgui panel that we pass in the position of where to create it that way we could create it anywhere inside the window like in blender with Shift+A
 	void SceneHierarchyPanel::DrawEntityCreateMenu(Entity parent)
 	{
-		auto beginSection = [](const char* name, int& sectionIndex, bool columns2 = true, float column1Width = 0.0f, float column2Width = 0.0f)
-		{
-			constexpr float popupWidth = 310.0f;
-
-			ImGuiFontsLibrary& fontsLib = Application::Get().GetImGuiLayer()->GetFontsLibrary();
-
-			if (sectionIndex > 0)
-				UI::ShiftCursorY(5.5f);
-
-			fontsLib.PushFont("RobotoBold");
-
-			float halfHeight = ImGui::CalcTextSize(name).y / 2.0f;
-			ImVec2 p1 = { 0.0f, halfHeight };
-			ImVec2 p2 = { 14.0f, halfHeight };
-			UI::UnderLine(Colors::Theme::TextDarker, false, p1, p2, 3.0f);
-			UI::ShiftCursorX(17.0f);
-
-			ImGui::TextUnformatted(name);
-
-			fontsLib.PopFont();
-
-			ImVec2 cursorPos = ImGui::GetCursorPos();
-			ImGui::SameLine();
-
-			UI::UnderLine(false, 3.0f, halfHeight, 3.0f, Colors::Theme::TextDarker);
-			ImGui::SetCursorPos(cursorPos);
-
-			bool result = ImGui::BeginTable("##section_table", columns2 ? 2 : 1, ImGuiTableFlags_SizingStretchSame);
-			if (result)
-			{
-				ImGui::TableSetupColumn("Labels", ImGuiTableColumnFlags_WidthFixed, column1Width == 0.0f ? popupWidth * 0.5f : column1Width);
-				if (columns2)
-					ImGui::TableSetupColumn("Widgets", ImGuiTableColumnFlags_WidthFixed, column2Width == 0.0f ? popupWidth * 0.5f : column2Width);
-			}
-
-			sectionIndex++;
-			return result;
-		};
-
-		auto endSection = []()
-		{
-			ImGui::EndTable();
-		};
-
 		int index = 0;
-		if (beginSection(parent ? "Add Child Entity" : "Add Entity", index, false, parent ? 270.0f : 0.0f))
+		if (UI::BeginSection(parent ? "Add Child Entity" : "Add Entity", index, false, parent ? 270.0f : 0.0f))
 		{
 			ImGui::TableNextRow();
 			ImGui::TableSetColumnIndex(0);
@@ -389,6 +345,13 @@ namespace Iris {
 				}
 
 				ImGui::EndMenu();
+			}
+
+			if (ImGui::MenuItem("Text"))
+			{
+				newEntity = m_Context->CreateEntity("Text");
+				auto& textComp = newEntity.AddComponent<TextComponent>();
+				textComp.Font = Font::GetDefaultFont()->Handle;
 			}
 
 			if (ImGui::BeginMenu("2D"))
@@ -476,6 +439,20 @@ namespace Iris {
 				ImGui::EndMenu();
 			}
 
+			ImGui::Separator();
+
+			if (ImGui::MenuItem("Sky Light"))
+			{
+				newEntity = m_Context->CreateEntity("Sky Light");
+				newEntity.AddComponent<SkyLightComponent>();
+			}
+
+			if (ImGui::MenuItem("Directional Light"))
+			{
+				newEntity = m_Context->CreateEntity("Directional Light");
+				newEntity.AddComponent<DirectionalLightComponent>();
+			}
+
 			if (newEntity)
 			{
 				if (parent)
@@ -488,7 +465,7 @@ namespace Iris {
 				SelectionManager::Select(s_ActiveSelectionContext, newEntity.GetUUID());
 			}
 
-			endSection();
+			UI::EndSection();
 		}
 	}
 
@@ -686,16 +663,7 @@ namespace Iris {
 					SelectionManager::Select(s_ActiveSelectionContext, entity.GetUUID());
 				}
 
-				if (entity.GetParent())
-				{
-					if (ImGui::MenuItem("Unparent"))
-						m_Context->UnparentEntity(entity, true);
-				}
-
 				DrawEntityCreateMenu(entity);
-
-				if (ImGui::MenuItem("Delete"))
-					entityDeleted = true;
 
 				if (!m_EntityContextMenuPlugins.empty())
 				{
@@ -704,12 +672,25 @@ namespace Iris {
 
 					if (ImGui::MenuItem("Set Transform to Editor Camera Transform"))
 					{
+						// NOTE: Here is some place we might have a bug later since we only want the EditorCamera related plugin to run not ALL of them in case we have other types of plugins
 						for (auto& func : m_EntityContextMenuPlugins)
 						{
 							func(entity);
 						}
 					}
 				}
+
+				UI::UnderLine();
+				UI::ShiftCursorY(2.0f);
+
+				if (entity.GetParent())
+				{
+					if (ImGui::MenuItem("Unparent"))
+						m_Context->UnparentEntity(entity, true);
+				}
+
+				if (ImGui::MenuItem("Delete"))
+					entityDeleted = true;
 			}
 
 			ImGui::EndPopup();
@@ -962,6 +943,88 @@ namespace Iris {
 			}
 		}
 
+		template<typename TComponent, typename... TIncompatibleComponents, typename Fn>
+		void DrawAddComponentButton(SceneHierarchyPanel* panel, const std::string& name, Fn&& fn, Ref<Texture2D> icon = nullptr)
+		{
+			bool canAddComponent = false;
+
+			for (const auto& entityID : SelectionManager::GetSelections(SceneHierarchyPanel::GetActiveSelectionContext()))
+			{
+				Entity entity = panel->GetSceneContext()->GetEntityWithUUID(entityID);
+				if (!entity.HasComponent<TComponent>())
+				{
+					canAddComponent = true;
+					break;
+				}
+			}
+
+			if (!canAddComponent)
+				return;
+
+			if (icon == nullptr)
+				icon = EditorResources::AssetIcon;
+
+			const float rowHeight = 25.0f;
+			auto* window = ImGui::GetCurrentWindow();
+			window->DC.CurrLineSize.y = rowHeight;
+			ImGui::TableNextRow(0, rowHeight);
+			ImGui::TableSetColumnIndex(0);
+
+			window->DC.CurrLineTextBaseOffset = 3.0f;
+
+			const ImVec2 rowAreaMin = ImGui::TableGetCellBgRect(ImGui::GetCurrentTable(), 0).Min;
+			const ImVec2 rowAreaMax = { ImGui::TableGetCellBgRect(ImGui::GetCurrentTable(), ImGui::TableGetColumnCount() - 1).Max.x,
+										rowAreaMin.y + rowHeight };
+
+			ImGui::PushClipRect(rowAreaMin, rowAreaMax, false);
+			bool isRowHovered, held, isRowClicked = false;
+			isRowClicked = ImGui::ButtonBehavior(
+				{ rowAreaMin, rowAreaMax },
+				ImGui::GetID(name.c_str()),
+				&isRowHovered,
+				&held,
+				ImGuiButtonFlags_AllowItemOverlap | ImGuiButtonFlags_PressedOnClick
+			);
+
+			ImGui::SetItemAllowOverlap();
+			ImGui::PopClipRect();
+
+			auto fillRowWithColour = [](const ImColor& colour)
+			{
+				for (int column = 0; column < ImGui::TableGetColumnCount(); column++)
+					ImGui::TableSetBgColor(ImGuiTableBgTarget_CellBg, colour, column);
+			};
+
+			if (isRowHovered)
+				fillRowWithColour(Colors::Theme::Background);
+
+			UI::ShiftCursor(1.5f, 1.5f);
+			UI::Image(icon, { rowHeight - 3.0f, rowHeight - 3.0f });
+			UI::ShiftCursor(-1.5f, -1.5f);
+			ImGui::TableSetColumnIndex(1);
+			ImGui::SetNextItemWidth(-1);
+			ImGui::TextUnformatted(name.c_str());
+
+			if (isRowClicked)
+			{
+				for (const auto& entityID : SelectionManager::GetSelections(SceneHierarchyPanel::GetActiveSelectionContext()))
+				{
+					Entity entity = panel->GetSceneContext()->GetEntityWithUUID(entityID);
+
+					if (sizeof...(TIncompatibleComponents) > 0 && entity.HasComponent<TIncompatibleComponents...>())
+						continue;
+
+					if (!entity.HasComponent<TComponent>())
+					{
+						TComponent& component = entity.AddComponent<TComponent>();
+						std::forward<Fn>(fn)(entity, component);
+					}
+				}
+
+				ImGui::CloseCurrentPopup();
+			}
+		}
+
 		template<typename T>
 		void DrawMaterialTable(SceneHierarchyPanel* panel, const std::vector<UUID>& entities, Ref<MaterialTable> matTable, Ref<MaterialTable> localMatTable)
 		{
@@ -1022,7 +1085,7 @@ namespace Iris {
 								else
 									component.MaterialTable->SetMaterial(i, materialAsset->Handle);
 							}
-						}, "", settings);
+						}, "Material Asset", settings);
 
 						ImGui::PopItemFlag();
 					}
@@ -1063,7 +1126,7 @@ namespace Iris {
 								else
 									component.MaterialTable->SetMaterial(i, materialAsset->Handle);
 							}
-						}, "", settings);
+						}, "Material Asset", settings);
 
 						ImGui::PopItemFlag();
 					}
@@ -1087,6 +1150,7 @@ namespace Iris {
 						}
 
 						ImGui::NextColumn();
+						UI::UnderLine();
 					}
 
 					ImGui::PopID();
@@ -1216,7 +1280,13 @@ namespace Iris {
 
 					Utils::DrawSimpleAddComponentButton<CameraComponent>(this, "Camera", EditorResources::CameraIcon);
 					Utils::DrawSimpleAddComponentButton<SpriteRendererComponent>(this, "Sprite Renderer", EditorResources::SpriteIcon);
-					Utils::DrawSimpleAddComponentButton<StaticMeshComponent>(this, "StaticMesh", EditorResources::StaticMeshIcon);
+					Utils::DrawSimpleAddComponentButton<StaticMeshComponent>(this, "Static Mesh", EditorResources::StaticMeshIcon);
+					Utils::DrawSimpleAddComponentButton<SkyLightComponent>(this, "Sky Light", EditorResources::SkyLightIcon);
+					Utils::DrawSimpleAddComponentButton<DirectionalLightComponent>(this, "Directional Light", EditorResources::DirectionalLightIcon);
+					Utils::DrawAddComponentButton<TextComponent>(this, "Text", [](Entity entity, TextComponent& tc)
+					{
+						tc.Font = Font::GetDefaultFont()->Handle;
+					}, EditorResources::TextIcon);
 
 					ImGui::EndTable();
 				}
@@ -1269,10 +1339,10 @@ namespace Iris {
 						rotationAxes = GetInconsistentVectorAxis(rotation, oldRotation);
 						scaleAxes = GetInconsistentVectorAxis(scale, oldScale);
 
-						for (auto& entityID : entities)
+						for (UUID entityID : entities)
 						{
 							Entity entity = m_Context->GetEntityWithUUID(entityID);
-							auto& component = entity.GetComponent<TransformComponent>();
+							TransformComponent& component = entity.GetComponent<TransformComponent>();
 
 							if ((translationAxes & UI::VectorAxis::X) != UI::VectorAxis::None)
 								component.Translation.x = translation.x;
@@ -1304,10 +1374,10 @@ namespace Iris {
 						glm::vec3 rotationDiff = rotation - oldRotation;
 						glm::vec3 scaleDiff = scale - oldScale;
 
-						for (auto& entityID : entities)
+						for (UUID entityID : entities)
 						{
 							Entity entity = m_Context->GetEntityWithUUID(entityID);
-							auto& component = entity.GetComponent<TransformComponent>();
+							TransformComponent& component = entity.GetComponent<TransformComponent>();
 
 							component.Translation += translationDiff;
 							glm::vec3 componentRotation = component.GetRotationEuler();
@@ -1321,7 +1391,7 @@ namespace Iris {
 			else
 			{
 				Entity entity = m_Context->GetEntityWithUUID(entities[0]);
-				auto& component = entity.GetComponent<TransformComponent>();
+				TransformComponent& component = entity.GetComponent<TransformComponent>();
 
 				ImGui::TableNextRow();
 				Utils::DrawVec3Control("Translation", component.Translation, translationManuallyEdited, false, 0.0f, 0.1f);
@@ -1349,16 +1419,14 @@ namespace Iris {
 			int currentPorj = static_cast<int>(camComponent.Camera.GetProjectionType());
 
 			ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiEdit && IsInconsistentPrimitive<int, CameraComponent>([](const CameraComponent& other) { return static_cast<int>(other.Camera.GetProjectionType()); }));
-
-			if (UI::PropertyDropdown("Projection", projectionTypes, 2, &currentPorj))
+			if (UI::PropertyDropdown("Projection", projectionTypes, 2, &currentPorj, "Type of projection of the camera"))
 			{
-				for (auto& entityID : entities)
+				for (UUID entityID : entities)
 				{
 					Entity entity = m_Context->GetEntityWithUUID(entityID);
 					entity.GetComponent<CameraComponent>().Camera.SetProjectionType(static_cast<SceneCamera::ProjectionType>(currentPorj));
 				}
 			}
-
 			ImGui::PopItemFlag();
 
 			// Perspective Params...
@@ -1371,9 +1439,9 @@ namespace Iris {
 				float verticalFOV = camComponent.Camera.GetDegPerspectiveVerticalFOV();
 				ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiEdit && IsInconsistentPrimitive<float, CameraComponent>([](const CameraComponent& other) { return other.Camera.GetDegPerspectiveVerticalFOV(); }));
 
-				if (UI::Property("Vertical FOV", verticalFOV))
+				if (UI::Property("Vertical FOV", verticalFOV, 0.1f, 0.0f, 0.0f, "Field of view of the camera"))
 				{
-					for (auto& entityID : entities)
+					for (UUID entityID : entities)
 					{
 						Entity entity = m_Context->GetEntityWithUUID(entityID);
 						entity.GetComponent<CameraComponent>().Camera.SetDegPerspectiveVerticalFOV(verticalFOV);
@@ -1384,30 +1452,26 @@ namespace Iris {
 
 				float nearClip = camComponent.Camera.GetPerspectiveNearClip();
 				ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiEdit && IsInconsistentPrimitive<float, CameraComponent>([](const CameraComponent& other) { return other.Camera.GetPerspectiveNearClip(); }));
-
-				if (UI::Property("Near Clip", nearClip))
+				if (UI::Property("Near Clip", nearClip, 0.1f, 0.0f, 0.0f, "Near clip plane of the camera"))
 				{
-					for (auto& entityID : entities)
+					for (UUID entityID : entities)
 					{
 						Entity entity = m_Context->GetEntityWithUUID(entityID);
 						entity.GetComponent<CameraComponent>().Camera.SetPerspectiveNearClip(nearClip);
 					}
 				}
-
 				ImGui::PopItemFlag();
 
 				float farClip = camComponent.Camera.GetPerspectiveFarClip();
 				ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiEdit && IsInconsistentPrimitive<float, CameraComponent>([](const CameraComponent& other) { return other.Camera.GetPerspectiveFarClip(); }));
-
-				if (UI::Property("Far Clip", farClip))
+				if (UI::Property("Far Clip", farClip, 0.1f, 0.0f, 0.0f, "Far clip plane of the camera"))
 				{
-					for (auto& entityID : entities)
+					for (UUID entityID : entities)
 					{
 						Entity entity = m_Context->GetEntityWithUUID(entityID);
 						entity.GetComponent<CameraComponent>().Camera.SetPerspectiveFarClip(farClip);
 					}
 				}
-
 				ImGui::PopItemFlag();
 			}
 			// Orthographic Params...
@@ -1419,50 +1483,43 @@ namespace Iris {
 
 				float orthoSize = camComponent.Camera.GetOrthographicSize();
 				ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiEdit && IsInconsistentPrimitive<float, CameraComponent>([](const CameraComponent& other) { return other.Camera.GetOrthographicSize(); }));
-
-				if (UI::Property("Size", orthoSize))
+				if (UI::Property("Size", orthoSize, 0.1f, 0.0f, 0.0f, "Orthographic size of the camera"))
 				{
-					for (auto& entityID : entities)
+					for (UUID entityID : entities)
 					{
 						Entity entity = m_Context->GetEntityWithUUID(entityID);
 						entity.GetComponent<CameraComponent>().Camera.SetOrthographicSize(orthoSize);
 					}
 				}
-
 				ImGui::PopItemFlag();
 
 				float nearClip = camComponent.Camera.GetOrthographicNearClip();
 				ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiEdit && IsInconsistentPrimitive<float, CameraComponent>([](const CameraComponent& other) { return other.Camera.GetOrthographicNearClip(); }));
-
-				if (UI::Property("Near Clip", nearClip))
+				if (UI::Property("Near Clip", nearClip, 0.1f, 0.0f, 0.0f, "Near clip plane of the camera"))
 				{
-					for (auto& entityID : entities)
+					for (UUID entityID : entities)
 					{
 						Entity entity = m_Context->GetEntityWithUUID(entityID);
 						entity.GetComponent<CameraComponent>().Camera.SetOrthographicNearClip(nearClip);
 					}
 				}
-
 				ImGui::PopItemFlag();
 
 				float farClip = camComponent.Camera.GetOrthographicFarClip();
 				ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiEdit && IsInconsistentPrimitive<float, CameraComponent>([](const CameraComponent& other) { return other.Camera.GetOrthographicFarClip(); }));
-
-				if (UI::Property("Far Clip", farClip))
+				if (UI::Property("Far Clip", farClip, 0.1f, 0.0f, 0.0f, "Far clip plane of the camera"))
 				{
-					for (auto& entityID : entities)
+					for (UUID entityID : entities)
 					{
 						Entity entity = m_Context->GetEntityWithUUID(entityID);
 						entity.GetComponent<CameraComponent>().Camera.SetOrthographicFarClip(farClip);
 					}
 				}
-
 				ImGui::PopItemFlag();
 			}
 
 			ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiEdit && IsInconsistentPrimitive<bool, CameraComponent>([](const CameraComponent& other) { return other.Primary; }));
-
-			if (UI::Property("Main Camera", camComponent.Primary))
+			if (UI::Property("Main Camera", camComponent.Primary, "Set as the main camera of the scene in case you have multiple cameras. This is the camera that the runtime will be rendered with"))
 			{
 				// If we set the current camera as the main camera then we need to go through all the other cameras make them NOT primary since
 				// we should only have one primary camera
@@ -1483,27 +1540,24 @@ namespace Iris {
 				Entity entity = m_Context->GetEntityWithUUID(entityID);
 				entity.GetComponent<CameraComponent>().Primary = camComponent.Primary;
 			}
-
 			ImGui::PopItemFlag();
 
 			UI::EndPropertyGrid();
 		}, EditorResources::CameraIcon);
 	
-		DrawComponent<SpriteRendererComponent>("SpriteRenderer", [&](SpriteRendererComponent& spriteComponent, const std::vector<UUID>& entities, const bool isMultiSelect)
+		DrawComponent<SpriteRendererComponent>("Sprite Renderer", [&](SpriteRendererComponent& spriteComponent, const std::vector<UUID>& entities, const bool isMultiSelect)
 		{
 			UI::BeginPropertyGrid();
 
 			ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<glm::vec4, SpriteRendererComponent>([](const SpriteRendererComponent& other) { return other.Color; }));
-
 			if (UI::PropertyColor4("Color", spriteComponent.Color))
 			{
-				for (auto& entityID : entities)
+				for (UUID entityID : entities)
 				{
 					Entity entity = m_Context->GetEntityWithUUID(entityID);
 					entity.GetComponent<SpriteRendererComponent>().Color = spriteComponent.Color;
 				}
 			}
-
 			ImGui::PopItemFlag();
 
 			{
@@ -1517,10 +1571,9 @@ namespace Iris {
 
 				const bool inconsistentTexture = IsInconsistentPrimitive<AssetHandle, SpriteRendererComponent>([](const SpriteRendererComponent& other) { return other.Texture; });
 				ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && inconsistentTexture);
-
-				if (UI::PropertyAssetReference<Texture2D>("Texture", spriteComponent.Texture, "", settings))
+				if (UI::PropertyAssetReference<Texture2D>("Texture", spriteComponent.Texture, "Texture Asset", settings))
 				{
-					for (auto& entityID : entities)
+					for (UUID entityID : entities)
 					{
 						Entity entity = m_Context->GetEntityWithUUID(entityID);
 						entity.GetComponent<SpriteRendererComponent>().Texture = spriteComponent.Texture;
@@ -1534,7 +1587,7 @@ namespace Iris {
 					float prevItemHeight = ImGui::GetItemRectSize().y;
 					if (ImGui::Button("X", { prevItemHeight, prevItemHeight }))
 					{
-						for (auto& entityID : entities)
+						for (UUID entityID : entities)
 						{
 							Entity entity = m_Context->GetEntityWithUUID(entityID);
 							entity.GetComponent<SpriteRendererComponent>().Texture = 0;
@@ -1545,48 +1598,42 @@ namespace Iris {
 			}
 
 			ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<float, SpriteRendererComponent>([](const SpriteRendererComponent& other) { return other.TilingFactor; }));
-
-			if (UI::Property("Tiling Factor", spriteComponent.TilingFactor))
+			if (UI::Property("Tiling Factor", spriteComponent.TilingFactor, 0.1f, 0.0f, 0.0f, "How much the texture is tiled"))
 			{
-				for (auto& entityID : entities)
+				for (UUID entityID : entities)
 				{
 					Entity entity = m_Context->GetEntityWithUUID(entityID);
 					entity.GetComponent<SpriteRendererComponent>().TilingFactor = spriteComponent.TilingFactor;
 				}
 			}
-
 			ImGui::PopItemFlag();
 
 			ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<glm::vec2 , SpriteRendererComponent>([](const SpriteRendererComponent& other) { return other.UV0; }));
-
-			if (UI::PropertyDrag("UV Start", spriteComponent.UV0))
+			if (UI::PropertyDrag("UV Start", spriteComponent.UV0, 0.1f, 0.0f, 0.0f))
 			{
-				for (auto& entityID : entities)
+				for (UUID entityID : entities)
 				{
 					Entity entity = m_Context->GetEntityWithUUID(entityID);
 					entity.GetComponent<SpriteRendererComponent>().UV0 = spriteComponent.UV0;
 				}
 			}
-
 			ImGui::PopItemFlag();
 
 			ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<glm::vec2, SpriteRendererComponent>([](const SpriteRendererComponent& other) { return other.UV1; }));
-
 			if (UI::PropertyDrag("UV End", spriteComponent.UV1))
 			{
-				for (auto& entityID : entities)
+				for (UUID entityID : entities)
 				{
 					Entity entity = m_Context->GetEntityWithUUID(entityID);
 					entity.GetComponent<SpriteRendererComponent>().UV1 = spriteComponent.UV1;
 				}
 			}
-
 			ImGui::PopItemFlag();
 
 			UI::EndPropertyGrid();
 		}, EditorResources::SpriteIcon);
 	
-		DrawComponent<StaticMeshComponent>("StaticMesh", [&](StaticMeshComponent& meshComp, const std::vector<UUID>& entities, const bool isMultiSelect)
+		DrawComponent<StaticMeshComponent>("Static Mesh", [&](StaticMeshComponent& meshComp, const std::vector<UUID>& entities, const bool isMultiSelect)
 		{
 			AssetHandle meshHandle = meshComp.StaticMesh;
 			Ref<StaticMesh> mesh = AssetManager::GetAssetAsync<StaticMesh>(meshHandle);
@@ -1597,12 +1644,11 @@ namespace Iris {
 			{
 				const bool inconsistentMesh = IsInconsistentPrimitive<AssetHandle, StaticMeshComponent>([](const StaticMeshComponent& other) { return other.StaticMesh; });
 				ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && inconsistentMesh);
-
-				if (UI::PropertyAssetReference<StaticMesh>("Static Mesh", meshHandle))
+				if (UI::PropertyAssetReference<StaticMesh>("Static Mesh", meshHandle, "Mesh Asset"))
 				{
 					mesh = AssetManager::GetAssetAsync<StaticMesh>(meshHandle);
 
-					for (auto& entityID : entities)
+					for (UUID entityID : entities)
 					{
 						Entity entity = m_Context->GetEntityWithUUID(entityID);
 						entity.GetComponent<StaticMeshComponent>().StaticMesh = meshHandle;
@@ -1617,12 +1663,12 @@ namespace Iris {
 				uint32_t subMeshIndex = meshComp.SubMeshIndex;
 				const bool inconsistentSubMeshIndex = IsInconsistentPrimitive<uint32_t, StaticMeshComponent>([](const StaticMeshComponent& other) { return other.SubMeshIndex; });
 				ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && inconsistentSubMeshIndex);
-				if (UI::Property("Submesh Index", subMeshIndex, 1, 0, static_cast<uint32_t>(meshSource->GetSubMeshes().size()) - 1))
+				if (UI::Property("Submesh Index", subMeshIndex, 1, 0, static_cast<uint32_t>(meshSource->GetSubMeshes().size()) - 1, "Submesh index to render"))
 				{
-					for (auto& entityID : entities)
+					for (UUID entityID : entities)
 					{
 						Entity entity = m_Context->GetEntityWithUUID(entityID);
-						auto& mc = entity.GetComponent<StaticMeshComponent>();
+						StaticMeshComponent& mc = entity.GetComponent<StaticMeshComponent>();
 						mc.SubMeshIndex = subMeshIndex;
 					}
 				}
@@ -1630,17 +1676,15 @@ namespace Iris {
 			}
 
 			ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<bool, StaticMeshComponent>([](const StaticMeshComponent& other) { return other.Visible; }));
-
-			if (UI::Property("Visible", meshComp.Visible))
+			if (UI::Property("Visible", meshComp.Visible, "Toggle mesh visibility"))
 			{
-				for (auto& entityID : entities)
+				for (UUID entityID : entities)
 				{
 					Entity entity = m_Context->GetEntityWithUUID(entityID);
-					auto& mc = entity.GetComponent<StaticMeshComponent>();
+					StaticMeshComponent& mc = entity.GetComponent<StaticMeshComponent>();
 					mc.Visible = meshComp.Visible;
 				}
 			}
-
 			ImGui::PopItemFlag();
 
 			UI::EndPropertyGrid();
@@ -1648,6 +1692,291 @@ namespace Iris {
 			if (mesh)
 				Utils::DrawMaterialTable<StaticMeshComponent>(this, entities, mesh->GetMaterials(), meshComp.MaterialTable);
 		}, EditorResources::StaticMeshIcon);
+
+		DrawComponent<TextComponent>("Text", [&](TextComponent& textComp, const std::vector<UUID>& entities, const bool isMultiSelect)
+		{
+			const bool inconsistentText = IsInconsistentString<TextComponent>([](const TextComponent& other) { return other.TextString; });
+
+			UI::BeginPropertyGrid();
+
+			ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && inconsistentText);
+			if (UI::PropertyStringMultiline("Text String", textComp.TextString))
+			{
+				for (UUID entityID : entities)
+				{
+					Entity entity = m_Context->GetEntityWithUUID(entityID);
+					TextComponent& textComponent = entity.GetComponent<TextComponent>();
+					textComponent.TextString = textComp.TextString;
+					textComponent.TextHash = std::hash<std::string>{}(textComponent.TextString);
+				}
+			}
+			ImGui::PopItemFlag();
+
+			{
+				UI::PropertyAssetReferenceSettings settings;
+				bool customFont = textComp.Font != Font::GetDefaultFont()->Handle;
+				if (customFont)
+				{
+					settings.AdvanceToNextColumn = false;
+					settings.WidthOffset = ImGui::GetStyle().ItemSpacing.x + 28.0f;
+				}
+
+				const bool inconsistentFont = IsInconsistentPrimitive<AssetHandle, TextComponent>([](const TextComponent& other) { return other.Font; });
+				ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && inconsistentFont);
+				if (UI::PropertyAssetReference<Font>("Font", textComp.Font, "Font Asset", settings))
+				{
+					for (const UUID& entityID : entities)
+					{
+						Entity entity = m_Context->GetEntityWithUUID(entityID);
+						entity.GetComponent<TextComponent>().Font = textComp.Font;
+					}
+				}
+				ImGui::PopItemFlag();
+
+				if (customFont)
+				{
+					ImGui::SameLine();
+					float prevItemHeight = ImGui::GetItemRectSize().y;
+					if (ImGui::Button("X", { prevItemHeight, prevItemHeight }))
+					{
+						for (UUID entityID : entities)
+						{
+							Entity entity = m_Context->GetEntityWithUUID(entityID);
+							entity.GetComponent<TextComponent>().Font = Font::GetDefaultFont()->Handle;
+						}
+					}
+					ImGui::NextColumn();
+					UI::UnderLine();
+				}
+			}
+
+			ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<glm::vec4, TextComponent>([](const TextComponent& other) { return other.Color; }));
+			if (UI::PropertyColor4("Color", textComp.Color))
+			{
+				for (UUID entityID : entities)
+				{
+					Entity entity = m_Context->GetEntityWithUUID(entityID);
+					entity.GetComponent<TextComponent>().Color = textComp.Color;
+				}
+			}
+			ImGui::PopItemFlag();
+
+			ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<float, TextComponent>([](const TextComponent& other) { return other.LineSpacing; }));
+			if (UI::Property("Line Spacing", textComp.LineSpacing, 0.01f, 0.0f, 0.0f, "Space between lines under each other"))
+			{
+				for (UUID entityID : entities)
+				{
+					Entity entity = m_Context->GetEntityWithUUID(entityID);
+					entity.GetComponent<TextComponent>().LineSpacing = textComp.LineSpacing;
+				}
+			}
+			ImGui::PopItemFlag();
+
+			ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<float, TextComponent>([](const TextComponent& other) { return other.Kerning; }));
+			if (UI::Property("Kerning", textComp.Kerning, 0.01f, 0.0f, 0.0f, "Space between individual characters"))
+			{
+				for (UUID entityID : entities)
+				{
+					Entity entity = m_Context->GetEntityWithUUID(entityID);
+					entity.GetComponent<TextComponent>().Kerning = textComp.Kerning;
+				}
+			}
+			ImGui::PopItemFlag();
+
+			ImGui::Separator();
+
+			ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<float, TextComponent>([](const TextComponent& other) { return other.MaxWidth; }));
+			if (UI::Property("Max Width", textComp.MaxWidth, 0.1f, 0.0f, 0.0f, "Max width of each line and how many characters it can fit"))
+			{
+				for (UUID entityID : entities)
+				{
+					Entity entity = m_Context->GetEntityWithUUID(entityID);
+					entity.GetComponent<TextComponent>().MaxWidth = textComp.MaxWidth;
+				}
+			}
+			ImGui::PopItemFlag();
+
+			UI::EndPropertyGrid();
+		}, EditorResources::TextIcon);
+
+		DrawComponent<SkyLightComponent>("Sky Light", [&](SkyLightComponent& skylightComp, const std::vector<UUID>& entities, const bool isMultiSelect)
+		{
+			UI::BeginPropertyGrid();
+
+			ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<AssetHandle, SkyLightComponent>([](const SkyLightComponent& other) { return other.SceneEnvironment; }));
+			if (UI::PropertyAssetReference<Environment>("Environment Map", skylightComp.SceneEnvironment))
+			{
+				for (UUID entityID : entities)
+				{
+					Entity entity = m_Context->GetEntityWithUUID(entityID);
+					SkyLightComponent& slc = entity.GetComponent<SkyLightComponent>();
+					slc.SceneEnvironment = skylightComp.SceneEnvironment;
+					slc.DynamicSky = !skylightComp.SceneEnvironment; // If we have environment map => false, otherwise true
+					if (!slc.DynamicSky)
+					{
+						slc.Intensity = 1.0;
+						slc.Lod = 0.0f;
+						slc.TurbidityAzimuthInclination = { 2.0f, 0.0f, 0.0f };
+					}
+				}
+			}
+			ImGui::PopItemFlag();
+
+			ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<float, SkyLightComponent>([](const SkyLightComponent& other) { return other.Intensity; }));
+			if (UI::Property("Intensity", skylightComp.Intensity, 0.01f, 0.0f, 5.0f, "Light intensity of the environment map"))
+			{
+				for (UUID entityID : entities)
+				{
+					Entity entity = m_Context->GetEntityWithUUID(entityID);
+					entity.GetComponent<SkyLightComponent>().Intensity = skylightComp.Intensity;
+				}
+			}
+			ImGui::PopItemFlag();
+
+			if (AssetManager::IsAssetHandleValid(skylightComp.SceneEnvironment))
+			{
+				Ref<Environment> environment = AssetManager::GetAssetAsync<Environment>(skylightComp.SceneEnvironment);
+				if (environment && environment->RadianceMap)
+				{
+					ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<uint32_t, SkyLightComponent>([](const SkyLightComponent& other)
+					{ 
+						Ref<Environment> otherEnv = AssetManager::GetAssetAsync<Environment>(other.SceneEnvironment);
+						return otherEnv->RadianceMap->GetMipLevelCount();
+					}));
+
+					UI::PropertySlider("Lod", skylightComp.Lod, 0.0f, static_cast<float>(environment->RadianceMap->GetMipLevelCount()), "%.3f", "Level of detail of the environment map");
+					ImGui::PopItemFlag();
+				}
+				else
+				{
+					ImGui::BeginDisabled(true);
+					UI::PropertySlider("Lod", skylightComp.Lod, 0.0f, 10.0f, "%.3f", "Level of detail of the environment map");
+					ImGui::EndDisabled();
+				}
+			}
+
+			ImGui::Separator();
+
+			const bool isInconsistentDynamicSky = IsInconsistentPrimitive<bool, SkyLightComponent>([](const SkyLightComponent& other) { return other.DynamicSky; });
+			ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && isInconsistentDynamicSky);
+			if (UI::Property("Dynamic Sky", skylightComp.DynamicSky, "Set the skylight to be a custom sky depending on the time of the day"))
+			{
+				for (UUID entityID : entities)
+				{
+					Entity entity = m_Context->GetEntityWithUUID(entityID);
+					SkyLightComponent& slc = entity.GetComponent<SkyLightComponent>();
+					slc.DynamicSky = skylightComp.DynamicSky;
+					if (slc.DynamicSky)
+					{
+						// Reset the loaded environment map if any and all other settings
+						slc.SceneEnvironment = 0;
+						slc.Lod = 0.0f;
+						slc.Intensity = 1.0f;
+					}
+				}
+			}
+			ImGui::PopItemFlag();
+
+			if (!isInconsistentDynamicSky || !isMultiSelect)
+			{
+				bool changed = false;
+
+				ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<float, SkyLightComponent>([](const SkyLightComponent& other) { return other.TurbidityAzimuthInclination.x; }));
+				if (UI::Property("Turbidity", skylightComp.TurbidityAzimuthInclination.x, 0.01f, 1.8f, std::numeric_limits<float>::max(), "How turbid the environment is"))
+				{
+					for (UUID entityID : entities)
+					{
+						Entity entity = m_Context->GetEntityWithUUID(entityID);
+						entity.GetComponent<SkyLightComponent>().TurbidityAzimuthInclination.x = skylightComp.TurbidityAzimuthInclination.x;
+					}
+
+					changed = true;
+				}
+				ImGui::PopItemFlag();
+
+				ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<float, SkyLightComponent>([](const SkyLightComponent& other) { return other.TurbidityAzimuthInclination.y; }));
+				float azimuthDegress = glm::degrees(skylightComp.TurbidityAzimuthInclination.y);
+				if (UI::Property("Azimuth", azimuthDegress, 1.0f, 0.0f, 0.0f, "Rotation of the sun around the Y-Axis of the world in degrees"))
+				{
+					skylightComp.TurbidityAzimuthInclination.y = glm::radians(azimuthDegress);
+					for (UUID entityID : entities)
+					{
+						Entity entity = m_Context->GetEntityWithUUID(entityID);
+						entity.GetComponent<SkyLightComponent>().TurbidityAzimuthInclination.y = glm::radians(azimuthDegress);
+					}
+
+					changed = true;
+				}
+				ImGui::PopItemFlag();
+
+				ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<float, SkyLightComponent>([](const SkyLightComponent& other) { return other.TurbidityAzimuthInclination.z; }));
+				float inclinationDegrees = glm::degrees(skylightComp.TurbidityAzimuthInclination.z);
+				if (UI::Property("Inclination", inclinationDegrees, 1.0f, 0.0f, 0.0f, "The inclination of the sun in degrees around the X or Z Axis of the world depending on the Azimuth"))
+				{
+					skylightComp.TurbidityAzimuthInclination.z = glm::radians(inclinationDegrees);
+					for (UUID entityID : entities)
+					{
+						Entity entity = m_Context->GetEntityWithUUID(entityID);
+						entity.GetComponent<SkyLightComponent>().TurbidityAzimuthInclination.z = glm::radians(inclinationDegrees);
+					}
+
+					changed = true;
+				}
+				ImGui::PopItemFlag();
+
+				if (changed)
+				{
+					if (AssetManager::IsMemoryAsset(skylightComp.SceneEnvironment))
+					{
+						Ref<TextureCube> preethamEnv = Renderer::CreatePreethamSky(skylightComp.TurbidityAzimuthInclination.x, skylightComp.TurbidityAzimuthInclination.y, skylightComp.TurbidityAzimuthInclination.z);
+						Ref<Environment> env = AssetManager::GetAsset<Environment>(skylightComp.SceneEnvironment);
+						if (env)
+						{
+							env->RadianceMap = preethamEnv;
+							env->IrradianceMap = preethamEnv;
+						}
+					}
+					else
+					{
+						Ref<TextureCube> preethamEnv = Renderer::CreatePreethamSky(skylightComp.TurbidityAzimuthInclination.x, skylightComp.TurbidityAzimuthInclination.y, skylightComp.TurbidityAzimuthInclination.z);
+						skylightComp.SceneEnvironment = AssetManager::CreateMemoryOnlyAsset<Environment>(preethamEnv, preethamEnv);
+					}
+				}
+			}
+
+			UI::EndPropertyGrid();
+		}, EditorResources::SkyLightIcon);
+
+		DrawComponent<DirectionalLightComponent>("Directional Light", [&](DirectionalLightComponent& dirLightComp, const std::vector<UUID>& entities, const bool isMultiSelect)
+		{
+			UI::BeginPropertyGrid();
+
+			ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<glm::vec3, DirectionalLightComponent>([](const DirectionalLightComponent& other) { return other.Radiance; }));
+			if (UI::PropertyColor3("Radiance", dirLightComp.Radiance))
+			{
+				for (UUID entityID : entities)
+				{
+					Entity entity = m_Context->GetEntityWithUUID(entityID);
+					entity.GetComponent<DirectionalLightComponent>().Radiance = dirLightComp.Radiance;
+				}
+			}
+			ImGui::PopItemFlag();
+
+			ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<float, DirectionalLightComponent>([](const DirectionalLightComponent& other) { return other.Intensity; }));
+			if (UI::Property("Intensity", dirLightComp.Intensity, 0.1f, 0.0f, 1000.0f))
+			{
+				for (UUID entityID : entities)
+				{
+					Entity entity = m_Context->GetEntityWithUUID(entityID);
+					entity.GetComponent<DirectionalLightComponent>().Intensity = dirLightComp.Intensity;
+				}
+			}
+			ImGui::PopItemFlag();
+
+			// TODO: Add shadow stuff...
+
+			UI::EndPropertyGrid();
+		}, EditorResources::DirectionalLightIcon);
 	}
 
 	void SceneHierarchyPanel::OnExternalEntityDestroyed(Entity entity)

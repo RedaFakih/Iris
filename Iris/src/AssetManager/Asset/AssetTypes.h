@@ -19,7 +19,8 @@ namespace Iris {
 		MeshSource,
 		Material, // This refers to the MaterialAsset class and not the Material class since that is used with renderpasses
 		Texture,
-		EnvironmentMap
+		EnvironmentMap,
+		Font
 	};
 
 	namespace Utils {
@@ -33,6 +34,7 @@ namespace Iris {
 			if (assetType == "Material")            return AssetType::Material;
 			if (assetType == "Texture")             return AssetType::Texture;
 			if (assetType == "EnvironmentMap")      return AssetType::EnvironmentMap;
+			if (assetType == "Font")				return AssetType::Font;
 
 			return AssetType::None;
 		}
@@ -48,6 +50,7 @@ namespace Iris {
 				case AssetType::Material:            return "Material";
 				case AssetType::Texture:             return "Texture";
 				case AssetType::EnvironmentMap:      return "EnvironmentMap";
+				case AssetType::Font:				 return "Font";
 			}
 
 			IR_VERIFY(false, "Unknown Asset Type");

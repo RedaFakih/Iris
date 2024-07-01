@@ -73,39 +73,36 @@ namespace Iris {
 		m_DescriptorSetManager.SetInput(name, textureCube);
 	}
 
+	void RenderPass::SetInput(std::string_view name, Ref<ImageView> imageView)
+	{
+		m_DescriptorSetManager.SetInput(name, imageView);
+	}
+
 	// TODO:
 	//void RenderPass::SetInput(std::string_view name, Ref<Image2D> image)
 	//{
 	//	m_DescriptorSetManager.SetInput(name, image);
 	//}
 
-	Ref<Texture2D> RenderPass::GetOutput(uint32_t index, bool ignoreMultiSampled) const
+	Ref<Texture2D> RenderPass::GetOutput(uint32_t index) const
 	{
 		Ref<Framebuffer> framebuffer = m_Specification.Pipeline->GetSpecification().TargetFramebuffer;
 		if (index > framebuffer->GetColorAttachmentCount() + 1)
 			return nullptr;
 
-		bool isMultiSampled = framebuffer->GetSpecification().Samples > 1;
-		if (ignoreMultiSampled)
-			isMultiSampled = false;
-
 		if (index < framebuffer->GetColorAttachmentCount())
-			return isMultiSampled ? framebuffer->GetResolveImage(index) : framebuffer->GetImage(index);
+			return framebuffer->GetImage(index);
 
-		return isMultiSampled ? framebuffer->GetDepthResolveImage() : framebuffer->GetDepthImage();
+		return framebuffer->GetDepthImage();
 	}
 
-	Ref<Texture2D> RenderPass::GetDepthOutput(bool ignoreMultiSampled) const
+	Ref<Texture2D> RenderPass::GetDepthOutput() const
 	{
 		Ref<Framebuffer> framebuffer = m_Specification.Pipeline->GetSpecification().TargetFramebuffer;
 		if (!framebuffer->HasDepthAttachment())
 			return nullptr;
 
-		bool isMultiSampled = framebuffer->GetSpecification().Samples > 1;
-		if (ignoreMultiSampled)
-			isMultiSampled = false;
-
-		return isMultiSampled ? framebuffer->GetDepthResolveImage() : framebuffer->GetDepthImage();
+		return framebuffer->GetDepthImage();
 	}
 
 	uint32_t RenderPass::GetFirstSetIndex() const

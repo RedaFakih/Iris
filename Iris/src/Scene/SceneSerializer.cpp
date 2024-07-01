@@ -4,6 +4,7 @@
 #include "AssetManager/AssetManager.h"
 #include "Project/Project.h"
 #include "Renderer/StorageBufferSet.h"
+#include "Renderer/Text/Font.h"
 #include "Renderer/Texture.h"
 #include "Renderer/UniformBufferSet.h"
 #include "Utils/YAMLSerializationHelpers.h"
@@ -130,6 +131,52 @@ namespace Iris {
 			out << YAML::EndMap;
 		}
 
+		if (entity.HasComponent<TextComponent>())
+		{
+			out << YAML::Key << "TextComponent";
+			out << YAML::BeginMap;
+
+			const TextComponent& textComponent = entity.GetComponent<TextComponent>();
+			out << YAML::Key << "TextString" << YAML::Value << textComponent.TextString;
+			out << YAML::Key << "Font" << YAML::Value << textComponent.Font;
+			out << YAML::Key << "Color" << YAML::Value << textComponent.Color;
+			out << YAML::Key << "LineSpacing" << YAML::Value << textComponent.LineSpacing;
+			out << YAML::Key << "Kerning" << YAML::Value << textComponent.Kerning;
+			out << YAML::Key << "MaxWidth" << YAML::Value << textComponent.MaxWidth;
+
+			out << YAML::EndMap;
+		}
+
+		if (entity.HasComponent<SkyLightComponent>())
+		{
+			out << YAML::Key << "SkyLightComponent";
+			out << YAML::BeginMap;
+
+			const SkyLightComponent& slc = entity.GetComponent<SkyLightComponent>();
+			out << YAML::Key << "EnvironmentMap" << YAML::Value << (AssetManager::IsMemoryAsset(slc.SceneEnvironment) ? static_cast<AssetHandle>(0) : slc.SceneEnvironment);
+			out << YAML::Key << "Intensity" << YAML::Value << slc.Intensity;
+			out << YAML::Key << "Lod" << YAML::Value << slc.Lod;
+			out << YAML::Key << "DynamicSky" << YAML::Value << slc.DynamicSky;
+			if(slc.DynamicSky)
+				out << YAML::Key << "TurbidityAzimuthInclination" << YAML::Value << slc.TurbidityAzimuthInclination;
+
+			out << YAML::EndMap;
+		}
+
+		if (entity.HasComponent<DirectionalLightComponent>())
+		{
+			out << YAML::Key << "DirectionalLightComponent";
+			out << YAML::BeginMap;
+
+			const DirectionalLightComponent& dirLightComp = entity.GetComponent<DirectionalLightComponent>();
+			out << YAML::Key << "Radiance" << YAML::Value << dirLightComp.Radiance;
+			out << YAML::Key << "Intensity" << YAML::Value << dirLightComp.Intensity;
+
+			// TODO: Expand for shadow stuff...
+
+			out << YAML::EndMap;
+		}
+
 		out << YAML::EndMap;
 	}
 
@@ -234,6 +281,60 @@ namespace Iris {
 				if (spriteRendererComp["UV1"])
 					component.UV1 = spriteRendererComp["UV1"].as<glm::vec2>();
 			}
+
+			YAML::Node textComp = entity["TextComponent"];
+			if (textComp)
+			{
+				TextComponent& component = deserializedEntity.AddComponent<TextComponent>();
+				component.TextString = textComp["TextString"].as<std::string>();
+				component.TextHash = std::hash<std::string>{}(component.TextString);
+
+				AssetHandle font = textComp["Font"].as<AssetHandle>(0);
+				if (AssetManager::IsAssetHandleValid(font))
+					component.Font = font;
+				else
+					component.Font = Font::GetDefaultFont()->Handle;
+
+				component.Color = textComp["Color"].as<glm::vec4>();
+				component.LineSpacing = textComp["LineSpacing"].as<float>();
+				component.Kerning = textComp["Kerning"].as<float>();
+				component.MaxWidth = textComp["MaxWidth"].as<float>();
+			}
+
+			YAML::Node skyLightComp = entity["SkyLightComponent"];
+			if (skyLightComp)
+			{
+				SkyLightComponent& component = deserializedEntity.AddComponent<SkyLightComponent>();
+
+				if (skyLightComp["EnvironmentMap"])
+				{
+					AssetHandle envMapHandle = skyLightComp["EnvironmentMap"].as<AssetHandle>(0);
+					if (AssetManager::IsAssetHandleValid(envMapHandle))
+						component.SceneEnvironment = envMapHandle;
+				}
+
+				component.Intensity = skyLightComp["Intensity"].as<float>(1.0f);
+				component.Lod = skyLightComp["Lod"].as<float>(0.0f);
+
+				if (skyLightComp["DynamicSky"])
+				{
+					component.DynamicSky = skyLightComp["DynamicSky"].as<bool>();
+					if (component.DynamicSky)
+					{
+						component.TurbidityAzimuthInclination = skyLightComp["TurbidityAzimuthInclination"].as<glm::vec3>();
+					}
+				}
+			}
+
+			YAML::Node dirLightComp = entity["DirectionalLightComponent"];
+			if (dirLightComp)
+			{
+				DirectionalLightComponent& component = deserializedEntity.AddComponent<DirectionalLightComponent>();
+				component.Radiance = dirLightComp["Radiance"].as<glm::vec3>(glm::vec3(1.0f));
+				component.Intensity = dirLightComp["Intensity"].as<float>(1.0f);
+				// TODO: Expand for shadow stuff...
+			}
+
 		}
 
 		scene->SortEntities();
