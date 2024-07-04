@@ -3,6 +3,7 @@ Material:
   TwoSided: true
   AlbedoColor: [0.999899983, 1, 0.999915361]
   Emission: 0
+  Tiling: 1
   UseNormalMap: false
   Roughness: 1
   Metalness: 0

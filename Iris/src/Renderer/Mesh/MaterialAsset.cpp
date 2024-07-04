@@ -10,18 +10,20 @@
 
 namespace Iris {
 
-	static const std::string s_AlbedoColorUniform = "u_MaterialUniforms.AlbedoColor";
-	static const std::string s_RoughnessUniform = "u_MaterialUniforms.Roughness";
-	static const std::string s_MetalnessUniform = "u_MaterialUniforms.Metalness";
-	static const std::string s_EmissionUniform = "u_MaterialUniforms.Emission";
-	static const std::string s_UseNormalMapUniform = "u_MaterialUniforms.UseNormalMap";
-	static const std::string s_TransparencyUniform = "u_MaterialUniforms.Transparency";
-	static const std::string s_LitUniform = "u_MaterialUniforms.Lit";
-
-	static const std::string s_AlbedoMapUniform = "u_AlbedoTexture";
-	static const std::string s_NormalMapUniform = "u_NormalTexture";
-	static const std::string s_RoughnessMapUniform = "u_RoughnessTexture";
-	static const std::string s_MetalnessMapUniform = "u_MetalnessTexture";
+	constexpr static const char* s_AlbedoColorUniform = "u_MaterialUniforms.AlbedoColor";
+	constexpr static const char* s_RoughnessUniform = "u_MaterialUniforms.Roughness";
+	constexpr static const char* s_MetalnessUniform = "u_MaterialUniforms.Metalness";
+	constexpr static const char* s_EmissionUniform = "u_MaterialUniforms.Emission";
+	constexpr static const char* s_TilingUniform = "u_MaterialUniforms.Tiling";
+	constexpr static const char* s_EnvMapRotationUniform = "u_MaterialUniforms.EnvMapRotation";
+	constexpr static const char* s_UseNormalMapUniform = "u_MaterialUniforms.UseNormalMap";
+	constexpr static const char* s_TransparencyUniform = "u_MaterialUniforms.Transparency";
+	constexpr static const char* s_LitUniform = "u_MaterialUniforms.Lit";
+	
+	constexpr static const char* s_AlbedoMapUniform = "u_AlbedoTexture";
+	constexpr static const char* s_NormalMapUniform = "u_NormalTexture";
+	constexpr static const char* s_RoughnessMapUniform = "u_RoughnessTexture";
+	constexpr static const char* s_MetalnessMapUniform = "u_MetalnessTexture";
 
 	Ref<MaterialAsset> MaterialAsset::Create(bool isTransparent)
 	{
@@ -135,6 +137,16 @@ namespace Iris {
 		m_Material->Set(s_EmissionUniform, emission);
 	}
 
+	float& MaterialAsset::GetTiling()
+	{
+		return m_Material->GetFloat(s_TilingUniform);
+	}
+
+	void MaterialAsset::SetTiling(float tiling)
+	{
+		m_Material->Set(s_TilingUniform, tiling);
+	}
+
 	float& MaterialAsset::GetTransparency()
 	{
 		return m_Material->GetFloat(s_TransparencyUniform);
@@ -165,14 +177,32 @@ namespace Iris {
 		return m_Material->GetTexture2D(s_AlbedoMapUniform);
 	}
 
-	void MaterialAsset::SetAlbedoMap(AssetHandle albedoMap)
+	void MaterialAsset::SetAlbedoMap(AssetHandle albedoMap, bool setImmediatly)
 	{
 		m_Maps.AlbedoMap = albedoMap;
 
 		if (albedoMap)
 		{
-			Ref<Texture2D> texture = AssetManager::GetAsset<Texture2D>(albedoMap);
-			m_Material->Set(s_AlbedoMapUniform, texture);
+			if (setImmediatly)
+			{
+				Ref<Texture2D> texture = AssetManager::GetAsset<Texture2D>(albedoMap);
+				m_Material->Set(s_AlbedoMapUniform, texture);
+			}
+			else
+			{
+				Project::GetEditorAssetManager()->AddPostSyncTask([this, albedoMap]() -> bool
+				{
+					AsyncAssetResult<Texture2D> result = AssetManager::GetAssetAsync<Texture2D>(albedoMap);
+					if (result.IsReady)
+					{
+						m_Material->Set(s_AlbedoMapUniform, result.Asset);
+						return true;
+					}
+
+					return false;
+				}, true);
+			}
+
 			AssetManager::RegisterDependency(albedoMap, Handle);
 		}
 		else
@@ -191,14 +221,35 @@ namespace Iris {
 		return m_Material->GetTexture2D(s_NormalMapUniform);
 	}
 
-	void MaterialAsset::SetNormalMap(AssetHandle normalMap)
+	void MaterialAsset::SetNormalMap(AssetHandle normalMap, bool setImmediatly)
 	{
 		m_Maps.NormalMap = normalMap;
 
 		if (normalMap)
 		{
-			Ref<Texture2D> texture = AssetManager::GetAsset<Texture2D>(normalMap);
-			m_Material->Set(s_NormalMapUniform, texture);
+			if (setImmediatly)
+			{
+				Ref<Texture2D> texture = AssetManager::GetAsset<Texture2D>(normalMap);
+				m_Material->Set(s_NormalMapUniform, texture);
+			}
+			else
+			{
+				Project::GetEditorAssetManager()->AddPostSyncTask([this, normalMap]() -> bool
+				{
+					AsyncAssetResult<Texture2D> result = AssetManager::GetAssetAsync<Texture2D>(normalMap);
+					if (result.IsReady)
+					{
+						m_Material->Set(s_NormalMapUniform, result.Asset);
+						SetUseNormalMap(true);
+						return true;
+					}
+
+					// Otherwise we set defaults until the map is loaded
+					SetUseNormalMap(false);
+					return false;
+				}, true);
+			}
+
 			AssetManager::RegisterDependency(normalMap, Handle);
 		}
 		else
@@ -217,14 +268,35 @@ namespace Iris {
 		return m_Material->GetTexture2D(s_RoughnessMapUniform);
 	}
 
-	void MaterialAsset::SetRoughnessMap(AssetHandle roughnessMap)
+	void MaterialAsset::SetRoughnessMap(AssetHandle roughnessMap, bool setImmediatly)
 	{
 		m_Maps.RoughnessMap = roughnessMap;
 
 		if (roughnessMap)
 		{
-			Ref<Texture2D> texture = AssetManager::GetAsset<Texture2D>(roughnessMap);
-			m_Material->Set(s_RoughnessMapUniform, texture);
+			if (setImmediatly)
+			{
+				Ref<Texture2D> texture = AssetManager::GetAsset<Texture2D>(roughnessMap);
+				m_Material->Set(s_RoughnessMapUniform, texture);
+			}
+			else
+			{
+				Project::GetEditorAssetManager()->AddPostSyncTask([this, roughnessMap]() -> bool
+				{
+					AsyncAssetResult<Texture2D> result = AssetManager::GetAssetAsync<Texture2D>(roughnessMap);
+					if (result.IsReady)
+					{
+						m_Material->Set(s_RoughnessMapUniform, result.Asset);
+						SetRoughness(1.0f);
+						return true;
+					}
+
+					// Otherwise we set defaults until the map is loaded
+					SetRoughness(0.4f);
+					return false;
+				}, true);
+			}
+
 			AssetManager::RegisterDependency(roughnessMap, Handle);
 		}
 		else
@@ -243,14 +315,35 @@ namespace Iris {
 		return m_Material->GetTexture2D(s_MetalnessMapUniform);
 	}
 
-	void MaterialAsset::SetMetalnessMap(AssetHandle metalnessMap)
+	void MaterialAsset::SetMetalnessMap(AssetHandle metalnessMap, bool setImmediatly)
 	{
 		m_Maps.MetalnessMap = metalnessMap;
 
 		if (metalnessMap)
 		{
-			Ref<Texture2D> texture = AssetManager::GetAsset<Texture2D>(metalnessMap);
-			m_Material->Set(s_MetalnessMapUniform, texture);
+			if (setImmediatly)
+			{
+				Ref<Texture2D> texture = AssetManager::GetAsset<Texture2D>(metalnessMap);
+				m_Material->Set(s_MetalnessMapUniform, texture);
+			}
+			else
+			{
+				Project::GetEditorAssetManager()->AddPostSyncTask([this, metalnessMap]() -> bool
+				{
+					AsyncAssetResult<Texture2D> result = AssetManager::GetAssetAsync<Texture2D>(metalnessMap);
+					if (result.IsReady)
+					{
+						m_Material->Set(s_MetalnessMapUniform, result.Asset);
+						SetMetalness(1.0f);
+						return true;
+					}
+
+					// Otherwise we set defaults until the map is loaded
+					SetMetalness(0.0f);
+					return false;
+				}, true);
+			}
+
 			AssetManager::RegisterDependency(metalnessMap, Handle);
 		}
 		else
@@ -280,6 +373,7 @@ namespace Iris {
 			SetRoughness(0.4f);
 			SetMetalness(0.0f);
 			SetEmission(0.0f);
+			SetTiling(1.0f);
 			SetUseNormalMap(false);
 			SetLit();
 

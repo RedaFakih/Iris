@@ -757,10 +757,9 @@ namespace Iris {
 
 			VkPipelineLayout layout = pipeline->GetVulkanPipelineLayout();
 
-			// We do not do this since the passes that use this method do not have descriptor sets.. only push constants
-			// VkDescriptorSet descriptorSet = material->GetDescriptorSet(frameIndex);
-			// if (descriptorSet)
-			// 	vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, layout, material->GetFirstSetIndex(), 1, &descriptorSet, 0, nullptr);
+			VkDescriptorSet descriptorSet = material->GetDescriptorSet(frameIndex);
+			if (descriptorSet)
+				vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, layout, material->GetFirstSetIndex(), 1, &descriptorSet, 0, nullptr);
 
 			uint32_t pushConstantOffset = 0;
 			Buffer uniformStorageBuffer = material->GetUniformStorageBuffer();
@@ -1050,7 +1049,7 @@ namespace Iris {
 		return { envFiltered, irradianceMap };
 	}
 
-	Ref<TextureCube> Renderer::CreatePreethamSky(float turbidity, float azimuth, float inclination)
+	Ref<TextureCube> Renderer::CreatePreethamSky(float turbidity, float azimuth, float inclination, float sunSize)
 	{
 		const uint32_t cubemapSize = Renderer::GetConfig().EnvironmentMapResolution;
 
@@ -1062,12 +1061,12 @@ namespace Iris {
 		};
 		Ref<TextureCube> environmentMap = TextureCube::Create(cubemapSpec);
 
-		glm::vec3 params = { turbidity, azimuth, inclination };
+		glm::vec4 params = { turbidity, azimuth, inclination, sunSize };
 		s_Data->PreethamSkyMaterial->Set("o_OutputCubeMap", environmentMap);
-		//s_Data->PreethamSkyMaterial->Set("u_Uniforms.TurbidityAzimuthInclination", params);
+		//s_Data->PreethamSkyMaterial->Set("u_Uniforms.TurbidityAzimuthInclinationSunSize", params);
 
 		Renderer::BeginComputePass(nullptr, s_Data->PreethamSkyPass);
-		Renderer::DispatchComputePass(nullptr, s_Data->PreethamSkyPass, s_Data->PreethamSkyMaterial, { cubemapSize / 32, cubemapSize / 32, 6 }, Buffer(reinterpret_cast<const uint8_t*>(&params), sizeof(glm::vec3)));
+		Renderer::DispatchComputePass(nullptr, s_Data->PreethamSkyPass, s_Data->PreethamSkyMaterial, { cubemapSize / 32, cubemapSize / 32, 6 }, Buffer(reinterpret_cast<const uint8_t*>(&params), sizeof(glm::vec4)));
 		Renderer::EndComputePass(nullptr, s_Data->PreethamSkyPass);
 
 		Renderer::Submit([environmentMap]() mutable

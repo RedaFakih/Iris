@@ -77,6 +77,12 @@ namespace Iris {
 			return m_Registry.view<Componenets...>();
 		}
 
+		template<typename... Componenets>
+		auto GetAllEntitiesWith() const
+		{
+			return m_Registry.view<const Componenets...>();
+		}
+
 		void ConvertToLocalSpace(Entity entity);
 		void ConvertToWorldSpace(Entity entity);
 		glm::mat4 GetWorldSpaceTransformMatrix(Entity entity);

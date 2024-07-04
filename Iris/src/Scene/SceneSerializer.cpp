@@ -157,8 +157,11 @@ namespace Iris {
 			out << YAML::Key << "Intensity" << YAML::Value << slc.Intensity;
 			out << YAML::Key << "Lod" << YAML::Value << slc.Lod;
 			out << YAML::Key << "DynamicSky" << YAML::Value << slc.DynamicSky;
-			if(slc.DynamicSky)
-				out << YAML::Key << "TurbidityAzimuthInclination" << YAML::Value << slc.TurbidityAzimuthInclination;
+			if (slc.DynamicSky)
+			{
+				out << YAML::Key << "TurbidityAzimuthInclinationSunSize" << YAML::Value << slc.TurbidityAzimuthInclinationSunSize;
+				out << YAML::Key << "DirectionalLightEntityID" << YAML::Value << slc.DirectionalLightEntityID;
+			}
 
 			out << YAML::EndMap;
 		}
@@ -321,7 +324,8 @@ namespace Iris {
 					component.DynamicSky = skyLightComp["DynamicSky"].as<bool>();
 					if (component.DynamicSky)
 					{
-						component.TurbidityAzimuthInclination = skyLightComp["TurbidityAzimuthInclination"].as<glm::vec3>();
+						component.TurbidityAzimuthInclinationSunSize = skyLightComp["TurbidityAzimuthInclinationSunSize"].as<glm::vec4>();
+						component.DirectionalLightEntityID = skyLightComp["DirectionalLightEntityID"].as<uint64_t>(0);
 					}
 				}
 			}

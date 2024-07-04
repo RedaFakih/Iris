@@ -51,7 +51,7 @@ namespace Iris {
 		std::string& Name() { return HasComponent<TagComponent>() ? GetComponent<TagComponent>().Tag : s_NoName; }
 		const std::string& Name() const { return HasComponent<TagComponent>() ? GetComponent<TagComponent>().Tag : s_NoName; }
 		
-		operator uint32_t() const { return (uint32_t)m_EntityHandle; }
+		operator uint32_t() const { return static_cast<uint32_t>(m_EntityHandle); }
 		operator entt::entity() const { return m_EntityHandle; }
 		operator bool() const;
 

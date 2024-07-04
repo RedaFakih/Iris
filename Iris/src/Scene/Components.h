@@ -155,7 +155,7 @@ namespace Iris {
 		std::string TextString = "";
 		size_t TextHash;
 
-		AssetHandle Font;
+		AssetHandle Font = 0;
 		glm::vec4 Color = { 1.0f, 1.0f, 1.0f, 1.0f };
 		float LineSpacing = 1.0f;
 		float Kerning = 1.0f;
@@ -165,12 +165,13 @@ namespace Iris {
 
 	struct SkyLightComponent
 	{
-		AssetHandle SceneEnvironment;
+		AssetHandle SceneEnvironment = 0;
 		float Intensity = 1.0f;
 		float Lod = 0.0f;
 
 		bool DynamicSky = false;
-		glm::vec3 TurbidityAzimuthInclination = { 2.0f, 0.0f, 0.0f };
+		glm::vec4 TurbidityAzimuthInclinationSunSize = { 2.0f, 0.0f, 0.0f, 0.01f };
+		UUID DirectionalLightEntityID = 0;
 	};
 
 	struct DirectionalLightComponent
@@ -185,6 +186,7 @@ namespace Iris {
 	{
 	};
 
-	using AllComponents = ComponentGroup<IDComponent, TagComponent, RelationshipComponent, TransformComponent, CameraComponent, SpriteRendererComponent, StaticMeshComponent, SkyLightComponent>;
+	using AllComponents = ComponentGroup<IDComponent, TagComponent, RelationshipComponent, TransformComponent, CameraComponent, SpriteRendererComponent, StaticMeshComponent, 
+		TextComponent, SkyLightComponent, DirectionalLightComponent>;
 
 }

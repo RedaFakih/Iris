@@ -39,6 +39,9 @@ namespace Iris {
 		float& GetEmission();
 		void SetEmission(float emission);
 
+		float& GetTiling();
+		void SetTiling(float tiling);
+
 		float& GetTransparency();
 		void SetTransparency(float tranparency);
 
@@ -47,19 +50,19 @@ namespace Iris {
 		void SetUnlit();
 
 		Ref<Texture2D> GetAlbedoMap();
-		void SetAlbedoMap(AssetHandle albedoMap);
+		void SetAlbedoMap(AssetHandle albedoMap, bool setImmediatly = false);
 		void ClearAlbedoMap();
 
 		Ref<Texture2D> GetNormalMap();
-		void SetNormalMap(AssetHandle  normalMap);
+		void SetNormalMap(AssetHandle  normalMap, bool setImmediatly = false);
 		void ClearNormalMap();
 
 		Ref<Texture2D> GetRoughnessMap();
-		void SetRoughnessMap(AssetHandle  roughnessMap);
+		void SetRoughnessMap(AssetHandle  roughnessMap, bool setImmediatly = false);
 		void ClearRoughnessMap();
 
 		Ref<Texture2D> GetMetalnessMap();
-		void SetMetalnessMap(AssetHandle  metalnessMap);
+		void SetMetalnessMap(AssetHandle  metalnessMap, bool setImmediatly = false);
 		void ClearMetalnessMap();
 
 		Ref<Material> GetMaterial() const { return m_Material; }

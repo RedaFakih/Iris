@@ -201,7 +201,7 @@ namespace Iris {
 		std::vector<AssetLoadRequest> freshAssets;
 
 		m_AssetThread->RetrieveReadyAssets(freshAssets);
-		for (const auto& alr : freshAssets)
+		for (const AssetLoadRequest& alr : freshAssets)
 		{
 			m_LoadedAssets[alr.Asset->Handle] = alr.Asset;
 
@@ -233,6 +233,16 @@ namespace Iris {
 		}
 
 		m_AssetThread->UpdateAssetManagerLoadedAssetList(m_LoadedAssets);
+
+		for (auto it = m_PostSyncTasks.begin(); it != m_PostSyncTasks.end();)
+		{
+			if ((*it)() == true)
+			{
+				it = m_PostSyncTasks.erase(it);
+			}
+			else
+				++it;
+		}
 	}
 
 	std::unordered_set<AssetHandle> EditorAssetManager::GetAllAssetsWithType(AssetType type) const

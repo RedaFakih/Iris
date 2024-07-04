@@ -125,7 +125,7 @@ namespace Iris {
 		static void DispatchComputePass(Ref<RenderCommandBuffer> renderCommandBuffer, Ref<ComputePass> computePass, Ref<Material> material, const glm::uvec3& workGroups, Buffer constants = Buffer());
 
 		static std::pair<Ref<TextureCube>, Ref<TextureCube>> CreateEnvironmentMap(const std::string& filepath);
-		static Ref<TextureCube> CreatePreethamSky(float turbidity, float azimuth, float inclination);
+		static Ref<TextureCube> CreatePreethamSky(float turbidity, float azimuth, float inclination, float sunSize);
 
 		static VkDescriptorSet RT_AllocateDescriptorSet(VkDescriptorSetAllocateInfo& allocInfo);
 

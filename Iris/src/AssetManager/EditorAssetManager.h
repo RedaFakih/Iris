@@ -110,6 +110,13 @@ namespace Iris {
 
 		void ReplaceLoadedAsset(AssetHandle handle, Ref<Asset> asset) { m_LoadedAssets[handle] = asset; }
 
+		void AddPostSyncTask(const std::function<bool()>& fn, bool dispatchFirst = false)
+		{ 
+			if (dispatchFirst)
+				fn();
+			m_PostSyncTasks.push_back(fn);
+		}
+
 	private:
 		Ref<Asset> GetAssetIncludingInvalid(AssetHandle handle);
 
@@ -131,6 +138,8 @@ namespace Iris {
 
 		Ref<EditorAssetThread> m_AssetThread;
 		AssetRegistry m_AssetRegistry;
+
+		std::vector<std::function<bool()>> m_PostSyncTasks;
 
 		friend class EditorAssetThread;
 

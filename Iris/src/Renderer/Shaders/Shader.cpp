@@ -159,7 +159,7 @@ namespace Iris {
 
 	void Shader::SerializeReflectionData(StreamWriter* serializer)
 	{
-		serializer->WriteRaw<uint32_t>((uint32_t)m_ReflectionData.ShaderDescriptorSets.size());
+		serializer->WriteRaw<uint32_t>(static_cast<uint32_t>(m_ReflectionData.ShaderDescriptorSets.size()));
 
 		for (const auto& descriptorSet : m_ReflectionData.ShaderDescriptorSets)
 		{

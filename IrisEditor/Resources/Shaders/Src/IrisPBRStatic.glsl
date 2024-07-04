@@ -1,6 +1,8 @@
 #version 450 core
 #stage vertex
 
+// Ref: https://learnopengl.com/PBR/
+
 layout(location = 0) in vec3 a_Position;
 layout(location = 1) in vec3 a_Normal;
 layout(location = 2) in vec3 a_Tangent;
@@ -117,6 +119,7 @@ layout(push_constant) uniform Materials
     float Roughness;
     float Metalness;
     float Emission;
+	float Tiling;
 
 	float EnvMapRotation;
 
@@ -240,15 +243,15 @@ void main()
 {
 	if (u_MaterialUniforms.Lit)
 	{
-		vec4 albedoTexColor = texture(u_AlbedoTexture, Input.TexCoord);
+		vec4 albedoTexColor = texture(u_AlbedoTexture, Input.TexCoord * u_MaterialUniforms.Tiling);
 		m_Params.Albedo = albedoTexColor.rgb * ToLinear(vec4(u_MaterialUniforms.AlbedoColor, 1.0f)).rgb; // u_MaterialUniforms.AlbedoColor is perceptual, must be converted to linear
 
 		// note: Metalness and roughness could be in the same texture.
 		//       Per GLTF spec, we read metalness from the B channel and roughness from the G channel
 		//       This will still work if metalness and roughness are independent greyscale textures,
 		//       but it will not work if metalness and roughness are independent textures containing only R channel.
-		m_Params.Metalness = texture(u_MetalnessTexture, Input.TexCoord).b * u_MaterialUniforms.Metalness;
-		m_Params.Roughness = texture(u_RoughnessTexture, Input.TexCoord).g * u_MaterialUniforms.Roughness;
+		m_Params.Metalness = texture(u_MetalnessTexture, Input.TexCoord * u_MaterialUniforms.Tiling).b * u_MaterialUniforms.Metalness;
+		m_Params.Roughness = texture(u_RoughnessTexture, Input.TexCoord * u_MaterialUniforms.Tiling).g * u_MaterialUniforms.Roughness;
 		// Write final metalness roughness values
 		o_MetalnessRoughness = vec4(m_Params.Metalness, m_Params.Roughness, 0.0f, 1.0f);
 		m_Params.Roughness = max(m_Params.Roughness, 0.05f); // Min roughness value above 0 so we keep specular highlights
@@ -257,7 +260,7 @@ void main()
 		m_Params.Normal = normalize(Input.Normal);
 		if (u_MaterialUniforms.UseNormalMap)
 		{
-			m_Params.Normal = normalize(texture(u_NormalTexture, Input.TexCoord).rgb * 2.0f - 1.0f);
+			m_Params.Normal = normalize(texture(u_NormalTexture, Input.TexCoord * u_MaterialUniforms.Tiling).rgb * 2.0f - 1.0f);
 			m_Params.Normal = normalize(Input.WorldNormals * m_Params.Normal);
 		}
 
@@ -284,14 +287,20 @@ void main()
 		o_Color = vec4(iblContribution + directLightingContrib, 1.0f);
 
 		o_ViewNormalsLuminance.a = clamp(/* shadowScale + */dot(o_Color.rgb, vec3(0.2125f, 0.7154f, 0.0721f)), 0.0f, 1.0f); // Shadow mask with respect to bright surfaces
+	
+		// TODO: Because we use the pre-depth image for depth testing we need to have a separate render pass for translucent and transparent objects.
+		// o_Color.a = alpha; 
+	
+		// (shading-only)
+		// o_Color.rgb = vec3(1.0) * shadowScale + 0.2f;
 	}
 	else
 	{
 		// Applies a bit of dimming in all the channels for the unlit version otherwise its too bright
-		o_Color =  vec4(vec3(0.6f), 1.0f) * texture(u_AlbedoTexture, Input.TexCoord) * vec4(u_MaterialUniforms.AlbedoColor, 1.0f);
+		o_Color =  vec4(vec3(0.6f), 1.0f) * texture(u_AlbedoTexture, Input.TexCoord * u_MaterialUniforms.Tiling) * vec4(u_MaterialUniforms.AlbedoColor, 1.0f);
 		o_ViewNormalsLuminance = vec4(Input.CameraView * normalize(Input.Normal), 1.0f);
-		float metalness = texture(u_MetalnessTexture, Input.TexCoord).b * u_MaterialUniforms.Metalness;
-		float roughness = texture(u_RoughnessTexture, Input.TexCoord).g * u_MaterialUniforms.Roughness;
+		float metalness = texture(u_MetalnessTexture, Input.TexCoord * u_MaterialUniforms.Tiling).b * u_MaterialUniforms.Metalness;
+		float roughness = texture(u_RoughnessTexture, Input.TexCoord * u_MaterialUniforms.Tiling).g * u_MaterialUniforms.Roughness;
 		o_MetalnessRoughness = vec4(metalness, roughness, 0.0f, 1.0f);
 	}
 }

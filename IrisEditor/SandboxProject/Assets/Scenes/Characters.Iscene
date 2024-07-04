@@ -7,7 +7,7 @@ Entities:
     Children:
       []
     TransformComponent:
-      Position: [1.64311528, 0, -0.521002054]
+      Position: [1.64311528, -0.0599999987, -0.521002054]
       Rotation: [0, 0, 0]
       Scale: [0.00880004372, 0.00880004372, 0.00880004372]
     StaticMeshComponent:
@@ -22,7 +22,7 @@ Entities:
     Children:
       []
     TransformComponent:
-      Position: [1.5, 0, 0]
+      Position: [1.5, -0.0799999982, 0]
       Rotation: [0, 0, 0]
       Scale: [1, 1, 1]
     StaticMeshComponent:
@@ -37,22 +37,20 @@ Entities:
     Children:
       []
     TransformComponent:
-      Position: [0, 0, 0]
+      Position: [0, -0.0500000007, 0]
       Rotation: [0, 0, 0]
       Scale: [1.14000201, 1.13999999, 1.14000201]
     StaticMeshComponent:
       AssetID: 8492331187162521719
       MaterialTable:
         0: 0
-        1: 0
-        2: 0
       Visible: true
   - Entity: 1368807949253593945
     TagComponent:
       Tag: Sky Light
     Parent: 0
     Children:
-      []
+      - Handle: 17466798807360167507
     TransformComponent:
       Position: [0, 0, 0]
       Rotation: [0, 0, 0]
@@ -62,7 +60,8 @@ Entities:
       Intensity: 1
       Lod: 0
       DynamicSky: true
-      TurbidityAzimuthInclination: [6.17000008, -1.06465089, 1.57079637]
+      TurbidityAzimuthInclinationSunSize: [6.17000008, -1.06465089, 1.57079637, 0.0450000018]
+      DirectionalLightEntityID: 17466798807360167507
   - Entity: 3336264825032574400
     TagComponent:
       Tag: Text
@@ -155,7 +154,7 @@ Entities:
     Children:
       []
     TransformComponent:
-      Position: [-1.49947, -0.00633020699, 0.0879173279]
+      Position: [-1.49947, -0.0799999982, 0.0879173279]
       Rotation: [-2.38418579e-07, 0, -2.38418579e-07]
       Scale: [0.627000213, 0.627000034, 0.626999855]
     StaticMeshComponent:
@@ -189,7 +188,7 @@ Entities:
     TransformComponent:
       Position: [0, -0.0792695284, 0]
       Rotation: [0, 0, 0]
-      Scale: [30, 30, 30]
+      Scale: [324, 324, 324]
     StaticMeshComponent:
       AssetID: 2732277024539045285
       MaterialTable:
@@ -202,7 +201,7 @@ Entities:
     Children:
       []
     TransformComponent:
-      Position: [-2.90724564, 0, 0.108948946]
+      Position: [-2.90724564, -0.0500000007, 0.108948946]
       Rotation: [0, 2.98023224e-08, 0]
       Scale: [0.0100000584, 0.0100000501, 0.0100000584]
     StaticMeshComponent:
@@ -213,13 +212,13 @@ Entities:
   - Entity: 17466798807360167507
     TagComponent:
       Tag: Directional Light
-    Parent: 0
+    Parent: 1368807949253593945
     Children:
       []
     TransformComponent:
       Position: [0, 0, 0]
-      Rotation: [0.774876654, -0.113687009, -2.89656448]
-      Scale: [1, 1, 1]
+      Rotation: [0.774876654, -0.0926769525, -2.89656448]
+      Scale: [1.00000024, 1.00000024, 0.999999881]
     DirectionalLightComponent:
       Radiance: [1, 0.678719997, 0.00403225422]
       Intensity: 0.300000012

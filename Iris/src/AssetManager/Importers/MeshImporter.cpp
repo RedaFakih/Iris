@@ -220,14 +220,17 @@ namespace Iris {
 				if (aiMaterial->Get(AI_MATKEY_ROUGHNESS_FACTOR, roughness) != AI_SUCCESS)
 					roughness = 0.5f; // Default value
 
-				// NOTE: Here maybe we should check for AI_MATKEY_REFLECTIVITY?
-				if (aiMaterial->Get(AI_MATKEY_METALLIC_FACTOR, metalness) != AI_SUCCESS)
+				ma->SetRoughness(roughness);
+
+				if (aiMaterial->Get(AI_MATKEY_REFLECTIVITY, metalness) != AI_SUCCESS)
 					metalness = 0.0f; // Default value
 
 				// Physically realistic materials are either metals or they are not
 				metalness = (metalness < 0.9f) ? 0.0f : 1.0f;
+				ma->SetMetalness(metalness);
 
-				IR_CORE_TRACE_TAG("Mesh", "\t   COLOR = {0} - {1} - {2}", aiColor.r, aiColor.g, aiColor.b);
+				IR_CORE_TRACE_TAG("Mesh", "\t   COLOR = {0} - {1} - {2}", albedoColor.r, albedoColor.g, albedoColor.b);
+				IR_CORE_TRACE_TAG("Mesh", "\t   EMISSION = {0}", emission);
 				IR_CORE_TRACE_TAG("Mesh", "\t   ROUGHNESS = {0}", roughness);
 				IR_CORE_TRACE_TAG("Mesh", "\t   METALNESS = {0}", metalness);
 
@@ -418,6 +421,7 @@ namespace Iris {
 					ma->SetMetalness(1.0f);
 				}
 
+				ma->SetTiling(1.0f);
 				ma->SetLit();
 			}
 

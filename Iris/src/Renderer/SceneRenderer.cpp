@@ -925,10 +925,6 @@ namespace Iris {
 			// to attachment since the renderer2D uses it.
 			CompositePass();
 
-			/*
-			 * Here PreDepthImage is in VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
-			 */
-
 			m_CommandBuffer->End();
 			m_CommandBuffer->Submit();
 		}

@@ -1801,7 +1801,7 @@ namespace Iris {
 
 		DrawComponent<SkyLightComponent>("Sky Light", [&](SkyLightComponent& skylightComp, const std::vector<UUID>& entities, const bool isMultiSelect)
 		{
-			UI::BeginPropertyGrid();
+			UI::BeginPropertyGrid(2, 145.0f);
 
 			ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<AssetHandle, SkyLightComponent>([](const SkyLightComponent& other) { return other.SceneEnvironment; }));
 			if (UI::PropertyAssetReference<Environment>("Environment Map", skylightComp.SceneEnvironment))
@@ -1816,7 +1816,7 @@ namespace Iris {
 					{
 						slc.Intensity = 1.0;
 						slc.Lod = 0.0f;
-						slc.TurbidityAzimuthInclination = { 2.0f, 0.0f, 0.0f };
+						slc.TurbidityAzimuthInclinationSunSize = { 2.0f, 0.0f, 0.0f, 0.01f };
 					}
 				}
 			}
@@ -1881,46 +1881,70 @@ namespace Iris {
 			{
 				bool changed = false;
 
-				ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<float, SkyLightComponent>([](const SkyLightComponent& other) { return other.TurbidityAzimuthInclination.x; }));
-				if (UI::Property("Turbidity", skylightComp.TurbidityAzimuthInclination.x, 0.01f, 1.8f, std::numeric_limits<float>::max(), "How turbid the environment is"))
+				ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<float, SkyLightComponent>([](const SkyLightComponent& other) { return other.TurbidityAzimuthInclinationSunSize.w; }));
+				if (UI::Property("Sun Size", skylightComp.TurbidityAzimuthInclinationSunSize.w, 0.005f, 0.01f, 1.0f, "Defines how big the sun is"))
 				{
 					for (UUID entityID : entities)
 					{
 						Entity entity = m_Context->GetEntityWithUUID(entityID);
-						entity.GetComponent<SkyLightComponent>().TurbidityAzimuthInclination.x = skylightComp.TurbidityAzimuthInclination.x;
+						entity.GetComponent<SkyLightComponent>().TurbidityAzimuthInclinationSunSize.w = skylightComp.TurbidityAzimuthInclinationSunSize.w;
 					}
 
 					changed = true;
 				}
 				ImGui::PopItemFlag();
 
-				ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<float, SkyLightComponent>([](const SkyLightComponent& other) { return other.TurbidityAzimuthInclination.y; }));
-				float azimuthDegress = glm::degrees(skylightComp.TurbidityAzimuthInclination.y);
+				ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<float, SkyLightComponent>([](const SkyLightComponent& other) { return other.TurbidityAzimuthInclinationSunSize.x; }));
+				if (UI::Property("Turbidity", skylightComp.TurbidityAzimuthInclinationSunSize.x, 0.01f, 1.8f, std::numeric_limits<float>::max(), "How turbid the environment is"))
+				{
+					for (UUID entityID : entities)
+					{
+						Entity entity = m_Context->GetEntityWithUUID(entityID);
+						entity.GetComponent<SkyLightComponent>().TurbidityAzimuthInclinationSunSize.x = skylightComp.TurbidityAzimuthInclinationSunSize.x;
+					}
+
+					changed = true;
+				}
+				ImGui::PopItemFlag();
+
+				ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<float, SkyLightComponent>([](const SkyLightComponent& other) { return other.TurbidityAzimuthInclinationSunSize.y; }));
+				float azimuthDegress = glm::degrees(skylightComp.TurbidityAzimuthInclinationSunSize.y);
 				if (UI::Property("Azimuth", azimuthDegress, 1.0f, 0.0f, 0.0f, "Rotation of the sun around the Y-Axis of the world in degrees"))
 				{
-					skylightComp.TurbidityAzimuthInclination.y = glm::radians(azimuthDegress);
+					skylightComp.TurbidityAzimuthInclinationSunSize.y = glm::radians(azimuthDegress);
 					for (UUID entityID : entities)
 					{
 						Entity entity = m_Context->GetEntityWithUUID(entityID);
-						entity.GetComponent<SkyLightComponent>().TurbidityAzimuthInclination.y = glm::radians(azimuthDegress);
+						entity.GetComponent<SkyLightComponent>().TurbidityAzimuthInclinationSunSize.y = glm::radians(azimuthDegress);
 					}
 
 					changed = true;
 				}
 				ImGui::PopItemFlag();
 
-				ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<float, SkyLightComponent>([](const SkyLightComponent& other) { return other.TurbidityAzimuthInclination.z; }));
-				float inclinationDegrees = glm::degrees(skylightComp.TurbidityAzimuthInclination.z);
+				ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<float, SkyLightComponent>([](const SkyLightComponent& other) { return other.TurbidityAzimuthInclinationSunSize.z; }));
+				float inclinationDegrees = glm::degrees(skylightComp.TurbidityAzimuthInclinationSunSize.z);
 				if (UI::Property("Inclination", inclinationDegrees, 1.0f, 0.0f, 0.0f, "The inclination of the sun in degrees around the X or Z Axis of the world depending on the Azimuth"))
 				{
-					skylightComp.TurbidityAzimuthInclination.z = glm::radians(inclinationDegrees);
+					skylightComp.TurbidityAzimuthInclinationSunSize.z = glm::radians(inclinationDegrees);
 					for (UUID entityID : entities)
 					{
 						Entity entity = m_Context->GetEntityWithUUID(entityID);
-						entity.GetComponent<SkyLightComponent>().TurbidityAzimuthInclination.z = glm::radians(inclinationDegrees);
+						entity.GetComponent<SkyLightComponent>().TurbidityAzimuthInclinationSunSize.z = glm::radians(inclinationDegrees);
 					}
 
 					changed = true;
+				}
+				ImGui::PopItemFlag();
+
+				ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<UUID, SkyLightComponent>([](const SkyLightComponent& other) { return other.DirectionalLightEntityID; }));
+				if (UI::PropertyEntityReference<DirectionalLightComponent>("Directional Light", skylightComp.DirectionalLightEntityID, m_Context.Raw(), "Drag and drop a directional light entity to link it to the DynamicSky.\nWhich means the direction of DirLight is setwith the azimuth\nand inclination of the DynamicSky"))
+				{
+					for (UUID entityID : entities)
+					{
+						Entity entity = m_Context->GetEntityWithUUID(entityID);
+						entity.GetComponent<SkyLightComponent>().DirectionalLightEntityID = skylightComp.DirectionalLightEntityID;
+					}
 				}
 				ImGui::PopItemFlag();
 
@@ -1928,7 +1952,7 @@ namespace Iris {
 				{
 					if (AssetManager::IsMemoryAsset(skylightComp.SceneEnvironment))
 					{
-						Ref<TextureCube> preethamEnv = Renderer::CreatePreethamSky(skylightComp.TurbidityAzimuthInclination.x, skylightComp.TurbidityAzimuthInclination.y, skylightComp.TurbidityAzimuthInclination.z);
+						Ref<TextureCube> preethamEnv = Renderer::CreatePreethamSky(skylightComp.TurbidityAzimuthInclinationSunSize.x, skylightComp.TurbidityAzimuthInclinationSunSize.y, skylightComp.TurbidityAzimuthInclinationSunSize.z, skylightComp.TurbidityAzimuthInclinationSunSize.w);
 						Ref<Environment> env = AssetManager::GetAsset<Environment>(skylightComp.SceneEnvironment);
 						if (env)
 						{
@@ -1938,7 +1962,7 @@ namespace Iris {
 					}
 					else
 					{
-						Ref<TextureCube> preethamEnv = Renderer::CreatePreethamSky(skylightComp.TurbidityAzimuthInclination.x, skylightComp.TurbidityAzimuthInclination.y, skylightComp.TurbidityAzimuthInclination.z);
+						Ref<TextureCube> preethamEnv = Renderer::CreatePreethamSky(skylightComp.TurbidityAzimuthInclinationSunSize.x, skylightComp.TurbidityAzimuthInclinationSunSize.y, skylightComp.TurbidityAzimuthInclinationSunSize.z, skylightComp.TurbidityAzimuthInclinationSunSize.w);
 						skylightComp.SceneEnvironment = AssetManager::CreateMemoryOnlyAsset<Environment>(preethamEnv, preethamEnv);
 					}
 				}
@@ -1963,7 +1987,7 @@ namespace Iris {
 			ImGui::PopItemFlag();
 
 			ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<float, DirectionalLightComponent>([](const DirectionalLightComponent& other) { return other.Intensity; }));
-			if (UI::Property("Intensity", dirLightComp.Intensity, 0.1f, 0.0f, 1000.0f))
+			if (UI::Property("Intensity", dirLightComp.Intensity, 0.01f, 0.0f, 1000.0f))
 			{
 				for (UUID entityID : entities)
 				{

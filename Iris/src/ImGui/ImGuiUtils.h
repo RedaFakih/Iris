@@ -77,7 +77,7 @@ namespace Iris::UI {
 		bool AllowMemoryOnlyAssets = false;
 		ImVec4 ButtonLabelColor = ImGui::ColorConvertU32ToFloat4(Colors::Theme::Text);
 		ImVec4 ButtonLabelColorError = ImGui::ColorConvertU32ToFloat4(Colors::Theme::TextError);
-		bool ShowFulLFilePath = false;
+		bool ShowFullFilePath = false;
 	};
 
 	// NOTE: Move somewhere better?
@@ -267,8 +267,7 @@ namespace Iris::UI {
 	void TextWrapped(const char* value, bool isError = false);
 	bool PropertyString(const char* label, const char* value, bool isError = false);
 	bool PropertyStringMultiline(const char* label, std::string& value, const char* helpText = "");
-	bool PropertyStringReadOnly(const char* label, const std::string& value, bool isErorr = false);
-	bool PropertyStringReadOnly(const char* label, const char* value, bool isErorr = false);
+	bool PropertyStringReadOnly(const char* label, const char* value, bool isErorr = false, const char* helpText = "");
 	bool Property(const char* label, float& value, float delta = 0.1f, float min = 0.0f, float max = 0.0f, const char* helpText = "");
 	bool Property(const char* label, uint32_t& value, uint32_t delta = 1.0f, uint32_t min = 0, uint32_t max = 0, const char* helpText = "");
 	bool Property(const char* label, bool& value, const char* helpText = "", bool underLineProperty = false);
@@ -861,6 +860,115 @@ namespace Iris::UI {
 
 	bool AssetSearchPopup(const char* ID, AssetType type, AssetHandle& outHandle, bool allowMemoryOnlyAssets, bool* cleared = nullptr, const char* hint = "Search Assets", ImVec2 size = { 250.0f, 350.0f });
 
+	template<typename TComponent>
+	bool EntitySearchPopup(const char* ID, UUID& outID, const Scene* scene, bool* cleared = nullptr, const char* hint = "Search Entities", ImVec2 size = { 250.0f, 350.0f })
+	{
+		UI::ImGuiScopedColor popupBG(ImGuiCol_PopupBg, UI::ColorWithMultipliedValue(Colors::Theme::Background, 1.6f).Value);
+
+		bool modified = false;
+
+		UUID current = outID;
+
+		ImGui::SetNextWindowSize({ size.x, 0.0f });
+
+		static bool grabFocus = true;
+
+		if (UI::BeginPopup(ID, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize))
+		{
+			static std::string searchString;
+
+			if (ImGui::GetCurrentWindow()->Appearing)
+			{
+				grabFocus = true;
+				searchString.clear();
+			}
+
+			// Search widget
+			UI::ShiftCursor(3.0f, 2.0f);
+			ImGui::SetNextItemWidth(ImGui::GetWindowWidth() - ImGui::GetCursorPosX() * 2.0f);
+			UI::SearchWidget(searchString, hint, &grabFocus);
+
+			const bool searching = !searchString.empty();
+
+			// Clear property button
+			if (cleared != nullptr)
+			{
+				UI::ImGuiScopedColor buttonColours(ImGuiCol_Button, UI::ColorWithMultipliedValue(Colors::Theme::Background, 1.0f).Value);
+				UI::ImGuiScopedColor buttonHovered(ImGuiCol_ButtonHovered, UI::ColorWithMultipliedValue(Colors::Theme::Background, 1.2f).Value);
+				UI::ImGuiScopedColor buttonActive(ImGuiCol_ButtonActive, UI::ColorWithMultipliedValue(Colors::Theme::Background, 0.9f).Value);
+				UI::ImGuiScopedStyle border(ImGuiStyleVar_FrameBorderSize, 0.0f);
+
+				ImGui::SetCursorPosX(0);
+
+				ImGui::PushItemFlag(ImGuiItemFlags_NoNav, searching);
+
+				if (ImGui::Button("CLEAR", { ImGui::GetWindowWidth(), 0.0f }))
+				{
+					*cleared = true;
+					modified = true;
+				}
+
+				ImGui::PopItemFlag();
+			}
+
+			// List of assets
+			{
+				UI::ImGuiScopedColor listBoxBg(ImGuiCol_FrameBg, IM_COL32_DISABLE);
+				UI::ImGuiScopedColor listBoxBorder(ImGuiCol_Border, IM_COL32_DISABLE);
+
+				ImGuiID listID = ImGui::GetID("##SearchListBox");
+				if (ImGui::BeginListBox("##SearchListBox", ImVec2(-FLT_MIN, 0.0f)))
+				{
+					bool forwardFocus = false;
+
+					ImGuiContext& g = *GImGui;
+					if (g.NavJustMovedToId != 0)
+					{
+						if (g.NavJustMovedToId == listID)
+						{
+							forwardFocus = true;
+							// ActivateItem moves keyboard navigation focus inside of the window
+							ImGui::ActivateItem(listID);
+							ImGui::SetKeyboardFocusHere(1);
+						}
+					}
+
+					auto view = scene->GetAllEntitiesWith<TComponent>();
+					for (auto entityID : view)
+					{
+						Entity entity = { entityID, const_cast<Scene*>(scene) };
+						const std::string& entityName = entity.Name();
+
+						if (!searchString.empty() && !UI::IsMatchingSearch(entityName, searchString))
+							continue;
+
+						bool isSelected = (current == entity.GetUUID());
+						if (ImGui::Selectable(entityName.c_str(), isSelected))
+						{
+							current = entity.GetUUID();
+							outID = entity.GetUUID();
+							modified = true;
+						}
+
+						if (forwardFocus)
+							forwardFocus = false;
+						else if (isSelected)
+							ImGui::SetItemDefaultFocus();
+					}
+
+					ImGui::EndListBox();
+				}
+			}
+
+			if (modified)
+				ImGui::CloseCurrentPopup();
+
+			UI::EndPopup();
+		}
+
+		return modified;
+	}
+
 	std::pair<bool, std::string> AssetValidityAndName(AssetHandle handle, const PropertyAssetReferenceSettings& settings);
 
 	template<typename T>
@@ -928,8 +1036,9 @@ namespace Iris::UI {
 				modified = true;
 				s_PropertyAssetReferenceAssetHandle = outHandle;
 			}
+
+			UI::PopID();
 		}
-		UI::PopID();
 
 		// Implement drag/drop from other places
 		if (!IsItemDisabled())
@@ -1089,6 +1198,116 @@ namespace Iris::UI {
 
 		if (settings.NoItemSpacing)
 			ImGui::PopStyleVar();
+
+		return modified;
+	}
+
+	template<typename TComponent>
+	inline static bool PropertyEntityReference(const char* label, UUID& outID, const Scene* scene, const char* helpText = "", const PropertyAssetReferenceSettings& settings = {})
+	{
+		bool modified = false;
+
+		ShiftCursor(10.0f, 9.0f);
+		ImGui::Text(label);
+
+		if (std::strlen(helpText) != 0)
+		{
+			ImGui::SameLine();
+			ShowHelpMarker(helpText);
+		}
+
+		ImGui::NextColumn();
+		ShiftCursorY(4.0f);
+
+		ImGui::PushItemWidth(-1);
+
+		ImVec2 originalButtonTextAlign = ImGui::GetStyle().ButtonTextAlign;
+		{
+			ImGui::GetStyle().ButtonTextAlign = { 0.0f, 0.5f };
+			float width = ImGui::GetContentRegionAvail().x - settings.WidthOffset;
+			constexpr float itemHeight = 28.0f;
+			UI::PushID();
+
+			bool valid = false;
+			std::string buttonText = "Null";
+			Entity entity = scene->TryGetEntityWithUUID(outID);
+			if (entity)
+			{
+				buttonText = entity.Name();
+				valid = true;
+			}
+
+			if ((GImGui->CurrentItemFlags & ImGuiItemFlags_MixedValue) != 0)
+				buttonText = "----";
+
+			// PropertyAssetReference could be called multiple times in same "context"
+			// and so we need a unique id for the asset search popup each time.
+			// notes
+			// - don't use GenerateID(), that's inviting id clashes, which would be super confusing.
+			// - don't store return from GenerateLabelId in a const char* here. Because its pointing to an internal
+			//   buffer which may get overwritten by the time you want to use it later on.
+			std::string entitySearchPopupID = GenerateLabelID("ERSP");
+			{
+				UI::ImGuiScopedColor buttonLabelColor(ImGuiCol_Text, valid ? settings.ButtonLabelColor : settings.ButtonLabelColorError);
+				ImGui::Button(GenerateLabelID(buttonText), { width, itemHeight });
+
+				const bool isHovered = ImGui::IsItemHovered();
+
+				if (isHovered)
+				{
+					if (ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+						ImGui::OpenPopup(entitySearchPopupID.c_str());
+				}
+			}
+
+			ImGui::GetStyle().ButtonTextAlign = originalButtonTextAlign;
+
+			bool clear = false;
+			if (UI::EntitySearchPopup<TComponent>(entitySearchPopupID.c_str(), outID, scene, &clear))
+			{
+				if (clear)
+					outID = static_cast<UUID>(0);
+				modified = true;
+			}
+
+			UI::PopID();
+		}
+
+		// Implement drag/drop from other places
+		if (!IsItemDisabled())
+		{
+			if (ImGui::BeginDragDropTarget())
+			{
+				const ImGuiPayload* data = ImGui::AcceptDragDropPayload("scene_entity_hierarchy");
+				if (data)
+				{
+					UUID entityID = *reinterpret_cast<UUID*>(data->Data);
+					Entity receivedEntity = scene->TryGetEntityWithUUID(entityID);
+					if (receivedEntity)
+					{
+						if (receivedEntity.HasComponent<TComponent>())
+						{
+							outID = entityID;
+							modified = true;
+						}
+						else
+						{
+							// TODO: Console error logging
+							IR_CORE_ERROR("Provided entity does not have a {}", typeid(TComponent).name());
+						}
+					}
+				}
+
+				ImGui::EndDragDropTarget();
+			}
+		}
+
+		ImGui::PopItemWidth();
+		if (settings.AdvanceToNextColumn)
+		{
+			ImGui::NextColumn();
+			UI::UnderLine();
+		}
 
 		return modified;
 	}

@@ -87,6 +87,7 @@ namespace Iris {
 			out << YAML::Key << "TwoSided" << YAML::Value << twoSided;
 			out << YAML::Key << "AlbedoColor" << YAML::Value << materialAsset->GetAlbedoColor();
 			out << YAML::Key << "Emission" << YAML::Value << materialAsset->GetEmission();
+			out << YAML::Key << "Tiling" << YAML::Value << materialAsset->GetTiling();
 
 			if (!transparent)
 			{
@@ -158,6 +159,9 @@ namespace Iris {
 
 		float emission = materialNode["Emission"].as<float>(0.0f);
 		targetAsset->SetEmission(emission);
+
+		float tiling= materialNode["Tiling"].as<float>(1.0f);
+		targetAsset->SetTiling(tiling);
 
 		targetAsset->SetDoubleSided(twoSided);
 

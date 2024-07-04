@@ -55,51 +55,87 @@ namespace Iris {
 		// Process all lighting data in the scene
 		{
 			m_LightEnvironment = LightEnvironment();
+			bool foundLinkedDirLight = false;
+			bool usingDynamicSky = false;
 
-			// Directional Light (NOTE: Should ONLY have ONE in the scene and no more!)
+			// Skylights (NOTE: Should only really have one in the scene and no more!)
 			{
-				auto view = GetAllEntitiesWith<TransformComponent, DirectionalLightComponent>();
+				auto view = GetAllEntitiesWith<SkyLightComponent>();
 
-				uint32_t dirLightCountIndex = 0;
 				for (auto entity : view)
 				{
-					IR_VERIFY(dirLightCountIndex++ < LightEnvironment::MaxDirectionalLights, "We can't have more than {} directional lights in one scene!", LightEnvironment::MaxDirectionalLights);
-					const auto& [transformComp, dirLightComp] = view.get<TransformComponent, DirectionalLightComponent>(entity);
-					glm::vec3 direction = -glm::normalize(glm::mat3(transformComp.GetTransform()) * glm::vec3(1.0f));
-					m_LightEnvironment.DirectionalLight = SceneDirectionalLight{
-						.Direction = direction,
-						.Radiance = dirLightComp.Radiance,
-						.Intensity = dirLightComp.Intensity,
-						.ShadowAmount = 1.0f // TODO: Should come from component
-					};
+					SkyLightComponent& skyLightComponent = view.get<SkyLightComponent>(entity);
+
+					if (!AssetManager::IsAssetHandleValid(skyLightComponent.SceneEnvironment) && skyLightComponent.DynamicSky)
+					{
+						Ref<TextureCube> preethamEnv = Renderer::CreatePreethamSky(skyLightComponent.TurbidityAzimuthInclinationSunSize.x, skyLightComponent.TurbidityAzimuthInclinationSunSize.y, skyLightComponent.TurbidityAzimuthInclinationSunSize.z, skyLightComponent.TurbidityAzimuthInclinationSunSize.w);
+						skyLightComponent.SceneEnvironment = AssetManager::CreateMemoryOnlyAsset<Environment>(preethamEnv, preethamEnv);
+					}
+
+					m_Environment = AssetManager::GetAssetAsync<Environment>(skyLightComponent.SceneEnvironment);
+					m_EnvironmentIntensity = skyLightComponent.Intensity;
+					m_SkyboxLod = skyLightComponent.Lod;
+
+					usingDynamicSky = skyLightComponent.DynamicSky;
+					if (usingDynamicSky)
+					{
+						// Check if we have a linked directional light
+						Entity dirLightEntity = TryGetEntityWithUUID(skyLightComponent.DirectionalLightEntityID);
+						if (dirLightEntity)
+						{
+							const DirectionalLightComponent* dirLightComp = dirLightEntity.TryGetComponent<DirectionalLightComponent>();
+							if (dirLightComp)
+							{
+								foundLinkedDirLight = true;
+
+								glm::vec3 direction = glm::normalize(glm::vec3(
+									glm::sin(skyLightComponent.TurbidityAzimuthInclinationSunSize.z) * glm::cos(skyLightComponent.TurbidityAzimuthInclinationSunSize.y),
+									glm::cos(skyLightComponent.TurbidityAzimuthInclinationSunSize.z),
+									glm::sin(skyLightComponent.TurbidityAzimuthInclinationSunSize.z) * glm::sin(skyLightComponent.TurbidityAzimuthInclinationSunSize.y)
+								));
+
+								m_LightEnvironment.DirectionalLight = SceneDirectionalLight{
+									.Direction = direction,
+									.Radiance = dirLightComp->Radiance,
+									.Intensity = dirLightComp->Intensity,
+									.ShadowAmount = 1.0f // TODO: Should come from component
+								};
+							}
+						}
+					}
 				}
-			}
-		}
 
-		// Skylights (NOTE: Should only really have one in the scene and no more!)
-		{
-			auto view = GetAllEntitiesWith<SkyLightComponent>();
-
-			for (auto entity : view)
-			{
-				SkyLightComponent& skyLightComponent = view.get<SkyLightComponent>(entity);
-
-				if (!AssetManager::IsAssetHandleValid(skyLightComponent.SceneEnvironment) && skyLightComponent.DynamicSky)
+				if (!m_Environment || view.empty()) // Invalid skylight (We dont have one or the handle was invalid)
 				{
-					Ref<TextureCube> preethamEnv = Renderer::CreatePreethamSky(skyLightComponent.TurbidityAzimuthInclination.x, skyLightComponent.TurbidityAzimuthInclination.y, skyLightComponent.TurbidityAzimuthInclination.z);
-					skyLightComponent.SceneEnvironment = AssetManager::CreateMemoryOnlyAsset<Environment>(preethamEnv, preethamEnv);
+					m_Environment = Environment::Create(Renderer::GetBlackCubeTexture(), Renderer::GetBlackCubeTexture());
+					m_EnvironmentIntensity = 1.0f;
+					m_SkyboxLod = 0.0f;
 				}
-
-				m_Environment = AssetManager::GetAssetAsync<Environment>(skyLightComponent.SceneEnvironment);
-				m_EnvironmentIntensity = skyLightComponent.Intensity;
-				m_SkyboxLod = skyLightComponent.Lod;
 			}
 
-			if (!m_Environment || view.empty()) // Invalid skylight (We dont have one or the handle was invalid)
+			// Directional Light
 			{
-				m_Environment = Environment::Create(Renderer::GetBlackCubeTexture(), Renderer::GetBlackCubeTexture());
-				m_EnvironmentIntensity = 1.0f;
-				m_SkyboxLod = 0.0f;
+				if (!usingDynamicSky || (usingDynamicSky && !foundLinkedDirLight))
+				{
+					auto view = GetAllEntitiesWith<TransformComponent, DirectionalLightComponent>();
+
+					uint32_t dirLightCountIndex = 0;
+					for (auto entity : view)
+					{
+						if (dirLightCountIndex >= 1)
+							break;
+						IR_VERIFY(dirLightCountIndex++ < LightEnvironment::MaxDirectionalLights, "We can't have more than {} directional lights in one scene!", LightEnvironment::MaxDirectionalLights);
+
+						const auto& [transformComp, dirLightComp] = view.get<TransformComponent, DirectionalLightComponent>(entity);
+						glm::vec3 direction = -glm::normalize(glm::mat3(transformComp.GetTransform()) * glm::vec3(1.0f));
+						m_LightEnvironment.DirectionalLight = SceneDirectionalLight{
+							.Direction = direction,
+							.Radiance = dirLightComp.Radiance,
+							.Intensity = dirLightComp.Intensity,
+							.ShadowAmount = 1.0f // TODO: Should come from component
+						};
+					}
+				}
 			}
 		}
 
@@ -355,13 +391,13 @@ namespace Iris {
 		CopyComponentIfExists<StaticMeshComponent>(newEntity.m_EntityHandle, m_Registry, entity);
 		CopyComponentIfExists<CameraComponent>(newEntity.m_EntityHandle, m_Registry, entity);
 		CopyComponentIfExists<SpriteRendererComponent>(newEntity.m_EntityHandle, m_Registry, entity);
-		CopyComponentIfExists<SkyLightComponent>(newEntity.m_EntityHandle, m_Registry, entity);
-		// CopyComponentIfExists<DirectionalLightComponent>(newEntity.m_EntityHandle, m_Registry, entity); // NOTE: You can not duplicate directional lights since you should only have one
+		// CopyComponentIfExists<SkyLightComponent>(newEntity.m_EntityHandle, m_Registry, entity); // NOTE: You can not duplicate sky lights since you should only have one
+		CopyComponentIfExists<DirectionalLightComponent>(newEntity.m_EntityHandle, m_Registry, entity);
 		CopyComponentIfExists<TextComponent>(newEntity.m_EntityHandle, m_Registry, entity);
 
 		// Need to copy the children here because the collection is mutated below
 		std::vector<UUID> childIDs = entity.Children();
-		for (auto childID : childIDs)
+		for (UUID childID : childIDs)
 		{
 			Entity childDuplicate = DuplicateEntity(GetEntityWithUUID(childID));
 

@@ -11,6 +11,11 @@
 
 namespace Iris {
 
+	/*
+	 * When we set Roughness and Metalness MAPS the Roughness and Metalness values will be locked to 1.0f since they are multiplied with the sampled value from the textures
+	 * This means that any modifications to the Roughness/Metalness values should be done in the authored texture
+	 */
+
 	MaterialEditor::MaterialEditor()
 		: AssetEditor("Material Editor")
 	{
@@ -69,27 +74,25 @@ namespace Iris {
 			needsSerialize = true;
 		}
 
-		UI::PropertyStringReadOnly("Shader", shader->GetName().data());
+		if (UI::Property("Tiling", m_MaterialAsset->GetTiling(), 0.1f, 0.01f, 100.0f, "Configure the tiling factor of the maps"))
+			needsSerialize = true;
+
+		UI::PropertyStringReadOnly("Shader", shader->GetName().data(), false, "Shader currently used for the material");
 		UI::PopID();
 
 		UI::EndPropertyGrid();
 
-		auto checkAndSetTexture = [&needsSerialize](Ref<Texture2D>& texture2D) {
+		auto checkAndSetTexture = []() -> AssetHandle {
 			auto data = ImGui::AcceptDragDropPayload("asset_payload");
 			if (data && data->DataSize / sizeof(AssetHandle) == 1)
 			{
 				AssetHandle assetHandle = *(((AssetHandle*)data->Data));
-				Ref<Asset> asset = AssetManager::GetAsset<Asset>(assetHandle);
-				if (asset && asset->GetAssetType() == AssetType::Texture)
-				{
-					texture2D = asset.As<Texture2D>();
-					needsSerialize = true;
-				}
-
-				return true;
+				AssetType type = AssetManager::GetAssetType(assetHandle);
+				if (type == AssetType::Texture)
+					return assetHandle;
 			}
 
-			return false;
+			return static_cast<AssetHandle>(0);
 		};
 
 		// Albedo
@@ -106,8 +109,23 @@ namespace Iris {
 			UI::Image(albedoUITexture, { 77.0f, 77.0f });
 			if (ImGui::BeginDragDropTarget())
 			{
-				if (checkAndSetTexture(albedoMap))
-					m_MaterialAsset->SetAlbedoMap(albedoMap->Handle);
+				AssetHandle assetHandle = checkAndSetTexture();
+				if (assetHandle)
+				{
+					Project::GetEditorAssetManager()->AddPostSyncTask([materialAsset = m_MaterialAsset, assetHandle]() mutable -> bool
+					{
+						AsyncAssetResult<Texture2D> result = AssetManager::GetAssetAsync<Texture2D>(assetHandle);
+						if (result.IsReady)
+						{
+							materialAsset->SetAlbedoMap(result.Asset->Handle, true);
+							AssetImporter::Serialize(materialAsset);
+
+							return true;
+						}
+
+						return false;
+					}, true);
+				}
 
 				ImGui::EndDragDropTarget();
 			}
@@ -191,10 +209,23 @@ namespace Iris {
 				UI::Image(normalUITexture, { 77.0f, 77.0f });
 				if (ImGui::BeginDragDropTarget())
 				{
-					if (checkAndSetTexture(normalMap))
+					AssetHandle assetHandle = checkAndSetTexture();
+					if (assetHandle)
 					{
-						m_MaterialAsset->SetNormalMap(normalMap->Handle);
-						m_MaterialAsset->SetUseNormalMap(true);
+						Project::GetEditorAssetManager()->AddPostSyncTask([materialAsset = m_MaterialAsset, assetHandle]() mutable -> bool
+						{
+							AsyncAssetResult<Texture2D> result = AssetManager::GetAssetAsync<Texture2D>(assetHandle);
+							if (result.IsReady)
+							{
+								materialAsset->SetNormalMap(result.Asset->Handle, true);
+								materialAsset->SetUseNormalMap(true);
+								AssetImporter::Serialize(materialAsset);
+
+								return true;
+							}
+
+							return false;
+						}, true);
 					}
 
 					ImGui::EndDragDropTarget();
@@ -264,8 +295,24 @@ namespace Iris {
 				UI::Image(roughnessUITexture, { 77.0f, 77.0f });
 				if (ImGui::BeginDragDropTarget())
 				{
-					if (checkAndSetTexture(roughnessMap))
-						m_MaterialAsset->SetRoughnessMap(roughnessMap->Handle);
+					AssetHandle assetHandle = checkAndSetTexture();
+					if (assetHandle)
+					{
+						Project::GetEditorAssetManager()->AddPostSyncTask([materialAsset = m_MaterialAsset, assetHandle]() mutable -> bool
+						{
+							AsyncAssetResult<Texture2D> result = AssetManager::GetAssetAsync<Texture2D>(assetHandle);
+							if (result.IsReady)
+							{
+								materialAsset->SetRoughnessMap(result.Asset->Handle, true);
+								materialAsset->SetRoughness(1.0f);
+								AssetImporter::Serialize(materialAsset);
+
+								return true;
+							}
+
+							return false;
+						}, true);
+					}
 
 					ImGui::EndDragDropTarget();
 				}
@@ -295,6 +342,7 @@ namespace Iris {
 				if (hasRoughnessMap && ImGui::Button("X##RoughnessMap", { 18.0f, 18.0f }))
 				{
 					m_MaterialAsset->ClearRoughnessMap();
+					m_MaterialAsset->SetRoughness(0.4f); // Defualt back to 0.0f
 					needsSerialize = true;
 				}
 				ImGui::PopStyleVar();
@@ -333,8 +381,24 @@ namespace Iris {
 				UI::Image(metalnessUITexture, { 77.0f, 77.0f });
 				if (ImGui::BeginDragDropTarget())
 				{
-					if (checkAndSetTexture(metalnessMap))
-						m_MaterialAsset->SetMetalnessMap(metalnessMap->Handle);
+					AssetHandle assetHandle = checkAndSetTexture();
+					if (assetHandle)
+					{
+						Project::GetEditorAssetManager()->AddPostSyncTask([materialAsset = m_MaterialAsset, assetHandle]() mutable -> bool
+						{
+							AsyncAssetResult<Texture2D> result = AssetManager::GetAssetAsync<Texture2D>(assetHandle);
+							if (result.IsReady)
+							{
+								materialAsset->SetMetalnessMap(result.Asset->Handle, true);
+								materialAsset->SetMetalness(1.0f);
+								AssetImporter::Serialize(materialAsset);
+
+								return true;
+							}
+
+							return false;
+						}, true);
+					}
 
 					ImGui::EndDragDropTarget();
 				}
@@ -364,6 +428,7 @@ namespace Iris {
 				if (hasMetalnessMap && ImGui::Button("X##MetalnessMap", { 18.0f, 18.0f }))
 				{
 					m_MaterialAsset->ClearMetalnessMap();
+					m_MaterialAsset->SetMetalness(0.0f); // Default back to 0.0f
 					needsSerialize = true;
 				}
 				ImGui::PopStyleVar();

@@ -3,11 +3,12 @@ Material:
   TwoSided: false
   AlbedoColor: [0.99992615, 1, 0.999899983]
   Emission: 0
+  Tiling: 5
   UseNormalMap: true
-  Roughness: 0
-  Metalness: 0
+  Roughness: 1
+  Metalness: 1
   AlbedoMap: 13824674546722255803
   NormalMap: 8577445622296034549
-  RoughnessMap: 0
-  MetalnessMap: 0
+  RoughnessMap: 10248026832697820046
+  MetalnessMap: 6377058224575319417
   MaterialFlags: 6

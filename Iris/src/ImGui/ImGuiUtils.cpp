@@ -624,15 +624,16 @@ namespace Iris::UI {
 		return modified;
 	}
 
-	bool PropertyStringReadOnly(const char* label, const std::string& value, bool isErorr)
-	{
-		return PropertyStringReadOnly(label, value.c_str(), isErorr);
-	}
-
-	bool PropertyStringReadOnly(const char* label, const char* value, bool isErorr)
+	bool PropertyStringReadOnly(const char* label, const char* value, bool isErorr, const char* helpText)
 	{
 		ShiftCursor(10.0f, 9.0f);
 		ImGui::Text(label);
+
+		if (std::strlen(helpText) != 0)
+		{
+			ImGui::SameLine();
+			ShowHelpMarker(helpText);
+		}
 
 		ImGui::NextColumn();
 		ShiftCursorY(4.0f);
@@ -1839,7 +1840,7 @@ namespace Iris::UI {
 						if (g.NavJustMovedToId == listID)
 						{
 							forwardFocus = true;
-							// ActivateItem moves keyboard navigation focuse inside of the window
+							// ActivateItem moves keyboard navigation focus inside of the window
 							ImGui::ActivateItem(listID);
 							ImGui::SetKeyboardFocusHere(1);
 						}
@@ -1952,7 +1953,7 @@ namespace Iris::UI {
 						if (g.NavJustMovedToId == listID)
 						{
 							forwardFocus = true;
-							// ActivateItem moves keyboard navigation focuse inside of the window
+							// ActivateItem moves keyboard navigation focus inside of the window
 							ImGui::ActivateItem(listID);
 							ImGui::SetKeyboardFocusHere(1);
 						}
@@ -2005,7 +2006,7 @@ namespace Iris::UI {
 		bool valid = AssetManager::IsAssetHandleValid(handle);
 		if (valid)
 		{
-			if (settings.ShowFulLFilePath)
+			if (settings.ShowFullFilePath)
 				name = Project::GetEditorAssetManager()->GetMetaData(handle).FilePath.string();
 			else
 				name = Project::GetEditorAssetManager()->GetMetaData(handle).FilePath.stem().string();
