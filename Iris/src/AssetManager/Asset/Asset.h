@@ -16,7 +16,7 @@ namespace Iris {
 		virtual AssetType GetAssetType() const { return AssetType::None; }
 
 		// When a dependency for the current asset is updated (e.g. Texture for a mesh updated -> Mesh should be updated)
-		virtual void OnDependencyUpdated(AssetHandle handle) {}
+		virtual void OnDependencyUpdated(AssetHandle handle) { (void)handle; }
 
 		virtual bool operator==(const Asset& other) const
 		{

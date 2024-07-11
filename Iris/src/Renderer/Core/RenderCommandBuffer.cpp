@@ -57,10 +57,10 @@ namespace Iris {
 			.flags = VK_FENCE_CREATE_SIGNALED_BIT
 		};
 		m_WaitFences.resize(commandBufferCount);
-		for (uint32_t i = 0; i < m_WaitFences.size(); i++)
+		for (uint32_t j = 0; j < m_WaitFences.size(); j++)
 		{
-			VK_CHECK_RESULT(vkCreateFence(device, &fenceCI, nullptr, &m_WaitFences[i]));
-			VKUtils::SetDebugUtilsObjectName(device, VK_OBJECT_TYPE_FENCE, fmt::format("{0} fence (frame in flight {1})", m_DebugName, i), m_WaitFences[i]);
+			VK_CHECK_RESULT(vkCreateFence(device, &fenceCI, nullptr, &m_WaitFences[j]));
+			VKUtils::SetDebugUtilsObjectName(device, VK_OBJECT_TYPE_FENCE, fmt::format("{0} fence (frame in flight {1})", m_DebugName, j), m_WaitFences[j]);
 		}
 
 		m_PipelineQueryCount = 7;
@@ -88,6 +88,7 @@ namespace Iris {
 	RenderCommandBuffer::RenderCommandBuffer(const std::string& debugName, bool swapchain)
 		: m_DebugName(debugName), m_OwnedBySwapChain(true)
 	{
+		(void)swapchain;
 		VkDevice device = RendererContext::GetCurrentDevice()->GetVulkanDevice();
 		uint32_t framesInFlight = Renderer::GetConfig().FramesInFlight;
 

@@ -812,7 +812,7 @@ namespace Iris::UI {
 			{
 				UI::ShiftCursorY(-framePaddingY + 1.0f);
 				UI::ImGuiScopedColor text(ImGuiCol_Text, Colors::Theme::TextDarker);
-				UI::ImGuiScopedStyle padding(ImGuiStyleVar_FramePadding, { 0.0f, framePaddingY });
+				UI::ImGuiScopedStyle padding2(ImGuiStyleVar_FramePadding, { 0.0f, framePaddingY });
 				ImGui::TextUnformatted(hint);
 				UI::ShiftCursorY(-1.0f);
 			}

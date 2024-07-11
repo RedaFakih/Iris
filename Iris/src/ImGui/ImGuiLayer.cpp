@@ -148,7 +148,6 @@ namespace Iris {
 
 		uint32_t width = swapChain.GetWidth();
 		uint32_t height = swapChain.GetHeight();
-		uint32_t commandBufferIndex = swapChain.GetCurrentBufferIndex();
 
 		VkCommandBufferBeginInfo drawCmdBufferBeginInfo = {
 			.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,

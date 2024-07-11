@@ -97,8 +97,8 @@ namespace Iris {
 		void DrawAABB(const AABB& aabb, const glm::mat4& transform, const glm::vec4& color = glm::vec4(1.0f));
 
 		void DrawString(const std::string& string, const glm::vec3& position, float maxWidth, const glm::vec4& color = { 1.0f, 1.0f, 1.0f, 1.0f });
-		void DrawString(const std::string& string, Ref<Font> font, const glm::vec3& position, float maxWidth, const glm::vec4& color = { 1.0f, 1.0f, 1.0f, 1.0f });
-		void DrawString(const std::string& string, Ref<Font> font, const glm::mat4& transform, float maxWidth, const glm::vec4& color = { 1.0f, 1.0f, 1.0f, 1.0f }, float lineHeightOffset = 0.0f, float kerning = 0.0f);
+		void DrawString(const std::string& string, const Ref<Font>& font, const glm::vec3& position, float maxWidth, const glm::vec4& color = { 1.0f, 1.0f, 1.0f, 1.0f });
+		void DrawString(const std::string& string, const Ref<Font>& font, const glm::mat4& transform, float maxWidth, const glm::vec4& color = { 1.0f, 1.0f, 1.0f, 1.0f }, float lineHeightOffset = 0.0f, float kerning = 0.0f);
 
 		float GetLineWidth() const { return m_LineWidth; }
 		void SetLineWidth(float lineWidth);

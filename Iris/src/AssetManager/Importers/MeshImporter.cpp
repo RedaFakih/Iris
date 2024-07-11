@@ -343,9 +343,9 @@ namespace Iris {
 								texels = reinterpret_cast<aiTexel*>(buffer.Data);
 							}
 
-							for (uint32_t i = 0; i < spec.Width * spec.Height; i++)
+							for (uint32_t o = 0; i < spec.Width * spec.Height; o++)
 							{
-								aiTexel& texel = texels[i];
+								aiTexel& texel = texels[o];
 								texel.r = 255 - texel.r;
 								texel.g = 255 - texel.g;
 								texel.b = 255 - texel.b;
@@ -370,9 +370,9 @@ namespace Iris {
 						aiTexel* texels = reinterpret_cast<aiTexel*>(buffer.Data);
 						if (invertRoughness)
 						{
-							for (uint32_t i = 0; i < spec.Width * spec.Height; i++)
+							for (uint32_t o = 0; i < spec.Width * spec.Height; o++)
 							{
-								aiTexel& texel = texels[i];
+								aiTexel& texel = texels[o];
 								texel.r = 255 - texel.r;
 								texel.g = 255 - texel.g;
 								texel.b = 255 - texel.b;

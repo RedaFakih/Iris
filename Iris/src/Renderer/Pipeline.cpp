@@ -126,9 +126,6 @@ namespace Iris {
 			// Description for shader input attributes and their memory layouts
 			std::vector<VkVertexInputAttributeDescription> vertexInputAttributesDescriptions(instance->m_Specification.VertexLayout.GetElementCount() + instance->m_Specification.InstanceLayout.GetElementCount());
 
-			// Binding for outerloop and location for inner loop
-			// Binding here is for each layout... For example we could have another layout for instance data and its attributes would
-			// be at binding 1 location 0, 1, 2... and so on.
 			uint32_t binding = 0;
 			uint32_t location = 0;
 			std::array<VertexInputLayout, 2> pipelineLayouts = { instance->m_Specification.VertexLayout, instance->m_Specification.InstanceLayout };
@@ -149,9 +146,9 @@ namespace Iris {
 
 			VkPipelineVertexInputStateCreateInfo vertexInputState = {
 				.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
-				.vertexBindingDescriptionCount = (uint32_t)vertexInputBindingDescriptions.size(),
+				.vertexBindingDescriptionCount = static_cast<uint32_t>(vertexInputBindingDescriptions.size()),
 				.pVertexBindingDescriptions = vertexInputBindingDescriptions.data(),
-				.vertexAttributeDescriptionCount = (uint32_t)vertexInputAttributesDescriptions.size(),
+				.vertexAttributeDescriptionCount = static_cast<uint32_t>(vertexInputAttributesDescriptions.size()),
 				.pVertexAttributeDescriptions = vertexInputAttributesDescriptions.data()
 			};
 
@@ -195,7 +192,7 @@ namespace Iris {
 
 			VkPipelineDynamicStateCreateInfo dynamicState = {
 				.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
-				.dynamicStateCount = (uint32_t)dynamicStateEnables.size(),
+				.dynamicStateCount = static_cast<uint32_t>(dynamicStateEnables.size()),
 				.pDynamicStates = dynamicStateEnables.data()
 			};
 
@@ -310,7 +307,7 @@ namespace Iris {
 			VkPipelineColorBlendStateCreateInfo colorBlendState = {
 				.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
 				.logicOpEnable = VK_FALSE,
-				.attachmentCount = (uint32_t)blendAttachmentStates.size(),
+				.attachmentCount = static_cast<uint32_t>(blendAttachmentStates.size()),
 				.pAttachments = blendAttachmentStates.data()
 			};
 

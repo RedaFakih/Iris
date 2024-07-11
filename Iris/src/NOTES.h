@@ -3,10 +3,17 @@
 /*
  * GLOBAL IRIS SETTINGS:
  * - 1 Unit = 1 Meter in the scale so setting the grid scale to 1 shows the 1 meter we just need to add suffixes to the values displayed
- *
+ * - Best Driver version: 552.44
+ * 
  * - Always Checkout https://gpuopen.com/learn/rdna-performance-guide/ and https://developer.nvidia.com/blog/vulkan-dos-donts/ for any extra optimisations we could find from the vulkan side
  *
  * TODO: DynamicRendering branch:
+ * - We are getting best practices warning that for the pass where no resources are created we have unused bound vertex buffers...
+ * - Artefacts that were being caused by updating driver:
+ *		- We get the same one on 552.44 when we enable gpu assissted validation
+ *			- If we disable shader optimization those artifacts go
+ *		- Try updating driver and VulkanSDK see if they go
+ *		- Look into why the optimizations are causing artefacts
  * - NOT HIGH PRIORITY:
  *      - Make the clouds work in the preetham shader
  *      - Maybe Generate the BRDFLut Texture ourselves?
@@ -14,38 +21,19 @@
  *		- Implement finally the note described in Device.h (line: 68) that talks about handling one time command buffers submission.
  *
  * TODO: Creative Ideas:
- * - When rendering with more than one font we get weird behaviour we start rendering the atlas of one of the fonts
- * - Maybe we need to change the way the Compute passes in the Renderer are architected... Since they now take a render commandbuffer but that is never used so Look into that please.
- * - Currently we do pass a render command buffer to Renderer::BeginComputePass however we do not use it so its useless for now needs rewriting with the compute pipelie rewrite
+ * - Crashing when recreating preetham sky: When enabling validation layers we do not get the crash. But when they are disabled we do get it... Look into that
  * - Provide an option for the SceneRenderer to show the ACTUAL draw call count since now it only accounts for the color pass draws
- * - Need to fix everything regarding orthographic projection views
  * - For any object other than the primitives we always have an extra material for some reason
  * - Submesh selection when we have a content browser Both static and dynamic meshes will support submesh selection
+ * - Need to fix everything regarding orthographic projection views
  * - Viewport camera orthographic views done:
  *		- Gizmo controls and orthographic camera movement collision
  *		- Fix mouse picking in orthographic view
- * - Once we request a Mesh Asset from the AssetManager we should submit a lambda into a queue in the editor layer so that we wait until the asset is ready then we
- *		InstantiateStaticMesh for that mesh from the scene so that we get the whole scene entity hierarchy however for now we have a problem that when we InstantiateMesh
- *		we do get the correct entity hierarchy however every child entity is its own complete model
- *
- * LATEST UPDATES:
- *  ** 25/05/2024 **
- * - Problem for the invalid pipeline layout discovered and temporarily fixed in a bad way (Was that we were using different command buffers for material and pipeline)
- * - ComputePipeline needs a bit of a re-write with regards to the command buffer that it executes on... Since currently we give it the physical VkCommandBuffer object to execute on
- *   which we dont really want that type of architecture. Maybe add an Execute method that just does the whole pass in that function (also debatable) or find a way to pass the
- *   command buffer to properly record the dispatch command with also the Compute pass commands.
+ * - Once we request a Mesh Asset from the AssetManger we should submit a lambda into the asset manager to wait until the asset is ready then we call Scene::InstantiateStaticMesh
+ *		for that mesh so that we the whole entity hierarchy. However one problem so far is the when we call Scene::InstantiateStaticMesh we get the correct entity hierarchy but we
+ *		render the root node (All the mesh) for each entity in the hierarchy which is WRONG! Each entity in the hierarchy should correspond to its submesh index
  *
  * NEXT THING TO WORK ON:
- * - Write the final two function of TextureCube (CopyToHostBuffer / CopyFromHostBuffer)
- * - The problem with compute passes was with pipeline layouts is that we are using different command buffers inside the ComputePipeline class since when we class RT_Begin we do not pass it a command buffer
- *		So to fix we should either let the whole compute pass use the same commandbuffer or just pass it the current renderCommandBuffer which will use the graphics queue and not the Compute queue
- *		So far I have tried to pass a command buffer that is created on the Compute Queue into the pipeline and work with it which is working for now...
- * - DescriptorSetManager needs to have a semi re-write since it does not correctly handle all the cases were the image is a textureCube and storage image
- *		- There is confusion between cube textures and storage images... A cube texture input.Type is being set as DescriptorResourceType::StorageImage
- *        eventhough it is a cube texture... see we need a way to detect that and handle it accordingly. (Most probably separate those two cases from the
- *		  switch statement and handle them separatly, or leave the normal cases in the switch and if check after to handle accordingly so that we do not 
- *		  break any behaviour for 2D stuff) {This might be fixed for the StorageImages and CubeImages since we now use spv::Dim instead of just random numbers in the switch statement that sets the Fomrat}
- *		- We can know the dimension of the image from shader reflection and using that we can cast back to the original type to know if its a cubeTexture or not
  * - DirectionalLightComponent needs expansion when we have shadows and that means related expansion in: SceneSerializer, Scene, SceneRenderer
  * - Storage Images (Need writing and testing)
  * - Add Mesh panel that prompts the user to create the Iris Mesh file if they load a MeshSource

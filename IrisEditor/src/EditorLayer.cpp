@@ -2212,14 +2212,14 @@ namespace Iris {
 
 		auto inverseProj = glm::inverse(camera.GetProjectionMatrix());
 		auto inverseView = glm::inverse(glm::mat3(camera.GetViewMatrix()));
-	
+
 		glm::vec3 rayPos = camera.GetPosition();
 		glm::vec4 ray = inverseProj * mouseClipPos;
 		if (!camera.IsPerspectiveProjection())
 			ray.z = -1.0f;
 		glm::vec3 direction = inverseView * ray;
 
-		return { rayPos, camera.IsPerspectiveProjection() ? direction : glm::normalize(glm::vec3(direction) - rayPos) };
+		return { rayPos, camera.IsPerspectiveProjection() ? direction : glm::normalize(direction) };
 	}
 
 	void EditorLayer::SceneHierarchySetEditorCameraTransform(Entity entity)

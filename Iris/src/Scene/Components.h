@@ -172,6 +172,7 @@ namespace Iris {
 		bool DynamicSky = false;
 		glm::vec4 TurbidityAzimuthInclinationSunSize = { 2.0f, 0.0f, 0.0f, 0.01f };
 		UUID DirectionalLightEntityID = 0;
+		bool LinkDirectionalLightRadiance = false;
 	};
 
 	struct DirectionalLightComponent

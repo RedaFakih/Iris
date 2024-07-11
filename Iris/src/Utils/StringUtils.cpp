@@ -9,7 +9,7 @@ namespace Iris::Utils {
 		retVal.resize(string.size());
 
 		for (std::size_t i = 0; i < string.size(); i++)
-			retVal[i] = std::tolower(string[i]);
+			retVal[i] = static_cast<char>(std::tolower(string[i]));
 
 		return retVal;
 	}
@@ -20,7 +20,7 @@ namespace Iris::Utils {
 		retVal.resize(string.size());
 
 		for (std::size_t i = 0; i < string.size(); i++)
-			retVal[i] = std::toupper(string[i]);
+			retVal[i] = static_cast<char>(std::toupper(string[i]));
 
 		return retVal;
 	}

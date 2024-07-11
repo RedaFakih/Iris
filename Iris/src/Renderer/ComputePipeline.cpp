@@ -22,44 +22,38 @@ namespace Iris {
 		Release();
 	}
 
-	void ComputePipeline::Begin(Ref<RenderCommandBuffer> renderCommandBuffer)
+	void ComputePipeline::Begin(VkCommandBuffer commandBuffer)
 	{
 		IR_ASSERT(!m_ActiveComputeCommandBuffer, "A command buffer is currently active");
 
-		if (renderCommandBuffer)
+		if (commandBuffer)
 		{
 			uint32_t frameIndex = Renderer::GetCurrentFrameIndex();
-			m_ActiveComputeCommandBuffer = renderCommandBuffer->GetCommandBuffer(frameIndex);
-			m_UsingGraphicsQueue = true;
+			m_ActiveComputeCommandBuffer = commandBuffer;
+			m_UsingGraphicsQueue = false;
 		}
 		else
 		{
-			m_ActiveComputeCommandBuffer = RendererContext::GetCurrentDevice()->GetCommandBuffer(true, true);
-			m_UsingGraphicsQueue = false;
+			m_ActiveComputeCommandBuffer = RendererContext::GetCurrentDevice()->GetCommandBuffer(true);
+			m_UsingGraphicsQueue = true;
 		}
 
 		vkCmdBindPipeline(m_ActiveComputeCommandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, m_Pipeline);
 	}
 
-	//void ComputePipeline::RT_Begin(Ref<RenderCommandBuffer> renderCommandBuffer)
 	void ComputePipeline::RT_Begin(VkCommandBuffer commandBuffer)
 	{
 		IR_ASSERT(!m_ActiveComputeCommandBuffer, "A command buffer is currently active");
 
-		//if (renderCommandBuffer)
 		if (commandBuffer)
 		{
 			uint32_t frameIndex = Renderer::RT_GetCurrentFrameIndex();
-			//m_ActiveComputeCommandBuffer = renderCommandBuffer->GetCommandBuffer(frameIndex);
 			m_ActiveComputeCommandBuffer = commandBuffer;
-			//m_UsingGraphicsQueue = true;
 			m_UsingGraphicsQueue = false;
 		}
 		else
 		{
-			//m_ActiveComputeCommandBuffer = RendererContext::GetCurrentDevice()->GetCommandBuffer(true, true);
 			m_ActiveComputeCommandBuffer = RendererContext::GetCurrentDevice()->GetCommandBuffer(true);
-			//m_UsingGraphicsQueue = false;
 			m_UsingGraphicsQueue = true;
 		}
 
@@ -71,11 +65,9 @@ namespace Iris {
 		IR_ASSERT(m_ActiveComputeCommandBuffer);
 
 		VkDevice device = RendererContext::GetCurrentDevice()->GetVulkanDevice();
-		//if (!m_UsingGraphicsQueue)
 		if (m_UsingGraphicsQueue)
 		{
-			//VkQueue computeQueue = RendererContext::GetCurrentDevice()->GetComputeQueue();
-			VkQueue computeQueue = RendererContext::GetCurrentDevice()->GetGraphicsQueue();
+			VkQueue graphicsQueue = RendererContext::GetCurrentDevice()->GetGraphicsQueue();
 
 			vkEndCommandBuffer(m_ActiveComputeCommandBuffer);
 
@@ -87,7 +79,7 @@ namespace Iris {
 				.commandBufferCount = 1,
 				.pCommandBuffers = &m_ActiveComputeCommandBuffer
 			};
-			VK_CHECK_RESULT(vkQueueSubmit(computeQueue, 1, &submitInfo, m_ComputeFence));
+			VK_CHECK_RESULT(vkQueueSubmit(graphicsQueue, 1, &submitInfo, m_ComputeFence));
 
 			// Wait for compute shader execution for safety reasons...
 			{

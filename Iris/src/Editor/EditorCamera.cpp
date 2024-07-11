@@ -140,58 +140,71 @@ namespace Iris {
 			if (m_OrthoPositioning == OrthoPosition::Top)
 			{
 				if (Input::IsKeyDown(KeyCode::W))
-					m_OrthoPosition.z += m_NormalSpeed * ts.GetMilliSeconds();
+					m_OrthoPositionDelta.z -= m_NormalSpeed * ts.GetMilliSeconds();
 				else if (Input::IsKeyDown(KeyCode::S))
-					m_OrthoPosition.z -= m_NormalSpeed * ts.GetMilliSeconds();
+					m_OrthoPositionDelta.z += m_NormalSpeed * ts.GetMilliSeconds();
 				if (Input::IsKeyDown(KeyCode::A))
-					m_OrthoPosition.x += m_NormalSpeed * ts.GetMilliSeconds();
+					m_OrthoPositionDelta.x += m_NormalSpeed * ts.GetMilliSeconds();
 				else if (Input::IsKeyDown(KeyCode::D))
-					m_OrthoPosition.x -= m_NormalSpeed * ts.GetMilliSeconds();
+					m_OrthoPositionDelta.x -= m_NormalSpeed * ts.GetMilliSeconds();
 			}
 			else if (m_OrthoPositioning == OrthoPosition::Bottom)
 			{
 				if (Input::IsKeyDown(KeyCode::W))
-					m_OrthoPosition.z -= m_NormalSpeed * ts.GetMilliSeconds();
+					m_OrthoPositionDelta.z += m_NormalSpeed * ts.GetMilliSeconds();
 				else if (Input::IsKeyDown(KeyCode::S))
-					m_OrthoPosition.z += m_NormalSpeed * ts.GetMilliSeconds();
+					m_OrthoPositionDelta.z -= m_NormalSpeed * ts.GetMilliSeconds();
 				if (Input::IsKeyDown(KeyCode::A))
-					m_OrthoPosition.x += m_NormalSpeed * ts.GetMilliSeconds();
+					m_OrthoPositionDelta.x += m_NormalSpeed * ts.GetMilliSeconds();
 				else if (Input::IsKeyDown(KeyCode::D))
-					m_OrthoPosition.x -= m_NormalSpeed * ts.GetMilliSeconds();
+					m_OrthoPositionDelta.x -= m_NormalSpeed * ts.GetMilliSeconds();
 			}
 			else if (m_OrthoPositioning == OrthoPosition::Left)
 			{
 				if (Input::IsKeyDown(KeyCode::W))
-					m_OrthoPosition.x += m_NormalSpeed * ts.GetMilliSeconds();
+					m_OrthoPositionDelta.x += m_NormalSpeed * ts.GetMilliSeconds();
 				else if (Input::IsKeyDown(KeyCode::S))
-					m_OrthoPosition.x -= m_NormalSpeed * ts.GetMilliSeconds();
+					m_OrthoPositionDelta.x -= m_NormalSpeed * ts.GetMilliSeconds();
 				if (Input::IsKeyDown(KeyCode::A))
-					m_OrthoPosition.z += m_NormalSpeed * ts.GetMilliSeconds();
+					m_OrthoPositionDelta.z += m_NormalSpeed * ts.GetMilliSeconds();
 				else if (Input::IsKeyDown(KeyCode::D))
-					m_OrthoPosition.z -= m_NormalSpeed * ts.GetMilliSeconds();
+					m_OrthoPositionDelta.z -= m_NormalSpeed * ts.GetMilliSeconds();
+			}
+			else if (m_OrthoPositioning == OrthoPosition::Right)
+			{
+				if (Input::IsKeyDown(KeyCode::W))
+					m_OrthoPositionDelta.x += m_NormalSpeed * ts.GetMilliSeconds();
+				else if (Input::IsKeyDown(KeyCode::S))
+					m_OrthoPositionDelta.x -= m_NormalSpeed * ts.GetMilliSeconds();
+				if (Input::IsKeyDown(KeyCode::A))
+					m_OrthoPositionDelta.z -= m_NormalSpeed * ts.GetMilliSeconds();
+				else if (Input::IsKeyDown(KeyCode::D))
+					m_OrthoPositionDelta.z += m_NormalSpeed * ts.GetMilliSeconds();
 			}
 			else if (m_OrthoPositioning == OrthoPosition::Front)
 			{
 				if (Input::IsKeyDown(KeyCode::W))
-					m_OrthoPosition.x += m_NormalSpeed * ts.GetMilliSeconds();
+					m_OrthoPositionDelta.z += m_NormalSpeed * ts.GetMilliSeconds();
 				else if (Input::IsKeyDown(KeyCode::S))
-					m_OrthoPosition.x -= m_NormalSpeed * ts.GetMilliSeconds();
+					m_OrthoPositionDelta.z -= m_NormalSpeed * ts.GetMilliSeconds();
 				if (Input::IsKeyDown(KeyCode::A))
-					m_OrthoPosition.z += m_NormalSpeed * ts.GetMilliSeconds();
+					m_OrthoPositionDelta.x -= m_NormalSpeed * ts.GetMilliSeconds();
 				else if (Input::IsKeyDown(KeyCode::D))
-					m_OrthoPosition.z -= m_NormalSpeed * ts.GetMilliSeconds();
+					m_OrthoPositionDelta.x += m_NormalSpeed * ts.GetMilliSeconds();
 			}
-			else
+			else // Back
 			{
 				if (Input::IsKeyDown(KeyCode::W))
-					m_OrthoPosition.x += m_NormalSpeed * ts.GetMilliSeconds();
+					m_OrthoPositionDelta.z += m_NormalSpeed * ts.GetMilliSeconds();
 				else if (Input::IsKeyDown(KeyCode::S))
-					m_OrthoPosition.x -= m_NormalSpeed * ts.GetMilliSeconds();
+					m_OrthoPositionDelta.z -= m_NormalSpeed * ts.GetMilliSeconds();
 				if (Input::IsKeyDown(KeyCode::A))
-					m_OrthoPosition.z -= m_NormalSpeed * ts.GetMilliSeconds();
+					m_OrthoPositionDelta.x += m_NormalSpeed * ts.GetMilliSeconds();
 				else if (Input::IsKeyDown(KeyCode::D))
-					m_OrthoPosition.z += m_NormalSpeed * ts.GetMilliSeconds();
+					m_OrthoPositionDelta.x -= m_NormalSpeed * ts.GetMilliSeconds();
 			}
+
+			m_OrthoPosition += m_OrthoPositionDelta * smoothing;
 		}
 		
 		m_InitialMousePosition = mouse;
@@ -274,7 +287,7 @@ namespace Iris {
 		m_ViewportWidth = width;
 		m_ViewportHeight = height;
 		SetPerspectiveProjectionMatrix(glm::degrees(m_FOV), static_cast<float>(width), static_cast<float>(height), m_NearClip, m_FarClip);
-		SetOrthographicProjectionMatrix(2.0f * m_AspectRatio * m_Zoom, 2.0f * m_AspectRatio * m_Zoom, m_NearClip, m_FarClip);
+		SetOrthographicProjectionMatrix(10.0f * m_AspectRatio * m_Zoom, 10.0f * m_Zoom, m_NearClip, m_FarClip);
 	}
 
 	void EditorCamera::SetFOV(float degFov)
@@ -287,18 +300,21 @@ namespace Iris {
 	{
 		m_NearClip = value;
 		SetPerspectiveProjectionMatrix(glm::degrees(m_FOV), static_cast<float>(m_ViewportWidth), static_cast<float>(m_ViewportHeight), m_NearClip, m_FarClip);
-		SetOrthographicProjectionMatrix(2.0f * m_AspectRatio * m_Zoom, 2.0f * m_AspectRatio * m_Zoom, m_NearClip, m_FarClip);
+		SetOrthographicProjectionMatrix(10.0f * m_AspectRatio * m_Zoom, 10.0f * m_Zoom, m_NearClip, m_FarClip);
 	}
 
 	void EditorCamera::SetFarClip(float value)
 	{
 		m_FarClip = value;
 		SetPerspectiveProjectionMatrix(glm::degrees(m_FOV), static_cast<float>(m_ViewportWidth), static_cast<float>(m_ViewportHeight), m_NearClip, m_FarClip);
-		SetOrthographicProjectionMatrix(2.0f * m_AspectRatio * m_Zoom, 2.0f * m_AspectRatio * m_Zoom, m_NearClip, m_FarClip);
+		SetOrthographicProjectionMatrix(10.0f * m_AspectRatio * m_Zoom, 10.0f * m_Zoom, m_NearClip, m_FarClip);
 	}
 
 	void EditorCamera::UpdateView()
 	{
+		// damping for smooth camera
+		constexpr float damping = 0.82f;
+
 		if (IsPerspectiveProjection())
 		{
 			const float yawSign = GetUpDirection().y < 0.0f ? -1.0f : 1.0f;
@@ -313,8 +329,6 @@ namespace Iris {
 			m_Distance = glm::distance(m_Position, m_FocalPoint);
 			m_ViewMatrix = glm::lookAt(m_Position, lookAt, glm::vec3{ 0.0f, yawSign, 0.0f });
 
-			// damping for smooth camera
-			constexpr float damping = 0.82f;
 			m_YawDelta *= damping;
 			m_PitchDelta *= damping;
 			m_PositionDelta *= damping;
@@ -326,14 +340,14 @@ namespace Iris {
 			{
 				case OrthoPosition::Top:
 				{
-					glm::vec3 vec = { m_OrthoPosition.x, 1.0f * m_Zoom, m_OrthoPosition.z };
-					m_OrthographicViewMatrix = glm::lookAt(vec, glm::vec3{ vec.x, 0.0f, vec.z }, { 0.0f, 0.0f, 1.0f });
+					glm::vec3 vec = { m_OrthoPosition.x, -1.0f * m_Zoom, m_OrthoPosition.z };
+					m_OrthographicViewMatrix = glm::lookAt(vec, glm::vec3{ vec.x, 0.0f, vec.z }, { 0.0f, 0.0f, -1.0f });
 					break;
 				}
 				case OrthoPosition::Bottom:
 				{
-					glm::vec3 vec = { m_OrthoPosition.x, -1.0f * m_Zoom, m_OrthoPosition.z };
-					m_OrthographicViewMatrix = glm::lookAt(vec, glm::vec3{ vec.x, 0.0f, vec.z }, { 0.0f, 0.0f, -1.0f });
+					glm::vec3 vec = { m_OrthoPosition.x, 1.0f * m_Zoom, m_OrthoPosition.z };
+					m_OrthographicViewMatrix = glm::lookAt(vec, glm::vec3{ vec.x, 0.0f, vec.z }, { 0.0f, 0.0f, 1.0f });
 					break;
 				}
 				case OrthoPosition::Left:
@@ -362,6 +376,8 @@ namespace Iris {
 				}
 
 			}
+
+			m_OrthoPositionDelta *= damping;
 		}
 	}
 
@@ -390,7 +406,7 @@ namespace Iris {
 			else
 			{
 				m_Zoom -= e.GetYOffset() * 0.1f;
-				SetOrthographicProjectionMatrix(2.0f * m_AspectRatio * m_Zoom, 2.0f * m_AspectRatio * m_Zoom, m_NearClip, m_FarClip);
+				SetOrthographicProjectionMatrix(10.0f * m_AspectRatio * m_Zoom, 10.0f * m_Zoom, m_NearClip, m_FarClip);
 			}
 		}
 

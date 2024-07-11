@@ -186,7 +186,6 @@ namespace Iris {
 				UI::ShiftCursorX(itemPadding);
 
 				Entity entity = m_Context->GetEntityWithUUID(entities[0]);
-				auto& component = entity.GetComponent<TComponent>();
 
 				if (ImGui::MenuItem("Copy"))
 					Scene::CopyComponentFromScene<TComponent>(m_ComponentCopyEntity, m_ComponentCopyScene, entity, m_Context);

@@ -217,7 +217,8 @@ namespace Iris {
 
 		TextureSpecification brdfTextureSpec = {
 			.DebugName = "BRDFLutTexture",
-			.WrapMode = TextureWrap::Clamp
+			.WrapMode = TextureWrap::Clamp,
+			.GenerateMips = false
 		};
 		s_Data->BRDFLutTexture = Texture2D::Create(brdfTextureSpec, std::string("Resources/Renderer/BRDF_LUT.png"));
 
@@ -689,13 +690,10 @@ namespace Iris {
 			VkCommandBuffer commandBuffer = renderCommandBuffer->GetActiveCommandBuffer();
 
 			Ref<VertexBuffer> meshVB = meshSource->GetVertexBuffer();
-			VkBuffer vulkanMeshVB = meshVB->GetVulkanBuffer();
-			VkDeviceSize offsets[1] = { 0 };
-			vkCmdBindVertexBuffers(commandBuffer, 0, 1, &vulkanMeshVB, offsets);
 
-			VkBuffer vulkanTransformVB = transformBuffer->GetVulkanBuffer();
-			VkDeviceSize instanceOffset[1] = { transformOffset };
-			vkCmdBindVertexBuffers(commandBuffer, 1, 1, &vulkanTransformVB, instanceOffset);
+			VkBuffer vertexBuffers[] = { meshVB->GetVulkanBuffer(), transformBuffer->GetVulkanBuffer() };
+			VkDeviceSize offsets[] = { 0, transformOffset };
+			vkCmdBindVertexBuffers(commandBuffer, 0, 2, vertexBuffers, offsets);
 
 			Ref<IndexBuffer> meshIB = meshSource->GetIndexBuffer();
 			VkBuffer vulkanMeshIB = meshIB->GetVulkanBuffer();
@@ -743,13 +741,10 @@ namespace Iris {
 			VkCommandBuffer commandBuffer = renderCommandBuffer->GetActiveCommandBuffer();
 
 			Ref<VertexBuffer> meshVB = meshSource->GetVertexBuffer();
-			VkBuffer vulkanMeshVB = meshVB->GetVulkanBuffer();
-			VkDeviceSize offsets[1] = { 0 };
-			vkCmdBindVertexBuffers(commandBuffer, 0, 1, &vulkanMeshVB, offsets);
 
-			VkBuffer vulkanTrasformVB = transformBuffer->GetVulkanBuffer();
-			VkDeviceSize instanceOffset[1] = { transformOffset };
-			vkCmdBindVertexBuffers(commandBuffer, 1, 1, &vulkanTrasformVB, instanceOffset);
+			VkBuffer vertexBuffers[] = { meshVB->GetVulkanBuffer(), transformBuffer->GetVulkanBuffer() };
+			VkDeviceSize offsets[] = { 0, transformOffset };
+			vkCmdBindVertexBuffers(commandBuffer, 0, 2, vertexBuffers, offsets);
 
 			Ref<IndexBuffer> meshIB = meshSource->GetIndexBuffer();
 			VkBuffer vulkanMeshIB = meshIB->GetVulkanBuffer();
@@ -808,17 +803,13 @@ namespace Iris {
 		});
 	}
 
-	static VkCommandBuffer s_CurrentCommandBuffer = nullptr;
+	//static VkCommandBuffer s_CurrentCommandBuffer = nullptr;
 
-	void Renderer::BeginComputePass(Ref<RenderCommandBuffer> renderCommandBuffer, Ref<ComputePass> computePass)
+	void Renderer::BeginComputePass(VkCommandBuffer commandBuffer, Ref<ComputePass> computePass)
 	{
-		Renderer::Submit([renderCommandBuffer, computePass]() mutable
+		Renderer::Submit([commandBuffer, computePass]() mutable
 		{
 			const uint32_t frameIndex = Renderer::RT_GetCurrentFrameIndex();
-			//VkCommandBuffer commandBuffer = renderCommandBuffer->GetActiveCommandBuffer();
-			//VkCommandBuffer commandBuffer = RendererContext::GetCurrentDevice()->GetCommandBuffer(true, true);
-			VkCommandBuffer commandBuffer = RendererContext::GetCurrentDevice()->GetCommandBuffer(true);
-			s_CurrentCommandBuffer = commandBuffer;
 
 			VkDebugUtilsLabelEXT debugLabel = {
 				.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT,
@@ -829,7 +820,6 @@ namespace Iris {
 
 			// Bind the pipeline
 			Ref<ComputePipeline> pipeline = computePass->GetPipeline();
-			//pipeline->RT_Begin(renderCommandBuffer); // TODO: This makes the compute pipeline use the Graphics queue instead of using the dedicated Compute queue
 			pipeline->RT_Begin(commandBuffer);
 
 			computePass->Prepare();
@@ -850,29 +840,24 @@ namespace Iris {
 		});
 	}
 
-	void Renderer::EndComputePass(Ref<RenderCommandBuffer> renderCommandBuffer, Ref<ComputePass> computePass)
+	void Renderer::EndComputePass(VkCommandBuffer commandBuffer, Ref<ComputePass> computePass)
 	{
-		Renderer::Submit([renderCommandBuffer, computePass]() mutable
+		Renderer::Submit([commandBuffer, computePass]() mutable
 		{
 			computePass->GetPipeline()->End();
-			//RendererContext::GetCurrentDevice()->FlushCommandBuffer(s_CurrentCommandBuffer, true);
-			fpCmdEndDebugUtilsLabelEXT(s_CurrentCommandBuffer);
-			RendererContext::GetCurrentDevice()->FlushCommandBuffer(s_CurrentCommandBuffer);
-			//fpCmdEndDebugUtilsLabelEXT(renderCommandBuffer->GetActiveCommandBuffer());
+			fpCmdEndDebugUtilsLabelEXT(commandBuffer);
 		});
 	}
 
-	void Renderer::DispatchComputePass(Ref<RenderCommandBuffer> renderCommandBuffer, Ref<ComputePass> computePass, Ref<Material> material, const glm::uvec3& workGroups, Buffer constants)
+	void Renderer::DispatchComputePass(VkCommandBuffer commandBuffer, Ref<ComputePass> computePass, Ref<Material> material, const glm::uvec3& workGroups, Buffer constants)
 	{
 		Buffer pushConstantsBuffer;
 		if (constants)
 			pushConstantsBuffer = Buffer::Copy(constants);
 
-		Renderer::Submit([renderCommandBuffer, computePass, material, workGroups, pushConstantsBuffer]() mutable
+		Renderer::Submit([commandBuffer, computePass, material, workGroups, pushConstantsBuffer]() mutable
 		{
 			const uint32_t frameIndex = Renderer::RT_GetCurrentFrameIndex();
-			//VkCommandBuffer commandBuffer = renderCommandBuffer->GetActiveCommandBuffer();
-			VkCommandBuffer commandBuffer = s_CurrentCommandBuffer;
 
 			Ref<ComputePipeline> pipeline = computePass->GetPipeline();
 
@@ -904,37 +889,43 @@ namespace Iris {
 
 	std::pair<Ref<TextureCube>, Ref<TextureCube>> Renderer::CreateEnvironmentMap(const std::string& filepath)
 	{
-		/*
-		 * TODO: If we want this to execute on the compute queue we need to transfer the ownership of the textures from the graphics queue to the compute queue at the beginnging
-		 * THEN after we are done from all the stages of creating Radiance and Irradiance maps we can transfer the ownership from the compute queue back to the graphics queue so
-		 * that we can use for rendering
-		 */
-
 		if (!Renderer::GetConfig().ComputeEnvironmentMaps)
 			return { Renderer::GetBlackCubeTexture(), Renderer::GetBlackCubeTexture() };
 		
 		const uint32_t cubemapSize = Renderer::GetConfig().EnvironmentMapResolution;
 		constexpr uint32_t irradianceMapSize = 32;
-		
-		TextureSpecification equiRect2DTextureSpec = {};
-		equiRect2DTextureSpec.DebugName = "EquiRectangularTempTexture";
+
+		TextureSpecification equiRect2DTextureSpec = {
+			.DebugName = "EquiRectangularTempTexture",
+			.GenerateMips = false
+		};
 		Ref<Texture2D> envEquirect = Texture2D::Create(equiRect2DTextureSpec, filepath);
 		IR_VERIFY(envEquirect->GetFormat() == ImageFormat::RGBA32F, "Texture is not HDR!");
 		
+		VkCommandBuffer textureGenCommandBuffer = RendererContext::GetCurrentDevice()->GetCommandBuffer(true, true);
 		TextureSpecification cubemapSpec = {
 			.DebugName = "UnFilteredCubemap",
 			.Width = cubemapSize,
 			.Height = cubemapSize,
 			.Format = ImageFormat::RGBA32F
 		};
-		Ref<TextureCube> envUnfiltered = TextureCube::Create(cubemapSpec);
+		Ref<TextureCube> envUnfiltered = TextureCube::Create(cubemapSpec, {}, textureGenCommandBuffer);
 		cubemapSpec.DebugName = "RadianceMap";
-		Ref<TextureCube> envFiltered = TextureCube::Create(cubemapSpec);
+		Ref<TextureCube> envFiltered = TextureCube::Create(cubemapSpec, {}, textureGenCommandBuffer);
 		cubemapSpec.DebugName = "IrradianceMap";
 		cubemapSpec.Width = irradianceMapSize;
 		cubemapSpec.Height = irradianceMapSize;
-		Ref<TextureCube> irradianceMap = TextureCube::Create(cubemapSpec);
-		
+		Ref<TextureCube> irradianceMap = TextureCube::Create(cubemapSpec, {}, textureGenCommandBuffer);
+		RendererContext::GetCurrentDevice()->FlushCommandBuffer(textureGenCommandBuffer, true);
+
+		// Transfer image ownership to the compute queue
+		Renderer::Submit([envUnfiltered, envEquirect, envFiltered, irradianceMap]() mutable
+		{
+			Renderer::TransferImageQueueOwnership(false, envEquirect->GetVulkanImage(), VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+				VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+				{ VK_IMAGE_ASPECT_COLOR_BIT, 0, envEquirect->GetMipLevelCount(), 0, envEquirect->GetNumLayers() });
+		});
+
 		// 1. Convert equirectangular to cubemap
 		{
 			Renderer::Submit([envUnfiltered, envEquirect]()
@@ -943,14 +934,27 @@ namespace Iris {
 				s_Data->EquirectToCubemapMaterial->Set("u_EquirectangularTexture", envEquirect);
 			});
 
-			Renderer::BeginComputePass(nullptr, s_Data->EquirectToCubemapPass);
-			Renderer::DispatchComputePass(nullptr, s_Data->EquirectToCubemapPass, s_Data->EquirectToCubemapMaterial, { cubemapSize / 32, cubemapSize / 32, 6 });
-			Renderer::EndComputePass(nullptr, s_Data->EquirectToCubemapPass);
+			VkCommandBuffer commandBuffer = RendererContext::GetCurrentDevice()->GetCommandBuffer(true, true);
+			Renderer::BeginComputePass(commandBuffer, s_Data->EquirectToCubemapPass);
+			Renderer::DispatchComputePass(commandBuffer, s_Data->EquirectToCubemapPass, s_Data->EquirectToCubemapMaterial, { cubemapSize / 32, cubemapSize / 32, 6 });
+			Renderer::EndComputePass(commandBuffer, s_Data->EquirectToCubemapPass);
+			Renderer::Submit([commandBuffer, envUnfiltered]() mutable
+			{
+				RendererContext::GetCurrentDevice()->FlushCommandBuffer(commandBuffer, true);
+			});
 		}
 
 		Renderer::Submit([envUnfiltered, envFiltered]() mutable
 		{
+			Renderer::TransferImageQueueOwnership(true, envUnfiltered->GetVulkanImage(), VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+				VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+				{ VK_IMAGE_ASPECT_COLOR_BIT, 0, envUnfiltered->GetMipLevelCount(), 0, envUnfiltered->GetNumLayers() });
+
 			envUnfiltered->GenerateMips(true);
+
+			Renderer::TransferImageQueueOwnership(false, envUnfiltered->GetVulkanImage(), VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+				VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+				{ VK_IMAGE_ASPECT_COLOR_BIT, 0, envUnfiltered->GetMipLevelCount(), 0, envUnfiltered->GetNumLayers() });
 
 			// Change render target for next pass since we are using the same compute pass
 			s_Data->EquirectToCubemapMaterial->Set("o_OutputCubeMap", envFiltered);
@@ -958,30 +962,38 @@ namespace Iris {
 
 		// 2. Then we need to rerun the same pipeline on the filtered image since the first mip will be an AS-IS copy of the cubemap which is used for fully reflective materials
 		{
-			Renderer::BeginComputePass(nullptr, s_Data->EquirectToCubemapPass);
-			Renderer::DispatchComputePass(nullptr, s_Data->EquirectToCubemapPass, s_Data->EquirectToCubemapMaterial, { cubemapSize / 32, cubemapSize / 32, 6 });
-			Renderer::EndComputePass(nullptr, s_Data->EquirectToCubemapPass);
+			VkCommandBuffer commandBuffer = RendererContext::GetCurrentDevice()->GetCommandBuffer(true, true);
+			Renderer::BeginComputePass(commandBuffer, s_Data->EquirectToCubemapPass);
+			Renderer::DispatchComputePass(commandBuffer, s_Data->EquirectToCubemapPass, s_Data->EquirectToCubemapMaterial, { cubemapSize / 32, cubemapSize / 32, 6 });
+			Renderer::EndComputePass(commandBuffer, s_Data->EquirectToCubemapPass);
+			Renderer::Submit([commandBuffer]()
+			{
+				RendererContext::GetCurrentDevice()->FlushCommandBuffer(commandBuffer, true);
+			});
 		}
 
 		// 3. Filter mip chain of the cubemap
 		{
 			uint32_t mipCount = Utils::CalculateMipCount(cubemapSize, cubemapSize);
 
-			std::vector<VkDescriptorSet> descriptorSet;
-			auto dsls = s_Data->MipChainFilterPass->GetPipeline()->GetShader()->GetAllDescriptorSetLayouts();
-			for (uint32_t i = 0; i < mipCount; i++)
-			{
-				VkDescriptorSetAllocateInfo info = {
-					.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
-					.descriptorSetCount = 1,
-					.pSetLayouts = &dsls[3],
-				};
+			// Static so that it does not get destroyed at the end of the scope
+			static std::vector<VkDescriptorSet> descriptorSet;
+			descriptorSet.reserve(mipCount);
 
-				descriptorSet.push_back(Renderer::RT_AllocateDescriptorSet(info));
-			}
-
-			Renderer::Submit([mipCount, envFiltered, envUnfiltered, lambdaDescriptorSet = descriptorSet]() mutable
+			Renderer::Submit([mipCount, envFiltered, envUnfiltered]() mutable
 			{
+				std::vector<VkDescriptorSetLayout> dsls = s_Data->MipChainFilterPass->GetPipeline()->GetShader()->GetAllDescriptorSetLayouts();
+				for (uint32_t i = 0; i < mipCount; i++)
+				{
+					VkDescriptorSetAllocateInfo info = {
+						.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+						.descriptorSetCount = 1,
+						.pSetLayouts = &dsls[3],
+					};
+
+					descriptorSet.push_back(Renderer::RT_AllocateDescriptorSet(info));
+				}
+
 				std::vector<VkWriteDescriptorSet> writeDescriptors(mipCount * 2);
 				std::vector<VkDescriptorImageInfo> mipImageInfos(mipCount);
 				for (uint32_t i = 0; i < mipCount; i++)
@@ -991,11 +1003,11 @@ namespace Iris {
 					mipImageInfo.imageView = envFiltered->CreateImageViewSingleMip(i)->GetVulkanImageView();
 
 					writeDescriptors[i * 2 + 0] = *s_Data->MipChainFilterPass->GetPipeline()->GetShader()->GetDescriptorSet("o_OutputCubeMap", 3);
-					writeDescriptors[i * 2 + 0].dstSet = lambdaDescriptorSet[i];
+					writeDescriptors[i * 2 + 0].dstSet = descriptorSet[i];
 					writeDescriptors[i * 2 + 0].pImageInfo = &mipImageInfo;
 
 					writeDescriptors[i * 2 + 1] = *s_Data->MipChainFilterPass->GetPipeline()->GetShader()->GetDescriptorSet("u_InputCubeMap", 3);
-					writeDescriptors[i * 2 + 1].dstSet = lambdaDescriptorSet[i];
+					writeDescriptors[i * 2 + 1].dstSet = descriptorSet[i];
 					writeDescriptors[i * 2 + 1].pImageInfo = &envUnfiltered->GetDescriptorImageInfo();
 				}
 
@@ -1004,25 +1016,33 @@ namespace Iris {
 
 			const float deltaRoughness = 1.0f / glm::max(static_cast<float>(envFiltered->GetMipLevelCount()) - 1.0f, 1.0f);
 
-			Renderer::BeginComputePass(nullptr, s_Data->MipChainFilterPass);
+			VkCommandBuffer commandBuffer = RendererContext::GetCurrentDevice()->GetCommandBuffer(true, true);
+			Renderer::BeginComputePass(commandBuffer, s_Data->MipChainFilterPass);
 
 			// Start from second mip since first mip is a copy of the cubemap
 			for (uint32_t i = 1, size = cubemapSize; i < mipCount; i++, size /= 2)
 			{
-				Renderer::Submit([i, deltaRoughness, size, descriptorSet]()
+				Renderer::Submit([commandBuffer, i, deltaRoughness, size]()
 				{
-					vkCmdBindDescriptorSets(s_CurrentCommandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, s_Data->MipChainFilterPass->GetPipeline()->GetPipelineLayout(), 3, 1, &descriptorSet[i], 0, nullptr);
+					vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, s_Data->MipChainFilterPass->GetPipeline()->GetPipelineLayout(), 3, 1, &descriptorSet[i], 0, nullptr);
 				});
 
 				float roughness = i * deltaRoughness;
 				uint32_t numGroups = glm::max(1u, size / 32);
-				Renderer::DispatchComputePass(nullptr, s_Data->MipChainFilterPass, nullptr, { numGroups, numGroups, 6 }, Buffer(reinterpret_cast<const uint8_t*>(&roughness), sizeof(float)));
+				Renderer::DispatchComputePass(commandBuffer, s_Data->MipChainFilterPass, nullptr, { numGroups, numGroups, 6 }, Buffer(reinterpret_cast<const uint8_t*>(&roughness), sizeof(float)));
 			}
 
-			Renderer::EndComputePass(nullptr, s_Data->MipChainFilterPass);
+			Renderer::EndComputePass(commandBuffer, s_Data->MipChainFilterPass);
+			Renderer::Submit([commandBuffer]()
+			{
+				RendererContext::GetCurrentDevice()->FlushCommandBuffer(commandBuffer, true);
+
+				// Clear here since it is no longer needed
+				descriptorSet.clear();
+			});
 		}
 
-		// 4. Generate Irradiance map TODO: Needs debugging when we write the PBR shader
+		// 4. Generate Irradiance map
 		{
 			Renderer::Submit([irradianceMap, envFiltered]()
 			{
@@ -1030,13 +1050,23 @@ namespace Iris {
 				s_Data->IrradianceMapMaterial->Set("u_RadianceMap", envFiltered);
 			});
 
-			Renderer::BeginComputePass(nullptr, s_Data->IrradianceMapPass);
-			Renderer::DispatchComputePass(nullptr, s_Data->IrradianceMapPass, s_Data->IrradianceMapMaterial, { irradianceMapSize / 32, irradianceMapSize / 32, 6 }, Buffer(reinterpret_cast<const uint8_t*>(&Renderer::GetConfig().IrradianceMapComputeSamples), sizeof(uint32_t)));
-			Renderer::EndComputePass(nullptr, s_Data->IrradianceMapPass);
-
-			Renderer::Submit([irradianceMap]() mutable
+			VkCommandBuffer commandBuffer = RendererContext::GetCurrentDevice()->GetCommandBuffer(true, true);
+			Renderer::BeginComputePass(commandBuffer, s_Data->IrradianceMapPass);
+			Renderer::DispatchComputePass(commandBuffer, s_Data->IrradianceMapPass, s_Data->IrradianceMapMaterial, { irradianceMapSize / 32, irradianceMapSize / 32, 6 }, Buffer(reinterpret_cast<const uint8_t*>(&Renderer::GetConfig().IrradianceMapComputeSamples), sizeof(uint32_t)));
+			Renderer::EndComputePass(commandBuffer, s_Data->IrradianceMapPass);
+			Renderer::Submit([irradianceMap, commandBuffer, envFiltered]() mutable
 			{
+				RendererContext::GetCurrentDevice()->FlushCommandBuffer(commandBuffer, true);
+
+				Renderer::TransferImageQueueOwnership(true, irradianceMap->GetVulkanImage(), VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+					VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+					{ VK_IMAGE_ASPECT_COLOR_BIT, 0, irradianceMap->GetMipLevelCount(), 0, irradianceMap->GetNumLayers() });
+
 				irradianceMap->GenerateMips(true);
+
+				Renderer::TransferImageQueueOwnership(true, envFiltered->GetVulkanImage(), VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+					VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+					{ VK_IMAGE_ASPECT_COLOR_BIT, 0, envFiltered->GetMipLevelCount(), 0, envFiltered->GetNumLayers() });
 			});
 		}
 
@@ -1052,6 +1082,7 @@ namespace Iris {
 	Ref<TextureCube> Renderer::CreatePreethamSky(float turbidity, float azimuth, float inclination, float sunSize)
 	{
 		const uint32_t cubemapSize = Renderer::GetConfig().EnvironmentMapResolution;
+		VkCommandBuffer commandBuffer = RendererContext::GetCurrentDevice()->GetCommandBuffer(true, true);
 
 		TextureSpecification cubemapSpec = {
 			.DebugName = "PreethamSky",
@@ -1059,19 +1090,25 @@ namespace Iris {
 			.Height = cubemapSize,
 			.Format = ImageFormat::RGBA32F
 		};
-		Ref<TextureCube> environmentMap = TextureCube::Create(cubemapSpec);
+		Ref<TextureCube> environmentMap = TextureCube::Create(cubemapSpec, {}, commandBuffer);
 
 		glm::vec4 params = { turbidity, azimuth, inclination, sunSize };
 		s_Data->PreethamSkyMaterial->Set("o_OutputCubeMap", environmentMap);
-		//s_Data->PreethamSkyMaterial->Set("u_Uniforms.TurbidityAzimuthInclinationSunSize", params);
 
-		Renderer::BeginComputePass(nullptr, s_Data->PreethamSkyPass);
-		Renderer::DispatchComputePass(nullptr, s_Data->PreethamSkyPass, s_Data->PreethamSkyMaterial, { cubemapSize / 32, cubemapSize / 32, 6 }, Buffer(reinterpret_cast<const uint8_t*>(&params), sizeof(glm::vec4)));
-		Renderer::EndComputePass(nullptr, s_Data->PreethamSkyPass);
+		Renderer::BeginComputePass(commandBuffer, s_Data->PreethamSkyPass);
+		Renderer::DispatchComputePass(commandBuffer, s_Data->PreethamSkyPass, s_Data->PreethamSkyMaterial, { cubemapSize / 32, cubemapSize / 32, 6 }, Buffer(reinterpret_cast<const uint8_t*>(&params), sizeof(glm::vec4)));
+		Renderer::EndComputePass(commandBuffer, s_Data->PreethamSkyPass);
 
-		Renderer::Submit([environmentMap]() mutable
+		Renderer::Submit([commandBuffer, environmentMap]() mutable
 		{
-				environmentMap->GenerateMips(true);
+			RendererContext::GetCurrentDevice()->FlushCommandBuffer(commandBuffer, true);
+
+			// Transfer back to graphics queue in order to generate mips
+			Renderer::TransferImageQueueOwnership(true, environmentMap->GetVulkanImage(), VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_GENERAL, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+				VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+				{ VK_IMAGE_ASPECT_COLOR_BIT, 0, environmentMap->GetMipLevelCount(), 0, 6 });
+
+			environmentMap->GenerateMips(true);
 		});
 
 		return environmentMap;
@@ -1185,7 +1222,9 @@ namespace Iris {
 		VkMemoryBarrier2 memoryBarrier = {
 			.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER_2,
 			.pNext = nullptr,
+			.srcStageMask = srcStageMask,
 			.srcAccessMask = srcAccessMask,
+			.dstStageMask = dstStageMask,
 			.dstAccessMask = dstAccessMask
 		};
 
@@ -1211,7 +1250,9 @@ namespace Iris {
 		VkBufferMemoryBarrier2 bufferMemBarrier = {
 			.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
 			.pNext = nullptr,
+			.srcStageMask = srcStageMask,
 			.srcAccessMask = srcAccessMask,
+			.dstStageMask = dstStageMask,
 			.dstAccessMask = dstAccessMask,
 			.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
 			.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
@@ -1265,6 +1306,124 @@ namespace Iris {
 		};
 
 		vkCmdPipelineBarrier2(commandBuffer, &info);
+	}
+
+	void Renderer::TransferImageQueueOwnership(
+		bool computeToGraphics,
+		VkImage image,
+		VkImageLayout oldImageLayout,
+		VkImageLayout newImageLayout,
+		VkPipelineStageFlags2 srcSrcStage,
+		VkPipelineStageFlags2 srcDstStage,
+		VkPipelineStageFlags2 dstSrcStage,
+		VkPipelineStageFlags2 dstDstStage,
+		VkImageSubresourceRange subresourceRange
+	)
+	{
+		if (computeToGraphics)
+		{
+			VkImageMemoryBarrier2 releaseImageMemBarrier = {
+				.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
+				.pNext = nullptr,
+				.srcStageMask = srcSrcStage,
+				.srcAccessMask = 0,
+				.dstStageMask = srcDstStage,
+				.dstAccessMask = 0,
+				.oldLayout = oldImageLayout,
+				.newLayout = newImageLayout,
+				.srcQueueFamilyIndex = static_cast<uint32_t>(RendererContext::GetCurrentDevice()->GetPhysicalDevice()->GetQueueFamilyIndices().Compute),
+				.dstQueueFamilyIndex = static_cast<uint32_t>(RendererContext::GetCurrentDevice()->GetPhysicalDevice()->GetQueueFamilyIndices().Graphics),
+				.image = image,
+				.subresourceRange = subresourceRange
+			};
+
+			VkDependencyInfo info = {
+				.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+				.imageMemoryBarrierCount = 1,
+				.pImageMemoryBarriers = &releaseImageMemBarrier
+			};
+
+			VkCommandBuffer cmdBuff = RendererContext::GetCurrentDevice()->GetCommandBuffer(true, true);
+			vkCmdPipelineBarrier2(cmdBuff, &info);
+			RendererContext::GetCurrentDevice()->FlushCommandBuffer(cmdBuff, true);
+
+			VkImageMemoryBarrier2 acquireImageMemBarrier = {
+				.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
+				.pNext = nullptr,
+				.srcStageMask = srcSrcStage,
+				.srcAccessMask = 0,
+				.dstStageMask = srcDstStage,
+				.dstAccessMask = 0,
+				.oldLayout = oldImageLayout,
+				.newLayout = newImageLayout,
+				.srcQueueFamilyIndex = static_cast<uint32_t>(RendererContext::GetCurrentDevice()->GetPhysicalDevice()->GetQueueFamilyIndices().Compute),
+				.dstQueueFamilyIndex = static_cast<uint32_t>(RendererContext::GetCurrentDevice()->GetPhysicalDevice()->GetQueueFamilyIndices().Graphics),
+				.image = image,
+				.subresourceRange = subresourceRange
+			};
+
+			info = {
+				.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+				.imageMemoryBarrierCount = 1,
+				.pImageMemoryBarriers = &acquireImageMemBarrier
+			};
+
+			cmdBuff = RendererContext::GetCurrentDevice()->GetCommandBuffer(true);
+			vkCmdPipelineBarrier2(cmdBuff, &info);
+			RendererContext::GetCurrentDevice()->FlushCommandBuffer(cmdBuff);
+		}
+		else
+		{
+			VkImageMemoryBarrier2 releaseImageMemBarrier = {
+				.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
+				.pNext = nullptr,
+				.srcStageMask = srcSrcStage,
+				.srcAccessMask = 0,
+				.dstStageMask = srcDstStage,
+				.dstAccessMask = 0,
+				.oldLayout = oldImageLayout,
+				.newLayout = newImageLayout,
+				.srcQueueFamilyIndex = static_cast<uint32_t>(RendererContext::GetCurrentDevice()->GetPhysicalDevice()->GetQueueFamilyIndices().Graphics),
+				.dstQueueFamilyIndex = static_cast<uint32_t>(RendererContext::GetCurrentDevice()->GetPhysicalDevice()->GetQueueFamilyIndices().Compute),
+				.image = image,
+				.subresourceRange = subresourceRange
+			};
+
+			VkDependencyInfo info = {
+				.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+				.imageMemoryBarrierCount = 1,
+				.pImageMemoryBarriers = &releaseImageMemBarrier
+			};
+
+			VkCommandBuffer cmdBuff = RendererContext::GetCurrentDevice()->GetCommandBuffer(true);
+			vkCmdPipelineBarrier2(cmdBuff, &info);
+			RendererContext::GetCurrentDevice()->FlushCommandBuffer(cmdBuff);
+
+			VkImageMemoryBarrier2 acquireImageMemBarrier = {
+				.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
+				.pNext = nullptr,
+				.srcStageMask = dstSrcStage,
+				.srcAccessMask = 0,
+				.dstStageMask = dstDstStage,
+				.dstAccessMask = 0,
+				.oldLayout = oldImageLayout,
+				.newLayout = newImageLayout,
+				.srcQueueFamilyIndex = static_cast<uint32_t>(RendererContext::GetCurrentDevice()->GetPhysicalDevice()->GetQueueFamilyIndices().Graphics),
+				.dstQueueFamilyIndex = static_cast<uint32_t>(RendererContext::GetCurrentDevice()->GetPhysicalDevice()->GetQueueFamilyIndices().Compute),
+				.image = image,
+				.subresourceRange = subresourceRange
+			};
+
+			info = {
+				.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+				.imageMemoryBarrierCount = 1,
+				.pImageMemoryBarriers = &acquireImageMemBarrier
+			};
+
+			cmdBuff = RendererContext::GetCurrentDevice()->GetCommandBuffer(true, true);
+			vkCmdPipelineBarrier2(cmdBuff, &info);
+			RendererContext::GetCurrentDevice()->FlushCommandBuffer(cmdBuff, true);
+		}
 	}
 
 	uint32_t Renderer::GetCurrentFrameIndex()

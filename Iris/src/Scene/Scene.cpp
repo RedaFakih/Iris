@@ -83,7 +83,7 @@ namespace Iris {
 						Entity dirLightEntity = TryGetEntityWithUUID(skyLightComponent.DirectionalLightEntityID);
 						if (dirLightEntity)
 						{
-							const DirectionalLightComponent* dirLightComp = dirLightEntity.TryGetComponent<DirectionalLightComponent>();
+							DirectionalLightComponent* dirLightComp = dirLightEntity.TryGetComponent<DirectionalLightComponent>();
 							if (dirLightComp)
 							{
 								foundLinkedDirLight = true;
@@ -94,15 +94,24 @@ namespace Iris {
 									glm::sin(skyLightComponent.TurbidityAzimuthInclinationSunSize.z) * glm::sin(skyLightComponent.TurbidityAzimuthInclinationSunSize.y)
 								));
 
+								constexpr glm::vec3 horizonColor = { 1.0f, 0.5f, 0.0f }; // Reddish color at the horizon
+								constexpr glm::vec3 zenithColor = { 1.0f, 1.0f, 0.9f }; // Whitish color at the zenith
+
 								m_LightEnvironment.DirectionalLight = SceneDirectionalLight{
 									.Direction = direction,
-									.Radiance = dirLightComp->Radiance,
+									.Radiance = skyLightComponent.LinkDirectionalLightRadiance ? glm::mix(horizonColor, zenithColor, glm::cos(skyLightComponent.TurbidityAzimuthInclinationSunSize.z)) : dirLightComp->Radiance,
 									.Intensity = dirLightComp->Intensity,
 									.ShadowAmount = 1.0f // TODO: Should come from component
 								};
+
+								if (skyLightComponent.LinkDirectionalLightRadiance)
+									dirLightComp->Radiance = m_LightEnvironment.DirectionalLight.Radiance;
 							}
 						}
 					}
+
+					if ((!usingDynamicSky || !foundLinkedDirLight) && skyLightComponent.LinkDirectionalLightRadiance == true)
+						skyLightComponent.LinkDirectionalLightRadiance = false;
 				}
 
 				if (!m_Environment || view.empty()) // Invalid skylight (We dont have one or the handle was invalid)

@@ -88,8 +88,8 @@ namespace Iris {
 		// Used for Transfer operations? (Affects the usage of the image)
 		bool Trasnfer = false;
 
-		// Set internally! true if the usage is texture, false if usage is attachment
-		bool GenerateMips = false;
+		// If usage is Attachment then it will be overriden to false otherwise used value is one set by user
+		bool GenerateMips = true;
 		// DO NOT SET THIS. This will be determined up on invalidation and is there for debugging purposes.
 		uint32_t Mips = 0;
 
@@ -99,29 +99,35 @@ namespace Iris {
 		uint32_t Layers = 1;
 	};
 
+	/*
+	 * A bit of a change in the Texture and TextureCube API is that now we provide the option to pass in a command buffer to execute the commands on
+	 * If no command buffer is passed in then all the commands are executed on the Graphics queue, and if THERE WAS a command buffer passed in then the commands
+	 * will be ASSUMED to be running on the compute queue since that is basically the only other queue that can run almost all commands
+	 */
+
 	class Texture2D : public Asset
 	{
 	public:
 		// NOTE: If the first constructor is used then an Invalidate call should follow to get a valid image
 		explicit Texture2D(const TextureSpecification& spec);
-		explicit Texture2D(const TextureSpecification& spec, const std::string& filePath);
-		explicit Texture2D(const TextureSpecification& spec, Buffer imageData);
+		explicit Texture2D(const TextureSpecification& spec, const std::string& filePath, VkCommandBuffer commandBuffer = nullptr);
+		explicit Texture2D(const TextureSpecification& spec, Buffer imageData, VkCommandBuffer commandBuffer = nullptr);
 		~Texture2D();
 
 		// NOTE: If CreateNull is used then an Invalidate call should follow to get a valid image
 		[[nodiscard]] static Ref<Texture2D> CreateNull(const TextureSpecification& spec);
-		[[nodiscard]] static Ref<Texture2D> Create(const TextureSpecification& spec, const std::filesystem::path& filePath);
-		[[nodiscard]] static Ref<Texture2D> Create(const TextureSpecification& spec, const std::string& filePath);
-		[[nodiscard]] static Ref<Texture2D> Create(const TextureSpecification& spec, Buffer imageData = Buffer());
+		[[nodiscard]] static Ref<Texture2D> Create(const TextureSpecification& spec, const std::filesystem::path& filePath, VkCommandBuffer commandBuffer = nullptr);
+		[[nodiscard]] static Ref<Texture2D> Create(const TextureSpecification& spec, const std::string& filePath, VkCommandBuffer commandBuffer = nullptr);
+		[[nodiscard]] static Ref<Texture2D> Create(const TextureSpecification& spec, Buffer imageData = Buffer(), VkCommandBuffer commandBuffer = nullptr);
 
-		void Invalidate();
-		void Resize(uint32_t width, uint32_t height);
-		void GenerateMips();
+		void Invalidate(VkCommandBuffer commandBuffer = nullptr);
+		void Resize(uint32_t width, uint32_t height, VkCommandBuffer commandBuffer = nullptr);
+		void GenerateMips(VkCommandBuffer commandBuffer = nullptr);
 		void Release();
 
 		uint64_t GetHash() const { return reinterpret_cast<uint64_t>(m_ImageView); }
 
-		void CopyToHostBuffer(Buffer& buffer, bool writeMips = false) const;
+		void CopyToHostBuffer(Buffer& buffer, bool writeMips = false, VkCommandBuffer commandBuffer = nullptr) const;
 
 		const std::string& GetAssetPath() const noexcept { return m_AssetPath; }
 		ImageFormat GetFormat() const noexcept { return m_Specification.Format; }
@@ -141,6 +147,7 @@ namespace Iris {
 		const TextureSpecification& GetTextureSpecification() const { return m_Specification; }
 
 		uint32_t GetMipLevelCount() const;
+		uint32_t GetNumLayers() const { return m_Specification.Layers; }
 		glm::ivec2 GetMipSize(uint32_t mip) const;
 
 		static AssetType GetStaticType() { return AssetType::Texture; }
@@ -166,23 +173,24 @@ namespace Iris {
 	class TextureCube : public Asset
 	{
 	public:
-		explicit TextureCube(const TextureSpecification& spec, Buffer data = Buffer());
+		explicit TextureCube(const TextureSpecification& spec, Buffer data = Buffer(), VkCommandBuffer commandBuffer = nullptr);
 		~TextureCube();
 
-		[[nodiscard]] inline static Ref<TextureCube> Create(const TextureSpecification& spec, Buffer data = Buffer())
+		[[nodiscard]] inline static Ref<TextureCube> Create(const TextureSpecification& spec, Buffer data = Buffer(), VkCommandBuffer commandBuffer = nullptr)
 		{
-			return CreateRef<TextureCube>(spec, data);
+			return CreateRef<TextureCube>(spec, data, commandBuffer);
 		}
 
-		void Invalidate();
-		void GenerateMips(bool readonly = false);
+		void Invalidate(VkCommandBuffer commandBuffer = nullptr);
+		void GenerateMips(bool readonly = false, VkCommandBuffer commandBuffer = nullptr);
 		void Release();
 		Ref<ImageView> CreateImageViewSingleMip(uint32_t mip);
 
 		uint64_t GetHash() const { return reinterpret_cast<uint64_t>(m_ImageView); }
 
-		void CopyToHostBuffer(Buffer& buffer, bool writeMips = false) const;
-		void CopyFromHostBufer(const Buffer& buffer, uint32_t mips);
+		// Always writes mips if any
+		void CopyToHostBuffer(Buffer& buffer, VkCommandBuffer commandBuffer = nullptr) const;
+		void CopyFromHostBufer(const Buffer& buffer, uint32_t mips, VkCommandBuffer commandBuffer = nullptr);
 
 		const std::string& GetAssetPath() const noexcept { return m_AssetPath; }
 		ImageFormat GetFormat() const { return m_Specification.Format; }
@@ -202,6 +210,7 @@ namespace Iris {
 		const TextureSpecification& GetTextureSpecification() const { return m_Specification; }
 
 		uint32_t GetMipLevelCount() const;
+		uint32_t GetNumLayers() const { return m_Specification.Layers; }
 		glm::ivec2 GetMipSize(uint32_t mip) const;
 
 		static AssetType GetStaticType() { return AssetType::EnvironmentMap; }
@@ -288,7 +297,7 @@ namespace Iris {
 			}
 
 			IR_ASSERT(false);
-			return -1;
+			return UINT32_MAX;
 		}
 
 		inline constexpr bool IsIntegerBased(const ImageFormat format)

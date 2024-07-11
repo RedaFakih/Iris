@@ -120,9 +120,9 @@ namespace Iris {
 		static void RenderGeometry(Ref<RenderCommandBuffer> renderCommandBuffer, Ref<Pipeline> pipeline, Ref<Material> material, Ref<VertexBuffer> vertexBuffer, Ref<IndexBuffer> indexBuffer, const glm::mat4& transform, uint32_t indexCount = 0);
 
 		// Compute passes
-		static void BeginComputePass(Ref<RenderCommandBuffer> renderCommandBuffer, Ref<ComputePass> computePass);
-		static void EndComputePass(Ref<RenderCommandBuffer> renderCommandBuffer, Ref<ComputePass> computePass);
-		static void DispatchComputePass(Ref<RenderCommandBuffer> renderCommandBuffer, Ref<ComputePass> computePass, Ref<Material> material, const glm::uvec3& workGroups, Buffer constants = Buffer());
+		static void BeginComputePass(VkCommandBuffer commandBuffer, Ref<ComputePass> computePass);
+		static void EndComputePass(VkCommandBuffer commandBuffer, Ref<ComputePass> computePass);
+		static void DispatchComputePass(VkCommandBuffer commandBuffer, Ref<ComputePass> computePass, Ref<Material> material, const glm::uvec3& workGroups, Buffer constants = Buffer());
 
 		static std::pair<Ref<TextureCube>, Ref<TextureCube>> CreateEnvironmentMap(const std::string& filepath);
 		static Ref<TextureCube> CreatePreethamSky(float turbidity, float azimuth, float inclination, float sunSize);
@@ -170,6 +170,18 @@ namespace Iris {
 			VkImageLayout newImageLayout,
 			VkPipelineStageFlags2 srcStageMask,
 			VkPipelineStageFlags2 dstStageMask,
+			VkImageSubresourceRange subresourceRange
+		);
+
+		static void TransferImageQueueOwnership(
+			bool computeToGraphics,
+			VkImage image,
+			VkImageLayout oldImageLayout,
+			VkImageLayout newImageLayout,
+			VkPipelineStageFlags2 srcSrcStage,
+			VkPipelineStageFlags2 srcDstStage,
+			VkPipelineStageFlags2 dstSrcStage,
+			VkPipelineStageFlags2 dstDstStage,
 			VkImageSubresourceRange subresourceRange
 		);
 

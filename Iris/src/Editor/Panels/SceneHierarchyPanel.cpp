@@ -53,7 +53,7 @@ namespace Iris {
 		if (m_IsWindow)
 		{
 			ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 0.0f, 0.0f });
-			ImGui::Begin("Scene Hierarchy", &isOpen, ImGuiWindowFlags_NoCollapse);
+			ImGui::Begin("Scene Hierarchy", &isOpen, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoScrollbar);
 
 			m_IsWindowHovered = ImGui::IsWindowHovered();
 			m_IsWindowFocused = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
@@ -195,7 +195,7 @@ namespace Iris {
 
 		{
 			UI::ImGuiScopedStyle windowPadding(ImGuiStyleVar_WindowPadding, { 0.0f, 0.0f });
-			ImGui::Begin("Properties", nullptr, ImGuiWindowFlags_NoCollapse);
+			ImGui::Begin("Properties", nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoScrollbar);
 			m_IsHierarchyOrPropertiesFocused = m_IsWindowFocused || ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
 			DrawComponents(SelectionManager::GetSelections(s_ActiveSelectionContext));
 			ImGui::End();
@@ -272,6 +272,8 @@ namespace Iris {
 
 		dispatcher.Dispatch<Events::MouseButtonReleasedEvent>([&](Events::MouseButtonReleasedEvent& event)
 		{
+			(void)event;
+
 			if (ImGui::IsMouseHoveringRect(m_WindowBounds.Min, m_WindowBounds.Max, false) && !ImGui::IsAnyItemHovered())
 			{
 				m_FirstSelectedRow = -1;
@@ -502,7 +504,7 @@ namespace Iris {
 		if (!UI::IsMatchingSearch(name, searchFilter) && !hasChildMatchingSearch)
 			return;
 
-		constexpr float edgeOffset = 4.0f;
+		//constexpr float edgeOffset = 4.0f;
 		constexpr float rowHeight = 21.0f;
 
 		// ImGui Item height tweaks
@@ -616,7 +618,7 @@ namespace Iris {
 		const ImVec2 padding = ((flags & ImGuiTreeNodeFlags_FramePadding)) ? style.FramePadding : ImVec2(style.FramePadding.x, ImMin(window->DC.CurrLineTextBaseOffset, style.FramePadding.y));
 		const float text_offset_x = g.FontSize + padding.x * 2;           // Collapser arrow width + Spacing
 		const float text_offset_y = ImMax(padding.y, window->DC.CurrLineTextBaseOffset);                    // Latch before ItemSize changes it
-		const float text_width = g.FontSize + (label_size.x > 0.0f ? label_size.x + padding.x * 2 : 0.0f);  // Include collapser
+		//const float text_width = g.FontSize + (label_size.x > 0.0f ? label_size.x + padding.x * 2 : 0.0f);  // Include collapser
 		ImVec2 text_pos(window->DC.CursorPos.x + text_offset_x, window->DC.CursorPos.y + text_offset_y);
 		const float arrow_hit_x1 = (text_pos.x - text_offset_x) - style.TouchExtraPadding.x;
 		const float arrow_hit_x2 = (text_pos.x - text_offset_x) + (g.FontSize + padding.x * 2.0f) + style.TouchExtraPadding.x;
@@ -756,8 +758,8 @@ namespace Iris {
 
 			if (!SelectionManager::IsSelected(s_ActiveSelectionContext, entityID))
 			{
-				const char* name = entity.Name().c_str();
-				ImGui::TextUnformatted(name);
+				const char* name2 = entity.Name().c_str();
+				ImGui::TextUnformatted(name2);
 				ImGui::SetDragDropPayload("scene_entity_hierarchy", &entityID, 1 * sizeof(UUID));
 			}
 			else
@@ -765,8 +767,8 @@ namespace Iris {
 				for (const auto& selectedEntity : selectedEntities)
 				{
 					Entity e = m_Context->GetEntityWithUUID(selectedEntity);
-					const char* name = e.Name().c_str();
-					ImGui::TextUnformatted(name);
+					const char* name2 = e.Name().c_str();
+					ImGui::TextUnformatted(name2);
 				}
 
 				ImGui::SetDragDropPayload("scene_entity_hierarchy", selectedEntities.data(), selectedEntities.size() * sizeof(UUID));
@@ -1285,6 +1287,8 @@ namespace Iris {
 					Utils::DrawSimpleAddComponentButton<DirectionalLightComponent>(this, "Directional Light", EditorResources::DirectionalLightIcon);
 					Utils::DrawAddComponentButton<TextComponent>(this, "Text", [](Entity entity, TextComponent& tc)
 					{
+						(void)entity;
+
 						tc.Font = Font::GetDefaultFont()->Handle;
 					}, EditorResources::TextIcon);
 
@@ -1938,7 +1942,7 @@ namespace Iris {
 				ImGui::PopItemFlag();
 
 				ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<UUID, SkyLightComponent>([](const SkyLightComponent& other) { return other.DirectionalLightEntityID; }));
-				if (UI::PropertyEntityReference<DirectionalLightComponent>("Directional Light", skylightComp.DirectionalLightEntityID, m_Context.Raw(), "Drag and drop a directional light entity to link it to the DynamicSky.\nWhich means the direction of DirLight is setwith the azimuth\nand inclination of the DynamicSky"))
+				if (UI::PropertyEntityReference<DirectionalLightComponent>("Directional Light", skylightComp.DirectionalLightEntityID, m_Context.Raw(), "Drag and drop a directional light entity to link it to the DynamicSky.\nWhich means the direction of DirLight is set with the azimuth\nand inclination of the DynamicSky"))
 				{
 					for (UUID entityID : entities)
 					{
@@ -1947,6 +1951,20 @@ namespace Iris {
 					}
 				}
 				ImGui::PopItemFlag();
+
+				if (skylightComp.DirectionalLightEntityID != 0)
+				{
+					ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect&& IsInconsistentPrimitive<bool, SkyLightComponent>([](const SkyLightComponent& other) { return other.LinkDirectionalLightRadiance; }));
+					if (UI::Property("Link Radiance", skylightComp.LinkDirectionalLightRadiance, "When checked, the linked directional light's radiance will now be computed\naccording to the azimuth and inclination of the sun."))
+					{
+						for (UUID entityID : entities)
+						{
+							Entity entity = m_Context->GetEntityWithUUID(entityID);
+							entity.GetComponent<SkyLightComponent>().LinkDirectionalLightRadiance = skylightComp.LinkDirectionalLightRadiance;
+						}
+					}
+					ImGui::PopItemFlag();
+				}
 
 				if (changed)
 				{

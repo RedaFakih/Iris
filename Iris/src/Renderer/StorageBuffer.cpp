@@ -69,7 +69,10 @@ namespace Iris {
 	}
 
 	void StorageBuffer::Resize(uint32_t newSize)
-	{		// Only create the staging buffer and the storage buffer without doing any data uploads since storage buffers most probs dont have preallocated data
+	{	
+		m_Size = newSize;
+
+		// Only create the staging buffer and the storage buffer without doing any data uploads since storage buffers most probs dont have preallocated data
 		Ref<StorageBuffer> instance = this;
 		Renderer::Submit([instance]() mutable
 		{

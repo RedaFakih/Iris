@@ -67,7 +67,7 @@ namespace Iris {
 	{
 		NFD::Quit();
 
-		m_Window->SetEventCallbackFunction([](Events::Event& e) {});
+		m_Window->SetEventCallbackFunction([](Events::Event& e) { (void)e; });
 
 		m_RenderThread.Terminate();
 
@@ -256,6 +256,8 @@ namespace Iris {
 
 	bool Application::OnWindowClose(Events::WindowCloseEvent& e)
 	{
+		(void)e;
+
 		m_Running = false;
 
 		return false;

@@ -16,9 +16,9 @@ namespace Iris {
 
 		virtual void OnAttach() {}
 		virtual void OnDetach() {}
-		virtual void OnUpdate(TimeStep ts) {}
+		virtual void OnUpdate(TimeStep ts) { (void)ts; }
 		virtual void OnImGuiRender() {}
-		virtual void OnEvent(Events::Event& event) {}
+		virtual void OnEvent(Events::Event& event) { (void)event; }
 
 		inline const std::string& GetName() const { return m_DebugName; }
 

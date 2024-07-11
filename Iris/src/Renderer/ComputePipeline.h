@@ -16,8 +16,7 @@ namespace Iris {
 			return CreateRef<ComputePipeline>(shader, debugName);
 		}
 
-		void Begin(Ref<RenderCommandBuffer> renderCommandBuffer = nullptr);
-		//void RT_Begin(Ref<RenderCommandBuffer> renderCommandBuffer = nullptr);
+		void Begin(VkCommandBuffer commandBuffer = nullptr);
 		void RT_Begin(VkCommandBuffer commandBuffer = nullptr);
 		void End();
 

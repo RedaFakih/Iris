@@ -110,7 +110,7 @@ namespace Iris {
 	class Framebuffer : public RefCountedObject
 	{
 	public:
-		Framebuffer(const FramebufferSpecification& spec);
+		Framebuffer(const FramebufferSpecification& specification);
 		~Framebuffer();
 
 		[[nodiscard]] static Ref<Framebuffer> Create(const FramebufferSpecification& spec);

@@ -23,7 +23,7 @@ struct VertexOutput
 };
 
 layout (location = 0) out VertexOutput Output;
-layout (location = 5) out flat float TexIndex;
+layout (location = 2) out flat float TexIndex;
 
 void main()
 {
@@ -47,7 +47,7 @@ struct VertexOutput
 };
 
 layout (location = 0) in VertexOutput Input;
-layout (location = 5) in flat float TexIndex;
+layout (location = 2) in flat float TexIndex;
 
 layout (set = 3, binding = 0) uniform sampler2D u_FontAtlases[32];
 

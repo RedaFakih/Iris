@@ -9,7 +9,7 @@ namespace Iris {
 		: m_PerspectiveMatrix(projection), m_PerspectiveUnReversedMatrix(unReversedProjection)
 	{
 		// Default orthographic matrices
-		SetOrthographicProjectionMatrix(2.0f * 1.778f, 2.0f, 0.01f, 10000.0f);
+		SetOrthographicProjectionMatrix(1.0f, 0.0f, 10000.0f, 1.778f);
 	}
 
 	Camera::Camera(float degFov, float width, float height, float nearClip, float farClip)
@@ -17,7 +17,7 @@ namespace Iris {
 		m_PerspectiveUnReversedMatrix(glm::perspectiveFov(glm::radians(degFov), width, height, nearClip, farClip))
 	{
 		// Default orthographic matrices
-		SetOrthographicProjectionMatrix(2.0f * 1.778f, 2.0f, 0.01f, 10000.0f);
+		SetOrthographicProjectionMatrix(1.0f, 0.0f, 10000.0f, 1.778f);
 	}
 
 	void Camera::SetProjectionMatrix(const glm::mat4& projection, const glm::mat4& unReversedProjection)
@@ -34,10 +34,15 @@ namespace Iris {
 		m_PerspectiveUnReversedMatrix = glm::perspectiveFov(radFov, width, height, nearClip, farClip);
 	}
 
-	void Camera::SetOrthographicProjectionMatrix(float width, float height, float nearClip, float farClip)
+	void Camera::SetOrthographicProjectionMatrix(float size, float nearClip, float farClip, float aspectRatio)
 	{
-		m_OrthographicMatrix = glm::ortho(-width * 0.5f, width * 0.5f, -height * 0.5f, height * 0.5f, farClip, nearClip);
-		m_OrthographicUnReversedMatrix = glm::ortho(-width * 0.5f, width * 0.5f, -height * 0.5f, height * 0.5f, nearClip, farClip);
+		float orthoLeft = -size * 0.5f;
+		float orthoRight = size * 0.5f;
+		float orthoBottom = -size * 0.5f;
+		float orthoTop = size * 0.5f;
+
+		m_OrthographicMatrix = glm::ortho(orthoLeft, orthoRight, orthoBottom, orthoTop, farClip, nearClip);
+		m_OrthographicUnReversedMatrix = glm::ortho(orthoLeft, orthoRight, orthoBottom, orthoTop, nearClip, farClip);
 	}
 
 }

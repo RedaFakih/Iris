@@ -15,7 +15,7 @@ namespace Iris {
 
 	struct TextureSerializer : public AssetSerializer
 	{
-		virtual void Serialize(const AssetMetaData& metaData, const Ref<Asset>& asset) const override {}
+		virtual void Serialize(const AssetMetaData& metaData, const Ref<Asset>& asset) const override { (void)metaData, (void)asset; }
 		virtual bool TryLoadData(const AssetMetaData& metaData, Ref<Asset>& asset) const override;
 	};
 
@@ -31,13 +31,13 @@ namespace Iris {
 
 	struct FontSerializer : public AssetSerializer
 	{
-		virtual void Serialize(const AssetMetaData& metaData, const Ref<Asset>& asset) const override {}
+		virtual void Serialize(const AssetMetaData& metaData, const Ref<Asset>& asset) const override { (void)metaData, (void)asset; }
 		virtual bool TryLoadData(const AssetMetaData& metaData, Ref<Asset>& asset) const override;
 	};
 
 	struct EnvironmentSerializer : public AssetSerializer
 	{
-		virtual void Serialize(const AssetMetaData& metaData, const Ref<Asset>& asset) const override {}
+		virtual void Serialize(const AssetMetaData& metaData, const Ref<Asset>& asset) const override { (void)metaData, (void)asset; }
 		virtual bool TryLoadData(const AssetMetaData& metaData, Ref<Asset>& asset) const override;
 	};
 

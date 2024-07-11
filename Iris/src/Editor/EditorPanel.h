@@ -14,9 +14,9 @@ namespace Iris {
 		virtual ~EditorPanel() = default;
 
 		virtual void OnImGuiRender(bool& isOpen) = 0;
-		virtual void OnEvent(Events::Event& e) {}
-		virtual void SetSceneContext(const Ref<Scene>& context) {}
-		virtual void OnProjectChanged(const Ref<Project>& project) {}
+		virtual void OnEvent(Events::Event& e) { (void)e; }
+		virtual void SetSceneContext(const Ref<Scene>& context) { (void)context; }
+		virtual void OnProjectChanged(const Ref<Project>& project) { (void)project; }
 	};
 
 }

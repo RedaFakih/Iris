@@ -140,10 +140,10 @@ namespace Iris {
 		}
 		else
 		{
-			const std::vector<MeshUtils::SubMesh>& subMeshes = meshSource->GetSubMeshes();
-			m_SubMeshes.resize(subMeshes.size());
+			const std::vector<MeshUtils::SubMesh>& subMeshess = meshSource->GetSubMeshes();
+			m_SubMeshes.resize(subMeshess.size());
 
-			for (uint32_t i = 0; i < subMeshes.size(); i++)
+			for (uint32_t i = 0; i < subMeshess.size(); i++)
 				m_SubMeshes[i] = i;
 		}
 	}

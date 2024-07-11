@@ -51,6 +51,7 @@ Entities:
     Parent: 0
     Children:
       - Handle: 17466798807360167507
+      - Handle: 15742842801110863846
     TransformComponent:
       Position: [0, 0, 0]
       Rotation: [0, 0, 0]
@@ -60,8 +61,9 @@ Entities:
       Intensity: 1
       Lod: 0
       DynamicSky: true
-      TurbidityAzimuthInclinationSunSize: [6.17000008, -1.06465089, 1.57079637, 0.0450000018]
+      TurbidityAzimuthInclinationSunSize: [6.17000008, -1.06465089, 1.51843643, 0.0450000018]
       DirectionalLightEntityID: 17466798807360167507
+      LinkDirectionalLightRadiance: true
   - Entity: 3336264825032574400
     TagComponent:
       Tag: Text
@@ -188,7 +190,7 @@ Entities:
     TransformComponent:
       Position: [0, -0.0792695284, 0]
       Rotation: [0, 0, 0]
-      Scale: [324, 324, 324]
+      Scale: [399.200409, 399.200409, 399.200409]
     StaticMeshComponent:
       AssetID: 2732277024539045285
       MaterialTable:
@@ -209,6 +211,19 @@ Entities:
       MaterialTable:
         0: 0
       Visible: true
+  - Entity: 15742842801110863846
+    TagComponent:
+      Tag: Directional Light 2
+    Parent: 1368807949253593945
+    Children:
+      []
+    TransformComponent:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [1, 1, 1]
+    DirectionalLightComponent:
+      Radiance: [1, 1, 1]
+      Intensity: 1
   - Entity: 17466798807360167507
     TagComponent:
       Tag: Directional Light
@@ -220,5 +235,5 @@ Entities:
       Rotation: [0.774876654, -0.0926769525, -2.89656448]
       Scale: [1.00000024, 1.00000024, 0.999999881]
     DirectionalLightComponent:
-      Radiance: [1, 0.678719997, 0.00403225422]
+      Radiance: [1, 0.526167989, 0.0471023768]
       Intensity: 0.300000012

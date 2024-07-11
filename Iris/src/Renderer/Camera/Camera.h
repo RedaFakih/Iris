@@ -14,7 +14,7 @@ namespace Iris {
 
 		void SetProjectionMatrix(const glm::mat4& projection, const glm::mat4& unReversedProjection);
 		void SetPerspectiveProjectionMatrix(float degFov, float width, float height, float nearClip, float farClip);
-		void SetOrthographicProjectionMatrix(float width, float height, float nearClip, float farClip);
+		void SetOrthographicProjectionMatrix(float size, float nearClip, float farClip, float aspectRatio);
 
 		const glm::mat4& GetProjectionMatrix() const { return IsPerspectiveProjection() ? m_PerspectiveMatrix : m_OrthographicMatrix; }
 		const glm::mat4& GetUnReversedProjectionMatrix() const { return IsPerspectiveProjection() ? m_PerspectiveUnReversedMatrix : m_OrthographicUnReversedMatrix; }

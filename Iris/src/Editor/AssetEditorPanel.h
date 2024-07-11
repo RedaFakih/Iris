@@ -18,10 +18,10 @@ namespace Iris {
 	public:
 		virtual ~AssetEditor() = default;
 
-		virtual void OnUpdate(TimeStep ts) {}
-		virtual void OnEvent(Events::Event& e) {}
+		virtual void OnUpdate(TimeStep ts) { (void)ts; }
+		virtual void OnEvent(Events::Event& e) { (void)e; }
 		virtual void OnImGuiRender();
-		virtual void SetSceneContext(const Ref<Scene>& scene) {}
+		virtual void SetSceneContext(const Ref<Scene>& scene) { (void)scene; }
 		virtual void SetAsset(const Ref<Asset>& asset) = 0;
 
 		void SetOpen(bool isOpen);

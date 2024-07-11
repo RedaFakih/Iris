@@ -70,28 +70,29 @@ namespace Iris {
         return CreateRef<Texture2D>(spec);
     }
 
-    Ref<Texture2D> Texture2D::Create(const TextureSpecification& spec, const std::filesystem::path& filePath)
-    {
-        return Texture2D::Create(spec, filePath.string());
+    Ref<Texture2D> Texture2D::Create(const TextureSpecification& spec, const std::filesystem::path& filePath, VkCommandBuffer commandBuffer)
+    {   
+        return Texture2D::Create(spec, filePath.string(), commandBuffer);
     }
 
-    Ref<Texture2D> Texture2D::Create(const TextureSpecification& spec, const std::string& filePath)
+    Ref<Texture2D> Texture2D::Create(const TextureSpecification& spec, const std::string& filePath, VkCommandBuffer commandBuffer)
     {
-        return CreateRef<Texture2D>(spec, filePath);
+        return CreateRef<Texture2D>(spec, filePath, commandBuffer);
     }
 
-    Ref<Texture2D> Texture2D::Create(const TextureSpecification& spec, Buffer imageData)
+    Ref<Texture2D> Texture2D::Create(const TextureSpecification& spec, Buffer imageData, VkCommandBuffer commandBuffer)
     {
-        return CreateRef<Texture2D>(spec, imageData);
+        return CreateRef<Texture2D>(spec, imageData, commandBuffer);
     }
 
     Texture2D::Texture2D(const TextureSpecification& spec)
         : m_Specification(spec)
     {
         IR_VERIFY(m_Specification.Width > 0 && m_Specification.Height > 0);
+        m_Specification.GenerateMips = m_Specification.Usage == ImageUsage::Attachment ? false : m_Specification.GenerateMips;
     }
 
-    Texture2D::Texture2D(const TextureSpecification& spec, const std::string& filePath)
+    Texture2D::Texture2D(const TextureSpecification& spec, const std::string& filePath, VkCommandBuffer commandBuffer)
         : m_Specification(spec), m_AssetPath(filePath)
     {
         Utils::ValidateSpecification(m_Specification);
@@ -103,15 +104,16 @@ namespace Iris {
             m_ImageData = Utils::TextureImporter::LoadImageFromFile("assets/textures/cap.jpg", m_Specification.Format, m_Specification.Width, m_Specification.Height);
         }
 
-        m_Specification.GenerateMips = m_Specification.Usage == ImageUsage::Attachment ? false : true;
+        // If the image is an attachment then we do not want any mips
+        m_Specification.GenerateMips = m_Specification.Usage == ImageUsage::Attachment ? false : m_Specification.GenerateMips;
         m_Specification.Mips = m_Specification.GenerateMips ? GetMipLevelCount() : 1;
 
         IR_VERIFY(m_Specification.Format != ImageFormat::None);
 
-        Invalidate();
+        Invalidate(commandBuffer);
     }
 
-    Texture2D::Texture2D(const TextureSpecification& spec, Buffer imageData)
+    Texture2D::Texture2D(const TextureSpecification& spec, Buffer imageData, VkCommandBuffer commandBuffer)
         : m_Specification(spec), m_AssetPath("")
     {
         // Load image from memory
@@ -147,7 +149,7 @@ namespace Iris {
 
         IR_VERIFY(m_Specification.Format != ImageFormat::None);
 
-        Invalidate();
+        Invalidate(commandBuffer);
     }
 
     Texture2D::~Texture2D()
@@ -155,7 +157,7 @@ namespace Iris {
         Release();
     }
 
-    void Texture2D::Invalidate()
+    void Texture2D::Invalidate(VkCommandBuffer commandBuffer)
     {
         IR_ASSERT(m_Specification.Width > 0 && m_Specification.Height > 0);
 
@@ -255,7 +257,12 @@ namespace Iris {
              * }
              */
 
-            VkCommandBuffer commandBuffer = logicalDevice->GetCommandBuffer(true);
+            bool manualCommandBuffer = false;
+            if (!commandBuffer)
+            {
+                commandBuffer = logicalDevice->GetCommandBuffer(true);
+                manualCommandBuffer = true;
+            }
 
             // https://themaister.net/blog/2019/08/14/yet-another-blog-explaining-vulkan-synchronization/ (ImageMemoryBarriers)
             // https://gpuopen.com/learn/vulkan-barriers-explained/ (TOP_OF_PIPE and BOTTOM_OF_PIPE)
@@ -329,12 +336,17 @@ namespace Iris {
                     VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                     finalImageLayout,
                     VK_PIPELINE_STAGE_2_TRANSFER_BIT, // Wait for transfer opration to finish
-                    VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, // Unblock all fragment shader operations after this transfer is done
+                    manualCommandBuffer ? VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT : VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, // Unblock all fragment shader operations after this transfer is done
                     { .aspectMask = aspectMask, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = 1 }
                 );
             }
 
-            logicalDevice->FlushCommandBuffer(commandBuffer);
+            if (manualCommandBuffer)
+            {
+                logicalDevice->FlushCommandBuffer(commandBuffer);
+                commandBuffer = nullptr;
+            }
+
             allocator.DestroyBuffer(stagingBufferAlloc, stagingBuffer);
         }
         // else
@@ -410,29 +422,33 @@ namespace Iris {
         };
 
         if (m_Specification.GenerateMips && mipCount > 1)
-            GenerateMips();
+            GenerateMips(commandBuffer);
     }
 
-    void Texture2D::Resize(uint32_t width, uint32_t height)
+    void Texture2D::Resize(uint32_t width, uint32_t height, VkCommandBuffer commandBuffer)
     {
         m_Specification.Width = width;
         m_Specification.Height = height;
 
         Ref<Texture2D> instance = this;
-        Renderer::Submit([instance]() mutable
+        Renderer::Submit([instance, commandBuffer]() mutable
         {
-            instance->Invalidate();
+            instance->Invalidate(commandBuffer);
         });
     }
 
-    void Texture2D::GenerateMips()
+    void Texture2D::GenerateMips(VkCommandBuffer commandBuffer)
     {
         Ref<VulkanDevice> logicalDevice = RendererContext::GetCurrentDevice();
-        VkDevice device = RendererContext::GetCurrentDevice()->GetVulkanDevice();
 
         const uint32_t mipCount = GetMipLevelCount();
 
-        VkCommandBuffer commandBuffer = logicalDevice->GetCommandBuffer(true);
+        bool manualCommandBuffer = false;
+        if (!commandBuffer)
+        {
+            commandBuffer = logicalDevice->GetCommandBuffer(true);
+            manualCommandBuffer = true;
+        }
 
         for (uint32_t i = 1; i < mipCount; i++) // Loop starts at 1 since mip 0 is the original image
         {
@@ -450,7 +466,7 @@ namespace Iris {
                 VK_ACCESS_2_TRANSFER_WRITE_BIT, // Before the blit we will write and after the blit we will read
                 VK_IMAGE_LAYOUT_UNDEFINED, // Here it is UNDEFINED since when we copy the 
                 VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+                manualCommandBuffer ? VK_PIPELINE_STAGE_2_TRANSFER_BIT : VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
                 VK_PIPELINE_STAGE_2_TRANSFER_BIT,
                 mipSubResourceRange
             );
@@ -506,11 +522,15 @@ namespace Iris {
             VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
             VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
             VK_PIPELINE_STAGE_2_TRANSFER_BIT,
-            VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,
+            manualCommandBuffer ? VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT : VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
             { .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .levelCount = mipCount, .layerCount = 1 }
         );
 
-        logicalDevice->FlushCommandBuffer(commandBuffer);
+        if (manualCommandBuffer)
+        {
+            logicalDevice->FlushCommandBuffer(commandBuffer);
+            commandBuffer = nullptr;
+        }
     }
 
     void Texture2D::Release()
@@ -538,11 +558,10 @@ namespace Iris {
         m_DescriptorInfo = {};
     }
 
-    void Texture2D::CopyToHostBuffer(Buffer& buffer, bool writeMips) const
+    void Texture2D::CopyToHostBuffer(Buffer& buffer, bool writeMips, VkCommandBuffer commandBuffer) const
     {
         // Transition image layout to transfer src then copy to host buffer and transition back to original layout
         Ref<VulkanDevice> logicalDevice = RendererContext::GetCurrentDevice();
-        VkDevice device = RendererContext::GetCurrentDevice()->GetVulkanDevice();
         VulkanAllocator allocator("Texture2D");
 
         uint32_t mipCount = writeMips && m_Specification.GenerateMips ? GetMipLevelCount() : 1;
@@ -571,7 +590,12 @@ namespace Iris {
         };
         VmaAllocation stagingBufferAllocation = allocator.AllocateBuffer(&stagingBufferCI, VMA_MEMORY_USAGE_CPU_TO_GPU, &stagingBuffer);
 
-        VkCommandBuffer commandBuffer = logicalDevice->GetCommandBuffer(true);
+        bool manualCommandBuffer = false;
+        if (!commandBuffer)
+        {
+            commandBuffer = logicalDevice->GetCommandBuffer(true);
+            manualCommandBuffer = true;
+        }
 
         VkImageAspectFlags aspectMask = Utils::IsDepthFormat(m_Specification.Format) ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
         if (m_Specification.Format == ImageFormat::DEPTH32FSTENCIL8UINT || m_Specification.Format == ImageFormat::DEPTH24STENCIL8)
@@ -656,7 +680,11 @@ namespace Iris {
             }
         );
 
-        logicalDevice->FlushCommandBuffer(commandBuffer);
+        if (manualCommandBuffer)
+        {
+            logicalDevice->FlushCommandBuffer(commandBuffer);
+            commandBuffer = nullptr;
+        }
 
         // Copy to destination host buffer
         uint8_t* srcData = allocator.MapMemory<uint8_t>(stagingBufferAllocation);
@@ -669,7 +697,7 @@ namespace Iris {
 
     uint32_t Texture2D::GetMipLevelCount() const
     {
-        return Utils::CalculateMipCount(m_Specification.Width, m_Specification.Height);
+        return m_Specification.GenerateMips ? Utils::CalculateMipCount(m_Specification.Width, m_Specification.Height) : 1;
     }
 
     glm::ivec2 Texture2D::GetMipSize(uint32_t mip) const
@@ -691,7 +719,7 @@ namespace Iris {
     /// TextureCube
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    TextureCube::TextureCube(const TextureSpecification& spec, Buffer data)
+    TextureCube::TextureCube(const TextureSpecification& spec, Buffer data, VkCommandBuffer commandBuffer)
         : m_Specification(spec)
     {
         if (data)
@@ -702,7 +730,7 @@ namespace Iris {
 
         m_Specification.Layers = 6; // Set it for debugging purposes
 
-        Invalidate();
+        Invalidate(commandBuffer);
     }
 
     TextureCube::~TextureCube()
@@ -710,7 +738,7 @@ namespace Iris {
         Release();
     }
 
-    void TextureCube::Invalidate()
+    void TextureCube::Invalidate(VkCommandBuffer commandBuffer)
     {
         // Try to release all the resources before starting to create resources
         Release();
@@ -744,7 +772,12 @@ namespace Iris {
         m_MemoryAllocation = allocator.AllocateImage(&imageCI, memUsage, &m_Image, &gpuAllocationSize);
         VKUtils::SetDebugUtilsObjectName(device, VK_OBJECT_TYPE_IMAGE, m_Specification.DebugName, m_Image);
 
-        VkCommandBuffer commandBuffer = logicalDevice->GetCommandBuffer(true);
+        bool manualCommandBuffer = false;
+        if (!commandBuffer)
+        {
+            commandBuffer = logicalDevice->GetCommandBuffer(true);
+            manualCommandBuffer = true;
+        }
 
         // Copy data if present
         if (m_ImageData)
@@ -802,7 +835,7 @@ namespace Iris {
                 VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                 VK_IMAGE_LAYOUT_GENERAL,
                 VK_PIPELINE_STAGE_2_TRANSFER_BIT, // Wait for nothing
-                VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, // Unblock transfer operations after this transition is done
+                manualCommandBuffer ? VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT : VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, // Unblock transfer operations after this transition is done
                 { .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = 6 }
             );
 
@@ -817,16 +850,20 @@ namespace Iris {
             Renderer::InsertImageMemoryBarrier(
                 commandBuffer,
                 m_Image,
-                0,
-                0,
+                VK_ACCESS_2_NONE,
+                manualCommandBuffer ? 0 : VK_ACCESS_2_SHADER_WRITE_BIT,
                 VK_IMAGE_LAYOUT_UNDEFINED,
                 VK_IMAGE_LAYOUT_GENERAL,
                 VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, // Wait for nothing
-                VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT, // Unblock transfer operations after this transition is done
+                manualCommandBuffer ? VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT : VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, // Unblock transfer operations after this transition is done
                 { .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .baseMipLevel = 0, .levelCount = mipCount, .baseArrayLayer = 0, .layerCount = 6 }
             );
 
-            logicalDevice->FlushCommandBuffer(commandBuffer);
+            if (manualCommandBuffer)
+            {
+                logicalDevice->FlushCommandBuffer(commandBuffer);
+                commandBuffer = nullptr;
+            }
         }
 
         VkImageViewCreateInfo imageView = {
@@ -870,22 +907,26 @@ namespace Iris {
         m_ImageData.Release();
     }
 
-    void TextureCube::GenerateMips(bool readonly)
+    void TextureCube::GenerateMips(bool readonly, VkCommandBuffer commandBuffer)
     {
         Ref<VulkanDevice> logicalDevice = RendererContext::GetCurrentDevice();
-        VkDevice device = RendererContext::GetCurrentDevice()->GetVulkanDevice();
 
-        VkCommandBuffer commandBuffer = logicalDevice->GetCommandBuffer(true);
+        bool manualCommandBuffer = false;
+        if (!commandBuffer)
+        {
+            commandBuffer = logicalDevice->GetCommandBuffer(true);
+            manualCommandBuffer = true;
+        }
 
         // Transition first mip to TRANSFER_SRC so that we can blit from it to the next mip in the chain
         Renderer::InsertImageMemoryBarrier(
             commandBuffer,
             m_Image,
-            0,
+            manualCommandBuffer ? 0 : VK_ACCESS_2_SHADER_WRITE_BIT,
             VK_ACCESS_2_TRANSFER_READ_BIT,
             VK_IMAGE_LAYOUT_GENERAL,
             VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-            VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+            manualCommandBuffer ? VK_PIPELINE_STAGE_2_TRANSFER_BIT : VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
             VK_PIPELINE_STAGE_2_TRANSFER_BIT,
             { .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = 6 }
         );
@@ -919,11 +960,11 @@ namespace Iris {
             Renderer::InsertImageMemoryBarrier(
                 commandBuffer,
                 m_Image,
-                0,
+                manualCommandBuffer ? 0 : VK_ACCESS_2_SHADER_WRITE_BIT,
                 VK_ACCESS_2_TRANSFER_WRITE_BIT,
                 VK_IMAGE_LAYOUT_GENERAL,
                 VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+                manualCommandBuffer ? VK_PIPELINE_STAGE_2_TRANSFER_BIT : VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
                 VK_PIPELINE_STAGE_2_TRANSFER_BIT,
                 { .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .baseMipLevel = i, .levelCount = 1, .baseArrayLayer = 0, .layerCount = 6 }
             );
@@ -961,11 +1002,15 @@ namespace Iris {
             VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
             readonly ? VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL : VK_IMAGE_LAYOUT_GENERAL,
             VK_PIPELINE_STAGE_2_TRANSFER_BIT,
-            VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,
+            manualCommandBuffer ? VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT : VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
             { .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .baseMipLevel = 0, .levelCount = mipCount, .baseArrayLayer = 0, .layerCount = 6 }
         );
 
-        logicalDevice->FlushCommandBuffer(commandBuffer);
+        if (manualCommandBuffer)
+        {
+            logicalDevice->FlushCommandBuffer(commandBuffer);
+            commandBuffer = nullptr;
+        }
 
         m_MipsGenerated = true;
         m_DescriptorInfo.imageLayout = readonly ? VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL : VK_IMAGE_LAYOUT_GENERAL;
@@ -1007,14 +1052,200 @@ namespace Iris {
         return result;
     }
 
-    void TextureCube::CopyToHostBuffer(Buffer& buffer, bool writeMips) const
+    void TextureCube::CopyToHostBuffer(Buffer& buffer, VkCommandBuffer commandBuffer) const
     {
-        IR_VERIFY(false, "Not Implemented");
+        Ref<VulkanDevice> logicalDevice = RendererContext::GetCurrentDevice();
+
+        VulkanAllocator allocator("TextureCube");
+
+        uint32_t mipCount = GetMipLevelCount();
+
+        constexpr uint32_t faces = 6;
+        constexpr uint32_t bpp = sizeof(float) * 4;
+        uint64_t bufferSize = 0;
+        uint32_t width = m_Specification.Width, height = m_Specification.Height;
+
+        for (uint32_t i = 0; i < mipCount; i++)
+        {
+            bufferSize += width * height * bpp * faces;
+            width /= 2;
+            height /= 2;
+        }
+
+        // Staging buffer
+        VkBuffer stagingBuffer;
+        VkBufferCreateInfo stagingBufferCI = {
+            .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+            .pNext = nullptr,
+            .flags = 0,
+            .size = bufferSize,
+            .usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+            .sharingMode = VK_SHARING_MODE_EXCLUSIVE
+        };
+        VmaAllocation stagingBufferAllocation = allocator.AllocateBuffer(&stagingBufferCI, VMA_MEMORY_USAGE_GPU_TO_CPU, &stagingBuffer);
+
+        uint32_t mipWidth = m_Specification.Width, mipHeight = m_Specification.Height;
+
+        bool manualCommandBuffer = false;
+        if (!commandBuffer)
+        {
+            commandBuffer = logicalDevice->GetCommandBuffer(true);
+            manualCommandBuffer = true;
+        }
+
+        Renderer::InsertImageMemoryBarrier(
+            commandBuffer,
+            m_Image,
+            0,
+            VK_ACCESS_2_TRANSFER_READ_BIT,
+            m_DescriptorInfo.imageLayout,
+            VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+            VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT, // Wait for all stages before barrier since we might be writing from different types of shaders
+            VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+            { .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .baseMipLevel = 0, .levelCount = mipCount, .baseArrayLayer = 0, .layerCount = faces }
+        );
+
+        uint64_t mipDataOffset = 0;
+        for (uint32_t mip = 0; mip < mipCount; mip++)
+        {
+            VkBufferImageCopy bufferCopyRegion = {
+                .bufferOffset = mipDataOffset,
+                .imageSubresource = {
+                    .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                    .mipLevel = mip,
+                    .baseArrayLayer = 0,
+                    .layerCount = faces
+                },
+                .imageExtent = {
+                    .width = mipWidth,
+                    .height = mipHeight,
+                    .depth = 1
+                }
+            };
+
+            vkCmdCopyImageToBuffer(commandBuffer, m_Image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, stagingBuffer, 1, &bufferCopyRegion);
+
+            mipDataOffset += mipWidth * mipHeight * bpp * faces;
+            mipWidth /= 2;
+            mipHeight /= 2;
+        }
+
+        Renderer::InsertImageMemoryBarrier(
+            commandBuffer,
+            m_Image,
+            VK_ACCESS_2_TRANSFER_READ_BIT,
+            0,
+            VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+            m_DescriptorInfo.imageLayout,
+            VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+            VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, // Let all subsequent stages wait
+            { .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .baseMipLevel = 0, .levelCount = mipCount, .baseArrayLayer = 0, .layerCount = faces }
+        );
+
+        if (manualCommandBuffer)
+        {
+            logicalDevice->FlushCommandBuffer(commandBuffer);
+            commandBuffer = nullptr;
+        }
+
+        uint8_t* srcData = allocator.MapMemory<uint8_t>(stagingBufferAllocation);
+        buffer.Allocate(bufferSize);
+        std::memcpy(buffer.Data, reinterpret_cast<const void*>(srcData), bufferSize);
+        allocator.UnmapMemory(stagingBufferAllocation);
+
+        allocator.DestroyBuffer(stagingBufferAllocation, stagingBuffer);
     }
 
-    void TextureCube::CopyFromHostBufer(const Buffer& buffer, uint32_t mips)
+    void TextureCube::CopyFromHostBufer(const Buffer& buffer, uint32_t mips, VkCommandBuffer commandBuffer)
     {
-        IR_VERIFY(false, "Not Implemented");
+        Ref<VulkanDevice> logicalDevice = RendererContext::GetCurrentDevice();
+
+        VulkanAllocator allocator("TextureCube");
+
+        constexpr uint32_t faces = 6;
+        constexpr uint32_t bpp = sizeof(float) * 4;
+
+        // Staging buffer
+        VkBuffer stagingBuffer;
+        VkBufferCreateInfo stagingBufferCI = {
+            .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+            .pNext = nullptr,
+            .flags = 0,
+            .size = buffer.Size,
+            .usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+            .sharingMode = VK_SHARING_MODE_EXCLUSIVE
+        };
+        VmaAllocation stagingBufferAllocation = allocator.AllocateBuffer(&stagingBufferCI, VMA_MEMORY_USAGE_CPU_TO_GPU, &stagingBuffer);
+
+        uint8_t* dstData = allocator.MapMemory<uint8_t>(stagingBufferAllocation);
+        std::memcpy(reinterpret_cast<void*>(dstData), buffer.Data, buffer.Size);
+        allocator.UnmapMemory(stagingBufferAllocation);
+
+        uint32_t mipWidth = m_Specification.Width, mipHeight = m_Specification.Height;
+
+        bool manualCommandBuffer = false;
+        if (!commandBuffer)
+        {
+            commandBuffer = logicalDevice->GetCommandBuffer(true);
+            manualCommandBuffer = true;
+        }
+
+        Renderer::InsertImageMemoryBarrier(
+            commandBuffer,
+            m_Image,
+            0,
+            VK_ACCESS_2_TRANSFER_WRITE_BIT,
+            m_DescriptorInfo.imageLayout,
+            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+            VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT, // Wait for all stages before barrier since we might be writing from different types of shaders
+            VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+            { .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .baseMipLevel = 0, .levelCount = mips, .baseArrayLayer = 0, .layerCount = faces }
+        );
+
+        uint64_t mipDataOffset = 0;
+        for (uint32_t mip = 0; mip < mips; mip++)
+        {
+            VkBufferImageCopy bufferCopyRegion = {
+                .bufferOffset = mipDataOffset,
+                .imageSubresource = {
+                    .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                    .mipLevel = mip,
+                    .baseArrayLayer = 0,
+                    .layerCount = faces
+                },
+                .imageExtent = {
+                    .width = mipWidth,
+                    .height = mipHeight,
+                    .depth = 1
+                }
+            };
+
+            vkCmdCopyBufferToImage(commandBuffer, stagingBuffer, m_Image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &bufferCopyRegion);
+
+            mipDataOffset += mipWidth * mipHeight * bpp * faces;
+            mipWidth /= 2;
+            mipHeight /= 2;
+        }
+
+        Renderer::InsertImageMemoryBarrier(
+            commandBuffer,
+            m_Image,
+            VK_ACCESS_2_TRANSFER_WRITE_BIT,
+            0,
+            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+            m_DescriptorInfo.imageLayout,
+            VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+            VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, // Let all subsequent stages wait
+            { .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .baseMipLevel = 0, .levelCount = mips, .baseArrayLayer = 0, .layerCount = faces }
+        );
+
+        if (manualCommandBuffer)
+        {
+            logicalDevice->FlushCommandBuffer(commandBuffer);
+            commandBuffer = nullptr;
+        }
+
+        allocator.DestroyBuffer(stagingBufferAllocation, stagingBuffer);
     }
     
     uint32_t TextureCube::GetMipLevelCount() const

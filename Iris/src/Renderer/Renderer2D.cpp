@@ -114,8 +114,8 @@ namespace Iris {
 
 		m_QuadVertexPositions[0] = { -0.5f, -0.5f, 0.0f, 1.0f };
 		m_QuadVertexPositions[1] = { -0.5f,  0.5f, 0.0f, 1.0f };
-		m_QuadVertexPositions[2] = { 0.5f,  0.5f, 0.0f, 1.0f };
-		m_QuadVertexPositions[3] = { 0.5f, -0.5f, 0.0f, 1.0f };
+		m_QuadVertexPositions[2] = {  0.5f,  0.5f, 0.0f, 1.0f };
+		m_QuadVertexPositions[3] = {  0.5f, -0.5f, 0.0f, 1.0f };
 
 		// Lines
 		{
@@ -312,12 +312,12 @@ namespace Iris {
 				uint32_t indexCount = i == m_QuadBufferWriteIndex ? m_QuadIndexCount - (c_MaxIndices * i) : c_MaxIndices;
 				m_QuadVertexBuffers[i][frameIndex]->SetData(m_QuadVertexBufferBases[i][frameIndex], dataSize);
 
-				for (uint32_t i = 0; i < m_TextureSlots.size(); i++)
+				for (uint32_t j = 0; j < m_TextureSlots.size(); j++)
 				{
-					if (m_TextureSlots[i])
-						m_QuadMaterial->Set("u_Textures", m_TextureSlots[i], i);
+					if (m_TextureSlots[j])
+						m_QuadMaterial->Set("u_Textures", m_TextureSlots[j], j);
 					else
-						m_QuadMaterial->Set("u_Textures", m_WhiteTexture, i);
+						m_QuadMaterial->Set("u_Textures", m_WhiteTexture, j);
 				}
 
 				Renderer::BeginRenderPass(m_RenderCommandBuffer, m_QuadPass);
@@ -338,12 +338,12 @@ namespace Iris {
 				uint32_t indexCount = i == m_TextBufferWriteIndex ? m_TextIndexCount - (c_MaxIndices * i) : c_MaxIndices;
 				m_TextVertexBuffers[i][frameIndex]->SetData(m_TextVertexBufferBases[i][frameIndex], dataSize);
 
-				for (uint32_t i = 0; i < m_FontTextureSlots.size(); i++)
+				for (uint32_t j = 0; j < m_FontTextureSlots.size(); j++)
 				{
-					if (m_FontTextureSlots[i])
-						m_TextMaterial->Set("u_FontAtlases", m_FontTextureSlots[i], i);
+					if (m_FontTextureSlots[j])
+						m_TextMaterial->Set("u_FontAtlases", m_FontTextureSlots[j], j);
 					else
-						m_TextMaterial->Set("u_FontAtlases", m_WhiteTexture, i);
+						m_TextMaterial->Set("u_FontAtlases", m_WhiteTexture, j);
 				}
 
 				Renderer::BeginRenderPass(m_RenderCommandBuffer, m_TextPass);
@@ -356,7 +356,6 @@ namespace Iris {
 		}
 
 		// Lines
-		VkCommandBuffer commandBuffer = m_RenderCommandBuffer->GetActiveCommandBuffer();
 		for (uint32_t i = 0; i <= m_LineBufferWriteIndex; i++)
 		{
 			dataSize = static_cast<uint32_t>(reinterpret_cast<uint8_t*>(m_LineVertexBufferPtr[i]) - reinterpret_cast<uint8_t*>(m_LineVertexBufferBases[i][frameIndex]));
@@ -557,9 +556,9 @@ namespace Iris {
 		uint32_t frameIndex = Renderer::GetCurrentFrameIndex();
 
 		constexpr size_t quadVertexCount = 4;
-		const float textureIndex = 0.0f; // White Texture
+		constexpr float textureIndex = 0.0f; // White Texture
 		constexpr glm::vec2 textureCoords[] = { { 0.0f, 0.0f }, { 1.0f, 0.0f }, { 1.0f, 1.0f }, { 0.0f, 1.0f } };
-		const float tilingFactor = 1.0f;
+		constexpr float tilingFactor = 1.0f;
 
 		m_QuadBufferWriteIndex = m_QuadIndexCount / c_MaxIndices;
 		if (m_QuadBufferWriteIndex >= m_QuadVertexBufferBases.size())
@@ -595,14 +594,14 @@ namespace Iris {
 		{
 			if (m_TextureSlots[i]->GetHash() == texture->GetHash())
 			{
-				textureIndex = (float)i;
+				textureIndex = static_cast<float>(i);
 				break;
 			}
 		}
 
 		if (textureIndex == 0.0f)
 		{
-			textureIndex = (float)m_TextureSlotIndex;
+			textureIndex = static_cast<float>(m_TextureSlotIndex);
 			m_TextureSlots[m_TextureSlotIndex] = texture;
 			m_TextureSlotIndex++;
 		}
@@ -630,8 +629,8 @@ namespace Iris {
 
 	void Renderer2D::DrawQuad(const glm::vec3& position, const glm::vec2& size, const glm::vec4& color)
 	{
-		const float textureIndex = 0.0f; // White Texture
-		const float tilingFactor = 1.0f;
+		constexpr float textureIndex = 0.0f; // White Texture
+		constexpr float tilingFactor = 1.0f;
 
 		glm::mat4 transform = glm::translate(glm::mat4(1.0f), position)
 			* glm::scale(glm::mat4(1.0f), { size.x, size.y, 1.0f });
@@ -682,14 +681,14 @@ namespace Iris {
 		{
 			if (m_TextureSlots[i]->GetHash() == texture->GetHash())
 			{
-				textureIndex = (float)i;
+				textureIndex = static_cast<float>(i);
 				break;
 			}
 		}
 
 		if (textureIndex == 0.0f)
 		{
-			textureIndex = (float)m_TextureSlotIndex;
+			textureIndex = static_cast<float>(m_TextureSlotIndex);
 			m_TextureSlots[m_TextureSlotIndex] = texture;
 			m_TextureSlotIndex++;
 		}
@@ -735,8 +734,8 @@ namespace Iris {
 
 	void Renderer2D::DrawQuadBillboard(const glm::vec3& position, const glm::vec2& size, const glm::vec4& color)
 	{
-		const float textureIndex = 0.0f; // White Texture
-		const float tilingFactor = 1.0f;
+		constexpr float textureIndex = 0.0f; // White Texture
+		constexpr float tilingFactor = 1.0f;
 
 		glm::vec3 camRightWS = { m_CameraView[0][0], m_CameraView[1][0], m_CameraView[2][0] };
 		glm::vec3 camUpWS = { m_CameraView[0][1], m_CameraView[1][1], m_CameraView[2][1] };
@@ -782,14 +781,14 @@ namespace Iris {
 		{
 			if (m_TextureSlots[i]->GetHash() == texture->GetHash())
 			{
-				textureIndex = (float)i;
+				textureIndex = static_cast<float>(i);
 				break;
 			}
 		}
 
 		if (textureIndex == 0.0f)
 		{
-			textureIndex = (float)m_TextureSlotIndex;
+			textureIndex = static_cast<float>(m_TextureSlotIndex);
 			m_TextureSlots[m_TextureSlotIndex] = texture;
 			m_TextureSlotIndex++;
 		}
@@ -838,8 +837,8 @@ namespace Iris {
 
 	void Renderer2D::DrawRotatedQuad(const glm::vec3& position, const glm::vec2& size, float rotation, const glm::vec4& color)
 	{
-		const float textureIndex = 0.0f; // White Texture
-		const float tilingFactor = 1.0f;
+		constexpr float textureIndex = 0.0f; // White Texture
+		constexpr float tilingFactor = 1.0f;
 
 		glm::mat4 transform = glm::translate(glm::mat4(1.0f), position)
 			* glm::rotate(glm::mat4(1.0f), rotation, { 0.0f, 0.0f, 1.0f })
@@ -891,14 +890,14 @@ namespace Iris {
 		{
 			if (m_TextureSlots[i]->GetHash() == texture->GetHash())
 			{
-				textureIndex = (float)i;
+				textureIndex = static_cast<float>(i);
 				break;
 			}
 		}
 
 		if (textureIndex == 0.0f)
 		{
-			textureIndex = (float)m_TextureSlotIndex;
+			textureIndex = static_cast<float>(m_TextureSlotIndex);
 			m_TextureSlots[m_TextureSlotIndex] = texture;
 			m_TextureSlotIndex++;
 		}
@@ -1055,30 +1054,31 @@ namespace Iris {
 		DrawString(string, Font::GetDefaultFont(), position, maxWidth, color);
 	}
 
-	void Renderer2D::DrawString(const std::string& string, Ref<Font> font, const glm::vec3& position, float maxWidth, const glm::vec4& color)
+	void Renderer2D::DrawString(const std::string& string, const Ref<Font>& font, const glm::vec3& position, float maxWidth, const glm::vec4& color)
 	{
 		DrawString(string, font, glm::translate(glm::mat4(1.0f), position), maxWidth, color);
 	}
 
-	void Renderer2D::DrawString(const std::string& string, Ref<Font> font, const glm::mat4& transform, float maxWidth, const glm::vec4& color, float lineHeightOffset, float kerning)
+	void Renderer2D::DrawString(const std::string& string, const Ref<Font>& font, const glm::mat4& transform, float maxWidth, const glm::vec4& color, float lineHeightOffset, float kerning)
 	{
 		if (string.empty())
 			return;
 
 		Ref<Texture2D> fontAtlas = font->GetFontAtlas();
 		IR_ASSERT(fontAtlas);
-		float textureIndex = -1.0f;
 
+		float textureIndex = 0.0f;
 		for (uint32_t i = 0; i < m_FontTextureSlotIndex; i++)
 		{
-			if (*m_FontTextureSlots[i].Raw() == *fontAtlas.Raw())
+			//if (*m_FontTextureSlots[i].Raw() == *fontAtlas.Raw())
+			if (m_FontTextureSlots[i]->GetHash() == fontAtlas->GetHash())
 			{
 				textureIndex = static_cast<float>(i);
 				break;
 			}
 		}
 
-		if (textureIndex == -1.0f)
+		if (textureIndex == 0.0f)
 		{
 			textureIndex = static_cast<float>(m_FontTextureSlotIndex);
 			m_FontTextureSlots[m_FontTextureSlotIndex] = fontAtlas;

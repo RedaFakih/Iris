@@ -89,6 +89,9 @@ Assets:
   - Handle: 3710849897997395590
     FilePath: Meshes/LowPolySponza/2051777328469649772.jpg
     Type: Texture
+  - Handle: 3772853170585434244
+    FilePath: Fonts/MochiyPopOne-Regular.ttf
+    Type: Font
   - Handle: 3940274146037626887
     FilePath: Meshes/LowPolySponza/13196865903111448057.jpg
     Type: Texture

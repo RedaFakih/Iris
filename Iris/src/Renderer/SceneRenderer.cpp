@@ -419,6 +419,12 @@ namespace Iris {
 
 		// References: <https://bgolus.medium.com/the-quest-for-very-wide-outlines-ba82ed442cd9>
 		// JFA (Outline)
+		/*
+		 * Init pass renders into JumpFloodFB[0]
+		 * Even pass into JumpFloodFB[1]; // Reads from JumpFlood[0] => Transfer image layout of JumpFlood[0] to SHADER_READ_ONLY then back to COLOR_ATTACHMENT_OPTIMAL
+		 * Odd pass into JumpFloodFB[0]; // Reads from JumpFlood[1] => Transfer image layout of JumpFlood[1] to SHADER_READ_ONLY then we could do nothing since it is not used to composite
+		 * Composite Reads from JumpFlood[0];
+		 */
 		{
 			// Jump Flood framebuffers
 			FramebufferSpecification jFFramebuffersSpec = {
@@ -844,22 +850,22 @@ namespace Iris {
 				{ .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = 1 }
 			);
 
-			// Selected geo isolation
-			Renderer::InsertImageMemoryBarrier(
-				cmdBuffer->GetActiveCommandBuffer(),
-				selectedGeo->GetOutput(0)->GetVulkanImage(),
-				0,
-				VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
-				VK_IMAGE_LAYOUT_UNDEFINED,
-				VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-				VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
-				VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
-				{ .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = 1 }
-			);
-
 			// JFA
 			if (spec.JumpFloodPass)
 			{
+				// Selected geo isolation
+				Renderer::InsertImageMemoryBarrier(
+					cmdBuffer->GetActiveCommandBuffer(),
+					selectedGeo->GetOutput(0)->GetVulkanImage(),
+					0,
+					VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
+					VK_IMAGE_LAYOUT_UNDEFINED,
+					VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+					VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
+					VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
+					{ .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = 1 }
+				);
+
 				// Transition jumpflood framebuffers images into writing-to layouts
 				for (int i = 0; i < static_cast<int>(jfaFBs.size()); i++)
 				{
@@ -875,19 +881,6 @@ namespace Iris {
 						{ .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = 1 }
 					);
 				}
-
-				// Also for the Init pass
-				Renderer::InsertImageMemoryBarrier(
-					cmdBuffer->GetActiveCommandBuffer(),
-					selectedGeo->GetOutput(0)->GetVulkanImage(),
-					VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
-					VK_ACCESS_2_SHADER_READ_BIT,
-					VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-					VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-					VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
-					VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,
-					{ .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = 1 }
-				);
 			}
 
 			// Composite color image
@@ -1143,14 +1136,26 @@ namespace Iris {
 
 	void SceneRenderer::JumpFloodPass()
 	{
+		// Init pass
+		Renderer::Submit([cmdBuffer = m_CommandBuffer, selectedGeo = m_SelectedGeometryPass]()
+		{
+			Renderer::InsertImageMemoryBarrier(
+				cmdBuffer->GetActiveCommandBuffer(),
+				selectedGeo->GetOutput(0)->GetVulkanImage(),
+				VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
+				VK_ACCESS_2_SHADER_READ_BIT,
+				VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+				VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+				VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
+				VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,
+				{ .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = 1 }
+			);
+		});
+
 		Renderer::BeginRenderPass(m_CommandBuffer, m_JumpFloodInitPass);
 		Renderer::SubmitFullScreenQuad(m_CommandBuffer, m_JumpFloodInitPass->GetPipeline(), m_JumpFloodInitMaterial);
 		Renderer::EndRenderPass(m_CommandBuffer);
-		
-		constexpr float steps = 2.5;
-		int step = static_cast<int>(glm::round(glm::pow(steps - 1.0f, 2.0f)));
-		int index = 0;
-		
+	
 		Ref<Framebuffer> passFb = m_JumpFloodPass[0]->GetTargetFramebuffer();
 		glm::vec2 texelSize = { 1.0f / static_cast<float>(passFb->GetWidth()), 1.0f / static_cast<float>(passFb->GetHeight()) };
 		
@@ -1158,39 +1163,65 @@ namespace Iris {
 		vertexOverrides.Allocate(sizeof(glm::vec2) + sizeof(int));
 		vertexOverrides.Write(reinterpret_cast<const uint8_t*>(glm::value_ptr(texelSize)), sizeof(glm::vec2));
 		
-		Renderer::Submit([cmdBuff = m_CommandBuffer, jfaFBs = m_JumpFloodFramebuffers]()
+		// Even Pass		
+		Renderer::Submit([cmdBuffer = m_CommandBuffer, jfaFBs = m_JumpFloodFramebuffers]()
 		{
-			// Transition jumpflood framebuffers images to shader read only since they will be sampled in the composite jump flood shader
-			for (int i = 0; i < static_cast<int>(jfaFBs.size()); i++)
-			{
-				Renderer::InsertImageMemoryBarrier(
-					cmdBuff->GetActiveCommandBuffer(),
-					jfaFBs[i]->GetImage(0)->GetVulkanImage(),
-					VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
-					VK_ACCESS_2_SHADER_READ_BIT,
-					VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-					VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-					VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
-					VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,
-					{ .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = 1 }
-				);
-			}
+			Renderer::InsertImageMemoryBarrier(
+				cmdBuffer->GetActiveCommandBuffer(),
+				jfaFBs[0]->GetImage(0)->GetVulkanImage(),
+				VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
+				VK_ACCESS_2_SHADER_READ_BIT,
+				VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+				VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+				VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
+				VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,
+				{ .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = 1 }
+			);
 		});
 
-		int counter = 0;
-		while (step != 0)
+		int step = 1;
+		vertexOverrides.Write(reinterpret_cast<const uint8_t*>(&step), sizeof(int), sizeof(glm::vec2));
+
+		Renderer::BeginRenderPass(m_CommandBuffer, m_JumpFloodPass[0]);
+		Renderer::SubmitFullScreenQuadWithOverrides(m_CommandBuffer, m_JumpFloodPass[0]->GetPipeline(), m_JumpFloodPassMaterial[0], vertexOverrides, Buffer());
+		Renderer::EndRenderPass(m_CommandBuffer);
+
+		Renderer::Submit([cmdBuffer = m_CommandBuffer, jfaFBs = m_JumpFloodFramebuffers]()
 		{
-			counter++;
-			vertexOverrides.Write(reinterpret_cast<const uint8_t*>(&step), sizeof(int), sizeof(glm::vec2));
-		
-			Renderer::BeginRenderPass(m_CommandBuffer, m_JumpFloodPass[index]);
-			Renderer::SubmitFullScreenQuadWithOverrides(m_CommandBuffer, m_JumpFloodPass[index]->GetPipeline(), m_JumpFloodPassMaterial[index], vertexOverrides, Buffer());
-			Renderer::EndRenderPass(m_CommandBuffer);
-		
-			index = (index + 1) % 2;
-			step /= 2;
-		}
-		
+			Renderer::InsertImageMemoryBarrier(
+				cmdBuffer->GetActiveCommandBuffer(),
+				jfaFBs[0]->GetImage(0)->GetVulkanImage(),
+				VK_ACCESS_2_SHADER_READ_BIT,
+				VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
+				VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+				VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+				VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,
+				VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
+				{ .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = 1 }
+			);
+
+			// Odd Pass
+			Renderer::InsertImageMemoryBarrier(
+				cmdBuffer->GetActiveCommandBuffer(),
+				jfaFBs[1]->GetImage(0)->GetVulkanImage(),
+				VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
+				VK_ACCESS_2_SHADER_READ_BIT,
+				VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+				VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+				VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
+				VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,
+				{ .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = 1 }
+			);
+		});
+
+		// Odd Pass
+		step = 1;
+		vertexOverrides.Write(reinterpret_cast<const uint8_t*>(&step), sizeof(int), sizeof(glm::vec2));
+
+		Renderer::BeginRenderPass(m_CommandBuffer, m_JumpFloodPass[1]);
+		Renderer::SubmitFullScreenQuadWithOverrides(m_CommandBuffer, m_JumpFloodPass[1]->GetPipeline(), m_JumpFloodPassMaterial[1], vertexOverrides, Buffer());
+		Renderer::EndRenderPass(m_CommandBuffer);
+
 		vertexOverrides.Release();
 	}
 
@@ -1237,6 +1268,22 @@ namespace Iris {
 		// We usualy do not want to do this in runtime
 		if (m_Specification.JumpFloodPass)
 		{
+			// Prepare image of m_JumpFloodFB[0] for coposite pass since it is the one that we read from
+			Renderer::Submit([cmdBuff = m_CommandBuffer, jfaFBs = m_JumpFloodFramebuffers]()
+			{
+				Renderer::InsertImageMemoryBarrier(
+					cmdBuff->GetActiveCommandBuffer(),
+					jfaFBs[0]->GetImage(0)->GetVulkanImage(),
+					VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
+					VK_ACCESS_2_SHADER_READ_BIT,
+					VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+					VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+					VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
+					VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,
+					{ .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = 1 }
+				);
+			});
+
 			Renderer::BeginRenderPass(m_CommandBuffer, m_JumpFloodCompositePass);
 			Renderer::SubmitFullScreenQuad(m_CommandBuffer, m_JumpFloodCompositePass->GetPipeline(), m_JumpFloodCompositeMaterial);
 			Renderer::EndRenderPass(m_CommandBuffer);

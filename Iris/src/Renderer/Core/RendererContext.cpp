@@ -16,9 +16,9 @@
 namespace Iris {
 
 #ifdef IR_CONFIG_DEBUG
-   static  bool s_Validation = true;
+   static constexpr bool s_Validation = true;
 #else
-    static bool s_Validation = false;
+   static constexpr bool s_Validation = false;
 #endif
 
     namespace Utils {
@@ -74,9 +74,6 @@ namespace Iris {
             void* pUserData)
         {
             (void)pUserData;
-
-            // if (messageSeverity == VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT)
-            //     return VK_FALSE;
 
             std::string labels, objects;
             if (pCallbackData->cmdBufLabelCount)

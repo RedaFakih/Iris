@@ -52,8 +52,8 @@ namespace Iris {
         return CreateRef<Framebuffer>(spec);
     }
 
-    Framebuffer::Framebuffer(const FramebufferSpecification& spec)
-        : m_Specification(spec)
+    Framebuffer::Framebuffer(const FramebufferSpecification& specification)
+        : m_Specification(specification)
     {
         if (m_Specification.Width == 0)
         {
@@ -62,8 +62,8 @@ namespace Iris {
         }
         else
         {
-            m_Width = spec.Width;
-            m_Height = spec.Height;
+            m_Width = specification.Width;
+            m_Height = specification.Height;
         }
 
         // Create image objects...
@@ -100,7 +100,7 @@ namespace Iris {
             ++attachmentIndex;
         }
 
-        IR_ASSERT(spec.Attachments.Attachments.size());
+        IR_ASSERT(specification.Attachments.Attachments.size());
         Resize(m_Width, m_Height, true);
     }
 
@@ -120,8 +120,6 @@ namespace Iris {
 
     void Framebuffer::RT_Invalidate()
     {
-        VkDevice device = RendererContext::GetCurrentDevice()->GetVulkanDevice();
-
         Release();
 
         uint32_t attachmentIndex = 0;

@@ -349,6 +349,7 @@ namespace Iris::UI {
 
 	bool IsItemHovered(float delayInSeconds, ImGuiHoveredFlags flags)
 	{
+		(void)flags;
 		return ImGui::IsItemHovered() && GImGui->HoveredIdTimer > delayInSeconds;
 	}
 
@@ -531,7 +532,7 @@ namespace Iris::UI {
 		ImVec2 contentRegionAvailable = ImGui::GetContentRegionAvail();
 		open = ImGui::TreeNodeEx("##dummy_id", treeNodeFlags);
 
-		float lineHeight = ImGui::GetItemRectMax().y - ImGui::GetItemRectMin().y;
+		//float lineHeight = ImGui::GetItemRectMax().y - ImGui::GetItemRectMin().y;
 		ImGui::SameLine();
 		UI::ShiftCursorY(size.y / 2.0f - 6.5f);
 		UI::Image(icon, size);
@@ -1259,7 +1260,7 @@ namespace Iris::UI {
 		int border_held = -1;
 		ImU32 resize_grip_col[4] = {};
 		const int resize_grip_count = g.IO.ConfigWindowsResizeFromEdges ? 2 : 1; // Allow resize from lower-left if we have the mouse cursor feedback for it.
-		const float resize_grip_draw_size = IM_FLOOR(ImMax(g.FontSize * 1.10f, window->WindowRounding + 1.0f + g.FontSize * 0.2f));
+		//const float resize_grip_draw_size = IM_FLOOR(ImMax(g.FontSize * 1.10f, window->WindowRounding + 1.0f + g.FontSize * 0.2f));
 		window->ResizeBorderHeld = (signed char)border_held;
 
 		//const ImRect& visibility_rect;

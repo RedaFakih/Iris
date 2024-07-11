@@ -7,7 +7,7 @@ namespace Iris {
 
 	struct MeshSourceSerializer : public AssetSerializer
 	{
-		virtual void Serialize(const AssetMetaData& metadata, const Ref<Asset>& asset) const override {}
+		virtual void Serialize(const AssetMetaData& metadata, const Ref<Asset>& asset) const override { (void)metadata, (void)asset; }
 		virtual bool TryLoadData(const AssetMetaData& metadata, Ref<Asset>& asset) const override;
 	};
 

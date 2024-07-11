@@ -13,6 +13,7 @@ namespace Iris {
 	VertexBuffer::VertexBuffer(const void* data, uint32_t size, VertexBufferUsage usage)
 		: m_Size(size)
 	{
+		(void)usage;
 		m_LocalData = Buffer::Copy(reinterpret_cast<const uint8_t*>(data), size);
 
 		Ref<VertexBuffer> instance = this;
@@ -68,6 +69,7 @@ namespace Iris {
 	VertexBuffer::VertexBuffer(uint32_t size, VertexBufferUsage usage)
 		: m_Size(size)
 	{
+		(void)usage;
 		m_LocalData.Allocate(size);
 
 		Ref<VertexBuffer> instance = this;

@@ -100,7 +100,7 @@ namespace Iris {
 
 		uint32_t GetStride() const { return m_Stride; }
 		const std::vector<VertexInputElement>& GetElements() const { return m_Elements; }
-		uint32_t GetElementCount() const { return (uint32_t)m_Elements.size(); }
+		uint32_t GetElementCount() const { return static_cast<uint32_t>(m_Elements.size()); }
 
 		std::vector<VertexInputElement>::iterator begin() { return m_Elements.begin(); }
 		std::vector<VertexInputElement>::iterator end() { return m_Elements.end(); }

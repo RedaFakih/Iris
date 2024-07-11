@@ -279,7 +279,7 @@ namespace Iris {
 			{
 				options.GenerateDebugInfo = false;
 				// NOTE: Shaderc internal error with optimizing compute shaders...
-				//options.Optimize = !m_DisableOptimizations && stage != VK_SHADER_STAGE_COMPUTE_BIT;
+				// options.Optimize = !m_DisableOptimizations && stage != VK_SHADER_STAGE_COMPUTE_BIT;
 				options.Optimize = true;
 			}
 
@@ -431,8 +431,6 @@ namespace Iris {
 		IR_CORE_WARN_TAG("ShaderCompiler", "============================");
 		IR_CORE_WARN_TAG("ShaderCompiler", "  Vulkan Shader Reflection  ");
 		IR_CORE_WARN_TAG("ShaderCompiler", "============================");
-
-		VkDevice device = RendererContext::GetCurrentDevice()->GetVulkanDevice();
 
 		spirv_cross::Compiler compiler(shaderData);
 		spirv_cross::ShaderResources resources = compiler.get_shader_resources();
@@ -594,7 +592,10 @@ namespace Iris {
 			uint32_t binding = compiler.get_decoration(res.id, spv::DecorationBinding);
 			uint32_t descriptorSet = compiler.get_decoration(res.id, spv::DecorationDescriptorSet);
 			spv::Dim dimension = baseType.image.dim;
-			uint32_t arraySize = type.array[0];
+			uint32_t arraySize = 0;
+			if (type.array.size())
+				arraySize = type.array[0]; // NOTE: We only consider the first elements since we do not have arrays or arrays of textures...
+
 			// Array size in case we have an array of samplers (2D batch rendering texture array) (sampler2D arr[32], NOT A sampler2DArray arr)
 			// in case the array size was 0 meaning there is no array we set it to 1 since there is 1 single image attachment instead of an array
 			if (arraySize == 0)
@@ -626,11 +627,13 @@ namespace Iris {
 			uint32_t binding = compiler.get_decoration(res.id, spv::DecorationBinding);
 			uint32_t descriptorSet = compiler.get_decoration(res.id, spv::DecorationDescriptorSet);
 			spv::Dim dimension = baseType.image.dim;
-			uint32_t arraySize = type.array[0];
+
 			// Array size in case we have an array of samplers (2D batch rendering texture array) (sampler2D arr[32], NOT A sampler2DArray arr)
 			// in case the array size was 0 meaning there is no array we set it to 1 since there is 1 single image attachment instead of an array
-			if (arraySize == 0)
-				arraySize = 1;
+			uint32_t arraySize = 1;
+			if (type.array.size())
+				arraySize = type.array[0]; // NOTE: We only consider the first elements since we do not have arrays or arrays of textures...
+
 			if (descriptorSet >= m_ReflectionData.ShaderDescriptorSets.size())
 				m_ReflectionData.ShaderDescriptorSets.resize(descriptorSet + 1);
 

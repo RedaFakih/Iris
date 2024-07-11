@@ -1070,7 +1070,7 @@ static void ShowDemoWindowWidgets()
         for (int i = 0; i < 8; i++)
         {
             ImGui::PushID(i);
-            int frame_padding = -1 + i;                             // -1 == uses default padding (style.FramePadding)
+            //int frame_padding = -1 + i;                             // -1 == uses default padding (style.FramePadding)
             ImVec2 size = ImVec2(32.0f, 32.0f);                     // Size of the image we want to make visible
             ImVec2 uv0 = ImVec2(0.0f, 0.0f);                        // UV coordinates for lower-left
             ImVec2 uv1 = ImVec2(32.0f / my_tex_w, 32.0f / my_tex_h);// UV coordinates for (32,32) in our texture

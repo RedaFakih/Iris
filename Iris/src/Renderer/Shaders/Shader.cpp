@@ -26,6 +26,7 @@ namespace Iris {
 	Shader::Shader(std::string_view path, bool forceCompile, bool disableOptimization)
 		: m_FilePath(path), m_DisableOptimizations(disableOptimization)
 	{
+		(void)forceCompile;
 		{
 			size_t lastSlash = path.find_last_of("/\\");
 			lastSlash = lastSlash == std::string::npos ? 0 : lastSlash + 1;
