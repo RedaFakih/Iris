@@ -18,9 +18,10 @@ namespace Iris {
 		glm::vec3 Direction = { 0.0f, 0.0f, 0.0f };
 		glm::vec3 Radiance = { 1.0f, 1.0f, 1.0f };
 		float Intensity = 1.0f;
-		float ShadowAmount = 1.0f;
+		float ShadowOpacity = 1.0f;
 
-		// TODO: boolean for shadows
+		// C++ Only
+		bool CastShadows = true;
 	};
 
 	// Hold the data related to all lighting in the scene: Directional/Point/Spot Lights...
@@ -59,9 +60,9 @@ namespace Iris {
 
 		std::vector<UUID> GetAllChildren(Entity entity) const;
 
-		Entity CreateEntity(const std::string& name = "");
-		Entity CreateChildEntity(Entity parent, const std::string& name = "");
-		Entity CreateEntityWithUUID(UUID id, const std::string& name = "", bool shouldSort = true);
+		Entity CreateEntity(const std::string& name = "Empty Entity", bool visible = true);
+		Entity CreateChildEntity(Entity parent, const std::string& name = "Empty Entity", bool visible = true);
+		Entity CreateEntityWithUUID(UUID id, const std::string& name = "Empty Entity", bool visible = true, bool shouldSort = true);
 		// TODO: Deffers the destruction of the entity to post update
 		//void SubmitToDestroyEntity(Entity entity);
 		void DestroyEntity(Entity entity, bool excludeChildren = false, bool first = true);

@@ -67,6 +67,8 @@ namespace Iris {
 			shader = material->GetShader();
 		}
 
+		// TODO: Some of the settings should not be shown in case of a transparent materials. So once we have transparency we need to change this...
+
 		bool doubleSided = m_MaterialAsset->IsDoubleSided();
 		if (UI::Property("Double Sided", doubleSided, "Sets whether to show backsides or cull them"))
 		{
@@ -75,6 +77,9 @@ namespace Iris {
 		}
 
 		if (UI::Property("Tiling", m_MaterialAsset->GetTiling(), 0.1f, 0.01f, 100.0f, "Configure the tiling factor of the maps"))
+			needsSerialize = true;
+
+		if (UI::Property("EnvMapRotation", m_MaterialAsset->GetEnvMapRotation(), 0.1f, 0.0f, 360.0f, "Configure the Environment Map Rotation on the object"))
 			needsSerialize = true;
 
 		UI::PropertyStringReadOnly("Shader", shader->GetName().data(), false, "Shader currently used for the material");
@@ -455,6 +460,11 @@ namespace Iris {
 
 		if (needsSerialize)
 			AssetImporter::Serialize(m_MaterialAsset);
+	}
+
+	ImGuiWindowFlags MaterialEditor::GetWindowFlags()
+	{
+		return ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoScrollbar;
 	}
 
 }

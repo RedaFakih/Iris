@@ -122,6 +122,10 @@ namespace Iris {
 		friend class SceneSerializer;
 	};
 
+	struct VisibleComponent
+	{
+	};
+
 	struct CameraComponent
 	{
 		// Type of camera is stored in the camera itself
@@ -147,7 +151,6 @@ namespace Iris {
 		AssetHandle StaticMesh = 0;
 		uint32_t SubMeshIndex = 0;
 		Ref<MaterialTable> MaterialTable = MaterialTable::Create();
-		bool Visible = true;
 	};
 
 	struct TextComponent
@@ -179,7 +182,8 @@ namespace Iris {
 	{
 		glm::vec3 Radiance = { 1.0f, 1.0f, 1.0f };
 		float Intensity = 1.0f;
-		// TODO: Shadow stuff
+		bool CastShadows = true;
+		float ShadowOpacity = 1.0f;
 	};
 
 	template<typename... Components>

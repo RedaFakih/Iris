@@ -101,7 +101,7 @@ namespace Iris {
         m_ImageData = Utils::TextureImporter::LoadImageFromFile(m_AssetPath, m_Specification.Format, m_Specification.Width, m_Specification.Height);
         if (!m_ImageData)
         {
-            m_ImageData = Utils::TextureImporter::LoadImageFromFile("assets/textures/cap.jpg", m_Specification.Format, m_Specification.Width, m_Specification.Height);
+            m_ImageData = Utils::TextureImporter::LoadImageFromFile("Resources/Editor/IrisIcon.png", m_Specification.Format, m_Specification.Width, m_Specification.Height);
         }
 
         // If the image is an attachment then we do not want any mips
@@ -123,7 +123,7 @@ namespace Iris {
             if (!m_ImageData)
             {
                 constexpr uint32_t errorTextureData = 0xff0000ff;
-                m_ImageData = Buffer((uint8_t*)&errorTextureData, sizeof(uint32_t));
+                m_ImageData = Buffer(reinterpret_cast<const uint8_t*>(&errorTextureData), sizeof(uint32_t));
             }
 
             Utils::ValidateSpecification(m_Specification);
@@ -180,7 +180,7 @@ namespace Iris {
         }
         // We set it as a transfer src and dst for textures to generate mips
         // Also for attachments in case we want to blit them or copy to host buffers
-        if (m_Specification.Trasnfer || m_Specification.Usage == ImageUsage::Texture || m_Specification.Usage == ImageUsage::Attachment)
+        if (m_Specification.Transfer || m_Specification.Usage == ImageUsage::Texture || m_Specification.Usage == ImageUsage::Attachment)
         {
             usage |= VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
         }
@@ -191,7 +191,7 @@ namespace Iris {
         // }
 
         VkImageAspectFlags aspectMask = Utils::IsDepthFormat(m_Specification.Format) ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
-        if (m_Specification.Format == ImageFormat::DEPTH32FSTENCIL8UINT || m_Specification.Format == ImageFormat::DEPTH24STENCIL8)
+        if (m_Specification.Format == ImageFormat::Depth32FStencil8UINT || m_Specification.Format == ImageFormat::Depth24UNORMStencil8UINT || m_Specification.Format == ImageFormat::DepthDefault)
             aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
 
         VkImageCreateInfo imageCI = {
@@ -201,7 +201,7 @@ namespace Iris {
             .format = Utils::GetVulkanImageFormat(m_Specification.Format),
             .extent = { .width = m_Specification.Width, .height = m_Specification.Height, .depth = 1u },
             .mipLevels = mipCount,
-            .arrayLayers = 1, // TODO (whether the texture is an array)
+            .arrayLayers = m_Specification.Layers,
             .samples = Utils::GetSamplerCount(m_Specification.Samples),
             .tiling = VK_IMAGE_TILING_OPTIMAL,
             .usage = usage,
@@ -303,14 +303,23 @@ namespace Iris {
             vkCmdCopyBufferToImage(commandBuffer, stagingBuffer, m_Image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
 
             VkImageLayout finalImageLayout;
-            if (m_Specification.Format == ImageFormat::DEPTH24STENCIL8 || m_Specification.Format == ImageFormat::DEPTH32FSTENCIL8UINT)
+            if (m_Specification.Format == ImageFormat::Depth24UNORMStencil8UINT || m_Specification.Format == ImageFormat::Depth32FStencil8UINT || m_Specification.Format == ImageFormat::DepthDefault)
+            {
                 finalImageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
+            }
             else
-                finalImageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+            {
+                if (Utils::IsDepthFormat(m_Specification.Format))
+                    finalImageLayout = VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL;
+                else
+                    finalImageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+            }
 
             // Conditionally transtition if we have mips or not
             if (mipCount > 1)
             {
+                // The user could have the ability to create layered, mipped images
+                // However for framebuffer attachments we wont even have mips so in this barrier we can put the spec layers in the subresource
                 Renderer::InsertImageMemoryBarrier(
                     commandBuffer,
                     m_Image,
@@ -322,12 +331,13 @@ namespace Iris {
                     VK_PIPELINE_STAGE_2_TRANSFER_BIT,
                     // Here we transition only the original image to a transfer src since the generate mips starts from the first mip
                     // All the other mips (which yet do not exist) are still in IMAGE_LAYOUT_UNDEFINED untill now...
-                    { .aspectMask = aspectMask, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = 1 }
+                    { .aspectMask = aspectMask, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = m_Specification.Layers }
                 );
             }
             else
             {
                 // Second Layout Transition
+                // Here we set the `layerCount` to 1 or m_Spec.Layers depending on whether the image is an attachment or not!
                 Renderer::InsertImageMemoryBarrier(
                     commandBuffer, 
                     m_Image, 
@@ -337,7 +347,13 @@ namespace Iris {
                     finalImageLayout,
                     VK_PIPELINE_STAGE_2_TRANSFER_BIT, // Wait for transfer opration to finish
                     manualCommandBuffer ? VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT : VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, // Unblock all fragment shader operations after this transfer is done
-                    { .aspectMask = aspectMask, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = 1 }
+                    { 
+                        .aspectMask = aspectMask,
+                        .baseMipLevel = 0,
+                        .levelCount = 1,
+                        .baseArrayLayer = 0,
+                        .layerCount = m_Specification.Usage == ImageUsage::Attachment ? 1 : m_Specification.Layers
+                    }
                 );
             }
 
@@ -355,11 +371,10 @@ namespace Iris {
         //     // storage iamges which will be separated into their own thing...
         // }
 
-        // VkImageAspectFlags aspectMask = Utils::IsDepthFormat(m_Specification.Format) ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
         VkImageViewCreateInfo imageViewCI = {
             .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
             .image = m_Image,
-            .viewType = VK_IMAGE_VIEW_TYPE_2D,
+            .viewType = m_Specification.Layers > 1 ? VK_IMAGE_VIEW_TYPE_2D_ARRAY : VK_IMAGE_VIEW_TYPE_2D,
             .format = Utils::GetVulkanImageFormat(m_Specification.Format),
             .components = { .r = VK_COMPONENT_SWIZZLE_R, .g = VK_COMPONENT_SWIZZLE_G, .b = VK_COMPONENT_SWIZZLE_B, .a = VK_COMPONENT_SWIZZLE_A },
             .subresourceRange = {
@@ -367,7 +382,7 @@ namespace Iris {
                 .baseMipLevel = 0,
                 .levelCount = mipCount,
                 .baseArrayLayer = 0,
-                .layerCount = 1
+                .layerCount = m_Specification.Layers
             }
         };
 
@@ -377,7 +392,7 @@ namespace Iris {
         // Create sampler for the texture that defines how the image is filtered and applies transformation for the final pixel color before it is
         // ready to be retrieved by the shader
         // Sampler do not reference an image like in old APIs, rather they are their own standalone objects and can be used for multiple types of
-        // images however in playground each texture could own its own sampler
+        // images however in Iris each texture owns its own sampler
         // Attachment images will have samplers which allows the user to sample from them in another pass if they want
         if (m_Specification.CreateSampler)
         {
@@ -410,10 +425,17 @@ namespace Iris {
         
         // Update image descriptor info
         VkImageLayout finalImageLayout;
-        if (m_Specification.Format == ImageFormat::DEPTH24STENCIL8 || m_Specification.Format == ImageFormat::DEPTH32FSTENCIL8UINT)
+        if (m_Specification.Format == ImageFormat::Depth24UNORMStencil8UINT || m_Specification.Format == ImageFormat::Depth32FStencil8UINT || m_Specification.Format == ImageFormat::DepthDefault)
+        {
             finalImageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
+        }
         else
-            finalImageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        {
+            if (Utils::IsDepthFormat(m_Specification.Format))
+                finalImageLayout = VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL;
+            else
+                finalImageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        }
 
         m_DescriptorInfo = VkDescriptorImageInfo{
             .sampler = m_Sampler,
@@ -439,6 +461,8 @@ namespace Iris {
 
     void Texture2D::GenerateMips(VkCommandBuffer commandBuffer)
     {
+        IR_VERIFY(m_Specification.Usage != ImageUsage::Attachment, "CAN NOT GENERATE MIPS FOR A FRAMEBUFFER ATTACHMENT!!");
+
         Ref<VulkanDevice> logicalDevice = RendererContext::GetCurrentDevice();
 
         const uint32_t mipCount = GetMipLevelCount();
@@ -456,7 +480,8 @@ namespace Iris {
                 .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
                 .baseMipLevel = i,
                 .levelCount = 1,
-                .layerCount = 1
+                .baseArrayLayer = 0,
+                .layerCount = m_Specification.Layers
             };
 
             Renderer::InsertImageMemoryBarrier(
@@ -476,7 +501,7 @@ namespace Iris {
                 .srcSubresource = {
                     .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
                     .mipLevel = i - 1,
-                    .layerCount = 1
+                    .layerCount = m_Specification.Layers
                 },
                 // Right shifting is basically division by 2
                 .srcOffsets = { { 0, 0, 0 }, { static_cast<int32_t>(m_Specification.Width >> (i - 1)), static_cast<int32_t>(m_Specification.Height >> (i - 1)), 1 } },
@@ -485,7 +510,7 @@ namespace Iris {
                 .dstSubresource = {
                     .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
                     .mipLevel = i,
-                    .layerCount = 1
+                    .layerCount = m_Specification.Layers
                 },
                 .dstOffsets = { { 0, 0, 0 }, { static_cast<int32_t>(m_Specification.Width >> i), static_cast<int32_t>(m_Specification.Height >> i), 1 } },
             };
@@ -523,7 +548,7 @@ namespace Iris {
             VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
             VK_PIPELINE_STAGE_2_TRANSFER_BIT,
             manualCommandBuffer ? VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT : VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
-            { .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .levelCount = mipCount, .layerCount = 1 }
+            { .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .levelCount = mipCount, .baseArrayLayer = 0, .layerCount = m_Specification.Layers }
         );
 
         if (manualCommandBuffer)
@@ -538,8 +563,6 @@ namespace Iris {
         // Does nothing to m_ImageData since that should have been released by `Invalidate`
         if (m_Image == nullptr)
             return;
-
-        // TODO: Once we have per mip image views and per mip image layers views we need to also destroy those
 
         Renderer::SubmitReseourceFree([image = m_Image, imageView = m_ImageView, sampler = m_Sampler, allocation = m_MemoryAllocation, name = m_Specification.DebugName]()
         {
@@ -556,6 +579,43 @@ namespace Iris {
             m_Sampler = nullptr;
         m_MemoryAllocation = nullptr;
         m_DescriptorInfo = {};
+    }
+
+    Ref<ImageView> Texture2D::CreateImageViewSingleMip(uint32_t mip)
+    {
+        IR_ASSERT(m_Specification.GenerateMips && mip < GetMipLevelCount());
+
+        ImageViewSpecification imageViewSpec = {
+            .DebugName = fmt::format("{}{}{}", m_Specification.DebugName, "imageViewMip", mip),
+            .Image = this,
+            .Mip = static_cast<int>(mip)
+        };
+        
+        return ImageView::Create(imageViewSpec, false);
+    }
+
+    Ref<ImageView> Texture2D::CreateImageViewSingleLayer(uint32_t layer)
+    {
+        IR_ASSERT(layer < m_Specification.Layers);
+
+        ImageViewSpecification imageViewSpec = {
+            .DebugName = fmt::format("{}{}{}", m_Specification.DebugName, "imageViewLayer", layer),
+            .Image = this,
+            .Layer = static_cast<int>(layer)
+        };
+        
+        return ImageView::Create(imageViewSpec, false);
+    }
+
+    std::vector<Ref<ImageView>> Texture2D::CreatePerLayerImageViews()
+    {
+        std::vector<Ref<ImageView>> result;
+        result.reserve(m_Specification.Layers);
+
+        for (uint32_t layer = 0; layer < m_Specification.Layers; layer++)
+            result.push_back(CreateImageViewSingleLayer(layer));
+
+        return result;
     }
 
     void Texture2D::CopyToHostBuffer(Buffer& buffer, bool writeMips, VkCommandBuffer commandBuffer) const
@@ -575,7 +635,7 @@ namespace Iris {
             uint32_t tempHeight = mipHeight / 2;
             for (uint32_t i = 1; i < mipCount; i++)
             {
-                bufferSize += tempWidth * tempHeight * Utils::GetImageFormatBPP(m_Specification.Format);
+                bufferSize += tempWidth * tempHeight * Utils::GetImageFormatBPP(m_Specification.Format) * m_Specification.Layers;
                 tempWidth /= 2;
                 tempHeight /= 2;
             }
@@ -598,7 +658,7 @@ namespace Iris {
         }
 
         VkImageAspectFlags aspectMask = Utils::IsDepthFormat(m_Specification.Format) ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
-        if (m_Specification.Format == ImageFormat::DEPTH32FSTENCIL8UINT || m_Specification.Format == ImageFormat::DEPTH24STENCIL8)
+        if (m_Specification.Format == ImageFormat::Depth32FStencil8UINT || m_Specification.Format == ImageFormat::Depth24UNORMStencil8UINT || m_Specification.Format == ImageFormat::DepthDefault)
             aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
 
         // options to be determined by the Usage in the specification
@@ -616,7 +676,7 @@ namespace Iris {
         {
             srcPipelineStageMask = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT; // Wait for fragment shader to finish execution so the depth texture is written
         }
-        else // if(m_Specification.Usage == ImageUsage::Attachment)
+        else if (m_Specification.Usage == ImageUsage::Attachment)
         {
             srcPipelineStageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT; // Wait for the color attachment to be outputted
         }
@@ -635,7 +695,7 @@ namespace Iris {
                 .baseMipLevel = 0,
                 .levelCount = mipCount,
                 .baseArrayLayer = 0,
-                .layerCount = 1
+                .layerCount = m_Specification.Layers
             }
         );
 
@@ -649,14 +709,14 @@ namespace Iris {
                     .aspectMask = aspectMask,
                     .mipLevel = mip,
                     .baseArrayLayer = 0,
-                    .layerCount = 1
+                    .layerCount = m_Specification.Layers
                 },
                 .imageExtent = { .width = mipWidth, .height = mipHeight, .depth = 1u }
             };
 
             vkCmdCopyImageToBuffer(commandBuffer, m_Image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, stagingBuffer, 1, &copyRegion);
 
-            uint64_t mipDataSize = mipWidth * mipHeight * Utils::GetImageFormatBPP(m_Specification.Format);
+            uint64_t mipDataSize = mipWidth * mipHeight * Utils::GetImageFormatBPP(m_Specification.Format) * m_Specification.Layers;
             mipDataOffset += mipDataSize;
             mipWidth /= 2;
             mipHeight /= 2;
@@ -676,7 +736,7 @@ namespace Iris {
                 .baseMipLevel = 0,
                 .levelCount = mipCount,
                 .baseArrayLayer = 0,
-                .layerCount = 1
+                .layerCount = m_Specification.Layers
             }
         );
 
@@ -695,6 +755,17 @@ namespace Iris {
         allocator.DestroyBuffer(stagingBufferAllocation, stagingBuffer);
     }
 
+    uint32_t Texture2D::GetClosestMipLevel(uint32_t width, uint32_t height) const
+    {
+        if (width > m_Specification.Width / 2 || height > m_Specification.Height / 2)
+            return 0;
+
+        uint32_t a = glm::log2(glm::min(m_Specification.Width, m_Specification.Height));
+        uint32_t b = glm::log2(glm::min(width, height));
+
+        return a - b;
+    }
+
     uint32_t Texture2D::GetMipLevelCount() const
     {
         return m_Specification.GenerateMips ? Utils::CalculateMipCount(m_Specification.Width, m_Specification.Height) : 1;
@@ -705,14 +776,7 @@ namespace Iris {
         uint32_t width = m_Specification.Width;
         uint32_t height = m_Specification.Height;
 
-        while (mip != 0)
-        {
-            width /= 2;
-            height /= 2;
-            --mip;
-        }
-
-        return { width, height };
+        return { width >> mip, height >> mip };
     }
 
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1040,16 +1104,15 @@ namespace Iris {
 
     Ref<ImageView> TextureCube::CreateImageViewSingleMip(uint32_t mip)
     {
-        IR_ASSERT(mip < GetMipLevelCount());
+        IR_ASSERT(m_Specification.GenerateMips && mip < GetMipLevelCount());
 
         ImageViewSpecification imageViewSpec = {
             .DebugName = fmt::format("{}{}{}", m_Specification.DebugName, "imageViewMip", mip),
             .CubeImage = this,
-            .Mip = mip
+            .Mip = static_cast<int>(mip)
         };
-        Ref<ImageView> result = ImageView::Create(imageViewSpec, false);
 
-        return result;
+        return ImageView::Create(imageViewSpec, false);
     }
 
     void TextureCube::CopyToHostBuffer(Buffer& buffer, VkCommandBuffer commandBuffer) const
@@ -1267,12 +1330,23 @@ namespace Iris {
         return { width, height };
     }
 
+    uint32_t TextureCube::GetClosestMipLevel(uint32_t width, uint32_t height) const
+    {
+        if (width > m_Specification.Width / 2 || height > m_Specification.Height / 2)
+            return 0;
+
+        uint32_t a = glm::log2(glm::min(m_Specification.Width, m_Specification.Height));
+        uint32_t b = glm::log2(glm::min(width, height));
+
+        return a - b;
+    }
+
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     /// ImageView
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     ImageView::ImageView(const ImageViewSpecification& spec, bool deferInvalidation)
-        : m_Specificaton(spec)
+        : m_Specification(spec)
     {
         if (deferInvalidation)
             Invalidate();
@@ -1290,8 +1364,8 @@ namespace Iris {
         m_ImageView = nullptr;
         m_DescriptorInfo = {};
 
-        m_Specificaton.Image = nullptr;
-        m_Specificaton.CubeImage = nullptr;
+        m_Specification.Image = nullptr;
+        m_Specification.CubeImage = nullptr;
     }
 
     void ImageView::Invalidate()
@@ -1309,14 +1383,14 @@ namespace Iris {
         VkDevice device = logicalDevice->GetVulkanDevice();
 
         TextureSpecification imageSpec;
-        if (m_Specificaton.Image)
-            imageSpec = m_Specificaton.Image->GetTextureSpecification();
+        if (m_Specification.Image)
+            imageSpec = m_Specification.Image->GetTextureSpecification();
 
-        if (m_Specificaton.CubeImage)
-            imageSpec = m_Specificaton.CubeImage->GetTextureSpecification();
+        if (m_Specification.CubeImage)
+            imageSpec = m_Specification.CubeImage->GetTextureSpecification();
 
         VkImageAspectFlags aspectMask = Utils::IsDepthFormat(imageSpec.Format) ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
-        if (imageSpec.Format == ImageFormat::DEPTH24STENCIL8 || imageSpec.Format == ImageFormat::DEPTH32FSTENCIL8UINT)
+        if (imageSpec.Format == ImageFormat::Depth24UNORMStencil8UINT || imageSpec.Format == ImageFormat::Depth32FStencil8UINT || imageSpec.Format == ImageFormat::DepthDefault)
             aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
 
         VkImageViewCreateInfo imageViewCI = {
@@ -1326,39 +1400,36 @@ namespace Iris {
             .format = Utils::GetVulkanImageFormat(imageSpec.Format),
             .subresourceRange = {
                 .aspectMask = aspectMask,
-                .baseMipLevel = m_Specificaton.Mip,
-                .levelCount = 1,
-                .baseArrayLayer = 0,
-                .layerCount = imageSpec.Layers
+                .baseMipLevel = m_Specification.Mip == -1 ? 0 : static_cast<uint32_t>(m_Specification.Mip),
+                .levelCount = m_Specification.Mip == -1 ? imageSpec.Mips : 1,
+                .baseArrayLayer = m_Specification.Layer == -1 ? 0 : static_cast<uint32_t>(m_Specification.Layer), // Default is 0
+                .layerCount = m_Specification.Layer == -1 ? imageSpec.Layers : 1 // If the user did not specify a layer, then we take all layers of the image otherwise only 1
             }
         };
 
-        if (m_Specificaton.Image)
+        if (m_Specification.Image)
         {
-            imageViewCI.image = m_Specificaton.Image->GetVulkanImage();
-            imageViewCI.viewType = imageSpec.Layers > 1 ? VK_IMAGE_VIEW_TYPE_2D_ARRAY : VK_IMAGE_VIEW_TYPE_2D;
+            imageViewCI.image = m_Specification.Image->GetVulkanImage();
+            // Set to 2D_ARRAY only if the user did not specify a specific layer
+            imageViewCI.viewType = (m_Specification.Layer == -1 && imageSpec.Layers > 1) ? VK_IMAGE_VIEW_TYPE_2D_ARRAY : VK_IMAGE_VIEW_TYPE_2D;
         }
 
-        if (m_Specificaton.CubeImage)
+        if (m_Specification.CubeImage)
         {
-            imageViewCI.image = m_Specificaton.CubeImage->GetVulkanImage();
+            imageViewCI.image = m_Specification.CubeImage->GetVulkanImage();
             imageViewCI.viewType = VK_IMAGE_VIEW_TYPE_CUBE;
         }
 
         VK_CHECK_RESULT(vkCreateImageView(device, &imageViewCI, nullptr, &m_ImageView));
-        VKUtils::SetDebugUtilsObjectName(device, VK_OBJECT_TYPE_IMAGE_VIEW, m_Specificaton.DebugName, m_ImageView);
+        VKUtils::SetDebugUtilsObjectName(device, VK_OBJECT_TYPE_IMAGE_VIEW, m_Specification.DebugName, m_ImageView);
     
-        if (m_Specificaton.Image)
-        {
-            m_DescriptorInfo = m_Specificaton.Image->GetDescriptorImageInfo();
-            m_DescriptorInfo.imageView = m_ImageView;
-        }
+        if (m_Specification.Image)
+            m_DescriptorInfo = m_Specification.Image->GetDescriptorImageInfo();
 
-        if (m_Specificaton.CubeImage)
-        {
-            m_DescriptorInfo = m_Specificaton.CubeImage->GetDescriptorImageInfo();
-            m_DescriptorInfo.imageView = m_ImageView;
-        }
+        if (m_Specification.CubeImage)
+            m_DescriptorInfo = m_Specification.CubeImage->GetDescriptorImageInfo();
+
+        m_DescriptorInfo.imageView = m_ImageView;
     }
 
 }

@@ -13,10 +13,11 @@ namespace Iris {
 
 	enum class MaterialFlag
 	{
-		None      = BIT(0), // 0b0001
-		DepthTest = BIT(1), // 0b0010
-		Blend     = BIT(2), // 0b0100
-		TwoSided  = BIT(3), // 0b1000
+		None		  = BIT(0), // 0b00001
+		DepthTest	  = BIT(1), // 0b00010
+		Blend		  = BIT(2), // 0b00100
+		TwoSided	  = BIT(3), // 0b01000
+		ShadowCasting = BIT(4)  // 0b10000
 	};
 
 	class Material : public RefCountedObject

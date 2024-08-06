@@ -20,7 +20,7 @@ namespace Iris {
 		~Entity() = default;
 
 		template<typename T, typename... Args>
-		T& AddComponent(Args&&... args);
+		auto AddComponent(Args&&... args) -> typename std::conditional<std::is_empty<T>::value, void, T&>::type;
 
 		template<typename T>
 		T& GetComponent();

@@ -256,7 +256,7 @@ namespace Iris {
 	private:
 		bool TagSearchRecursive(Entity entity, std::string_view searchFilter, uint32_t maxSearchDepth, uint32_t currentDepth = 1);
 
-		void DrawEntityCreateMenu(Entity parent = {});
+		void DrawEntityCreateMenu(int& labelIndex, Entity parent = {});
 		void DrawEntityNode(Entity entity, const std::string& searchFilter = "");
 		void DrawComponents(const std::vector<UUID>& entities);
 

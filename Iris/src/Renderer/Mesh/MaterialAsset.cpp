@@ -18,7 +18,6 @@ namespace Iris {
 	constexpr static const char* s_EnvMapRotationUniform = "u_MaterialUniforms.EnvMapRotation";
 	constexpr static const char* s_UseNormalMapUniform = "u_MaterialUniforms.UseNormalMap";
 	constexpr static const char* s_TransparencyUniform = "u_MaterialUniforms.Transparency";
-	constexpr static const char* s_LitUniform = "u_MaterialUniforms.Lit";
 	
 	constexpr static const char* s_AlbedoMapUniform = "u_AlbedoTexture";
 	constexpr static const char* s_NormalMapUniform = "u_NormalTexture";
@@ -147,6 +146,16 @@ namespace Iris {
 		m_Material->Set(s_TilingUniform, tiling);
 	}
 
+	float& MaterialAsset::GetEnvMapRotation()
+	{
+		return m_Material->GetFloat(s_EnvMapRotationUniform);
+	}
+
+	void MaterialAsset::SetEnvMapRotation(float rotationRadians)
+	{
+		m_Material->Set(s_EnvMapRotationUniform, rotationRadians);
+	}
+
 	float& MaterialAsset::GetTransparency()
 	{
 		return m_Material->GetFloat(s_TransparencyUniform);
@@ -155,21 +164,6 @@ namespace Iris {
 	void MaterialAsset::SetTransparency(float transparency)
 	{
 		m_Material->Set(s_TransparencyUniform, transparency);
-	}
-
-	bool MaterialAsset::IsLit()
-	{
-		return m_Material->GetBool(s_LitUniform);
-	}
-
-	void MaterialAsset::SetLit()
-	{
-		m_Material->Set(s_LitUniform, true);
-	}
-
-	void MaterialAsset::SetUnlit()
-	{
-		m_Material->Set(s_LitUniform, false);
 	}
 
 	Ref<Texture2D> MaterialAsset::GetAlbedoMap()
@@ -374,8 +368,8 @@ namespace Iris {
 			SetMetalness(0.0f);
 			SetEmission(0.0f);
 			SetTiling(1.0f);
+			SetEnvMapRotation(0.0f);
 			SetUseNormalMap(false);
-			SetLit();
 
 			ClearAlbedoMap();
 			ClearNormalMap();

@@ -10,7 +10,7 @@
 namespace Iris {
 
 	ContentBrowserPanel::ContentBrowserPanel()
-		: m_Project(nullptr), m_BaseDirectory(Project::GetAssetDirectory()), m_CurrentDirectory(m_BaseDirectory)
+		: m_Project(nullptr)
 	{
 		s_Instance = this;
 	}

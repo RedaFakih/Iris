@@ -160,7 +160,8 @@ namespace Iris {
 					ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 8.0f, 6.0f });
 					if (ImGui::BeginPopup("draw_entity_create_menu_popup"))
 					{
-						DrawEntityCreateMenu({});
+						int index = 0;
+						DrawEntityCreateMenu(index, {});
 						ImGui::EndPopup();
 
 						m_OpenEntityCreateMenuPopup = false;
@@ -314,15 +315,14 @@ namespace Iris {
 		});
 	}
 
-	void SceneHierarchyPanel::DrawEntityCreateMenu(Entity parent)
+	void SceneHierarchyPanel::DrawEntityCreateMenu(int& labelIndex, Entity parent)
 	{
-		int index = 0;
-		if (UI::BeginSection(parent ? "Add Child Entity" : "Add Entity", index, false, parent ? 270.0f : 0.0f))
+		Entity newEntity;
+
+		if (UI::BeginSection(parent ? "Add Child Entity" : "Add Entity", labelIndex, false, parent ? 270.0f : 0.0f))
 		{
 			ImGui::TableNextRow();
 			ImGui::TableSetColumnIndex(0);
-
-			Entity newEntity;
 
 			if (ImGui::MenuItem("Empty Entity"))
 			{
@@ -352,7 +352,7 @@ namespace Iris {
 			if (ImGui::MenuItem("Text"))
 			{
 				newEntity = m_Context->CreateEntity("Text");
-				auto& textComp = newEntity.AddComponent<TextComponent>();
+				TextComponent& textComp = newEntity.AddComponent<TextComponent>();
 				textComp.Font = Font::GetDefaultFont()->Handle;
 			}
 
@@ -441,7 +441,13 @@ namespace Iris {
 				ImGui::EndMenu();
 			}
 
-			ImGui::Separator();
+			UI::EndSection();
+		}
+
+		if (UI::BeginSection("Lighting", labelIndex, false, parent ? 270.0f : 0.0f))
+		{
+			ImGui::TableNextRow();
+			ImGui::TableSetColumnIndex(0);
 
 			if (ImGui::MenuItem("Sky Light"))
 			{
@@ -455,19 +461,19 @@ namespace Iris {
 				newEntity.AddComponent<DirectionalLightComponent>();
 			}
 
-			if (newEntity)
-			{
-				if (parent)
-				{
-					m_Context->ParentEntity(newEntity, parent);
-					newEntity.Transform().Translation = glm::vec3(0.0f);
-				}
+			UI::EndSection();
+		}
 
-				SelectionManager::DeselectAll();
-				SelectionManager::Select(s_ActiveSelectionContext, newEntity.GetUUID());
+		if (newEntity)
+		{
+			if (parent)
+			{
+				m_Context->ParentEntity(newEntity, parent);
+				newEntity.Transform().Translation = glm::vec3(0.0f);
 			}
 
-			UI::EndSection();
+			SelectionManager::DeselectAll();
+			SelectionManager::Select(s_ActiveSelectionContext, newEntity.GetUUID());
 		}
 	}
 
@@ -665,34 +671,37 @@ namespace Iris {
 					SelectionManager::Select(s_ActiveSelectionContext, entity.GetUUID());
 				}
 
-				DrawEntityCreateMenu(entity);
+				int index = 0;
+				DrawEntityCreateMenu(index, entity);
 
-				if (!m_EntityContextMenuPlugins.empty())
+				if (UI::BeginSection("Utils", index, false, entity ? 270.0f : 0.0f))
 				{
-					UI::UnderLine();
-					UI::ShiftCursorY(2.0f);
+					ImGui::TableNextRow();
+					ImGui::TableSetColumnIndex(0);
 
-					if (ImGui::MenuItem("Set Transform to Editor Camera Transform"))
+					if (!m_EntityContextMenuPlugins.empty())
 					{
-						// NOTE: Here is some place we might have a bug later since we only want the EditorCamera related plugin to run not ALL of them in case we have other types of plugins
-						for (auto& func : m_EntityContextMenuPlugins)
+						if (ImGui::MenuItem("Set Transform to Editor Camera Transform"))
 						{
-							func(entity);
+							// NOTE: Here is some place we might have a bug later since we only want the EditorCamera related plugin to run not ALL of them in case we have other types of plugins
+							for (auto& func : m_EntityContextMenuPlugins)
+							{
+								func(entity);
+							}
 						}
 					}
+
+					if (entity.GetParent())
+					{
+						if (ImGui::MenuItem("Unparent"))
+							m_Context->UnparentEntity(entity, true);
+					}
+
+					if (ImGui::MenuItem("Delete"))
+						entityDeleted = true;
+
+					UI::EndSection();
 				}
-
-				UI::UnderLine();
-				UI::ShiftCursorY(2.0f);
-
-				if (entity.GetParent())
-				{
-					if (ImGui::MenuItem("Unparent"))
-						m_Context->UnparentEntity(entity, true);
-				}
-
-				if (ImGui::MenuItem("Delete"))
-					entityDeleted = true;
 			}
 
 			ImGui::EndPopup();
@@ -801,26 +810,26 @@ namespace Iris {
 
 		ImGui::TableNextColumn();
 
-		m_CurrentlySelectedMeshViewIcon = EditorResources::EyeIcon;
-		if (entity.HasComponent<StaticMeshComponent>())
+		ImVec2 avaiLRegion = ImGui::GetContentRegionAvail();
+
+		if (ImGui::InvisibleButton(UI::GenerateID(), { avaiLRegion.x, rowHeight }))
 		{
-			ImVec2 avaiLRegion = ImGui::GetContentRegionAvail();
-			StaticMeshComponent& smc = entity.GetComponent<StaticMeshComponent>();
-
-			if (ImGui::InvisibleButton(UI::GenerateID(), { avaiLRegion.x, rowHeight }))
-				smc.Visible = !smc.Visible;
-
-			m_CurrentlySelectedMeshViewIcon = smc.Visible ? EditorResources::EyeIcon : EditorResources::ClosedEyeIcon;
-
-			ImRect buttonRect = UI::GetItemRect();
-
-			ImRect iconRect;
-			iconRect.Min = { buttonRect.Min.x + (buttonRect.Max.x - buttonRect.Min.x) / 2.0f - m_CurrentlySelectedMeshViewIcon->GetWidth() / 2.0f, 
-							 buttonRect.Min.y + (buttonRect.Max.y - buttonRect.Min.y) / 2.0f - m_CurrentlySelectedMeshViewIcon->GetHeight() / 2.0f };
-			iconRect.Max = { buttonRect.Min.x + (buttonRect.Max.x - buttonRect.Min.x) / 2.0f + m_CurrentlySelectedMeshViewIcon->GetWidth() / 2.0f, 
-							 buttonRect.Min.y + (buttonRect.Max.y - buttonRect.Min.y) / 2.0f + m_CurrentlySelectedMeshViewIcon->GetHeight() / 2.0f };
-			UI::DrawButtonImage(m_CurrentlySelectedMeshViewIcon, Colors::Theme::TextBrighter, Colors::Theme::TextBrighter, Colors::Theme::TextBrighter, iconRect);
+			if (entity.HasComponent<VisibleComponent>())
+				entity.RemoveComponent<VisibleComponent>();
+			else
+				entity.AddComponent<VisibleComponent>();
 		}
+
+		m_CurrentlySelectedMeshViewIcon = entity.HasComponent<VisibleComponent>() ? EditorResources::EyeIcon : EditorResources::ClosedEyeIcon;
+
+		ImRect buttonRect = UI::GetItemRect();
+
+		ImRect iconRect;
+		iconRect.Min = { buttonRect.Min.x + (buttonRect.Max.x - buttonRect.Min.x) / 2.0f - m_CurrentlySelectedMeshViewIcon->GetWidth() / 2.0f,
+						 buttonRect.Min.y + (buttonRect.Max.y - buttonRect.Min.y) / 2.0f - m_CurrentlySelectedMeshViewIcon->GetHeight() / 2.0f };
+		iconRect.Max = { buttonRect.Min.x + (buttonRect.Max.x - buttonRect.Min.x) / 2.0f + m_CurrentlySelectedMeshViewIcon->GetWidth() / 2.0f,
+						 buttonRect.Min.y + (buttonRect.Max.y - buttonRect.Min.y) / 2.0f + m_CurrentlySelectedMeshViewIcon->GetHeight() / 2.0f };
+		UI::DrawButtonImage(m_CurrentlySelectedMeshViewIcon, Colors::Theme::TextBrighter, Colors::Theme::TextBrighter, Colors::Theme::TextBrighter, iconRect);
 
 		// Draw Children
 		if (opened)
@@ -1679,18 +1688,6 @@ namespace Iris {
 				ImGui::PopItemFlag();
 			}
 
-			ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<bool, StaticMeshComponent>([](const StaticMeshComponent& other) { return other.Visible; }));
-			if (UI::Property("Visible", meshComp.Visible, "Toggle mesh visibility"))
-			{
-				for (UUID entityID : entities)
-				{
-					Entity entity = m_Context->GetEntityWithUUID(entityID);
-					StaticMeshComponent& mc = entity.GetComponent<StaticMeshComponent>();
-					mc.Visible = meshComp.Visible;
-				}
-			}
-			ImGui::PopItemFlag();
-
 			UI::EndPropertyGrid();
 
 			if (mesh)
@@ -1786,8 +1783,6 @@ namespace Iris {
 				}
 			}
 			ImGui::PopItemFlag();
-
-			ImGui::Separator();
 
 			ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<float, TextComponent>([](const TextComponent& other) { return other.MaxWidth; }));
 			if (UI::Property("Max Width", textComp.MaxWidth, 0.1f, 0.0f, 0.0f, "Max width of each line and how many characters it can fit"))
@@ -2015,7 +2010,27 @@ namespace Iris {
 			}
 			ImGui::PopItemFlag();
 
-			// TODO: Add shadow stuff...
+			ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<bool, DirectionalLightComponent>([](const DirectionalLightComponent& other) { return other.CastShadows; }));
+			if (UI::Property("Cast Shadows", dirLightComp.CastShadows))
+			{
+				for (UUID entityID : entities)
+				{
+					Entity entity = m_Context->GetEntityWithUUID(entityID);
+					entity.GetComponent<DirectionalLightComponent>().CastShadows = dirLightComp.CastShadows;
+				}
+			}
+			ImGui::PopItemFlag();
+
+			ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect&& IsInconsistentPrimitive<float, DirectionalLightComponent>([](const DirectionalLightComponent& other) { return other.ShadowOpacity; }));
+			if (UI::Property("Shadow Opacity", dirLightComp.ShadowOpacity, 0.1f, 0.0f, 1.0f, "Set the opacity of shadows between 0 and 1"))
+			{
+				for (UUID entityID : entities)
+				{
+					Entity entity = m_Context->GetEntityWithUUID(entityID);
+					entity.GetComponent<DirectionalLightComponent>().ShadowOpacity = dirLightComp.ShadowOpacity;
+				}
+			}
+			ImGui::PopItemFlag();
 
 			UI::EndPropertyGrid();
 		}, EditorResources::DirectionalLightIcon);

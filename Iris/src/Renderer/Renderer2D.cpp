@@ -405,11 +405,11 @@ namespace Iris {
 				instance->m_LinePass->GetDepthOutput()->GetVulkanImage(),
 				VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
 				VK_ACCESS_2_SHADER_READ_BIT,
-				VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-				VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL,
+				VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL,
+				VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL,
 				VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT,
 				VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,
-				{ .aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = 1 }
+				{ .aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = 1 }
 			);
 		});
 	}

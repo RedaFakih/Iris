@@ -79,7 +79,7 @@ namespace Iris {
                     .Format = attachmentSpec.Format,
                     .Usage = ImageUsage::Attachment,
                     .Samples = 1,
-                    .Trasnfer = m_Specification.Transfer
+                    .Transfer = m_Specification.Transfer
                 };
                 m_DepthAttachmentImage = Texture2D::CreateNull(spec);
             }
@@ -92,7 +92,7 @@ namespace Iris {
                     .Format = attachmentSpec.Format,
                     .Usage = ImageUsage::Attachment,
                     .Samples = 1,
-                    .Trasnfer = m_Specification.Transfer
+                    .Transfer = m_Specification.Transfer
                 };
                 m_ColorAttachmentImages.emplace_back(Texture2D::CreateNull(spec));
             }
@@ -141,10 +141,11 @@ namespace Iris {
                     m_DepthAttachmentImage->Invalidate();
                 }
 
+                bool hasLayerImageView = m_Specification.ExistingImageLayerViews.contains(attachmentIndex);
                 m_DepthAttachmentInfo = VkRenderingAttachmentInfo{
                     .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
                     .pNext = nullptr,
-                    .imageView = m_DepthAttachmentImage->GetVulkanImageView(),
+                    .imageView = hasLayerImageView ? m_Specification.ExistingImageLayerViews.at(attachmentIndex)->GetVulkanImageView() : m_DepthAttachmentImage->GetVulkanImageView(),
                     .imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, // This is the layout that the image will be in DURING rendering. We still have to manually transition INTO and OUT OF
                     .loadOp = Utils::GetVulkanAttachmentLoadOp(m_Specification, attachmentSpec),
                     .storeOp = VK_ATTACHMENT_STORE_OP_STORE
@@ -173,15 +174,15 @@ namespace Iris {
                     TextureSpecification& spec = image->GetTextureSpecification();
                     spec.Width = m_Width;
                     spec.Height = m_Height;
-                    // TODO: Here when we have image layers we should only invalidate if we have one layer
                     image->Invalidate();
                 }
 
+                bool hasLayerImageView = m_Specification.ExistingImageLayerViews.contains(attachmentIndex);
                 VkRenderingAttachmentInfo& attachmentInfo = m_ColorAttachmentInfo.emplace_back();
                 attachmentInfo = VkRenderingAttachmentInfo{
                     .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
                     .pNext = nullptr,
-                    .imageView = m_ColorAttachmentImages[attachmentIndex]->GetVulkanImageView(),
+                    .imageView = hasLayerImageView ? m_Specification.ExistingImageLayerViews.at(attachmentIndex)->GetVulkanImageView() : m_ColorAttachmentImages[attachmentIndex]->GetVulkanImageView(),
                     .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
                     .loadOp = Utils::GetVulkanAttachmentLoadOp(m_Specification, attachmentSpec),
                     .storeOp = VK_ATTACHMENT_STORE_OP_STORE
@@ -239,7 +240,6 @@ namespace Iris {
             // Do not free the image if we do not own it...
             if (m_Specification.ExistingImages.contains(attachmentIndex))
                 continue;
-            // TODO: A bug will be here when we have image layers
             image->Release();
             attachmentIndex++;
         }

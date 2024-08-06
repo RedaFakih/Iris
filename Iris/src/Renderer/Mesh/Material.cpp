@@ -219,6 +219,7 @@ namespace Iris {
 
 		m_MaterialFlags |= static_cast<uint32_t>(MaterialFlag::Blend);
 		m_MaterialFlags |= static_cast<uint32_t>(MaterialFlag::DepthTest);
+		m_MaterialFlags |= static_cast<uint32_t>(MaterialFlag::ShadowCasting);
 
 		DescriptorSetManagerSpecification spec = {
 			.Shader = m_Shader,

@@ -26,6 +26,14 @@ namespace Iris {
 		float FOV;
 	};
 
+	enum class ShadowResolutionSetting
+	{
+		None = 0,
+		Low,
+		Medium,
+		High
+	};
+
 	struct SceneRendererOptions
 	{
 		bool ShowGrid = true;
@@ -36,6 +44,9 @@ namespace Iris {
 	{
 		float RendererScale = 1.0f;
 		bool JumpFloodPass = true;
+
+		ShadowResolutionSetting ShadowResolution = ShadowResolutionSetting::High;
+		uint32_t NumberOfShadowCascades = 4;
 
 		// Means application window size
 		uint32_t ViewportWidth = 0;
@@ -144,6 +155,13 @@ namespace Iris {
 			}
 		};
 
+		struct CascadeData
+		{
+			glm::mat4 ViewProjMatrix;
+			glm::mat4 ViewMatrix;
+			float SplitDepth;
+		};
+
 	private:
 		void ResetImageLayouts();
 		void FlushDrawList();
@@ -152,11 +170,14 @@ namespace Iris {
 		void PreRender();
 		void ClearPass();
 
+		void DirectionalShadowPass();
 		void PreDepthPass();
 		void SkyboxPass();
 		void GeometryPass();
 		void JumpFloodPass();
 		void CompositePass();
+
+		void CalculateCascades(const SceneRendererCamera& sceneCamera, const glm::vec3& lightDirection, CascadeData* cascades) const;
 
 		void UpdateStatistics();
 
@@ -164,7 +185,7 @@ namespace Iris {
 		// Shader structs
 		struct DirLight
 		{
-			glm::vec4 Direction; // Alpha channel is the ShadowAmount
+			glm::vec4 Direction; // Alpha channel is the ShadowOpacity
 			glm::vec4 Radiance; // Alpha channel is the Intensity
 		};
 
@@ -209,13 +230,49 @@ namespace Iris {
 		} m_ScreenDataUB;
 		Ref<UniformBufferSet> m_UBSScreenData;
 
-		struct UBScene
+		struct UBScene // (set = 1, binding = 2)
 		{
 			DirLight Light;
 			glm::vec3 CameraPosition;
 			float EnvironmentMapIntensity = 1.0f;
 		} m_SceneDataUB;
 		Ref<UniformBufferSet> m_UBSSceneData;
+
+		struct UBDirectionalShadowData // (set = 2, binding = 3)
+		{
+			glm::mat4 DirectionalLightMatrices[4]; // View Projection Matrices
+		} m_DirectionalShadowDataUB;
+		Ref<UniformBufferSet> m_UBSDirectionalShadowData;
+
+		struct UBRendererData // (set = 2, binding = 4)
+		{
+			glm::vec4 CascadeSplits;
+			float LightSize = 0.5f;
+			float MaxShadowDistance = 300.0f;
+			float ShadowFade = 1.0f;
+			float CascadeTransitionFade = 1.0f;
+			bool CascadeFading = true;
+			char Padding0[3] = { 0, 0, 0 };
+			bool SoftShadows = true;
+			char Padding1[3] = { 0, 0, 0 };
+			bool ShowCascades = false;
+			char Padding2[3] = { 0, 0, 0 };
+			bool Unlit = false;
+			char Padding3[3] = { 0, 0, 0 };
+		} m_RendererDataUB;
+		Ref<UniformBufferSet> m_UBSRendererData;
+
+		// Directional Shadow (No material required since it only runs a vertex shader)
+		std::vector<Ref<RenderPass>> m_DirectionalShadowPasses;
+		Ref<Material> m_DirectionalShadowMaterial;
+		std::vector<Ref<ImageView>> m_DirShadowImagePerLayerViews; // For cascaded shadow mapping
+
+		// Cascade settings
+		glm::vec4 m_CascadeSplits = {};
+		float m_CascadeSplitLambda = 0.92f; // Variable
+		float m_ScaleShadowCascadesToOrigin = 0.0f; // Variable
+		float m_CascadeNearPlaneOffset = -50.0f; // Variable
+		float m_CascadeFarPlaneOffset = 50.0f; // Variable
 
 		// PreDepth
 		Ref<RenderPass> m_PreDepthPass;
@@ -304,6 +361,9 @@ namespace Iris {
 		std::map<MeshKey, StaticDrawCommand> m_SelectedStaticMeshDrawList;
 		std::map<MeshKey, StaticDrawCommand> m_DoubleSidedSelectedStaticMeshDrawList;
 
+		// Shadow Draw Lists
+		std::map<MeshKey, StaticDrawCommand> m_StaticMeshShadowDrawList;
+
 		uint32_t m_ViewportWidth = 0;
 		uint32_t m_ViewportHeight = 0;
 
@@ -322,6 +382,7 @@ namespace Iris {
 
 		ViewMode m_ViewMode = ViewMode::Lit;
 
+		friend class SceneRendererPanel;		
 	};
 
 }

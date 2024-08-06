@@ -344,7 +344,7 @@ namespace Iris {
 				.colorAttachmentCount = static_cast<uint32_t>(colorAttachmentCount),
 				.pColorAttachmentFormats = framebuffer->GetColorAttachmentImageFormats().data(),
 				.depthAttachmentFormat = framebuffer->HasDepthAttachment() ? framebuffer->GetDepthAttachmentImageFormat() : VK_FORMAT_UNDEFINED,
-				.stencilAttachmentFormat = framebuffer->HasDepthAttachment() ? framebuffer->GetDepthAttachmentImageFormat() : VK_FORMAT_UNDEFINED
+				.stencilAttachmentFormat = framebuffer->HasStencilComponent() ? framebuffer->GetDepthAttachmentImageFormat() : VK_FORMAT_UNDEFINED
 			};
 
 			VkGraphicsPipelineCreateInfo pipelineInfo = {};

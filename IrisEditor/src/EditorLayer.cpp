@@ -104,6 +104,12 @@ namespace Iris {
 		m_PanelsManager->AddPanel<AssetManagerPanel>(PanelCategory::View, "AssetManagerPanel", "Asset Manager", false);
 		Ref<SceneRendererPanel> sceneRendererPanel = m_PanelsManager->AddPanel<SceneRendererPanel>(PanelCategory::View, "SceneRendererPanel", "Scene Renderer", true);
 
+		Ref<ContentBrowserPanel> contentBrowser = m_PanelsManager->AddPanel<ContentBrowserPanel>(PanelCategory::View, "ContentBrowserPanel", "Content Browser", true);
+		//contentBrowser->RegisterItemActivateCallbackForType(AssetType::Scene, [this](const AssetMetadata& metadata)
+		//{
+		//	OpenScene(metadata);
+		//});
+
 #ifdef IR_CONFIG_DEBUG
 		m_PanelsManager->AddPanel<ECSDebugPanel>(PanelCategory::View, "ECSDebugPanel", "ECS", false, m_CurrentScene);
 #endif
@@ -116,12 +122,8 @@ namespace Iris {
 		if (!Project::GetActive())
 			EmptyProject();
 
-		// TODO: Move to before the project creation after we remove the Project::GetAssetDirectory call from the constructor of the ContentBrowserPanel
-		Ref<ContentBrowserPanel> contentBrowser = m_PanelsManager->AddPanel<ContentBrowserPanel>(PanelCategory::View, "ContentBrowserPanel", "Content Browser", false);
-		//contentBrowser->RegisterItemActivateCallbackForType(AssetType::Scene, [this](const AssetMetadata& metadata)
-		//{
-		//	OpenScene(metadata);
-		//});
+		// TODO: This is here so that we can set the asset directory after the asset manager has been initialized, should be removed after we rework the content browser panel
+		contentBrowser->SetBaseDirectory(Project::GetAssetDirectory());
 
 		m_ViewportRenderer = SceneRenderer::Create(m_CurrentScene, { .RendererScale = 1.0f });
 		m_ViewportRenderer->SetLineWidth(m_LineWidth);
@@ -197,13 +199,16 @@ namespace Iris {
 		{
 			if (m_ShowBoundingBoxSelectedMeshOnly)
 			{
-				const auto& selectedEntites = SelectionManager::GetSelections(SelectionContext::Scene);
-				for (const auto& entityID : selectedEntites)
+				const std::vector<UUID>& selectedEntites = SelectionManager::GetSelections(SelectionContext::Scene);
+				for (const UUID entityID : selectedEntites)
 				{
 					Entity entity = m_CurrentScene->GetEntityWithUUID(entityID);
 
-					const auto& staticMeshComponent = entity.TryGetComponent<StaticMeshComponent>();
-					if (staticMeshComponent && staticMeshComponent->Visible)
+					if (!entity.HasComponent<VisibleComponent>())
+						continue;
+
+					const StaticMeshComponent* staticMeshComponent = entity.TryGetComponent<StaticMeshComponent>();
+					if (staticMeshComponent)
 					{
 						Ref<StaticMesh> staticMesh = AssetManager::GetAssetAsync<StaticMesh>(staticMeshComponent->StaticMesh);
 						if (staticMesh)
@@ -213,8 +218,8 @@ namespace Iris {
 							{
 								if (m_ShowBoundingBoxSubMeshes)
 								{
-									const auto& subMeshIndices = staticMesh->GetSubMeshes();
-									const auto& subMeshes = meshSource->GetSubMeshes();
+									const std::vector<uint32_t>& subMeshIndices = staticMesh->GetSubMeshes();
+									const std::vector<MeshUtils::SubMesh>& subMeshes = meshSource->GetSubMeshes();
 
 									for (uint32_t subMeshIndex : subMeshIndices)
 									{
@@ -236,22 +241,20 @@ namespace Iris {
 			}
 			else
 			{
-				auto staticMeshEntities = m_CurrentScene->GetAllEntitiesWith<StaticMeshComponent>();
+				auto staticMeshEntities = m_CurrentScene->GetAllEntitiesWith<StaticMeshComponent, VisibleComponent>();
 				for (auto e : staticMeshEntities)
 				{
 					Entity entity = { e, m_CurrentScene.Raw() };
-					if (entity.GetComponent<StaticMeshComponent>().Visible)
+
+					glm::mat4 transform = m_CurrentScene->GetWorldSpaceTransformMatrix(entity);
+					Ref<StaticMesh> staticMesh = AssetManager::GetAssetAsync<StaticMesh>(entity.GetComponent<StaticMeshComponent>().StaticMesh);
+					if (staticMesh)
 					{
-						glm::mat4 transform = m_CurrentScene->GetWorldSpaceTransformMatrix(entity);
-						Ref<StaticMesh> staticMesh = AssetManager::GetAssetAsync<StaticMesh>(entity.GetComponent<StaticMeshComponent>().StaticMesh);
-						if (staticMesh)
+						Ref<MeshSource> meshSource = AssetManager::GetAssetAsync<MeshSource>(staticMesh->GetMeshSource());
+						if (meshSource)
 						{
-							Ref<MeshSource> meshSource = AssetManager::GetAssetAsync<MeshSource>(staticMesh->GetMeshSource());
-							if (meshSource)
-							{
-								const AABB& aabb = meshSource->GetBoundingBox();
-								m_Renderer2D->DrawAABB(aabb, transform, { 1.0f, 1.0f, 1.0f, 1.0f });
-							}
+							const AABB& aabb = meshSource->GetBoundingBox();
+							m_Renderer2D->DrawAABB(aabb, transform, { 1.0f, 1.0f, 1.0f, 1.0f });
 						}
 					}
 				}
@@ -273,7 +276,7 @@ namespace Iris {
 		if (!m_ShowOnlyViewport)
 			m_PanelsManager->OnImGuiRender();
 
-		// TODO: Move into EditorStyle editor panel
+		// TODO: Move into EditorStyle editor panel meaning move into panels manager
 		if (m_ShowImGuiStyleEditor && !m_ShowOnlyViewport)
 		{
 			ImGui::Begin("Style Editor", &m_ShowImGuiStyleEditor, ImGuiWindowFlags_NoCollapse);
@@ -1872,6 +1875,163 @@ namespace Iris {
 		ImGui::End();
 	}
 
+	void EditorLayer::SC_Shift1()
+	{
+		m_CurrentlySelectedRenderIcon = EditorResources::LitMaterialIcon;
+		s_CurrentlySelectedRenderOption = "Lit";
+		m_ViewportRenderer->SetViewMode(SceneRenderer::ViewMode::Lit);
+	}
+
+	void EditorLayer::SC_Shift2()
+	{
+		m_CurrentlySelectedRenderIcon = EditorResources::UnLitMaterialIcon;
+		s_CurrentlySelectedRenderOption = "Unlit";
+		m_ViewportRenderer->SetViewMode(SceneRenderer::ViewMode::Unlit);
+	}
+
+	void EditorLayer::SC_Shift3()
+	{
+		m_CurrentlySelectedRenderIcon = EditorResources::WireframeViewIcon;
+		s_CurrentlySelectedRenderOption = "Wireframe";
+		m_ViewportRenderer->SetViewMode(SceneRenderer::ViewMode::Wireframe);
+	}
+
+	void EditorLayer::SC_F()
+	{						
+		// Since Ctrl + F is a different shortcut
+		if (Input::IsKeyDown(KeyCode::LeftControl))
+			return;
+
+		if (SelectionManager::GetSelectionCount(SelectionContext::Scene) == 0)
+			return;
+
+		UUID selectedEntityID = SelectionManager::GetSelections(SelectionContext::Scene).front();
+		Entity selectedEntity = m_CurrentScene->GetEntityWithUUID(selectedEntityID);
+		m_EditorCamera.Focus(m_CurrentScene->GetWorldSpaceTransform(selectedEntity).Translation);
+	}
+
+	void EditorLayer::SC_H()
+	{
+		// Since Ctrl + H is a different shortcut
+		if (Input::IsKeyDown(KeyCode::LeftControl))
+			return;
+
+		if (SelectionManager::GetSelectionCount(SelectionContext::Scene) == 0)
+			return;
+
+		const std::vector<UUID>& selectedEntityIDs = SelectionManager::GetSelections(SelectionContext::Scene);
+		for (const UUID entityID : selectedEntityIDs)
+		{
+			Entity selectedEntity = m_CurrentScene->GetEntityWithUUID(entityID);
+			if (selectedEntity.HasComponent<VisibleComponent>())
+				selectedEntity.RemoveComponent<VisibleComponent>();
+			else
+				selectedEntity.AddComponent<VisibleComponent>();
+		}
+	}
+
+	void EditorLayer::SC_Delete()
+	{
+		std::vector<UUID> selectedEntities = SelectionManager::GetSelections(SelectionContext::Scene);
+		for (auto entity : selectedEntities)
+			DeleteEntity(m_CurrentScene->TryGetEntityWithUUID(entity));
+	}
+
+	void EditorLayer::SC_CtrlD()
+	{
+		std::vector<UUID> selectedEntities = SelectionManager::GetSelections(SelectionContext::Scene);
+		for (const auto& entityID : selectedEntities)
+		{
+			Entity entity = m_CurrentScene->TryGetEntityWithUUID(entityID);
+
+			if (entity.GetParent())
+				continue;
+
+			Entity duplicate = m_CurrentScene->DuplicateEntity(entity);
+			SelectionManager::Deselect(SelectionContext::Scene, entity.GetUUID());
+			SelectionManager::Select(SelectionContext::Scene, duplicate.GetUUID());
+		}
+	}
+
+	void EditorLayer::SC_CtrlF()
+	{
+		Window& window = Application::Get().GetWindow();
+		GLFWwindow* nativeWindow = window.GetNativeWindow();
+		GLFWmonitor* monitor = window.GetNativePrimaryMonitor();
+
+		static glm::uvec2 previousPos = {};
+		static glm::uvec2 previousSize = {};
+
+		if (Application::Get().GetWindow().IsFullScreen())
+		{
+			glfwSetWindowMonitor(nativeWindow, nullptr, previousPos.x, previousPos.y, previousSize.x, previousSize.y, 0);
+
+			m_ShowOnlyViewport = false;
+		}
+		else
+		{
+			glfwGetWindowPos(nativeWindow, reinterpret_cast<int*>(&previousPos.x), reinterpret_cast<int*>(&previousPos.y));
+			glfwGetWindowSize(nativeWindow, reinterpret_cast<int*>(&previousSize.x), reinterpret_cast<int*>(&previousSize.y));
+			const GLFWvidmode* vidMode = glfwGetVideoMode(monitor);
+			glfwSetWindowMonitor(nativeWindow, monitor, 0, 0, vidMode->width, vidMode->height, 0);
+
+			m_ShowOnlyViewport = true;
+		}
+
+		Application::Get().DispatchEvent<Events::RenderViewportOnlyEvent>(m_ShowOnlyViewport);
+	}
+
+	void EditorLayer::SC_CtrlH(bool useSlashState)
+	{
+		auto entities = m_CurrentScene->GetAllEntitiesWith<IDComponent>();
+		for (auto entity : entities)
+		{
+			Entity curr = { entity, m_CurrentScene.Raw() };
+			if (useSlashState)
+			{
+				if (m_SC_SlashKeyState && !curr.HasComponent<VisibleComponent>())
+					curr.AddComponent<VisibleComponent>();
+				else if (curr.HasComponent<VisibleComponent>())
+					curr.RemoveComponent<VisibleComponent>();
+			}
+			else
+			{
+				if (curr.HasComponent<VisibleComponent>())
+					curr.RemoveComponent<VisibleComponent>();
+				else
+					curr.AddComponent<VisibleComponent>();
+			}
+		}
+	}
+
+	void EditorLayer::SC_Slash()
+	{
+		// Focus on a median point if multiple objects are selected or on the object itself if only one object is selected
+		if (SelectionManager::GetSelectionCount(SelectionContext::Scene) == 0)
+			return;
+
+		// Hide all the hidable objects in the scene
+		SC_CtrlH(true);
+
+		glm::vec3 medianPoint = { 0.0f, 0.0f, 0.0f };
+		const std::vector<UUID>& selectedEntityIDs = SelectionManager::GetSelections(SelectionContext::Scene);
+		for (uint32_t i = 0; i < selectedEntityIDs.size(); i++)
+		{
+			Entity selectedEntity = m_CurrentScene->GetEntityWithUUID(selectedEntityIDs[i]);
+			medianPoint += selectedEntity.Transform().Translation;
+
+			if (!selectedEntity.HasComponent<VisibleComponent>())
+				selectedEntity.AddComponent<VisibleComponent>();
+		}
+
+		medianPoint /= selectedEntityIDs.size();
+
+		m_EditorCamera.Focus(medianPoint);
+
+		// Alternate to next state
+		m_SC_SlashKeyState = !m_SC_SlashKeyState;
+	}
+
 	void EditorLayer::OnEvent(Events::Event& e)
 	{
 		AssetEditorPanel::OnEvent(e);
@@ -1918,25 +2078,19 @@ namespace Iris {
 				{
 					case KeyCode::Key1:
 					{
-						m_CurrentlySelectedRenderIcon = EditorResources::LitMaterialIcon;
-						s_CurrentlySelectedRenderOption = "Lit";
-						m_ViewportRenderer->SetViewMode(SceneRenderer::ViewMode::Lit);
+						SC_Shift1();
 
 						break;
 					}
 					case KeyCode::Key2:
 					{
-						m_CurrentlySelectedRenderIcon = EditorResources::UnLitMaterialIcon;
-						s_CurrentlySelectedRenderOption = "Unlit";
-						m_ViewportRenderer->SetViewMode(SceneRenderer::ViewMode::Unlit);
+						SC_Shift2();
 
 						break;
 					}
 					case KeyCode::Key3:
 					{
-						m_CurrentlySelectedRenderIcon = EditorResources::WireframeViewIcon;
-						s_CurrentlySelectedRenderOption = "Wireframe";
-						m_ViewportRenderer->SetViewMode(SceneRenderer::ViewMode::Wireframe);
+						SC_Shift3();
 
 						break;
 					}
@@ -1961,33 +2115,20 @@ namespace Iris {
 						break;
 					case KeyCode::F:
 					{
-						// Since Ctrl + F is a different shortcut
-						if (Input::IsKeyDown(KeyCode::LeftControl))
-							break;
+						SC_F();
 
-						if (SelectionManager::GetSelectionCount(SelectionContext::Scene) == 0)
-							break;
-
-						UUID selectedEntityID = SelectionManager::GetSelections(SelectionContext::Scene).front();
-						Entity selectedEntity = m_CurrentScene->GetEntityWithUUID(selectedEntityID);
-						m_EditorCamera.Focus(m_CurrentScene->GetWorldSpaceTransform(selectedEntity).Translation);
 						break;
 					}
 					case KeyCode::H:
 					{
-						if (SelectionManager::GetSelectionCount(SelectionContext::Scene) == 0)
-							break;
+						SC_H();
 
-						const std::vector<UUID>& selectedEntityIDs = SelectionManager::GetSelections(SelectionContext::Scene);
-						for (auto entityID : selectedEntityIDs)
-						{
-							Entity selectedEntity = m_CurrentScene->GetEntityWithUUID(entityID);
-							if (selectedEntity.HasComponent<StaticMeshComponent>())
-							{
-								StaticMeshComponent& smc = selectedEntity.GetComponent<StaticMeshComponent>();
-								smc.Visible = !smc.Visible;
-							}
-						}
+						break;
+					}
+					case KeyCode::Slash:
+					{
+						SC_Slash();
+
 						break;
 					}
 				}
@@ -2002,9 +2143,7 @@ namespace Iris {
 				}
 				case KeyCode::Delete:
 				{
-					std::vector<UUID> selectedEntities = SelectionManager::GetSelections(SelectionContext::Scene);
-					for (auto entity : selectedEntities)
-						DeleteEntity(m_CurrentScene->TryGetEntityWithUUID(entity));
+					SC_Delete();
 					break;
 				}
 			}
@@ -2025,18 +2164,7 @@ namespace Iris {
 				// Duplicate Selected Entities
 				case KeyCode::D:
 				{
-					std::vector<UUID> selectedEntities = SelectionManager::GetSelections(SelectionContext::Scene);
-					for (const auto& entityID : selectedEntities)
-					{
-						Entity entity = m_CurrentScene->TryGetEntityWithUUID(entityID);
-
-						if (entity.GetParent())
-							continue;
-
-						Entity duplicate = m_CurrentScene->DuplicateEntity(entity);
-						SelectionManager::Deselect(SelectionContext::Scene, entity.GetUUID());
-						SelectionManager::Select(SelectionContext::Scene, duplicate.GetUUID());
-					}
+					SC_CtrlD();
 
 					break;
 				}
@@ -2065,30 +2193,13 @@ namespace Iris {
 				}
 				case KeyCode::F:
 				{
-					Window& window = Application::Get().GetWindow();
-					GLFWwindow* nativeWindow = window.GetNativeWindow();
-					GLFWmonitor* monitor = window.GetNativePrimaryMonitor();
+					SC_CtrlF();
 
-					static glm::uvec2 previousPos = {};
-					static glm::uvec2 previousSize = {};
-
-					if (Application::Get().GetWindow().IsFullScreen())
-					{
-						glfwSetWindowMonitor(nativeWindow, nullptr, previousPos.x, previousPos.y, previousSize.x, previousSize.y, 0);
-
-						m_ShowOnlyViewport = false;
-					}
-					else
-					{
-						glfwGetWindowPos(nativeWindow, reinterpret_cast<int*>(&previousPos.x), reinterpret_cast<int*>(&previousPos.y));
-						glfwGetWindowSize(nativeWindow, reinterpret_cast<int*>(&previousSize.x), reinterpret_cast<int*>(&previousSize.y));
-						const GLFWvidmode* vidMode = glfwGetVideoMode(monitor);
-						glfwSetWindowMonitor(nativeWindow, monitor, 0, 0, vidMode->width, vidMode->height, 0);
-
-						m_ShowOnlyViewport = true;
-					}
-
-					Application::Get().DispatchEvent<Events::RenderViewportOnlyEvent>(m_ShowOnlyViewport);
+					break;
+				}
+				case KeyCode::H:
+				{
+					SC_CtrlH();
 
 					break;
 				}
@@ -2119,14 +2230,17 @@ namespace Iris {
 		auto [mouseX, mouseY] = GetMouseInViewportSpace();
 		if (mouseX > -1.0f && mouseX < 1.0f && mouseY > -1.0f && mouseY < 1.0f)
 		{
-			auto [origin, direction] = CastRay(m_EditorCamera, mouseX, mouseY);
+			auto [origin, direction] = CastRay(mouseX, mouseY);
 			
 			auto meshEntities = m_CurrentScene->GetAllEntitiesWith<StaticMeshComponent>();
 			for (auto e : meshEntities)
 			{
-				Entity entity = { e, m_CurrentScene.Raw()};
-				auto& mc = entity.GetComponent<StaticMeshComponent>();
-			
+				Entity entity = { e, m_CurrentScene.Raw() };
+				if (!entity.HasComponent<VisibleComponent>())
+					continue;
+				
+				StaticMeshComponent& mc = entity.GetComponent<StaticMeshComponent>();
+
 				// We get it async so that if we are loading asset we do not block the main thread
 				Ref<StaticMesh> staticMesh = AssetManager::GetAssetAsync<StaticMesh>(mc.StaticMesh);
 				if (staticMesh)
@@ -2206,20 +2320,20 @@ namespace Iris {
 		return { (mx / viewportSize.x) * 2.0f - 1.0f, (my / viewportSize.y) * 2.0f - 1.0f };
 	}
 
-	std::pair<glm::vec3, glm::vec3> EditorLayer::CastRay(const EditorCamera& camera, float x, float y)
+	std::pair<glm::vec3, glm::vec3> EditorLayer::CastRay(float x, float y)
 	{
 		glm::vec4 mouseClipPos = { x, y, -1.0f, 1.0f };
 
-		auto inverseProj = glm::inverse(camera.GetProjectionMatrix());
-		auto inverseView = glm::inverse(glm::mat3(camera.GetViewMatrix()));
+		auto inverseProj = glm::inverse(m_EditorCamera.GetProjectionMatrix());
+		auto inverseView = glm::inverse(glm::mat3(m_EditorCamera.GetViewMatrix()));
 
-		glm::vec3 rayPos = camera.GetPosition();
+		glm::vec3 rayPos = m_EditorCamera.GetPosition();
 		glm::vec4 ray = inverseProj * mouseClipPos;
-		if (!camera.IsPerspectiveProjection())
+		if (!m_EditorCamera.IsPerspectiveProjection())
 			ray.z = -1.0f;
 		glm::vec3 direction = inverseView * ray;
 
-		return { rayPos, camera.IsPerspectiveProjection() ? direction : glm::normalize(direction) };
+		return { rayPos, m_EditorCamera.IsPerspectiveProjection() ? direction : glm::normalize(direction) };
 	}
 
 	void EditorLayer::SceneHierarchySetEditorCameraTransform(Entity entity)

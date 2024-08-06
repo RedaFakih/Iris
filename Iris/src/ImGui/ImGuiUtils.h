@@ -269,7 +269,7 @@ namespace Iris::UI {
 	bool PropertyStringMultiline(const char* label, std::string& value, const char* helpText = "");
 	bool PropertyStringReadOnly(const char* label, const char* value, bool isErorr = false, const char* helpText = "");
 	bool Property(const char* label, float& value, float delta = 0.1f, float min = 0.0f, float max = 0.0f, const char* helpText = "");
-	bool Property(const char* label, uint32_t& value, uint32_t delta = 1.0f, uint32_t min = 0, uint32_t max = 0, const char* helpText = "");
+	bool Property(const char* label, uint32_t& value, uint32_t delta = 1, uint32_t min = 0, uint32_t max = 0, const char* helpText = "");
 	bool Property(const char* label, bool& value, const char* helpText = "", bool underLineProperty = false);
 	bool PropertySlider(const char* label, uint32_t& value, uint32_t min = 0, uint32_t max = 0, const char* format = "%.3f", const char* helpText = "");
 	bool PropertySlider(const char* label, float& value, float min = 0.0f, float max = 0.0f, const char* format = "%.3f", const char* helpText = "");
@@ -339,6 +339,8 @@ namespace Iris::UI {
 	//=========================================================================================
 	/// Button Image
 	ImTextureID GetTextureID(Ref<Texture2D> texture);
+	
+	ImTextureID GetTextureID(Ref<Texture2D> texture, uint32_t imageLayer);
 
 	inline void DrawButtonImage(const Ref<Texture2D>& imageNormal, const Ref<Texture2D>& imageHovered, const Ref<Texture2D>& imagePressed,
 		ImU32 tintNormal, ImU32 tintHovered, ImU32 tintPressed,
@@ -389,6 +391,8 @@ namespace Iris::UI {
 
 	// Normal image
 	void Image(const Ref<Texture2D>& image, const ImVec2& size, const ImVec2& uv0 = ImVec2(0, 0), const ImVec2& uv1 = ImVec2(1, 1), const ImVec4& tint_col = ImVec4(1, 1, 1, 1), const ImVec4& border_col = ImVec4(0, 0, 0, 0));
+	
+	void Image(const Ref<Texture2D>& image, const uint32_t imageLayer, const ImVec2& size, const ImVec2& uv0 = ImVec2(0, 0), const ImVec2& uv1 = ImVec2(1, 1), const ImVec4& tint_col = ImVec4(1, 1, 1, 1), const ImVec4& border_col = ImVec4(0, 0, 0, 0));
 
 	/////////////////////////////////////////////////////////////////////////////////////////
 	// Borders...

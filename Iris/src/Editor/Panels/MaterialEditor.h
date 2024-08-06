@@ -17,6 +17,8 @@ namespace Iris {
 		virtual void OnClose() override;
 		virtual void Render() override;
 
+		virtual ImGuiWindowFlags GetWindowFlags() override;
+
 	private:
 		Ref<MaterialAsset> m_MaterialAsset;
 

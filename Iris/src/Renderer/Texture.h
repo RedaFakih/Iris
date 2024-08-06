@@ -35,8 +35,10 @@ namespace Iris {
 		SRGB,
 		SRGBA,
 
-		DEPTH32FSTENCIL8UINT, // UINT
-		DEPTH24STENCIL8, // Default device depth format
+		Depth32F,
+		Depth32FStencil8UINT,
+		Depth24UNORMStencil8UINT,
+		DepthDefault // Default device depth format
 	};
 
 	enum class TextureWrap : uint8_t
@@ -86,16 +88,14 @@ namespace Iris {
 		uint32_t Samples = 1;
 
 		// Used for Transfer operations? (Affects the usage of the image)
-		bool Trasnfer = false;
+		bool Transfer = false;
 
 		// If usage is Attachment then it will be overriden to false otherwise used value is one set by user
 		bool GenerateMips = true;
 		// DO NOT SET THIS. This will be determined up on invalidation and is there for debugging purposes.
 		uint32_t Mips = 0;
 
-		// TODO: We could store a cache map for per-layer image views and another for per-mip image views and to create them we just loop
-		// TODO: on the mipCount and the loop on Layers and just change the subResourceRange for VkImageViewCreateInfo
-		// Set by user. Texture might an array useful for shadow mapping
+		// You could have a mipped, layered image. However if ImageUsage::Attachment is set then you are ONLY allowed to have a layered image, GenerateMips HAS to be false
 		uint32_t Layers = 1;
 	};
 
@@ -104,6 +104,8 @@ namespace Iris {
 	 * If no command buffer is passed in then all the commands are executed on the Graphics queue, and if THERE WAS a command buffer passed in then the commands
 	 * will be ASSUMED to be running on the compute queue since that is basically the only other queue that can run almost all commands
 	 */
+
+	class ImageView;
 
 	class Texture2D : public Asset
 	{
@@ -124,6 +126,10 @@ namespace Iris {
 		void Resize(uint32_t width, uint32_t height, VkCommandBuffer commandBuffer = nullptr);
 		void GenerateMips(VkCommandBuffer commandBuffer = nullptr);
 		void Release();
+
+		Ref<ImageView> CreateImageViewSingleMip(uint32_t mip);
+		Ref<ImageView> CreateImageViewSingleLayer(uint32_t layer);
+		std::vector<Ref<ImageView>> CreatePerLayerImageViews();
 
 		uint64_t GetHash() const { return reinterpret_cast<uint64_t>(m_ImageView); }
 
@@ -149,6 +155,7 @@ namespace Iris {
 		uint32_t GetMipLevelCount() const;
 		uint32_t GetNumLayers() const { return m_Specification.Layers; }
 		glm::ivec2 GetMipSize(uint32_t mip) const;
+		uint32_t GetClosestMipLevel(uint32_t width, uint32_t height) const;
 
 		static AssetType GetStaticType() { return AssetType::Texture; }
 		virtual AssetType GetAssetType() const override { return GetStaticType(); }
@@ -168,8 +175,6 @@ namespace Iris {
 		VkDescriptorImageInfo m_DescriptorInfo = {};
 	};
 
-	class ImageView;
-
 	class TextureCube : public Asset
 	{
 	public:
@@ -184,6 +189,7 @@ namespace Iris {
 		void Invalidate(VkCommandBuffer commandBuffer = nullptr);
 		void GenerateMips(bool readonly = false, VkCommandBuffer commandBuffer = nullptr);
 		void Release();
+		
 		Ref<ImageView> CreateImageViewSingleMip(uint32_t mip);
 
 		uint64_t GetHash() const { return reinterpret_cast<uint64_t>(m_ImageView); }
@@ -212,6 +218,7 @@ namespace Iris {
 		uint32_t GetMipLevelCount() const;
 		uint32_t GetNumLayers() const { return m_Specification.Layers; }
 		glm::ivec2 GetMipSize(uint32_t mip) const;
+		uint32_t GetClosestMipLevel(uint32_t width, uint32_t height) const;
 
 		static AssetType GetStaticType() { return AssetType::EnvironmentMap; }
 		virtual AssetType GetAssetType() const override { return GetStaticType(); }
@@ -243,10 +250,14 @@ namespace Iris {
 		Ref<TextureCube> CubeImage = nullptr;
 
 		// Desired mip for the image view
-		uint32_t Mip = 0;
+		// Leave at - 1 if you want to include ALL mips of the image in the image view
+		int Mip = -1;
+		// Desired layer for the image view
+		// Leave at -1 if you want to include ALL layers of the image in the image view
+		int Layer = -1;
 	};
 
-	class ImageView : public Asset
+	class ImageView : public RefCountedObject
 	{
 	public:
 		explicit ImageView(const ImageViewSpecification& spec, bool deferInvalidation = true);
@@ -265,7 +276,7 @@ namespace Iris {
 		const VkDescriptorImageInfo& GetDescriptorImageInfo() const { return m_DescriptorInfo; }
 
 	private:
-		ImageViewSpecification m_Specificaton;
+		ImageViewSpecification m_Specification;
 
 		VkImageView m_ImageView = nullptr;
 
@@ -307,7 +318,7 @@ namespace Iris {
 				case ImageFormat::R8UI:
 				case ImageFormat::R16UI:
 				case ImageFormat::R32UI:
-				case ImageFormat::DEPTH32FSTENCIL8UINT:
+				case ImageFormat::Depth24UNORMStencil8UINT:
 					return true;
 				case ImageFormat::R8UN:
 				case ImageFormat::R32F:
@@ -321,7 +332,9 @@ namespace Iris {
 				case ImageFormat::B10R11G11UF:
 				case ImageFormat::SRGB:
 				case ImageFormat::SRGBA:
-				case ImageFormat::DEPTH24STENCIL8:
+				case ImageFormat::Depth32F:
+				case ImageFormat::Depth32FStencil8UINT:
+				case ImageFormat::DepthDefault: // We do not know but most probably no
 					return false;
 			}
 
@@ -341,7 +354,15 @@ namespace Iris {
 
 		inline constexpr bool IsDepthFormat(ImageFormat format)
 		{
-			if (format == ImageFormat::DEPTH24STENCIL8 || format == ImageFormat::DEPTH32FSTENCIL8UINT)
+			if (format == ImageFormat::Depth24UNORMStencil8UINT || format == ImageFormat::Depth32FStencil8UINT || format == ImageFormat::Depth32F || format == ImageFormat::DepthDefault)
+				return true;
+
+			return false;
+		}
+
+		inline constexpr bool IsDepthOnly(ImageFormat format)
+		{
+			if (format == ImageFormat::Depth32F)
 				return true;
 
 			return false;
@@ -351,23 +372,27 @@ namespace Iris {
 		{
 			switch (format)
 			{
-				case ImageFormat::R8UN:					return VK_FORMAT_R8_UNORM;
-				case ImageFormat::R8UI:					return VK_FORMAT_R8_UINT;
-				case ImageFormat::R16UI:                return VK_FORMAT_R16_UINT;
-				case ImageFormat::R32UI:                return VK_FORMAT_R32_UINT;
-				case ImageFormat::R32F:					return VK_FORMAT_R32_SFLOAT;
-				case ImageFormat::RG8:				    return VK_FORMAT_R8G8_UNORM;
-				case ImageFormat::RG16F:				return VK_FORMAT_R16G16_SFLOAT;
-				case ImageFormat::RG32F:				return VK_FORMAT_R32G32_SFLOAT;
-				case ImageFormat::RGB:					return VK_FORMAT_R8G8B8_UNORM;
-				case ImageFormat::RGBA:					return VK_FORMAT_R8G8B8A8_UNORM;
-				case ImageFormat::RGBA16F:				return VK_FORMAT_R16G16B16A16_SFLOAT;
-				case ImageFormat::RGBA32F:				return VK_FORMAT_R32G32B32A32_SFLOAT;
-				case ImageFormat::B10R11G11UF:			return VK_FORMAT_B10G11R11_UFLOAT_PACK32;
-				case ImageFormat::SRGB:					return VK_FORMAT_R8G8B8_SRGB;
-				case ImageFormat::SRGBA:				return VK_FORMAT_R8G8B8A8_SRGB;
-				case ImageFormat::DEPTH32FSTENCIL8UINT: return VK_FORMAT_D32_SFLOAT_S8_UINT;
-				case ImageFormat::DEPTH24STENCIL8:		return RendererContext::GetCurrentDevice()->GetPhysicalDevice()->GetDepthFormat();
+				// Color Formats
+				case ImageFormat::R8UN:							return VK_FORMAT_R8_UNORM;
+				case ImageFormat::R8UI:							return VK_FORMAT_R8_UINT;
+				case ImageFormat::R16UI:						return VK_FORMAT_R16_UINT;
+				case ImageFormat::R32UI:						return VK_FORMAT_R32_UINT;
+				case ImageFormat::R32F:							return VK_FORMAT_R32_SFLOAT;
+				case ImageFormat::RG8:							return VK_FORMAT_R8G8_UNORM;
+				case ImageFormat::RG16F:						return VK_FORMAT_R16G16_SFLOAT;
+				case ImageFormat::RG32F:						return VK_FORMAT_R32G32_SFLOAT;
+				case ImageFormat::RGB:							return VK_FORMAT_R8G8B8_UNORM;
+				case ImageFormat::RGBA:							return VK_FORMAT_R8G8B8A8_UNORM;
+				case ImageFormat::RGBA16F:						return VK_FORMAT_R16G16B16A16_SFLOAT;
+				case ImageFormat::RGBA32F:						return VK_FORMAT_R32G32B32A32_SFLOAT;
+				case ImageFormat::B10R11G11UF:					return VK_FORMAT_B10G11R11_UFLOAT_PACK32;
+				case ImageFormat::SRGB:							return VK_FORMAT_R8G8B8_SRGB;
+				case ImageFormat::SRGBA:						return VK_FORMAT_R8G8B8A8_SRGB;
+				// Depth Formats
+				case ImageFormat::Depth32F:						return VK_FORMAT_D32_SFLOAT;
+				case ImageFormat::Depth32FStencil8UINT:			return VK_FORMAT_D32_SFLOAT_S8_UINT;
+				case ImageFormat::Depth24UNORMStencil8UINT:		return VK_FORMAT_D24_UNORM_S8_UINT;
+				case ImageFormat::DepthDefault:					return RendererContext::GetCurrentDevice()->GetPhysicalDevice()->GetDepthFormat();
 			}
 
 			IR_ASSERT(false);

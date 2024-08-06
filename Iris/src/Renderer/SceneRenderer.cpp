@@ -10,6 +10,8 @@
 #include "Texture.h"
 #include "UniformBufferSet.h"
 
+#include <glm/gtx/compatibility.hpp>
+
 namespace Iris {
 
 	Ref<SceneRenderer> SceneRenderer::Create(Ref<Scene> scene, const SceneRendererSpecification& spec)
@@ -44,6 +46,10 @@ namespace Iris {
 		m_UBSCamera = UniformBufferSet::Create(sizeof(UBCamera));
 		m_UBSScreenData = UniformBufferSet::Create(sizeof(UBScreenData));
 		m_UBSSceneData= UniformBufferSet::Create(sizeof(UBScene));
+		m_UBSDirectionalShadowData = UniformBufferSet::Create(sizeof(UBDirectionalShadowData));
+		m_UBSRendererData = UniformBufferSet::Create(sizeof(UBRendererData));
+
+		m_RendererDataUB.SoftShadows = m_Specification.ShadowResolution == ShadowResolutionSetting::High;
 
 		VertexInputLayout vertexLayout = {
 			{ ShaderDataType::Float3, "a_Position" },
@@ -60,13 +66,80 @@ namespace Iris {
 			{ ShaderDataType::Float4, "a_MatrixRow2" }
 		};
 
+		// Directional Shadow
+		{
+			uint32_t shadowMapResolution = 4096;
+			switch (m_Specification.ShadowResolution)
+			{
+				case ShadowResolutionSetting::Low:
+					shadowMapResolution = 1024; // Results in a 16 MB image
+					break;
+				case ShadowResolutionSetting::Medium:
+					shadowMapResolution = 2048; // Results in a 64 MB image
+					break;
+				case ShadowResolutionSetting::High:
+					shadowMapResolution = 4096; // Results in a 256 MB image
+					break;
+			}
+
+			TextureSpecification cascadedImageSpec = {
+				.DebugName = "DirectionalShadowCascadedImage",
+				.Width = shadowMapResolution,
+				.Height = shadowMapResolution,
+				.Format = ImageFormat::Depth32F,
+				.Usage = ImageUsage::Attachment,
+				.WrapMode = TextureWrap::Clamp,
+				.FilterMode = TextureFilter::Linear,
+				.GenerateMips = false,
+				.Layers = m_Specification.NumberOfShadowCascades
+			};
+			Ref<Texture2D> cascadedShadowImage = Texture2D::Create(cascadedImageSpec);
+			m_DirShadowImagePerLayerViews = cascadedShadowImage->CreatePerLayerImageViews();
+
+			m_DirectionalShadowPasses.reserve(m_Specification.NumberOfShadowCascades);
+			for (uint32_t i = 0; i < m_Specification.NumberOfShadowCascades; i++)
+			{
+				FramebufferSpecification directionalShadowFBSpec = {
+					.DebugName = fmt::format("DirectionalShadowFB-{}", i),
+					.Width = shadowMapResolution,
+					.Height = shadowMapResolution,
+					.ClearDepthOnLoad = true,
+					.DepthClearValue = 1.0f,
+					.Attachments = { ImageFormat::Depth32F }
+				};
+				directionalShadowFBSpec.ExistingImages[0] = cascadedShadowImage;
+				directionalShadowFBSpec.ExistingImageLayerViews[0] = m_DirShadowImagePerLayerViews[i];
+
+				PipelineSpecification directionalShadowPiplineSpec = {
+					.DebugName = fmt::format("DirectionalShadowPipeline-{}", i),
+					.Shader = Renderer::GetShadersLibrary()->Get("DirectionalShadow"),
+					.TargetFramebuffer = Framebuffer::Create(directionalShadowFBSpec),
+					.VertexLayout = vertexLayout,
+					.InstanceLayout = instanceLayout,
+					.DepthOperator = DepthCompareOperator::LessOrEqual
+				};
+
+				RenderPassSpecification directionalShadowRPSpec = {
+					.DebugName = fmt::format("DirectionalShadowPass-{}", i),
+					.Pipeline = Pipeline::Create(directionalShadowPiplineSpec),
+					.MarkerColor = { 0.06f, 0.22f, 0.06f - i * 0.005f, 1.0f}
+				};
+				m_DirectionalShadowPasses.push_back(RenderPass::Create(directionalShadowRPSpec));
+
+				m_DirectionalShadowPasses[i]->SetInput("DirectionalShadowData", m_UBSDirectionalShadowData);
+				m_DirectionalShadowPasses[i]->Bake();
+			}
+
+			m_DirectionalShadowMaterial = Material::Create(Renderer::GetShadersLibrary()->Get("DirectionalShadow"), "DirectionalShadowMaterial");
+		}
+
 		// Pre-Depth
 		{
 			FramebufferSpecification preDepthFBSpec = {
 				.DebugName = "OpaquePreDepthFB",
 				// Linear depth, reversed depth buffer
 				.DepthClearValue = 0.0f,
-				.Attachments = { ImageFormat::DEPTH32FSTENCIL8UINT }
+				.Attachments = { ImageFormat::Depth32F }
 			};
 
 			PipelineSpecification preDepthPipelineSpec = {
@@ -96,7 +169,7 @@ namespace Iris {
 				FramebufferSpecification doubleSidedFBSpec = {
 					.DebugName = "DoubleSidedPreDepthFB",
 					.ClearDepthOnLoad = false,
-					.Attachments = { ImageFormat::DEPTH32FSTENCIL8UINT }
+					.Attachments = { ImageFormat::Depth32F }
 				};
 				doubleSidedFBSpec.ExistingImages[0] = m_PreDepthPass->GetDepthOutput();
 				
@@ -134,9 +207,8 @@ namespace Iris {
 				.ClearColorOnLoad = true,
 				.ClearColor = { 0.04f, 0.04f, 0.04f, 1.0f },
 				.ClearDepthOnLoad = false,
-				// NOTE: The first attachment has to load... Since the skybox pass writes to it before any geometry is written
 				// NOTE: The second attachment does not blend since we do not want to blend with luminance in the alpha channel
-				.Attachments = { ImageFormat::RGBA32F, { ImageFormat::RGBA16F, false }, ImageFormat::RGBA, ImageFormat::DEPTH32FSTENCIL8UINT }
+				.Attachments = { ImageFormat::RGBA32F, { ImageFormat::RGBA16F, false }, ImageFormat::RGBA, ImageFormat::Depth32F }
 			};
 			geometryFBSpec.Attachments.Attachments[0].LoadOp = AttachmentLoadOp::Load; // Load since skybox pass writes to it
 
@@ -163,9 +235,12 @@ namespace Iris {
 			m_GeometryPass = RenderPass::Create(staticGeometryPassSpec);
 
 			m_GeometryPass->SetInput("Camera", m_UBSCamera);
-			 m_GeometryPass->SetInput("SceneData", m_UBSSceneData);
+			m_GeometryPass->SetInput("SceneData", m_UBSSceneData);
+			m_GeometryPass->SetInput("DirectionalShadowData", m_UBSDirectionalShadowData);
+			m_GeometryPass->SetInput("RendererData", m_UBSRendererData);
 			m_GeometryPass->SetInput("u_RadianceMap", Renderer::GetBlackCubeTexture());
 			m_GeometryPass->SetInput("u_IrradianceMap", Renderer::GetBlackCubeTexture());
+			m_GeometryPass->SetInput("u_ShadowMap", m_DirectionalShadowPasses[0]->GetDepthOutput());
 			m_GeometryPass->SetInput("u_BRDFLutTexture", Renderer::GetBRDFLutTexture());
 
 			m_GeometryPass->Bake();
@@ -177,12 +252,12 @@ namespace Iris {
 					.ClearColorOnLoad = false,
 					.ClearColor = { 0.04f, 0.04f, 0.04f, 1.0f },
 					.ClearDepthOnLoad = false,
-					.Attachments = { ImageFormat::RGBA32F, { ImageFormat::RGBA16F, false }, ImageFormat::RGBA, ImageFormat::DEPTH32FSTENCIL8UINT }
+					.Attachments = { ImageFormat::RGBA32F, { ImageFormat::RGBA16F, false }, ImageFormat::RGBA, ImageFormat::Depth32F }
 				};
 				doubleSidedGeometryFB.ExistingImages[0] = m_GeometryPass->GetOutput(0);
 				doubleSidedGeometryFB.ExistingImages[1] = m_GeometryPass->GetOutput(1);
 				doubleSidedGeometryFB.ExistingImages[2] = m_GeometryPass->GetOutput(2);
-				doubleSidedGeometryFB.ExistingImages[3] = m_PreDepthPass->GetDepthOutput();			
+				doubleSidedGeometryFB.ExistingImages[3] = m_PreDepthPass->GetDepthOutput();
 			
 				staticGeometryPipelineSpec.DebugName = "DoubleSidedGeometryPipeline";
 				staticGeometryPipelineSpec.TargetFramebuffer = Framebuffer::Create(doubleSidedGeometryFB);
@@ -193,8 +268,11 @@ namespace Iris {
 				
 				m_DoubleSidedGeometryPass->SetInput("Camera", m_UBSCamera);
 				m_DoubleSidedGeometryPass->SetInput("SceneData", m_UBSSceneData);
+				m_DoubleSidedGeometryPass->SetInput("DirectionalShadowData", m_UBSDirectionalShadowData);
+				m_DoubleSidedGeometryPass->SetInput("RendererData", m_UBSRendererData);
 				m_DoubleSidedGeometryPass->SetInput("u_RadianceMap", Renderer::GetBlackCubeTexture());
 				m_DoubleSidedGeometryPass->SetInput("u_IrradianceMap", Renderer::GetBlackCubeTexture());
+				m_DoubleSidedGeometryPass->SetInput("u_ShadowMap", m_DirectionalShadowPasses[0]->GetDepthOutput());
 				m_DoubleSidedGeometryPass->SetInput("u_BRDFLutTexture", Renderer::GetBRDFLutTexture());
 
 				m_DoubleSidedGeometryPass->Bake();
@@ -214,8 +292,11 @@ namespace Iris {
 			
 				m_WireframeViewGeometryPass->SetInput("Camera", m_UBSCamera);
 				m_WireframeViewGeometryPass->SetInput("SceneData", m_UBSSceneData);
+				m_WireframeViewGeometryPass->SetInput("DirectionalShadowData", m_UBSDirectionalShadowData);
+				m_WireframeViewGeometryPass->SetInput("RendererData", m_UBSRendererData);
 				m_WireframeViewGeometryPass->SetInput("u_RadianceMap", Renderer::GetBlackCubeTexture());
 				m_WireframeViewGeometryPass->SetInput("u_IrradianceMap", Renderer::GetBlackCubeTexture());
+				m_WireframeViewGeometryPass->SetInput("u_ShadowMap", m_DirectionalShadowPasses[0]->GetDepthOutput());
 				m_WireframeViewGeometryPass->SetInput("u_BRDFLutTexture", Renderer::GetBRDFLutTexture());
 
 				m_WireframeViewGeometryPass->Bake();
@@ -317,7 +398,7 @@ namespace Iris {
 				.DebugName = "CompositingFB",
 				.ClearColorOnLoad = false,
 				.ClearDepthOnLoad = false,
-				.Attachments = { ImageFormat::RGBA32F, ImageFormat::DEPTH32FSTENCIL8UINT }
+				.Attachments = { ImageFormat::RGBA32F, ImageFormat::Depth32F }
 			};
 			compositingFBSpec.ExistingImages[0] = m_CompositePass->GetOutput(0);
 			compositingFBSpec.ExistingImages[1] = m_PreDepthPass->GetDepthOutput();
@@ -596,12 +677,14 @@ namespace Iris {
 
 		m_GeometryPass->SetInput("u_RadianceMap", m_SceneInfo.SceneEnvironment->RadianceMap);
 		m_GeometryPass->SetInput("u_IrradianceMap", m_SceneInfo.SceneEnvironment->IrradianceMap);
+		m_GeometryPass->SetInput("u_ShadowMap", m_DirectionalShadowPasses[0]->GetDepthOutput());
 
 		m_DoubleSidedGeometryPass->SetInput("u_RadianceMap", m_SceneInfo.SceneEnvironment->RadianceMap);
 		m_DoubleSidedGeometryPass->SetInput("u_IrradianceMap", m_SceneInfo.SceneEnvironment->IrradianceMap);
 
 		m_WireframeViewGeometryPass->SetInput("u_RadianceMap", m_SceneInfo.SceneEnvironment->RadianceMap);
 		m_WireframeViewGeometryPass->SetInput("u_IrradianceMap", m_SceneInfo.SceneEnvironment->IrradianceMap);
+		m_WireframeViewGeometryPass->SetInput("u_ShadowMap", m_DirectionalShadowPasses[0]->GetDepthOutput());
 
 		// Resize resources if needed
 		if (m_NeedsResize)
@@ -684,7 +767,7 @@ namespace Iris {
 			UBScene& sceneData = m_SceneDataUB;
 
 			const auto& directionalLight = m_SceneInfo.SceneLightEnvironment.DirectionalLight;
-			sceneData.Light.Direction = { directionalLight.Direction.x, directionalLight.Direction.y, directionalLight.Direction.z, directionalLight.ShadowAmount };
+			sceneData.Light.Direction = { directionalLight.Direction.x, directionalLight.Direction.y, directionalLight.Direction.z, directionalLight.ShadowOpacity };
 			sceneData.Light.Radiance = { directionalLight.Radiance.r, directionalLight.Radiance.g, directionalLight.Radiance.b, directionalLight.Intensity };
 			
 			sceneData.CameraPosition = m_CameraDataUB.InverseViewMatrix[3];
@@ -694,6 +777,49 @@ namespace Iris {
 			Renderer::Submit([instance, sceneData]() mutable
 			{
 				instance->m_UBSSceneData->RT_Get()->RT_SetData(&sceneData, sizeof(UBScene));
+			});
+		}
+
+		// Directional Shadow Data uniform buffer (set = 2, binding = 3)
+		{
+			UBDirectionalShadowData& dirShadowData = m_DirectionalShadowDataUB;
+
+			CascadeData cascades[4];
+			CalculateCascades(m_SceneInfo.Camera, glm::vec3(m_SceneDataUB.Light.Direction), cascades);
+
+			m_CascadeSplits.x = cascades[0].SplitDepth;
+			m_CascadeSplits.y = cascades[1].SplitDepth;
+			m_CascadeSplits.z = cascades[2].SplitDepth;
+			m_CascadeSplits.w = cascades[3].SplitDepth;
+
+			dirShadowData.DirectionalLightMatrices[0] = cascades[0].ViewProjMatrix;
+			dirShadowData.DirectionalLightMatrices[1] = cascades[1].ViewProjMatrix;
+			dirShadowData.DirectionalLightMatrices[2] = cascades[2].ViewProjMatrix;
+			dirShadowData.DirectionalLightMatrices[3] = cascades[3].ViewProjMatrix;
+
+			Ref<SceneRenderer> instance = this;
+			Renderer::Submit([instance, dirShadowData]() mutable
+			{
+				instance->m_UBSDirectionalShadowData->RT_Get()->RT_SetData(&dirShadowData, sizeof(UBDirectionalShadowData));
+			});
+		}
+
+		// Renderer Data uniform buffer (set = 2, binding = 4)
+		{
+			UBRendererData& rendererData = m_RendererDataUB;
+
+			// NOTE: Other data is set from scene renderer panel or manually through provided methods
+			rendererData.CascadeSplits = m_CascadeSplits;
+
+			if (m_ViewMode == ViewMode::Unlit || m_ViewMode == ViewMode::Wireframe)
+				rendererData.Unlit = true;
+			else
+				rendererData.Unlit = false;
+
+			Ref<SceneRenderer> instance = this;
+			Renderer::Submit([instance, rendererData]() mutable
+			{
+				instance->m_UBSRendererData->RT_Get()->RT_SetData(&rendererData, sizeof(UBRendererData));
 			});
 		}
 	}
@@ -736,6 +862,18 @@ namespace Iris {
 				bool isDoubleSided = materialAsset->IsDoubleSided();
 				auto& destDrawList = isDoubleSided == true ? m_DoubleSidedStaticMeshDrawList : m_StaticMeshDrawList;
 				auto& dc = destDrawList[meshKey];
+				dc.StaticMesh = staticMesh;
+				dc.MeshSource = meshSource;
+				dc.SubMeshIndex = subMeshIndex;
+				dc.MaterialTable = materialTable;
+				dc.OverrideMaterial = overrideMaterial;
+				dc.InstanceCount++;
+			}
+
+			// For Shadow Pass
+			if (materialAsset->IsShadowCasting())
+			{
+				auto& dc = m_StaticMeshShadowDrawList[meshKey];
 				dc.StaticMesh = staticMesh;
 				dc.MeshSource = meshSource;
 				dc.SubMeshIndex = subMeshIndex;
@@ -794,6 +932,18 @@ namespace Iris {
 				dc.OverrideMaterial = overrideMaterial;
 				dc.InstanceCount++;
 			}
+
+			// For Shadow Pass
+			if (materialAsset->IsShadowCasting())
+			{
+				auto& dc = m_StaticMeshShadowDrawList[meshKey];
+				dc.StaticMesh = staticMesh;
+				dc.MeshSource = meshSource;
+				dc.SubMeshIndex = subMeshIndex;
+				dc.MaterialTable = materialTable;
+				dc.OverrideMaterial = overrideMaterial;
+				dc.InstanceCount++;
+			}
 		}
 	}
 
@@ -822,8 +972,21 @@ namespace Iris {
 
 	void SceneRenderer::ResetImageLayouts()
 	{
-		Renderer::Submit([cmdBuffer = m_CommandBuffer, preDepthPass = m_PreDepthPass, geoPass = m_GeometryPass, selectedGeo = m_SelectedGeometryPass, jfaFBs = m_JumpFloodFramebuffers, compPass = m_CompositePass, spec = m_Specification]()
+		Renderer::Submit([cmdBuffer = m_CommandBuffer, preDepthPass = m_PreDepthPass, geoPass = m_GeometryPass, selectedGeo = m_SelectedGeometryPass, jfaFBs = m_JumpFloodFramebuffers, compPass = m_CompositePass, dirShadowPasses = m_DirectionalShadowPasses, spec = m_Specification]()
 		{
+			// Directional Shadow map image (NOTE: Do only for one of them since all the passes reference the same image)
+			Renderer::InsertImageMemoryBarrier(
+				cmdBuffer->GetActiveCommandBuffer(),
+				dirShadowPasses[0]->GetDepthOutput()->GetVulkanImage(),
+				0,
+				VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+				VK_IMAGE_LAYOUT_UNDEFINED,
+				VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL,
+				VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT,
+				VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT,
+				{ .aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = spec.NumberOfShadowCascades }
+			);
+
 			// PreDepth image
 			Renderer::InsertImageMemoryBarrier(
 				cmdBuffer->GetActiveCommandBuffer(),
@@ -831,10 +994,10 @@ namespace Iris {
 				0,
 				VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
 				VK_IMAGE_LAYOUT_UNDEFINED,
-				VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+				VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL,
 				VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT,
 				VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT,
-				{ .aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = 1 }
+				{ .aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = 1 }
 			);
 
 			// Geometry Color images
@@ -907,6 +1070,7 @@ namespace Iris {
 			m_CommandBuffer->Begin();
 
 			ResetImageLayouts();
+			DirectionalShadowPass();
 			PreDepthPass();
 			SkyboxPass();
 			GeometryPass();
@@ -937,6 +1101,7 @@ namespace Iris {
 		m_DoubleSidedStaticMeshDrawList.clear();
 		m_SelectedStaticMeshDrawList.clear();
 		m_DoubleSidedSelectedStaticMeshDrawList.clear();
+		m_StaticMeshShadowDrawList.clear();
 
 		m_SceneInfo = {};
 
@@ -963,6 +1128,111 @@ namespace Iris {
 		}
 
 		m_MeshTransformBuffers[frameIndex].VertexBuffer->SetData(m_MeshTransformBuffers[frameIndex].Data, offset * sizeof(TransformVertexData));
+	}
+
+	void SceneRenderer::ClearPass()
+	{
+		Renderer::Submit([cmdBuffer = m_CommandBuffer, preDepthPass = m_PreDepthPass, compPass = m_CompositePass]()
+		{
+			// PreDepth image
+			Renderer::InsertImageMemoryBarrier(
+				cmdBuffer->GetActiveCommandBuffer(),
+				preDepthPass->GetDepthOutput()->GetVulkanImage(),
+				0,
+				VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+				VK_IMAGE_LAYOUT_UNDEFINED,
+				VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL,
+				VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT,
+				VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT,
+				{ .aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = 1 }
+			);
+
+			// Geometry Color images
+			Renderer::InsertImageMemoryBarrier(
+				cmdBuffer->GetActiveCommandBuffer(),
+				compPass->GetOutput(0)->GetVulkanImage(),
+				0,
+				VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
+				VK_IMAGE_LAYOUT_UNDEFINED,
+				VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+				VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
+				VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
+				{ .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = 1 }
+			);
+		});
+
+		// Here we do not need to explicit clear since the attachment is LOAD_OP_CLEAR
+		Renderer::BeginRenderPass(m_CommandBuffer, m_PreDepthPass);
+		Renderer::EndRenderPass(m_CommandBuffer);
+
+		// Here we do not need to explicit clear since the attachment is LOAD_OP_CLEAR
+		Renderer::BeginRenderPass(m_CommandBuffer, m_CompositePass);
+		Renderer::EndRenderPass(m_CommandBuffer);
+	}
+
+	void SceneRenderer::DirectionalShadowPass()
+	{
+		uint32_t frameIndex = Renderer::GetCurrentFrameIndex();
+
+		const SceneDirectionalLight& directionalLight = m_SceneInfo.SceneLightEnvironment.DirectionalLight;
+		if (!directionalLight.CastShadows || directionalLight.Intensity == 0.0f)
+		{
+			// Clear Shadow Maps
+			for (uint32_t i = 0; i < m_Specification.NumberOfShadowCascades; i++)
+			{
+				Renderer::BeginRenderPass(m_CommandBuffer, m_DirectionalShadowPasses[i]);
+				Renderer::EndRenderPass(m_CommandBuffer);
+			}
+
+			// Make image ready to be read from
+			Renderer::Submit([cmdBuffer = m_CommandBuffer, dirShadowPasses = m_DirectionalShadowPasses, cascades = m_Specification.NumberOfShadowCascades]()
+			{
+				Renderer::InsertImageMemoryBarrier(
+					cmdBuffer->GetActiveCommandBuffer(),
+					dirShadowPasses[0]->GetDepthOutput()->GetVulkanImage(),
+					VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+					VK_ACCESS_2_SHADER_READ_BIT,
+					VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL,
+					VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL,
+					VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT,
+					VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,
+					{ .aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = cascades }
+				);
+			});
+
+			return;
+		}
+
+		for (uint32_t i = 0; i < m_Specification.NumberOfShadowCascades; i++)
+		{
+			Renderer::BeginRenderPass(m_CommandBuffer, m_DirectionalShadowPasses[i]);
+
+			const Buffer cascade(reinterpret_cast<const uint8_t*>(&i), sizeof(uint32_t));
+			for (const auto& [mk, dc] : m_StaticMeshShadowDrawList)
+			{
+				IR_VERIFY(m_MeshTransformMap.contains(mk));
+				const auto& transformData = m_MeshTransformMap.at(mk);
+				Renderer::RenderStaticMeshWithMaterial(m_CommandBuffer, m_DirectionalShadowPasses[i]->GetPipeline(), dc.StaticMesh, dc.MeshSource, dc.SubMeshIndex, m_DirectionalShadowMaterial, m_MeshTransformBuffers[frameIndex].VertexBuffer, transformData.TransformOffset, dc.InstanceCount, cascade);
+			}
+
+			Renderer::EndRenderPass(m_CommandBuffer);
+		}
+
+		// Make image ready to be read from
+		Renderer::Submit([cmdBuffer = m_CommandBuffer, dirShadowPasses = m_DirectionalShadowPasses, cascades = m_Specification.NumberOfShadowCascades]()
+		{
+				Renderer::InsertImageMemoryBarrier(
+				cmdBuffer->GetActiveCommandBuffer(),
+				dirShadowPasses[0]->GetDepthOutput()->GetVulkanImage(),
+				VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+				VK_ACCESS_2_SHADER_READ_BIT,
+				VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL,
+				VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL,
+				VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT,
+				VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,
+				{ .aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = cascades }
+			);
+		});
 	}
 
 	void SceneRenderer::PreDepthPass()
@@ -1089,7 +1359,7 @@ namespace Iris {
 			for (const auto& [mk, dc] : m_StaticMeshDrawList)
 			{
 				const auto& transformData = m_MeshTransformMap.at(mk);
-				Renderer::RenderStaticMesh(m_CommandBuffer, renderPassToUse->GetPipeline(), dc.StaticMesh, dc.MeshSource, dc.SubMeshIndex, dc.MaterialTable ? dc.MaterialTable : dc.StaticMesh->GetMaterials(), m_MeshTransformBuffers[frameIndex].VertexBuffer, transformData.TransformOffset, dc.InstanceCount, static_cast<int>(m_ViewMode));
+				Renderer::RenderStaticMesh(m_CommandBuffer, renderPassToUse->GetPipeline(), dc.StaticMesh, dc.MeshSource, dc.SubMeshIndex, dc.MaterialTable ? dc.MaterialTable : dc.StaticMesh->GetMaterials(), m_MeshTransformBuffers[frameIndex].VertexBuffer, transformData.TransformOffset, dc.InstanceCount);
 			}
 
 			Renderer::EndRenderPass(m_CommandBuffer);
@@ -1107,7 +1377,7 @@ namespace Iris {
 				for (const auto& [mk, dc] : m_DoubleSidedStaticMeshDrawList)
 				{
 					const auto& transformData = m_MeshTransformMap.at(mk);
-					Renderer::RenderStaticMesh(m_CommandBuffer, renderPassToUse->GetPipeline(), dc.StaticMesh, dc.MeshSource, dc.SubMeshIndex, dc.MaterialTable ? dc.MaterialTable : dc.StaticMesh->GetMaterials(), m_MeshTransformBuffers[frameIndex].VertexBuffer, transformData.TransformOffset, dc.InstanceCount, static_cast<int>(m_ViewMode));
+					Renderer::RenderStaticMesh(m_CommandBuffer, renderPassToUse->GetPipeline(), dc.StaticMesh, dc.MeshSource, dc.SubMeshIndex, dc.MaterialTable ? dc.MaterialTable : dc.StaticMesh->GetMaterials(), m_MeshTransformBuffers[frameIndex].VertexBuffer, transformData.TransformOffset, dc.InstanceCount);
 				}
 			
 				Renderer::EndRenderPass(m_CommandBuffer);
@@ -1121,13 +1391,13 @@ namespace Iris {
 			for (const auto& [mk, dc] : m_StaticMeshDrawList)
 			{
 				const auto& transformData = m_MeshTransformMap.at(mk);
-				Renderer::RenderStaticMesh(m_CommandBuffer, m_WireframeViewGeometryPass->GetPipeline(), dc.StaticMesh, dc.MeshSource, dc.SubMeshIndex, dc.MaterialTable ? dc.MaterialTable : dc.StaticMesh->GetMaterials(), m_MeshTransformBuffers[frameIndex].VertexBuffer, transformData.TransformOffset, dc.InstanceCount, static_cast<int>(m_ViewMode));
+				Renderer::RenderStaticMesh(m_CommandBuffer, m_WireframeViewGeometryPass->GetPipeline(), dc.StaticMesh, dc.MeshSource, dc.SubMeshIndex, dc.MaterialTable ? dc.MaterialTable : dc.StaticMesh->GetMaterials(), m_MeshTransformBuffers[frameIndex].VertexBuffer, transformData.TransformOffset, dc.InstanceCount);
 			}
 			
 			for (const auto& [mk, dc] : m_DoubleSidedStaticMeshDrawList)
 			{
 				const auto& transformData = m_MeshTransformMap.at(mk);
-				Renderer::RenderStaticMesh(m_CommandBuffer, m_WireframeViewGeometryPass->GetPipeline(), dc.StaticMesh, dc.MeshSource, dc.SubMeshIndex, dc.MaterialTable ? dc.MaterialTable : dc.StaticMesh->GetMaterials(), m_MeshTransformBuffers[frameIndex].VertexBuffer, transformData.TransformOffset, dc.InstanceCount, static_cast<int>(m_ViewMode));
+				Renderer::RenderStaticMesh(m_CommandBuffer, m_WireframeViewGeometryPass->GetPipeline(), dc.StaticMesh, dc.MeshSource, dc.SubMeshIndex, dc.MaterialTable ? dc.MaterialTable : dc.StaticMesh->GetMaterials(), m_MeshTransformBuffers[frameIndex].VertexBuffer, transformData.TransformOffset, dc.InstanceCount);
 			}
 			
 			Renderer::EndRenderPass(m_CommandBuffer);
@@ -1309,44 +1579,119 @@ namespace Iris {
 		}
 	}
 
-	void SceneRenderer::ClearPass()
+	void SceneRenderer::CalculateCascades(const SceneRendererCamera& sceneCamera, const glm::vec3& lightDirection, CascadeData* cascades) const
 	{
-		Renderer::Submit([cmdBuffer = m_CommandBuffer, preDepthPass = m_PreDepthPass, compPass = m_CompositePass]()
+		// This basically sets whether we want to increase shadow quality around the origin of the scene so we increase the value closer to 1.0, and if we want more evenly spread out
+		// shadows then we should set this value closer to 0.0
+		float scaleToOrigin = m_ScaleShadowCascadesToOrigin;
+
+		glm::mat4 viewMatrix = sceneCamera.ViewMatrix;
+		constexpr glm::vec4 origin = { 0.0f, 0.0f, 0.0f, 1.0f };
+		viewMatrix[3] = glm::lerp(viewMatrix[3], origin, scaleToOrigin);
+
+		glm::mat4 viewProjection = sceneCamera.Camera.GetUnReversedProjectionMatrix() * viewMatrix;
+
+		constexpr int SHADOW_MAP_CASCADES = 4;
+		float cascadeSplits[SHADOW_MAP_CASCADES];
+
+		float nearClip = sceneCamera.Near;
+		float farClip = sceneCamera.Far;
+		float clipRange = farClip - nearClip;
+
+		float minZ = nearClip;
+		float maxZ = nearClip + clipRange; // = farClip
+
+		float range = maxZ - minZ;
+		float ratio = maxZ / minZ;
+
+		// Calculate split depths based on view camera frustum
+		// Based on method presented in https://developer.nvidia.com/gpugems/GPUGems3/gpugems3_ch10.html
+		for (int i = 0; i < SHADOW_MAP_CASCADES; i++)
 		{
-			// PreDepth image
-			Renderer::InsertImageMemoryBarrier(
-				cmdBuffer->GetActiveCommandBuffer(),
-				preDepthPass->GetDepthOutput()->GetVulkanImage(),
-				0,
-				VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
-				VK_IMAGE_LAYOUT_UNDEFINED,
-				VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-				VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT,
-				VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT,
-				{ .aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = 1 }
-			);
+			float p = (i + 1) / static_cast<float>(SHADOW_MAP_CASCADES);
+			float log = minZ * std::pow(ratio, p);
+			float uniform = minZ + range * p;
+			float d = m_CascadeSplitLambda * (log - uniform) + uniform;
+			cascadeSplits[i] = (d - nearClip) / clipRange;
+		}
 
-			// Geometry Color images
-			Renderer::InsertImageMemoryBarrier(
-				cmdBuffer->GetActiveCommandBuffer(),
-				compPass->GetOutput(0)->GetVulkanImage(),
-				0,
-				VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
-				VK_IMAGE_LAYOUT_UNDEFINED,
-				VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-				VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
-				VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
-				{ .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = 1 }
-			);
-		});
+		cascadeSplits[3] = 0.3f;
 
-		// Here we do not need to explicit clear since the attachment is LOAD_OP_CLEAR
-		Renderer::BeginRenderPass(m_CommandBuffer, m_PreDepthPass);
-		Renderer::EndRenderPass(m_CommandBuffer);
+		// Calculate orthographic projection matrix for each cascade
+		float lastSplitDist = 0.0f;
+		for (int i = 0; i < SHADOW_MAP_CASCADES; i++)
+		{
+			float splitDist = cascadeSplits[i];
 
-		// Here we do not need to explicit clear since the attachment is LOAD_OP_CLEAR
-		Renderer::BeginRenderPass(m_CommandBuffer, m_CompositePass);
-		Renderer::EndRenderPass(m_CommandBuffer);
+			glm::vec3 frustumCorners[8] =
+			{
+				glm::vec3(-1.0f,  1.0f, -1.0f),
+				glm::vec3(1.0f,  1.0f, -1.0f),
+				glm::vec3(1.0f, -1.0f, -1.0f),
+				glm::vec3(-1.0f, -1.0f, -1.0f),
+				glm::vec3(-1.0f,  1.0f,  1.0f),
+				glm::vec3(1.0f,  1.0f,  1.0f),
+				glm::vec3(1.0f, -1.0f,  1.0f),
+				glm::vec3(-1.0f, -1.0f,  1.0f),
+			};
+
+			// Project frustum corners into world space
+			glm::mat4 invCam = glm::inverse(viewProjection);
+			for (int i = 0; i < 8; i++)
+			{
+				glm::vec4 invCorner = invCam * glm::vec4(frustumCorners[i], 1.0f);
+				frustumCorners[i] = invCorner / invCorner.w;
+			}
+
+			for (int i = 0; i < 4; i++)
+			{
+				glm::vec3 dist = frustumCorners[i + 4] - frustumCorners[i];
+				frustumCorners[i + 4] = frustumCorners[i] + (dist * splitDist);
+				frustumCorners[i] = frustumCorners[i] + (dist * lastSplitDist);
+			}
+
+			// Get frustum center
+			glm::vec3 frustumCenter = glm::vec3(0.0f);
+			for (int i = 0; i < 8; i++)
+				frustumCenter += frustumCorners[i];
+
+			frustumCenter /= 8.0f;
+
+			float radius = 0.0f;
+			for (int i = 0; i < 8; i++)
+			{
+				float distance = glm::length(frustumCorners[i] - frustumCenter);
+				radius = glm::max(radius, distance);
+			}
+
+			radius = std::ceil(radius * 16.0f) / 16.0f;
+
+			glm::vec3 maxExtents = glm::vec3(radius);
+			glm::vec3 minExtents = -maxExtents;
+
+			glm::vec3 lightDir = -lightDirection;
+			glm::mat4 lightViewMatrix = glm::lookAt(frustumCenter - lightDir * -minExtents.z, frustumCenter, { 0.0f, 0.0f, 1.0f });
+			glm::mat4 lightOrthoMatrix = glm::ortho(minExtents.x, maxExtents.x, minExtents.y, maxExtents.y, 0.0f + m_CascadeNearPlaneOffset, maxExtents.z - minExtents.z + m_CascadeFarPlaneOffset);
+
+			// Offset to texel space to avoid shimmering (from https://stackoverflow.com/questions/33499053/cascaded-shadow-map-shimmering)
+			glm::mat4 shadowMatrix = lightOrthoMatrix * lightViewMatrix;
+			float shadowMapResolution = static_cast<float>(m_DirectionalShadowPasses[0]->GetTargetFramebuffer()->GetWidth());
+
+			glm::vec4 shadowOrigin = (shadowMatrix * glm::vec4(0.0f, 0.0f, 0.0f, 1.0f)) * shadowMapResolution / 2.0f;
+			glm::vec4 roundedOrigin = glm::round(shadowOrigin);
+			glm::vec4 roundOffset = roundedOrigin - shadowOrigin;
+			roundOffset = roundOffset * 2.0f / shadowMapResolution;
+			roundOffset.z = 0.0f;
+			roundOffset.w = 0.0f;
+
+			lightOrthoMatrix[3] += roundOffset;
+
+			cascades[i].ViewProjMatrix = shadowMatrix;
+			cascades[i].ViewMatrix = lightViewMatrix;
+			cascades[i].SplitDepth = (nearClip + splitDist * clipRange) * -1.0f;
+
+			lastSplitDist = cascadeSplits[i];
+		}
 	}
 
 	void SceneRenderer::UpdateStatistics()

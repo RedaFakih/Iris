@@ -180,6 +180,7 @@ namespace Iris {
 		s_Data->QuadIndexBuffer = IndexBuffer::Create(indices, 6 * sizeof(uint32_t));
 
 		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/Compositing.glsl");
+		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/DirectionalShadow.glsl");
 		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/EnvironmentIrradiance.glsl");
 		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/EnvironmentMipChainFilter.glsl");
 		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/EquirectangularToCubemap.glsl");
@@ -483,11 +484,11 @@ namespace Iris {
 				width = framebuffer->GetWidth();
 				height = framebuffer->GetHeight();
 
-				renderingInfo.layerCount = 1; // TODO: We will be rendering into only one layer of the referenced image... TODO: Should come from Framebuffer Specification
+				renderingInfo.layerCount = 1; // NOTE: We will be rendering into only one layer of the referenced image...
 				renderingInfo.colorAttachmentCount = static_cast<uint32_t>(framebuffer->GetColorAttachmentCount());
 				renderingInfo.pColorAttachments = framebuffer->GetColorAttachmentInfos().data();
 				renderingInfo.pDepthAttachment = framebuffer->HasDepthAttachment() ? &framebuffer->GetDepthAttachmentInfo() : nullptr;
-				renderingInfo.pStencilAttachment = framebuffer->HasDepthAttachment() ? &framebuffer->GetDepthAttachmentInfo() : nullptr;
+				renderingInfo.pStencilAttachment = framebuffer->HasStencilComponent() ? &framebuffer->GetDepthAttachmentInfo() : nullptr;
 
 				viewport.x = 0.0f;
 				viewport.y = 0.0f;
@@ -678,13 +679,13 @@ namespace Iris {
 		});
 	}
 
-	void Renderer::RenderStaticMesh(Ref<RenderCommandBuffer> renderCommandBuffer, Ref<Pipeline> pipeline, Ref<StaticMesh> staticMesh, Ref<MeshSource> meshSource, uint32_t subMeshIndex, Ref<MaterialTable> materialTable, Ref<VertexBuffer> transformBuffer, uint32_t transformOffset, uint32_t instanceCount, int viewMode)
+	void Renderer::RenderStaticMesh(Ref<RenderCommandBuffer> renderCommandBuffer, Ref<Pipeline> pipeline, Ref<StaticMesh> staticMesh, Ref<MeshSource> meshSource, uint32_t subMeshIndex, Ref<MaterialTable> materialTable, Ref<VertexBuffer> transformBuffer, uint32_t transformOffset, uint32_t instanceCount)
 	{
 		IR_VERIFY(staticMesh);
 		IR_VERIFY(meshSource);
 		IR_VERIFY(materialTable);
 
-		Renderer::Submit([renderCommandBuffer, pipeline, staticMesh, meshSource, subMeshIndex, materialTable, transformBuffer, transformOffset, instanceCount, viewMode]() mutable
+		Renderer::Submit([renderCommandBuffer, pipeline, staticMesh, meshSource, subMeshIndex, materialTable, transformBuffer, transformOffset, instanceCount]() mutable
 		{
 			uint32_t frameIndex = Renderer::RT_GetCurrentFrameIndex();
 			VkCommandBuffer commandBuffer = renderCommandBuffer->GetActiveCommandBuffer();
@@ -707,11 +708,6 @@ namespace Iris {
 				meshMaterialTable->GetMaterial(subMesh.MaterialIndex);
 
 			Ref<MaterialAsset> materialAsset = AssetManager::GetAsset<MaterialAsset>(materialAssetHandle);
-
-			if (viewMode == 0)
-				materialAsset->SetLit();
-			else if (viewMode == 1 || viewMode == 2)
-				materialAsset->SetUnlit();
 
 			Ref<Material> vulkanMaterial = materialAsset->GetMaterial();
 
@@ -756,11 +752,10 @@ namespace Iris {
 			if (descriptorSet)
 				vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, layout, material->GetFirstSetIndex(), 1, &descriptorSet, 0, nullptr);
 
-			uint32_t pushConstantOffset = 0;
 			Buffer uniformStorageBuffer = material->GetUniformStorageBuffer();
 			if (uniformStorageBuffer)
 			{
-				vkCmdPushConstants(commandBuffer, layout, VK_SHADER_STAGE_FRAGMENT_BIT, pushConstantOffset, static_cast<uint32_t>(uniformStorageBuffer.Size), uniformStorageBuffer.Data);
+				vkCmdPushConstants(commandBuffer, layout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, static_cast<uint32_t>(uniformStorageBuffer.Size), uniformStorageBuffer.Data);
 			}
 
 			const auto& subMeshes = meshSource->GetSubMeshes();
@@ -768,6 +763,62 @@ namespace Iris {
 
 			vkCmdDrawIndexed(commandBuffer, subMesh.IndexCount, instanceCount, subMesh.BaseIndex, subMesh.BaseVertex, 0);
 			s_Data->DrawCallCount++;
+		});
+	}
+
+	void Renderer::RenderStaticMeshWithMaterial(Ref<RenderCommandBuffer> renderCommandBuffer, Ref<Pipeline> pipeline, Ref<StaticMesh> staticMesh, Ref<MeshSource> meshSource, uint32_t subMeshIndex, Ref<Material> material, Ref<VertexBuffer> transformBuffer, uint32_t transformOffset, uint32_t instanceCount, Buffer vertexShaderOverrides)
+	{
+		IR_VERIFY(staticMesh);
+		IR_VERIFY(meshSource);
+		IR_VERIFY(material);
+
+		Buffer pushConstantBuffer;
+		if (vertexShaderOverrides.Size)
+		{
+			pushConstantBuffer.Allocate(vertexShaderOverrides.Size);
+			if (vertexShaderOverrides.Size)
+				pushConstantBuffer.Write(vertexShaderOverrides.Data, vertexShaderOverrides.Size);
+		}
+
+		Renderer::Submit([renderCommandBuffer, pipeline, staticMesh, meshSource, subMeshIndex, material, transformBuffer, transformOffset, instanceCount, pushConstantBuffer]() mutable
+		{
+			uint32_t frameIndex = Renderer::RT_GetCurrentFrameIndex();
+			VkCommandBuffer commandBuffer = renderCommandBuffer->GetActiveCommandBuffer();
+
+			Ref<VertexBuffer> meshVB = meshSource->GetVertexBuffer();
+
+			VkBuffer vertexBuffers[] = { meshVB->GetVulkanBuffer(), transformBuffer->GetVulkanBuffer() };
+			VkDeviceSize offsets[] = { 0, transformOffset };
+			vkCmdBindVertexBuffers(commandBuffer, 0, 2, vertexBuffers, offsets);
+
+			Ref<IndexBuffer> meshIB = meshSource->GetIndexBuffer();
+			VkBuffer vulkanMeshIB = meshIB->GetVulkanBuffer();
+			vkCmdBindIndexBuffer(commandBuffer, vulkanMeshIB, 0, VK_INDEX_TYPE_UINT32);
+
+			VkPipelineLayout layout = pipeline->GetVulkanPipelineLayout();
+
+			VkDescriptorSet descriptorSet = material->GetDescriptorSet(frameIndex);
+			if (descriptorSet)
+				vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, layout, material->GetFirstSetIndex(), 1, &descriptorSet, 0, nullptr);
+
+			if (pushConstantBuffer.Size)
+			{
+				vkCmdPushConstants(commandBuffer, layout, VK_SHADER_STAGE_VERTEX_BIT, 0, static_cast<uint32_t>(pushConstantBuffer.Size), pushConstantBuffer.Data);
+			}
+
+			Buffer uniformStorageBuffer = material->GetUniformStorageBuffer();
+			if (uniformStorageBuffer)
+			{
+				vkCmdPushConstants(commandBuffer, layout, VK_SHADER_STAGE_FRAGMENT_BIT, static_cast<uint32_t>(pushConstantBuffer.Size), static_cast<uint32_t>(uniformStorageBuffer.Size), uniformStorageBuffer.Data);
+			}
+
+			const auto& subMeshes = meshSource->GetSubMeshes();
+			const auto& subMesh = subMeshes[subMeshIndex];
+
+			vkCmdDrawIndexed(commandBuffer, subMesh.IndexCount, instanceCount, subMesh.BaseIndex, subMesh.BaseVertex, 0);
+			s_Data->DrawCallCount++;
+
+			pushConstantBuffer.Release();
 		});
 	}
 
@@ -802,8 +853,6 @@ namespace Iris {
 			// NOTE: Here we do not increase the DrawCallCount since this is only called in the Renderer2D for now and that has its own draw call counter
 		});
 	}
-
-	//static VkCommandBuffer s_CurrentCommandBuffer = nullptr;
 
 	void Renderer::BeginComputePass(VkCommandBuffer commandBuffer, Ref<ComputePass> computePass)
 	{

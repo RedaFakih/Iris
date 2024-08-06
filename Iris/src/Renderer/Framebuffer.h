@@ -104,7 +104,11 @@ namespace Iris {
 		// Will the framebuffer be used for Transfer ops? Sets the Transfer for texture specification to `true`
 		bool Transfer = false;
 
+		// Attachment Index -> Image
 		std::map<uint32_t, Ref<Texture2D>> ExistingImages;
+
+		// Attachment Index -> Image Layer ImageView
+		std::map<uint32_t, Ref<ImageView>> ExistingImageLayerViews;
 	};
 
 	class Framebuffer : public RefCountedObject
@@ -125,6 +129,7 @@ namespace Iris {
 
 		std::size_t GetColorAttachmentCount() const { return m_Specification.SwapchainTarget ? 1 : m_ColorAttachmentImages.size(); }
 		bool HasDepthAttachment() const { return m_DepthAttachmentImage != nullptr; }
+		bool HasStencilComponent() const { return HasDepthAttachment() ? (GetDepthImage()->GetFormat() != ImageFormat::Depth32F) : false; }
 
 		Ref<Texture2D> GetImage(uint32_t attachmentIndex = 0) const { IR_ASSERT(attachmentIndex < m_ColorAttachmentImages.size()); return m_ColorAttachmentImages[attachmentIndex]; }
 		Ref<Texture2D> GetDepthImage() const { return m_DepthAttachmentImage; }

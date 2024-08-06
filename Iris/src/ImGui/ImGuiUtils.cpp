@@ -1023,6 +1023,16 @@ namespace Iris::UI {
 		return ImGui_ImplVulkan_AddTexture(info.sampler, info.imageView, info.imageLayout);
 	}
 
+	ImTextureID GetTextureID(Ref<Texture2D> texture, uint32_t imageLayer)
+	{
+		const VkDescriptorImageInfo& info = texture->GetDescriptorImageInfo();
+		Ref<ImageView> imageView = texture->CreateImageViewSingleLayer(imageLayer);
+		if (!imageView)
+			return nullptr;
+
+		return ImGui_ImplVulkan_AddTexture(info.sampler, imageView->GetVulkanImageView(), info.imageLayout);
+	}
+
 	void DrawItemActivityOutline(OutlineFlags flags, ImColor colorHighlight, float rounding)
 	{
 		if (IsItemDisabled())
@@ -1468,6 +1478,12 @@ namespace Iris::UI {
 	void Image(const Ref<Texture2D>& image, const ImVec2& size, const ImVec2& uv0, const ImVec2& uv1, const ImVec4& tint_col, const ImVec4& border_col)
 	{
 		const auto textureID = GetTextureID(image);
+		ImGui::Image(textureID, size, uv0, uv1, tint_col, border_col);
+	}
+
+	void Image(const Ref<Texture2D>& image, const uint32_t imageLayer, const ImVec2& size, const ImVec2& uv0, const ImVec2& uv1, const ImVec4& tint_col, const ImVec4& border_col)
+	{
+		const auto textureID = GetTextureID(image, imageLayer);
 		ImGui::Image(textureID, size, uv0, uv1, tint_col, border_col);
 	}
 

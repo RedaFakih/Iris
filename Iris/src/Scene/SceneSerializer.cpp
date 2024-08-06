@@ -111,7 +111,6 @@ namespace Iris {
 				out << YAML::EndMap;
 			}
 
-			out << YAML::Key << "Visible" << YAML::Value << staticMeshComp.Visible;
 			out << YAML::EndMap;
 		}
 
@@ -175,8 +174,8 @@ namespace Iris {
 			const DirectionalLightComponent& dirLightComp = entity.GetComponent<DirectionalLightComponent>();
 			out << YAML::Key << "Radiance" << YAML::Value << dirLightComp.Radiance;
 			out << YAML::Key << "Intensity" << YAML::Value << dirLightComp.Intensity;
-
-			// TODO: Expand for shadow stuff...
+			out << YAML::Key << "CastShadows" << YAML::Value << dirLightComp.CastShadows;
+			out << YAML::Key << "ShadowOpacity" << YAML::Value << dirLightComp.ShadowOpacity;
 
 			out << YAML::EndMap;
 		}
@@ -184,7 +183,7 @@ namespace Iris {
 		out << YAML::EndMap;
 	}
 
-	void SceneSerializer::DeserializeEntity(YAML::Node& entitiesNode, Ref<Scene> scene)
+	void SceneSerializer::DeserializeEntity(YAML::Node& entitiesNode, Ref<Scene> scene, const std::vector<UUID>& visibleEntities)
 	{
 		for (auto entity : entitiesNode)
 		{
@@ -195,7 +194,12 @@ namespace Iris {
 			if (tagComponent)
 				name = tagComponent["Tag"].as<std::string>();
 
-			Entity deserializedEntity = scene->CreateEntityWithUUID(uuid, name, false);
+			// Visibility
+			bool visibility = false;
+			if (std::find(visibleEntities.begin(), visibleEntities.end(), uuid) != visibleEntities.end())
+				visibility = true;
+
+			Entity deserializedEntity = scene->CreateEntityWithUUID(uuid, name, visibility, false);
 
 			RelationshipComponent& relationComp = deserializedEntity.GetComponent<RelationshipComponent>();
 			uint64_t parentHandle = entity["Parent"] ? entity["Parent"].as<uint64_t>() : 0;
@@ -267,9 +271,6 @@ namespace Iris {
 							component.MaterialTable->SetMaterial(index, materialAsset);
 					}
 				}
-
-				if (staticMeshComp["Visible"])
-					component.Visible = staticMeshComp["Visible"].as<bool>();
 			}
 
 			YAML::Node spriteRendererComp = entity["SpriteRendererComponent"];
@@ -338,7 +339,8 @@ namespace Iris {
 				DirectionalLightComponent& component = deserializedEntity.AddComponent<DirectionalLightComponent>();
 				component.Radiance = dirLightComp["Radiance"].as<glm::vec3>(glm::vec3(1.0f));
 				component.Intensity = dirLightComp["Intensity"].as<float>(1.0f);
-				// TODO: Expand for shadow stuff...
+				component.CastShadows = dirLightComp["CastShadows"].as<bool>(true);
+				component.ShadowOpacity = dirLightComp["ShadowOpacity"].as<float>(1.0f);
 			}
 
 		}
@@ -353,6 +355,20 @@ namespace Iris {
 		out << YAML::BeginMap;
 
 		out << YAML::Key << "Scene" << YAML::Value << scene->GetName();
+
+		{
+			out << YAML::Key << "VisibleEntities" << YAML::Value << YAML::BeginSeq;
+
+			auto visibleEntities = scene->GetAllEntitiesWith<VisibleComponent>();
+			for (auto e : visibleEntities)
+			{
+				Entity entity = { e, scene.Raw() };
+				out << entity.GetUUID();
+			}
+
+			out << YAML::EndSeq;
+		}
+
 		out << YAML::Key << "Entities" << YAML::Value << YAML::BeginSeq;
 
 		std::map<UUID, entt::entity> sortedEntityMap;
@@ -388,9 +404,14 @@ namespace Iris {
 			IR_CORE_INFO_TAG("AssetManager", "Deserializing scene '{0}'", sceneName);
 			scene->SetName(sceneName);
 
+			// Visible Entities
+			std::vector<UUID> visibleEntities;
+			for (auto uuid : data["VisibleEntities"])
+				visibleEntities.push_back(uuid.as<uint64_t>());
+
 			auto entities = data["Entities"];
 			if(entities)
-				DeserializeEntity(entities, scene);
+				DeserializeEntity(entities, scene, visibleEntities);
 
 			scene->m_Registry.sort<IDComponent>([scene](const auto lhs, const auto rhs)
 			{

@@ -192,6 +192,7 @@ namespace Iris {
 			{
 				aiMaterial* aiMaterial = scene->mMaterials[i];
 				aiString aiMaterialName = aiMaterial->GetName();
+				// TODO: We should check the alpha channel of the albedo first, if it is NOT EQUAL to 1 then we should select the transparent PBR shader
 				Ref<Material> material = Material::Create(Renderer::GetShadersLibrary()->Get("IrisPBRStatic"), aiMaterialName.C_Str());
 
 				AssetHandle materialAssetHandle = AssetManager::CreateMemoryOnlyAsset<MaterialAsset>(material);
@@ -422,7 +423,7 @@ namespace Iris {
 				}
 
 				ma->SetTiling(1.0f);
-				ma->SetLit();
+				ma->SetEnvMapRotation(0.0f);
 			}
 
 			IR_CORE_TRACE_TAG("Mesh", "---------------------------");

@@ -8,6 +8,17 @@ Descriptor sets are ascending to their frequency of being bound (meaning higher 
 
  The following are the buffers and images that will be bound to those sets...
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////
+/// Set 0
+//////////////////////////////////////////////////////////////////////////////////////////////////////// 
+
+// PBR Shader
+layout(set = 0, binding = 0) uniform sampler2D u_BRDFLutTexture;
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////
+/// Set 1
+////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 layout(std140, set = 1, binding = 0) uniform Camera
 {
 	mat4 ViewProjectionMatrix;
@@ -29,7 +40,7 @@ layout(std140, set = 1, binding = 1) uniform ScreenData
 
 struct DirectionalLight
 {
-	vec4 Direction; // The alpha channel is the ShadowAmount
+	vec4 Direction; // The alpha channel is the ShadowOpacity
 	vec4 Radiance; // The alpha channel is the multiplier of the directional light
 };
 
@@ -39,3 +50,41 @@ layout(std140, set = 1, binding = 2) uniform SceneData
 	vec3 CameraPosition; // Offset 32
 	float EnvironmentMapIntensity; // This is used in the PBR shader and it mirrors the intensity that is used in the Skybox shader
 } u_Scene;
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////
+/// Set 2
+////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// PBR Shader
+layout(set = 2, binding = 0) uniform samplerCube u_RadianceMap;
+layout(set = 2, binding = 1) uniform samplerCube u_IrradianceMap;
+
+layout(set = 2, binding = 2) uniform sampler2DArray u_ShadowMap;
+
+layout(std140, set = 2, binding = 3) uniform DirectionalShadowData
+{
+	mat4 DirectionalLightMatrices[4];
+} u_DirShadow;
+
+layout(std140, set = 2, binding = 4) uniform RendererData
+{
+    vec4 CascadeSplits;
+	float LightSize;
+	float MaxShadowDistance;
+	float ShadowFade;
+	float CascadeTransitionFade;
+	bool CascadeFading;
+	bool SoftShadows;
+	bool ShowCascades;
+	bool Unlit;
+} u_RendererData;
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////
+/// Set 3
+////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// PBR Shader
+layout(set = 3, binding = 0) uniform sampler2D u_AlbedoTexture;
+layout(set = 3, binding = 1) uniform sampler2D u_NormalTexture;
+layout(set = 3, binding = 2) uniform sampler2D u_RoughnessTexture;
+layout(set = 3, binding = 3) uniform sampler2D u_MetalnessTexture;

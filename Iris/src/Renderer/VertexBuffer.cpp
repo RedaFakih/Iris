@@ -6,10 +6,6 @@
 
 namespace Iris {
 
-	/*
-	 * TODO: Look at the IMPORTANT NOTE written in Renderer/Core/Device.h about using StagingBuffers in a better more sophisticated way
-	 */
-
 	VertexBuffer::VertexBuffer(const void* data, uint32_t size, VertexBufferUsage usage)
 		: m_Size(size)
 	{
@@ -46,7 +42,6 @@ namespace Iris {
 
 			instance->m_MemoryAllocation = allocator.AllocateBuffer(&vertexBufferInfo, VMA_MEMORY_USAGE_GPU_ONLY, &(instance->m_VulkanBuffer));
 
-			// TODO: Refer to the note in Renderer/Core/Device.h since maybe we could just begin and return a pre-allocated buffer?
 			VkCommandBuffer commandBuffer = device->GetCommandBuffer(true);
 
 			VkBufferCopy copyRegion = {
@@ -57,11 +52,8 @@ namespace Iris {
 
 			vkCmdCopyBuffer(commandBuffer, stagingBuffer, instance->m_VulkanBuffer, 1, &copyRegion);
 
-			// TODO: Refer to the note in Renderer/Core/Device.h since we do not want to do this really...
 			device->FlushCommandBuffer(commandBuffer);
 
-			// NOTE: If we implement the note written in Device.h we would defer this cleanup to the beginning of the next frame.
-			// Renderer::SubmitResourceFree
 			allocator.DestroyBuffer(stagingBufferAlloc, stagingBuffer);
 		});
 	}

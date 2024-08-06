@@ -1,4 +1,20 @@
 Scene: Editor Scene
+VisibleEntities:
+  - 17466798807360167507
+  - 15742842801110863846
+  - 14915367868508491852
+  - 14449481804758652680
+  - 8545933700389056436
+  - 8131771692437708439
+  - 6491956793521529070
+  - 4851329808349976608
+  - 4439269851208675914
+  - 4296353483543206196
+  - 3336264825032574400
+  - 1368807949253593945
+  - 1017548288841473994
+  - 978865093965260794
+  - 197469730918477431
 Entities:
   - Entity: 197469730918477431
     TagComponent:
@@ -14,7 +30,6 @@ Entities:
       AssetID: 3448222499160019637
       MaterialTable:
         0: 0
-      Visible: true
   - Entity: 978865093965260794
     TagComponent:
       Tag: Stormtrooper
@@ -29,7 +44,6 @@ Entities:
       AssetID: 11733034874740757145
       MaterialTable:
         0: 0
-      Visible: true
   - Entity: 1017548288841473994
     TagComponent:
       Tag: Illaoi
@@ -44,7 +58,6 @@ Entities:
       AssetID: 8492331187162521719
       MaterialTable:
         0: 0
-      Visible: true
   - Entity: 1368807949253593945
     TagComponent:
       Tag: Sky Light
@@ -61,7 +74,7 @@ Entities:
       Intensity: 1
       Lod: 0
       DynamicSky: true
-      TurbidityAzimuthInclinationSunSize: [6.17000008, -1.06465089, 1.51843643, 0.0450000018]
+      TurbidityAzimuthInclinationSunSize: [6.17000008, -1.06465089, 1.32645023, 0.0450000018]
       DirectionalLightEntityID: 17466798807360167507
       LinkDirectionalLightRadiance: true
   - Entity: 3336264825032574400
@@ -163,7 +176,6 @@ Entities:
       AssetID: 7526181345639326923
       MaterialTable:
         0: 0
-      Visible: true
   - Entity: 8545933700389056436
     TagComponent:
       Tag: Text
@@ -195,7 +207,6 @@ Entities:
       AssetID: 2732277024539045285
       MaterialTable:
         0: 3086571681816161946
-      Visible: true
   - Entity: 14915367868508491852
     TagComponent:
       Tag: Galio
@@ -210,7 +221,6 @@ Entities:
       AssetID: 9685325371244041466
       MaterialTable:
         0: 0
-      Visible: true
   - Entity: 15742842801110863846
     TagComponent:
       Tag: Directional Light 2
@@ -224,6 +234,8 @@ Entities:
     DirectionalLightComponent:
       Radiance: [1, 1, 1]
       Intensity: 1
+      CastShadows: true
+      ShadowOpacity: 1
   - Entity: 17466798807360167507
     TagComponent:
       Tag: Directional Light
@@ -235,5 +247,7 @@ Entities:
       Rotation: [0.774876654, -0.0926769525, -2.89656448]
       Scale: [1.00000024, 1.00000024, 0.999999881]
     DirectionalLightComponent:
-      Radiance: [1, 0.526167989, 0.0471023768]
-      Intensity: 0.300000012
+      Radiance: [1, 0.620960951, 0.217729703]
+      Intensity: 1
+      CastShadows: true
+      ShadowOpacity: 1

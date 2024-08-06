@@ -101,7 +101,8 @@ namespace Iris {
 									.Direction = direction,
 									.Radiance = skyLightComponent.LinkDirectionalLightRadiance ? glm::mix(horizonColor, zenithColor, glm::cos(skyLightComponent.TurbidityAzimuthInclinationSunSize.z)) : dirLightComp->Radiance,
 									.Intensity = dirLightComp->Intensity,
-									.ShadowAmount = 1.0f // TODO: Should come from component
+									.ShadowOpacity = dirLightComp->ShadowOpacity,
+									.CastShadows = dirLightComp->CastShadows
 								};
 
 								if (skyLightComponent.LinkDirectionalLightRadiance)
@@ -141,7 +142,8 @@ namespace Iris {
 							.Direction = direction,
 							.Radiance = dirLightComp.Radiance,
 							.Intensity = dirLightComp.Intensity,
-							.ShadowAmount = 1.0f // TODO: Should come from component
+							.ShadowOpacity = dirLightComp.ShadowOpacity,
+							.CastShadows = dirLightComp.CastShadows
 						};
 					}
 				}
@@ -153,12 +155,10 @@ namespace Iris {
 			renderer->BeginScene({ camera, camera.GetViewMatrix(), camera.GetNearClip(), camera.GetFarClip(), camera.GetFOV() });
 
 			// Render static meshes
-			auto entities = GetAllEntitiesWith<StaticMeshComponent>();
+			auto entities = GetAllEntitiesWith<StaticMeshComponent, VisibleComponent>();
 			for (auto entity : entities)
 			{
 				const StaticMeshComponent& staticMeshComponenet = entities.get<StaticMeshComponent>(entity);
-				if (!staticMeshComponenet.Visible)
-					continue;
 
 				AsyncAssetResult<StaticMesh> staticMeshResult = AssetManager::GetAssetAsync<StaticMesh>(staticMeshComponenet.StaticMesh);
 				if (staticMeshResult.IsReady)
@@ -191,12 +191,13 @@ namespace Iris {
 			
 				// Render 2D sprites
 				{
-					auto view = GetAllEntitiesWith<TransformComponent, SpriteRendererComponent>();
+					auto view = GetAllEntitiesWith<SpriteRendererComponent, VisibleComponent>();
 					for (auto entity : view)
 					{
 						Entity e = { entity, this };
 			
-						const auto& [transformComponent, spriteRendererComponent] = view.get<TransformComponent, SpriteRendererComponent>(entity);
+						const SpriteRendererComponent& spriteRendererComponent = view.get<SpriteRendererComponent>(entity);
+
 						if (spriteRendererComponent.Texture)
 						{
 							if (AssetManager::IsAssetHandleValid(spriteRendererComponent.Texture))
@@ -221,12 +222,13 @@ namespace Iris {
 
 				// Render Text
 				{
-					auto view = GetAllEntitiesWith<TransformComponent, TextComponent>();
+					auto view = GetAllEntitiesWith<TextComponent, VisibleComponent>();
 					for (auto entity : view)
 					{
 						Entity e = { entity, this };
 
-						const auto& [transformComponent, textComponent] = view.get<TransformComponent, TextComponent>(entity);
+						const TextComponent& textComponent = view.get<TextComponent>(entity);
+
 						Ref<Font> font = Font::GetFontAssetForTextComponent(textComponent.Font);
 						renderer2D->DrawString(textComponent.TextString, font, GetWorldSpaceTransformMatrix(e), textComponent.MaxWidth, textComponent.Color, textComponent.LineSpacing, textComponent.Kerning);
 					}
@@ -284,12 +286,12 @@ namespace Iris {
 		return result;
 	}
 
-	Entity Scene::CreateEntity(const std::string& name)
+	Entity Scene::CreateEntity(const std::string& name, bool visible)
 	{
-		return CreateChildEntity({}, name);
+		return CreateChildEntity({}, name, visible);
 	}
 
-	Entity Scene::CreateChildEntity(Entity parent, const std::string& name)
+	Entity Scene::CreateChildEntity(Entity parent, const std::string& name, bool visible)
 	{
 		auto entity = Entity{ m_Registry.create(), this };
 		auto& idComponent = entity.AddComponent<IDComponent>();
@@ -301,6 +303,9 @@ namespace Iris {
 		entity.AddComponent<TransformComponent>();
 		entity.AddComponent<RelationshipComponent>();
 
+		if (visible)
+			entity.AddComponent<VisibleComponent>();
+
 		if (parent)
 			entity.SetParent(parent);
 
@@ -311,7 +316,7 @@ namespace Iris {
 		return entity;
 	}
 
-	Entity Scene::CreateEntityWithUUID(UUID id, const std::string& name, bool shouldSort)
+	Entity Scene::CreateEntityWithUUID(UUID id, const std::string& name, bool visible, bool shouldSort)
 	{
 		Entity entity = { m_Registry.create(), this };
 		entity.AddComponent<IDComponent>(id);
@@ -321,6 +326,9 @@ namespace Iris {
 
 		entity.AddComponent<TransformComponent>();
 		entity.AddComponent<RelationshipComponent>();
+
+		if (visible)
+			entity.AddComponent<VisibleComponent>();
 
 		IR_ASSERT(!m_EntityIDMap.contains(id));
 		m_EntityIDMap[id] = entity;
@@ -588,7 +596,7 @@ namespace Iris {
 			return;
 		}
 
-		Entity nodeEntity = CreateChildEntity(parent, node.Name);
+		Entity nodeEntity = CreateChildEntity(parent, node.Name, true);
 		nodeEntity.Transform().SetTransform(node.LocalTransform);
 
 		if (node.SubMeshes.size() == 1)
@@ -604,7 +612,7 @@ namespace Iris {
 			{
 				uint32_t subMeshIndex = node.SubMeshes[i];
 
-				Entity childEntity = CreateChildEntity(nodeEntity, node.Name);
+				Entity childEntity = CreateChildEntity(nodeEntity, node.Name, true);
 				childEntity.AddComponent<StaticMeshComponent>(staticMesh->Handle, subMeshIndex);
 			}
 		}

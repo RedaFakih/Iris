@@ -5,10 +5,6 @@
 
 namespace Iris {
 
-	/*
-	 * TODO: Look at the IMPORTANT NOTE written in Renderer/Core/Device.h about using StagingBuffers in a better more sophisticated way
-	 */
-
 	StorageBuffer::StorageBuffer(size_t size, bool deviceLocal)
 		: m_Size(size)
 	{
@@ -130,7 +126,6 @@ namespace Iris {
 			std::memcpy(dstData, reinterpret_cast<const uint8_t*>(data) + offset, size);
 			allocator.UnmapMemory(m_StagingBufferAllocation);
 
-			// TODO: Refer to the note in Renderer/Core/Device.h since maybe we could just begin and return a pre-allocated buffer?
 			VkCommandBuffer commandBuffer = device->GetCommandBuffer(true);
 
 			VkBufferCopy copyRegion = {
@@ -141,7 +136,6 @@ namespace Iris {
 
 			vkCmdCopyBuffer(commandBuffer, m_StagingBuffer, m_StorageBuffer, 1, &copyRegion);
 
-			// TODO: Refer to the note in Renderer/Core/Device.h since we do not want to do this really...
 			device->FlushCommandBuffer(commandBuffer);
 
 			//  NOTE: Here we do not delete the staging buffer in case we want to reuse it...

@@ -42,12 +42,11 @@ namespace Iris {
 		float& GetTiling();
 		void SetTiling(float tiling);
 
+		float& GetEnvMapRotation();
+		void SetEnvMapRotation(float rotationRadians);
+
 		float& GetTransparency();
 		void SetTransparency(float tranparency);
-
-		bool IsLit();
-		void SetLit();
-		void SetUnlit();
 
 		Ref<Texture2D> GetAlbedoMap();
 		void SetAlbedoMap(AssetHandle albedoMap, bool setImmediatly = false);
@@ -71,6 +70,8 @@ namespace Iris {
 		bool IsTransparent() const { return m_Transparent; }
 		bool IsDoubleSided() const { return m_Material->GetFlag(MaterialFlag::TwoSided); }
 		void SetDoubleSided(bool doubleSided) { m_Material->SetFlag(MaterialFlag::TwoSided, doubleSided); }
+		bool IsShadowCasting() const { return m_Material->GetFlag(MaterialFlag::ShadowCasting); }
+		void SetShadowCasting(bool castsShadows) { return m_Material->SetFlag(MaterialFlag::ShadowCasting, castsShadows); }
 
 		static AssetType GetStaticType() { return AssetType::Material; }
 		virtual AssetType GetAssetType() const override { return GetStaticType(); }

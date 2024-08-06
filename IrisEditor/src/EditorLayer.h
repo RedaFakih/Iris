@@ -60,7 +60,7 @@ namespace Iris {
 
 	private:
 		std::pair<float, float> GetMouseInViewportSpace() const;
-		std::pair<glm::vec3, glm::vec3> CastRay(const EditorCamera& camera, float x, float y);
+		std::pair<glm::vec3, glm::vec3> CastRay(float x, float y);
 
 		void OnEntityDeleted(Entity e);
 
@@ -86,6 +86,18 @@ namespace Iris {
 
 		void UI_ShowViewport();
 		void UI_ShowFontsPanel();
+
+		// Shortcuts
+		void SC_Shift1();
+		void SC_Shift2();
+		void SC_Shift3();
+		void SC_F();
+		void SC_H();
+		void SC_Delete();
+		void SC_CtrlD();
+		void SC_CtrlF();
+		void SC_CtrlH(bool useSlashState = false);
+		void SC_Slash();
 
 	private:
 		struct SelectionData
@@ -148,6 +160,9 @@ namespace Iris {
 		bool m_ShowOnlyViewport = false;
 		bool m_ShowRendererInfoOverlay = false;
 		bool m_ShowPipelineStatisticsOverlay = false;
+
+		// Shortcuts state
+		bool m_SC_SlashKeyState = false; // False => Slash has not been pressed, True => Slash is in the pressed state
 
 		// Just references
 		Ref<Texture2D> m_CurrentlySelectedViewIcon = nullptr;

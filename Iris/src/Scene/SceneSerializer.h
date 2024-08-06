@@ -19,7 +19,7 @@ namespace Iris {
 
 	private:
 		static void SerializeEntity(YAML::Emitter& out, Entity entity, Ref<Scene> scene);
-		static void DeserializeEntity(YAML::Node& entitiesNode, Ref<Scene> scene);
+		static void DeserializeEntity(YAML::Node& entitiesNode, Ref<Scene> scene, const std::vector<UUID>& visibleEntities);
 
 	};
 

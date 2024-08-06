@@ -26,9 +26,6 @@ Assets:
   - Handle: 1154596752267064862
     FilePath: Meshes/LowPolySponza/759203620573749278.jpg
     Type: Texture
-  - Handle: 1201183239045361707
-    FilePath: Textures/output.jpg
-    Type: Texture
   - Handle: 1292639928559906373
     FilePath: Meshes/LowPolySponza/9288698199695299068.jpg
     Type: Texture
@@ -74,6 +71,9 @@ Assets:
   - Handle: 3157465373486071481
     FilePath: Meshes/Jhin/textures/base_mat_baseColor.png
     Type: Texture
+  - Handle: 3430661612443157064
+    FilePath: Meshes/Plate.Ismesh
+    Type: StaticMesh
   - Handle: 3448222499160019637
     FilePath: Meshes/Evenlynn.Ismesh
     Type: StaticMesh
@@ -100,9 +100,6 @@ Assets:
     Type: Texture
   - Handle: 4166739070440988600
     FilePath: Meshes/LowPolySponza/14267839433702832875.jpg
-    Type: Texture
-  - Handle: 4179027730210378084
-    FilePath: Textures/sara.jpg
     Type: Texture
   - Handle: 4680852554536855250
     FilePath: Meshes/LowPolySponza/3827035219084910048.jpg
@@ -236,6 +233,9 @@ Assets:
   - Handle: 10523551605547087683
     FilePath: Meshes/LowPolySponza/8503262930880235456.jpg
     Type: Texture
+  - Handle: 10857770903284289049
+    FilePath: Meshes/AbandonedHouse/AbandondedHouse.gltf
+    Type: MeshSource
   - Handle: 10871116200707608900
     FilePath: Meshes/LowPolySponza/3371964815757888145.jpg
     Type: Texture
@@ -353,6 +353,9 @@ Assets:
   - Handle: 15983319347866920412
     FilePath: Meshes/Jhin/scene.gltf
     Type: MeshSource
+  - Handle: 16687119491521298911
+    FilePath: Meshes/Plate/Plate.gltf
+    Type: MeshSource
   - Handle: 16718102206980168666
     FilePath: Meshes/LowPolySponza/16299174074766089871.jpg
     Type: Texture
@@ -377,6 +380,9 @@ Assets:
   - Handle: 17762338661310433355
     FilePath: Meshes/LowPolySponza/2411100444841994089.jpg
     Type: Texture
+  - Handle: 17954510954727223608
+    FilePath: Meshes/AbandonedHouse.Ismesh
+    Type: StaticMesh
   - Handle: 17992829813532184049
     FilePath: Meshes/LowPolySponza/11490520546946913238.jpg
     Type: Texture

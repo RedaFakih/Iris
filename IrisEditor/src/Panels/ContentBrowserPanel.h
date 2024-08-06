@@ -30,6 +30,8 @@ namespace Iris {
 		virtual void OnProjectChanged(const Ref<Project>& project) override;
 		virtual void SetSceneContext(const Ref<Scene>& context) override { m_SceneContext = context; }
 
+		void SetBaseDirectory(const std::filesystem::path& directory) { m_BaseDirectory = directory; m_CurrentDirectory = m_BaseDirectory; }
+
 	private:
 		bool OnKeyPressed(Events::KeyPressedEvent& e);
 		bool OnMouseButtonPressed(Events::MouseButtonPressedEvent& e);

@@ -8,6 +8,11 @@
  * - Always Checkout https://gpuopen.com/learn/rdna-performance-guide/ and https://developer.nvidia.com/blog/vulkan-dos-donts/ for any extra optimisations we could find from the vulkan side
  *
  * TODO: DynamicRendering branch:
+ * - Make the window title be {Iris - SceneName (*)} the * is whether it is saved or not
+ * - Make the SceneName in the engine contain a (*) if it is saved or not
+ *      - To detect changes we can serialize the scene every couple frames to an intermediate string/file and then hash that with the seriliazed file on disk:
+ *      -	- Equal Hashes => Nothing changed, dont add * to scene name
+ *		-	- Not equal Hashes => Something in scene changed, add * to scene name
  * - We are getting best practices warning that for the pass where no resources are created we have unused bound vertex buffers...
  * - Artefacts that were being caused by updating driver:
  *		- We get the same one on 552.44 when we enable gpu assissted validation
@@ -18,23 +23,19 @@
  *      - Make the clouds work in the preetham shader
  *      - Maybe Generate the BRDFLut Texture ourselves?
  *		- Add Tracy for profiling
- *		- Implement finally the note described in Device.h (line: 68) that talks about handling one time command buffers submission.
  *
  * TODO: Creative Ideas:
- * - Crashing when recreating preetham sky: When enabling validation layers we do not get the crash. But when they are disabled we do get it... Look into that
  * - Provide an option for the SceneRenderer to show the ACTUAL draw call count since now it only accounts for the color pass draws
  * - For any object other than the primitives we always have an extra material for some reason
  * - Submesh selection when we have a content browser Both static and dynamic meshes will support submesh selection
  * - Need to fix everything regarding orthographic projection views
- * - Viewport camera orthographic views done:
- *		- Gizmo controls and orthographic camera movement collision
- *		- Fix mouse picking in orthographic view
+ * - Gizmo controls and orthographic camera movement collision
+ * - Fix mouse picking in orthographic view
  * - Once we request a Mesh Asset from the AssetManger we should submit a lambda into the asset manager to wait until the asset is ready then we call Scene::InstantiateStaticMesh
  *		for that mesh so that we the whole entity hierarchy. However one problem so far is the when we call Scene::InstantiateStaticMesh we get the correct entity hierarchy but we
  *		render the root node (All the mesh) for each entity in the hierarchy which is WRONG! Each entity in the hierarchy should correspond to its submesh index
  *
  * NEXT THING TO WORK ON:
- * - DirectionalLightComponent needs expansion when we have shadows and that means related expansion in: SceneSerializer, Scene, SceneRenderer
  * - Storage Images (Need writing and testing)
  * - Add Mesh panel that prompts the user to create the Iris Mesh file if they load a MeshSource
  * - Selecting what submeshes to load through the mesh importer since in the Iris Mesh file we already know what submesh indices we want so just do not load them with assimp
@@ -85,7 +86,7 @@
  * Future Plans:
  *  - Change the way mesh materials are displayed:
  *		- Currently they are displayed in a tree node under the Mesh componenet which is disgusting
- *		- Change that into a button that takes you into a material editor that displays all the list of materials available
+ *		- Change that into a button that takes you into a material editor that displays all the list of materials available for that mesh
  *		- When you click on one of the materials in the list it renders a sphere in a viewport in the MaterialEditor with the selected material on it
  *	    - For that the material editor needs to have its own SceneRenderer to render that sphere
  *		- And the SceneRenderer does NOT have to be a full blown SceneRenderer, it should be a lite version of it:
@@ -100,12 +101,12 @@
  *		- - YES Composite just to composite the final image (Composite Shader is not the defualt one, it will be a lite version of the default one)
  *		- - YES Bloom since we might have emissive materials
  *		- Shaders:
+ *		- - Could use a PBR shader That writes depth and also alpha that way we can avoid using a predepth and also we can display transparent material
  *		- - Depth pass Shader (Could be the same one)
  *		- - Geometry pass PBR Shader (That only considers a directional light and nothing else, no shadows most importantly which strips down alot of the code)
  *		- - Composite pass Shader (That does not have exposure, opacity, time, grid, or any of that stuff. It will basically be just a texture pass shader to tonemap and gamma correct. NOTHING ELSE)
  *		- Scene entities:
  *		- - Skylight
- *		- - Directional light
  *		- - Sphere
  *  - Look into auto exposure because its SO COOL
  * 		- 1: https://bruop.github.io/exposure/
@@ -115,8 +116,12 @@
  *  - Frustum Culling:
  * 		- 1: https://vkguide.dev/docs/new_chapter_5/faster_draw/
  * 		- 2: https://vkguide.dev/docs/gpudriven/compute_culling/
+ *		- 3: https://github.com/SaschaWillems/Vulkan/blob/master/examples/computecullandlod/computecullandlod.cpp
  *  - Tesselation Shaders: (For having low poly meshes with high details using tesselation and LODs)
  *		- 1: https://github.com/SaschaWillems/Vulkan/tree/master?tab=readme-ov-file#tessellation-shader
+ *  - Add some Anti-Aliasing pass technique:
+ *      - 1: https://github.com/iryoku/smaa (For SMAA which is the one preferred since it is pretty lightweight if configured correctly)
+ *      - 2: https://github.com/dmnsgn/glsl-smaa
  *  - Switch to using draw indexed INDIRECT instead of using normal draw indexed since that is faster and facilitates tasks like culling and what not
  *  - OIT? With Weighted Blended technique using info provided from learnopengl.com <https://learnopengl.com/Guest-Articles/2020/OIT/Weighted-Blended> <https://github.com/nvpro-samples/vk_order_independent_transparency>
  *	- Add meshoptimizer? <https://github.com/zeux/meshoptimizer/tree/master>

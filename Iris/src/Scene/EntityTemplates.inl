@@ -3,7 +3,7 @@
 namespace Iris {
 
 	template<typename T, typename... Args>
-	T& Entity::AddComponent(Args&&... args)
+	auto Entity::AddComponent(Args&&... args) -> typename std::conditional<std::is_empty<T>::value, void, T&>::type
 	{
 		IR_ASSERT(!HasComponent<T>(), "Entity already has component!");
 		return m_Scene->m_Registry.emplace<T>(m_EntityHandle, std::forward<Args>(args)...);
