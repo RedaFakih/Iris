@@ -16,7 +16,7 @@ layout(location = 5) in vec4 a_MatrixRow0;
 layout(location = 6) in vec4 a_MatrixRow1;
 layout(location = 7) in vec4 a_MatrixRow2;
 
-layout(std140, set = 2, binding = 3) uniform DirectionalShadowData
+layout(std140, set = 1, binding = 3) uniform DirectionalShadowData
 {
 	mat4 DirectionalLightMatrices[4]; // View Projection Matrices
 } u_DirShadow;

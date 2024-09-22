@@ -8,6 +8,9 @@
  * - Always Checkout https://gpuopen.com/learn/rdna-performance-guide/ and https://developer.nvidia.com/blog/vulkan-dos-donts/ for any extra optimisations we could find from the vulkan side
  *
  * TODO: DynamicRendering branch:
+ * - Add the Depth Of Field Picker
+ * - Need to clean up image layouts for the depth of field
+ * - When creating a logging console panel we need to enable some sort of flag in compile time that reroutes all logging for both application console and also console panel 
  * - Make the window title be {Iris - SceneName (*)} the * is whether it is saved or not
  * - Make the SceneName in the engine contain a (*) if it is saved or not
  *      - To detect changes we can serialize the scene every couple frames to an intermediate string/file and then hash that with the seriliazed file on disk:
@@ -34,9 +37,6 @@
  * - Once we request a Mesh Asset from the AssetManger we should submit a lambda into the asset manager to wait until the asset is ready then we call Scene::InstantiateStaticMesh
  *		for that mesh so that we the whole entity hierarchy. However one problem so far is the when we call Scene::InstantiateStaticMesh we get the correct entity hierarchy but we
  *		render the root node (All the mesh) for each entity in the hierarchy which is WRONG! Each entity in the hierarchy should correspond to its submesh index
- *
- * NEXT THING TO WORK ON:
- * - Storage Images (Need writing and testing)
  * - Add Mesh panel that prompts the user to create the Iris Mesh file if they load a MeshSource
  * - Selecting what submeshes to load through the mesh importer since in the Iris Mesh file we already know what submesh indices we want so just do not load them with assimp
  * - Add Filled Circles to Renderer2D? (Circle sprites)
@@ -53,6 +53,7 @@
  *	- Currently the scene renderer renders only opaque meshes in one single geometry pass
  *	- We will want to split that into to separate draw lists that get submitted separatly
  *	- Since we want to add OIT in the future with weighted blended so we need to render opaque first then transparent...
+ *  - Currently we have compute passes running on the graphics queue and not on the separate compute queue in order to avoid resource queue ownership changes
  *
  * NOTE (Materials):
  *	- When you set Metalness or Roughness MAPS in the MaterialEditor or the ones loaded from mesh files:

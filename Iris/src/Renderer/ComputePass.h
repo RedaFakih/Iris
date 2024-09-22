@@ -6,6 +6,10 @@
 
 namespace Iris {
 
+	/*
+	 * NOTE: Currently compute shader are dispatched on the graphics queue to avoid queue ownership transfer of the used resources
+	 */
+
 	struct ComputePassSpecification
 	{
 		std::string DebugName;
@@ -32,8 +36,7 @@ namespace Iris {
 		void SetInput(std::string_view name, Ref<Texture2D> texture);		
 		void SetInput(std::string_view name, Ref<TextureCube> textureCube);
 		void SetInput(std::string_view name, Ref<ImageView> imageView);
-		// TODO:
-		//void SetInput(std::string_view name, Ref<StorageImage> storageImage);
+		void SetInput(std::string_view name, Ref<StorageImage> storageImage);
 
 		uint32_t GetFirstSetIndex() const;
 

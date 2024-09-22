@@ -22,54 +22,57 @@ namespace Iris {
 		Release();
 	}
 
-	void ComputePipeline::Begin(VkCommandBuffer commandBuffer)
+	void ComputePipeline::Begin(Ref<RenderCommandBuffer> renderCommandBuffer)
 	{
-		IR_ASSERT(!m_ActiveComputeCommandBuffer, "A command buffer is currently active");
+		IR_ASSERT(!m_ActiveCommandBuffer, "A command buffer is currently active");
 
-		if (commandBuffer)
+		if (renderCommandBuffer)
 		{
 			uint32_t frameIndex = Renderer::GetCurrentFrameIndex();
-			m_ActiveComputeCommandBuffer = commandBuffer;
-			m_UsingGraphicsQueue = false;
+			m_ActiveCommandBuffer = renderCommandBuffer->GetActiveCommandBuffer();
+			m_UsingGraphicsQueue = true;
 		}
 		else
 		{
-			m_ActiveComputeCommandBuffer = RendererContext::GetCurrentDevice()->GetCommandBuffer(true);
-			m_UsingGraphicsQueue = true;
+			//m_ActiveCommandBuffer = RendererContext::GetCurrentDevice()->GetCommandBuffer(true, true);
+			m_ActiveCommandBuffer = RendererContext::GetCurrentDevice()->GetCommandBuffer(true);
+			m_UsingGraphicsQueue = false;
 		}
 
-		vkCmdBindPipeline(m_ActiveComputeCommandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, m_Pipeline);
+		vkCmdBindPipeline(m_ActiveCommandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, m_Pipeline);
 	}
 
-	void ComputePipeline::RT_Begin(VkCommandBuffer commandBuffer)
+	void ComputePipeline::RT_Begin(Ref<RenderCommandBuffer> renderCommandBuffer)
 	{
-		IR_ASSERT(!m_ActiveComputeCommandBuffer, "A command buffer is currently active");
+		IR_ASSERT(!m_ActiveCommandBuffer, "A command buffer is currently active");
 
-		if (commandBuffer)
+		if (renderCommandBuffer)
 		{
 			uint32_t frameIndex = Renderer::RT_GetCurrentFrameIndex();
-			m_ActiveComputeCommandBuffer = commandBuffer;
-			m_UsingGraphicsQueue = false;
+			m_ActiveCommandBuffer = renderCommandBuffer->GetActiveCommandBuffer();
+			m_UsingGraphicsQueue = true;
 		}
 		else
 		{
-			m_ActiveComputeCommandBuffer = RendererContext::GetCurrentDevice()->GetCommandBuffer(true);
-			m_UsingGraphicsQueue = true;
+			//m_ActiveCommandBuffer = RendererContext::GetCurrentDevice()->GetCommandBuffer(true, true);
+			m_ActiveCommandBuffer = RendererContext::GetCurrentDevice()->GetCommandBuffer(true);
+			m_UsingGraphicsQueue = false;
 		}
 
-		vkCmdBindPipeline(m_ActiveComputeCommandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, m_Pipeline);
+		vkCmdBindPipeline(m_ActiveCommandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, m_Pipeline);
 	}
 
 	void ComputePipeline::End()
 	{
-		IR_ASSERT(m_ActiveComputeCommandBuffer);
+		IR_ASSERT(m_ActiveCommandBuffer);
 
 		VkDevice device = RendererContext::GetCurrentDevice()->GetVulkanDevice();
-		if (m_UsingGraphicsQueue)
+		if (!m_UsingGraphicsQueue)
 		{
+			//VkQueue computeQueue = RendererContext::GetCurrentDevice()->GetComputeQueue();
 			VkQueue graphicsQueue = RendererContext::GetCurrentDevice()->GetGraphicsQueue();
 
-			vkEndCommandBuffer(m_ActiveComputeCommandBuffer);
+			vkEndCommandBuffer(m_ActiveCommandBuffer);
 
 			vkWaitForFences(device, 1, &m_ComputeFence, VK_TRUE, UINT64_MAX);
 			vkResetFences(device, 1, &m_ComputeFence);
@@ -77,8 +80,9 @@ namespace Iris {
 			VkSubmitInfo submitInfo = {
 				.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
 				.commandBufferCount = 1,
-				.pCommandBuffers = &m_ActiveComputeCommandBuffer
+				.pCommandBuffers = &m_ActiveCommandBuffer
 			};
+			//VK_CHECK_RESULT(vkQueueSubmit(computeQueue, 1, &submitInfo, m_ComputeFence));
 			VK_CHECK_RESULT(vkQueueSubmit(graphicsQueue, 1, &submitInfo, m_ComputeFence));
 
 			// Wait for compute shader execution for safety reasons...
@@ -89,19 +93,19 @@ namespace Iris {
 			}
 		}
 
-		m_ActiveComputeCommandBuffer = nullptr;
+		m_ActiveCommandBuffer = nullptr;
 	}
 
 	void ComputePipeline::Dispatch(const glm::uvec3& workGroups) const
 	{
-		IR_ASSERT(m_ActiveComputeCommandBuffer);
+		IR_ASSERT(m_ActiveCommandBuffer);
 
-		vkCmdDispatch(m_ActiveComputeCommandBuffer, workGroups.x, workGroups.y, workGroups.z);
+		vkCmdDispatch(m_ActiveCommandBuffer, workGroups.x, workGroups.y, workGroups.z);
 	}
 
 	void ComputePipeline::SetPushConstants(Buffer pushConstants) const
 	{
-		vkCmdPushConstants(m_ActiveComputeCommandBuffer, m_PipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, static_cast<uint32_t>(pushConstants.Size), pushConstants.Data);
+		vkCmdPushConstants(m_ActiveCommandBuffer, m_PipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, static_cast<uint32_t>(pushConstants.Size), pushConstants.Data);
 	}
 
 	void ComputePipeline::CreatePipeline()

@@ -79,6 +79,21 @@ namespace Iris {
 
 				ImGui::TreePop();
 			}
+
+			if (UI::PropertyGridHeader("Depth of Field"))
+			{
+				SceneRendererOptions& rendererOptions = m_Context->m_Options;
+
+				UI::BeginPropertyGrid();
+
+				UI::Property("Enabled", rendererOptions.DOFEnabled, "Enable/Disable Depth of Field effect");
+				UI::Property("Focus Distance", rendererOptions.DOFFocusDistance, 0.1f, 0.0f, std::numeric_limits<float>::max(), "Change the distance of the focus point.");
+				UI::Property("Blur Size", rendererOptions.DOFBlurSize, 0.025f, 0.0f, 20.0f, "Change the amount of blur.");
+
+				UI::EndPropertyGrid();
+
+				ImGui::TreePop();
+			}
 		}
 
 		ImGui::End();

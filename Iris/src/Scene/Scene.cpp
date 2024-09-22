@@ -32,6 +32,49 @@ namespace Iris {
 		m_Registry.clear();
 	}
 
+	void Scene::CopyTo(Ref<Scene>& targetScene)
+	{
+		// NOTE: Hack to prevent physics bodies from being created on copy via entt signals
+		targetScene->m_IsEditorScene = true;
+
+		targetScene->m_Environment = m_Environment;
+		targetScene->m_EnvironmentIntensity = m_EnvironmentIntensity;
+
+		targetScene->m_LightEnvironment = m_LightEnvironment;
+		targetScene->m_SkyboxLod = m_SkyboxLod;
+
+		std::unordered_map<UUID, entt::entity> enttMap;
+		auto idComponents = m_Registry.view<IDComponent>();
+		for (auto entity : idComponents)
+		{
+			auto uuid = m_Registry.get<IDComponent>(entity).ID;
+			auto name = m_Registry.get<TagComponent>(entity).Tag;
+			Entity e = targetScene->CreateEntityWithUUID(uuid, name, false);
+
+			// Take care of entity visibility
+			if (m_EntityIDMap.at(uuid).HasComponent<VisibleComponent>())
+				e.AddComponent<VisibleComponent>();
+
+			enttMap[uuid] = e.m_EntityHandle;
+		}
+
+		targetScene->SortEntities();
+
+		CopyComponent<TagComponent>(targetScene->m_Registry, m_Registry, enttMap);
+		CopyComponent<RelationshipComponent>(targetScene->m_Registry, m_Registry, enttMap);
+		CopyComponent<TransformComponent>(targetScene->m_Registry, m_Registry, enttMap);
+		CopyComponent<CameraComponent>(targetScene->m_Registry, m_Registry, enttMap);
+		CopyComponent<SpriteRendererComponent>(targetScene->m_Registry, m_Registry, enttMap);
+		CopyComponent<StaticMeshComponent>(targetScene->m_Registry, m_Registry, enttMap);
+		CopyComponent<TextComponent>(targetScene->m_Registry, m_Registry, enttMap);
+		CopyComponent<SkyLightComponent>(targetScene->m_Registry, m_Registry, enttMap);
+		CopyComponent<DirectionalLightComponent>(targetScene->m_Registry, m_Registry, enttMap);
+
+		targetScene->m_ViewportWidth = m_ViewportWidth;
+		targetScene->m_ViewportHeight = m_ViewportHeight;
+
+		targetScene->m_IsEditorScene = false;
+	}
 
 	void Scene::OnUpdateRuntime(TimeStep ts)
 	{
@@ -40,7 +83,210 @@ namespace Iris {
 
 	void Scene::OnRenderRuntime(Ref<SceneRenderer> renderer, TimeStep ts)
 	{
-		// TODO:
+		Entity cameraEntity = GetMainCameraEntity();
+		if (!cameraEntity)
+		{
+			IR_CORE_ERROR("*******NO CAMERA FOUND**********");
+			return;
+		}
+
+		// Process all lighting data in the scene
+		{
+			m_LightEnvironment = LightEnvironment();
+			bool foundLinkedDirLight = false;
+			bool usingDynamicSky = false;
+
+			// Skylights (NOTE: Should only really have one in the scene and no more!)
+			{
+				auto view = GetAllEntitiesWith<SkyLightComponent>();
+
+				for (auto entity : view)
+				{
+					SkyLightComponent& skyLightComponent = view.get<SkyLightComponent>(entity);
+
+					if (!AssetManager::IsAssetHandleValid(skyLightComponent.SceneEnvironment) && skyLightComponent.DynamicSky)
+					{
+						Ref<TextureCube> preethamEnv = Renderer::CreatePreethamSky(skyLightComponent.TurbidityAzimuthInclinationSunSize.x, skyLightComponent.TurbidityAzimuthInclinationSunSize.y, skyLightComponent.TurbidityAzimuthInclinationSunSize.z, skyLightComponent.TurbidityAzimuthInclinationSunSize.w);
+						skyLightComponent.SceneEnvironment = AssetManager::CreateMemoryOnlyAsset<Environment>(preethamEnv, preethamEnv);
+					}
+
+					m_Environment = AssetManager::GetAssetAsync<Environment>(skyLightComponent.SceneEnvironment);
+					m_EnvironmentIntensity = skyLightComponent.Intensity;
+					m_SkyboxLod = skyLightComponent.Lod;
+
+					usingDynamicSky = skyLightComponent.DynamicSky;
+					if (usingDynamicSky)
+					{
+						// Check if we have a linked directional light
+						Entity dirLightEntity = TryGetEntityWithUUID(skyLightComponent.DirectionalLightEntityID);
+						if (dirLightEntity)
+						{
+							DirectionalLightComponent* dirLightComp = dirLightEntity.TryGetComponent<DirectionalLightComponent>();
+							if (dirLightComp)
+							{
+								foundLinkedDirLight = true;
+
+								glm::vec3 direction = glm::normalize(glm::vec3(
+									glm::sin(skyLightComponent.TurbidityAzimuthInclinationSunSize.z) * glm::cos(skyLightComponent.TurbidityAzimuthInclinationSunSize.y),
+									glm::cos(skyLightComponent.TurbidityAzimuthInclinationSunSize.z),
+									glm::sin(skyLightComponent.TurbidityAzimuthInclinationSunSize.z) * glm::sin(skyLightComponent.TurbidityAzimuthInclinationSunSize.y)
+								));
+
+								constexpr glm::vec3 horizonColor = { 1.0f, 0.5f, 0.0f }; // Reddish color at the horizon
+								constexpr glm::vec3 zenithColor = { 1.0f, 1.0f, 0.9f }; // Whitish color at the zenith
+
+								m_LightEnvironment.DirectionalLight = SceneDirectionalLight{
+									.Direction = direction,
+									.Radiance = skyLightComponent.LinkDirectionalLightRadiance ? glm::mix(horizonColor, zenithColor, glm::cos(skyLightComponent.TurbidityAzimuthInclinationSunSize.z)) : dirLightComp->Radiance,
+									.Intensity = dirLightComp->Intensity,
+									.ShadowOpacity = dirLightComp->ShadowOpacity,
+									.CastShadows = dirLightComp->CastShadows
+								};
+
+								if (skyLightComponent.LinkDirectionalLightRadiance)
+									dirLightComp->Radiance = m_LightEnvironment.DirectionalLight.Radiance;
+							}
+						}
+					}
+
+					if ((!usingDynamicSky || !foundLinkedDirLight) && skyLightComponent.LinkDirectionalLightRadiance == true)
+						skyLightComponent.LinkDirectionalLightRadiance = false;
+				}
+
+				if (!m_Environment || view.empty()) // Invalid skylight (We dont have one or the handle was invalid)
+				{
+					m_Environment = Environment::Create(Renderer::GetBlackCubeTexture(), Renderer::GetBlackCubeTexture());
+					m_EnvironmentIntensity = 1.0f;
+					m_SkyboxLod = 0.0f;
+				}
+			}
+
+			// Directional Light
+			{
+				if (!usingDynamicSky || (usingDynamicSky && !foundLinkedDirLight))
+				{
+					auto view = GetAllEntitiesWith<TransformComponent, DirectionalLightComponent>();
+
+					uint32_t dirLightCountIndex = 0;
+					for (auto entity : view)
+					{
+						if (dirLightCountIndex >= 1)
+							break;
+						IR_VERIFY(dirLightCountIndex++ < LightEnvironment::MaxDirectionalLights, "We can't have more than {} directional lights in one scene!", LightEnvironment::MaxDirectionalLights);
+
+						const auto& [transformComp, dirLightComp] = view.get<TransformComponent, DirectionalLightComponent>(entity);
+						glm::vec3 direction = -glm::normalize(glm::mat3(transformComp.GetTransform()) * glm::vec3(1.0f));
+						m_LightEnvironment.DirectionalLight = SceneDirectionalLight{
+							.Direction = direction,
+							.Radiance = dirLightComp.Radiance,
+							.Intensity = dirLightComp.Intensity,
+							.ShadowOpacity = dirLightComp.ShadowOpacity,
+							.CastShadows = dirLightComp.CastShadows
+						};
+					}
+				}
+			}
+		}
+
+		glm::mat4 cameraViewMatrix = glm::inverse(GetWorldSpaceTransformMatrix(cameraEntity));
+		SceneCamera& camera = cameraEntity.GetComponent<CameraComponent>().Camera;
+		camera.SetViewportSize(m_ViewportWidth, m_ViewportHeight);
+
+		{
+			renderer->SetScene(this);
+			renderer->BeginScene({ camera, cameraViewMatrix, camera.GetPerspectiveNearClip(), camera.GetPerspectiveFarClip(), camera.GetRadPerspectiveVerticalFOV() });
+
+			// Render static meshes
+			auto entities = GetAllEntitiesWith<StaticMeshComponent, VisibleComponent>();
+			for (auto entity : entities)
+			{
+				const StaticMeshComponent& staticMeshComponenet = entities.get<StaticMeshComponent>(entity);
+
+				AsyncAssetResult<StaticMesh> staticMeshResult = AssetManager::GetAssetAsync<StaticMesh>(staticMeshComponenet.StaticMesh);
+				if (staticMeshResult.IsReady)
+				{
+					Ref<StaticMesh> staticMesh = staticMeshResult;
+					AsyncAssetResult<MeshSource> meshSourceResult = AssetManager::GetAssetAsync<MeshSource>(staticMesh->GetMeshSource());
+					if (meshSourceResult.IsReady)
+					{
+						Ref<MeshSource> meshSource = meshSourceResult;
+
+						Entity e = { entity, this };
+						glm::mat4 transform = GetWorldSpaceTransformMatrix(e);
+
+						if (SelectionManager::IsEntityOrAncestorSelected(e))
+							renderer->SubmitSelectedStaticMesh(staticMesh, meshSource, staticMeshComponenet.MaterialTable, transform);
+						else
+							renderer->SubmitStaticMesh(staticMesh, meshSource, staticMeshComponenet.MaterialTable, transform);
+					}
+				}
+			}
+
+			renderer->EndScene();
+
+			if (renderer->GetFinalPassImage())
+			{
+				Ref<Renderer2D> renderer2D = renderer->GetRenderer2D();
+
+				renderer2D->ResetStats();
+				renderer2D->BeginScene(camera.GetProjectionMatrix() * cameraViewMatrix, cameraViewMatrix);
+
+				// Render 2D sprites
+				{
+					auto view = GetAllEntitiesWith<SpriteRendererComponent, VisibleComponent>();
+					for (auto entity : view)
+					{
+						Entity e = { entity, this };
+
+						const SpriteRendererComponent& spriteRendererComponent = view.get<SpriteRendererComponent>(entity);
+
+						if (spriteRendererComponent.Texture)
+						{
+							if (AssetManager::IsAssetHandleValid(spriteRendererComponent.Texture))
+							{
+								Ref<Texture2D> texture = AssetManager::GetAssetAsync<Texture2D>(spriteRendererComponent.Texture);
+								renderer2D->DrawQuad(
+									GetWorldSpaceTransformMatrix(e),
+									texture,
+									spriteRendererComponent.TilingFactor,
+									spriteRendererComponent.Color,
+									spriteRendererComponent.UV0,
+									spriteRendererComponent.UV1
+								);
+							}
+						}
+						else
+						{
+							renderer2D->DrawQuad(GetWorldSpaceTransformMatrix(e), spriteRendererComponent.Color);
+						}
+					}
+				}
+
+				// Render Text
+				{
+					auto view = GetAllEntitiesWith<TextComponent, VisibleComponent>();
+					for (auto entity : view)
+					{
+						Entity e = { entity, this };
+
+						const TextComponent& textComponent = view.get<TextComponent>(entity);
+
+						Ref<Font> font = Font::GetFontAssetForTextComponent(textComponent.Font);
+						renderer2D->DrawString(textComponent.TextString, font, GetWorldSpaceTransformMatrix(e), textComponent.MaxWidth, textComponent.Color, textComponent.LineSpacing, textComponent.Kerning);
+					}
+				}
+
+				// Save line width since debug renderer may change that...
+				float lineWidth = renderer2D->GetLineWidth();
+
+				// TODO: Debug Renderer, eventhough the line width here might conflict with the renderer2D's line width since the vulkan command to change
+				// it is only called once on EndScene so if the debug renderer sets it then all the lines will be rendered with that width
+
+				renderer2D->EndScene();
+				// Restore the line width
+				renderer2D->SetLineWidth(lineWidth);
+			}
+		}
 	}
 
 	void Scene::OnUpdateEditor(TimeStep ts)
@@ -132,9 +378,9 @@ namespace Iris {
 					uint32_t dirLightCountIndex = 0;
 					for (auto entity : view)
 					{
-						if (dirLightCountIndex >= 1)
+						IR_VERIFY(dirLightCountIndex < LightEnvironment::MaxDirectionalLights, "We can't have more than {} directional lights in one scene!", LightEnvironment::MaxDirectionalLights);
+						if (dirLightCountIndex++ >= 1)
 							break;
-						IR_VERIFY(dirLightCountIndex++ < LightEnvironment::MaxDirectionalLights, "We can't have more than {} directional lights in one scene!", LightEnvironment::MaxDirectionalLights);
 
 						const auto& [transformComp, dirLightComp] = view.get<TransformComponent, DirectionalLightComponent>(entity);
 						glm::vec3 direction = -glm::normalize(glm::mat3(transformComp.GetTransform()) * glm::vec3(1.0f));

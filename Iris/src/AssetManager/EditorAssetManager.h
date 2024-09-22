@@ -56,6 +56,7 @@ namespace Iris {
 		std::filesystem::path GetFileSystemPath(const AssetMetaData& metaData) const;
 		std::string GetFileSystemPathString(const AssetMetaData& metaData) const { return GetFileSystemPath(metaData).string(); }
 		std::filesystem::path GetRelativePath(const std::filesystem::path& path) const;
+		const Ref<EditorAssetThread> GetAssetThread() const { return m_AssetThread; }
 
 		bool FileExists(const AssetMetaData& metaData) const;
 

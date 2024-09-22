@@ -21,10 +21,6 @@ namespace Iris {
 		ThreadState State = ThreadState::Idle;
 	};
 
-	Ref<EditorAssetThread> EditorAssetThread::Create()
-	{
-		return CreateRef<EditorAssetThread>();
-	}
 
 	EditorAssetThread::EditorAssetThread()
 		: m_Thread("Asset Thread")
@@ -106,7 +102,7 @@ namespace Iris {
 		Timer timer;
 		// TODO:
 		// EnsureAllLoadedCurrent();
-		m_AssetUpdatePerf = timer.ElapsedMillis();
+		m_AssetThreadEnsureCurrentTime = timer.ElapsedMillis();
 	}
 
 	void EditorAssetThread::Wait(ThreadState stateToWait)
@@ -115,12 +111,16 @@ namespace Iris {
 		if (m_Data->State == stateToWait)
 			return;
 
+		Timer assetThreadSleepTimer;
+
 		EnterCriticalSection(&m_Data->CriticalSection);
 		while (m_Data->State != stateToWait)
 		{
 			SleepConditionVariableCS(&m_Data->ConditionVariable, &m_Data->CriticalSection, INFINITE);
 		}
 		LeaveCriticalSection(&m_Data->CriticalSection);
+
+		m_AssetThreadSleepTime = assetThreadSleepTimer.ElapsedMillis();
 	}
 
 	void EditorAssetThread::Set(ThreadState stateToSet)
@@ -141,6 +141,8 @@ namespace Iris {
 		if (m_Data->State == stateToWait)
 			return;
 
+		Timer assetThreadWaitTimer;
+
 		EnterCriticalSection(&m_Data->CriticalSection);
 		while (m_Data->State != stateToWait)
 		{
@@ -149,6 +151,8 @@ namespace Iris {
 		m_Data->State = stateToSet;
 		WakeAllConditionVariable(&m_Data->ConditionVariable);
 		LeaveCriticalSection(&m_Data->CriticalSection);
+
+		m_AssetThreadWaitTime = assetThreadWaitTimer.ElapsedMillis();
 	}
 
 	void EditorAssetThread::AssetThreadFunc()
@@ -156,13 +160,7 @@ namespace Iris {
 		while (m_Running)
 		{
 			// Here we wait untill the Kick state is set, then we set state to Busy
-			{
-				Timer assetThreadWaitTimer;
-
-				WaitAndSet(ThreadState::Kick, ThreadState::Busy);
-
-				assetThreadWaitTimer.ElapsedMillis();
-			}
+			WaitAndSet(ThreadState::Kick, ThreadState::Busy);
 
 			AssetMonitorUpdate();
 

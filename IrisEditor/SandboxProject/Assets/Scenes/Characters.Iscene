@@ -23,13 +23,14 @@ Entities:
     Children:
       []
     TransformComponent:
-      Position: [1.64311528, -0.0599999987, -0.521002054]
+      Position: [1.92342162, -0.0599999726, -0.465143561]
       Rotation: [0, 0, 0]
       Scale: [0.00880004372, 0.00880004372, 0.00880004372]
     StaticMeshComponent:
       AssetID: 3448222499160019637
       MaterialTable:
         0: 0
+        1: 0
   - Entity: 978865093965260794
     TagComponent:
       Tag: Stormtrooper

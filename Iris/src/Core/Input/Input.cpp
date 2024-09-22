@@ -2,6 +2,9 @@
 #include "Input.h"
 
 #include "Core/Application.h"
+#include "ImGui/ImGuiUtils.h"
+#include "Renderer/StorageBufferSet.h"
+#include "Renderer/UniformBufferSet.h"
 
 #include <glfw/glfw3.h>
 #include <imgui/imgui_internal.h>
@@ -25,7 +28,7 @@ namespace Iris {
 			if (!viewport->PlatformUserData)
 				continue;
 
-			GLFWwindow* windowHandle = *(GLFWwindow**)viewport->PlatformUserData; // First member is GLFWwindow
+			GLFWwindow* windowHandle = *reinterpret_cast<GLFWwindow**>(viewport->PlatformUserData); // First member is GLFWwindow
 			if (!windowHandle)
 				continue;
 			auto state = glfwGetKey(windowHandle, static_cast<int32_t>(keyCode));
@@ -107,7 +110,7 @@ namespace Iris {
 		double x, y;
 		glfwGetCursorPos(window, &x, &y);
 
-		return { (float)x, (float)y };
+		return { static_cast<float>(x), static_cast<float>(y) };
 	}
 
 	float Input::GetMouseX()
@@ -127,13 +130,16 @@ namespace Iris {
 	void Input::SetCursorMode(CursorMode mode)
 	{
 		GLFWwindow* window = Application::Get().GetWindow().GetNativeWindow();
-		glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL + (int)mode);
+		glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL + static_cast<int>(mode));
+
+		if (Application::Get().GetSpecification().EnableImGui)
+			UI::SetInputEnabled(mode == CursorMode::Normal);
 	}
 
 	CursorMode Input::GetCursorMode()
 	{
 		GLFWwindow* window = Application::Get().GetWindow().GetNativeWindow();
-		return (CursorMode)(glfwGetInputMode(window, GLFW_CURSOR) - GLFW_CURSOR_NORMAL);
+		return static_cast<CursorMode>(glfwGetInputMode(window, GLFW_CURSOR) - GLFW_CURSOR_NORMAL);
 	}
 
 	void Input::TransitionPressedKeys()

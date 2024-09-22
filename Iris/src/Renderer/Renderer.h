@@ -16,6 +16,7 @@ namespace Iris {
 	// Forward declares
 	class Shader;
 	class ShadersLibrary;
+	class StorageImage;
 	class Texture2D;
 	class TextureCube;
 	class RenderPass;
@@ -121,9 +122,9 @@ namespace Iris {
 		static void RenderGeometry(Ref<RenderCommandBuffer> renderCommandBuffer, Ref<Pipeline> pipeline, Ref<Material> material, Ref<VertexBuffer> vertexBuffer, Ref<IndexBuffer> indexBuffer, const glm::mat4& transform, uint32_t indexCount = 0);
 
 		// Compute passes
-		static void BeginComputePass(VkCommandBuffer commandBuffer, Ref<ComputePass> computePass);
-		static void EndComputePass(VkCommandBuffer commandBuffer, Ref<ComputePass> computePass);
-		static void DispatchComputePass(VkCommandBuffer commandBuffer, Ref<ComputePass> computePass, Ref<Material> material, const glm::uvec3& workGroups, Buffer constants = Buffer());
+		static void BeginComputePass(Ref<RenderCommandBuffer> renderCommandBuffer, Ref<ComputePass> computePass);
+		static void EndComputePass(Ref<RenderCommandBuffer> renderCommandBuffer, Ref<ComputePass> computePass);
+		static void DispatchComputePass(Ref<RenderCommandBuffer> renderCommandBuffer, Ref<ComputePass> computePass, Ref<Material> material, const glm::uvec3& workGroups, Buffer constants = Buffer());
 
 		static std::pair<Ref<TextureCube>, Ref<TextureCube>> CreateEnvironmentMap(const std::string& filepath);
 		static Ref<TextureCube> CreatePreethamSky(float turbidity, float azimuth, float inclination, float sunSize);

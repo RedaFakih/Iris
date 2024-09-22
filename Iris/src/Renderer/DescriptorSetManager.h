@@ -130,6 +130,7 @@ namespace Iris {
 	// Forward declares
 	class Shader;
 	class Texture2D;
+	class StorageImage;
 	class TextureCube;
 	class ImageView;
 	class UniformBuffer;
@@ -179,11 +180,10 @@ namespace Iris {
 		{
 		}
 
-		// TODO:
-		//RenderPassInput(Ref<StorageImage> storageImage)
-		//	: Type(DescriptorResourceType::StorageImage), Input(std::vector<Ref<RefCountedObject>>(1, storageImage))
-		//{
-		//}
+		RenderPassInput(Ref<StorageImage> storageImage)
+			: Type(DescriptorResourceType::StorageImage), Input(std::vector<Ref<RefCountedObject>>(1, storageImage))
+		{
+		}
 
 		void Set(Ref<UniformBuffer> uniformBuffer, uint32_t index = 0)
 		{
@@ -227,12 +227,11 @@ namespace Iris {
 			Input[index] = imageView;
 		}
 
-		// TODO:
-		//void Set(Ref<StorageImage> storageImage, uint32_t index = 0)
-		//{
-		//	Type = DescriptorResourceType::StorageImage;
-		//	Input[index] = storageImage;
-		//}
+		void Set(Ref<StorageImage> storageImage, uint32_t index = 0)
+		{
+			Type = DescriptorResourceType::StorageImage;
+			Input[index] = storageImage;
+		}
 	};
 
 	struct RenderPassInputDeclaration
@@ -293,8 +292,7 @@ namespace Iris {
 		void SetInput(std::string_view name, Ref<Texture2D> texture, uint32_t index = 0);
 		void SetInput(std::string_view name, Ref<TextureCube> textureCube);
 		void SetInput(std::string_view name, Ref<ImageView> imageView);
-		// TODO: 
-		//void SetInput(std::string_view name, Ref<StorageImage> storageImage, uint32_t index = 0);
+		void SetInput(std::string_view name, Ref<StorageImage> storageImage, uint32_t index = 0);
 
 		template<typename T>
 		Ref<T> GetInput(std::string_view name)

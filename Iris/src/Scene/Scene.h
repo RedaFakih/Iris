@@ -44,6 +44,8 @@ namespace Iris {
 		[[nodiscard]] static Ref<Scene> Create(const std::string& name = "UntitledScene", bool isEditorScene = false);
 		[[nodiscard]] static Ref<Scene> CreateEmpty();
 
+		void CopyTo(Ref<Scene>& targetScene);
+
 		// TODO:
 		void OnUpdateRuntime(TimeStep ts);
 		void OnRenderRuntime(Ref<SceneRenderer> renderer, TimeStep ts);
@@ -119,6 +121,19 @@ namespace Iris {
 			{
 				auto& srcComponent = m_Registry.get<TComponent>(src);
 				dstRegistry.emplace_or_replace<TComponent>(dst, srcComponent);
+			}
+		}
+
+		template<typename TComponent>
+		void CopyComponent(entt::registry& dstRegistry, entt::registry& srcRegistry, const std::unordered_map<UUID, entt::entity>& enttMap)
+		{
+			auto srcEntities = srcRegistry.view<TComponent>();
+			for (auto srcEntity : srcEntities)
+			{
+				entt::entity desEntity = enttMap.at(srcRegistry.get<IDComponent>(srcEntity).ID);
+
+				TComponent& srcComp = srcRegistry.get<TComponent>(srcEntity);
+				dstRegistry.emplace_or_replace<TComponent>(desEntity, srcComp);
 			}
 		}
 

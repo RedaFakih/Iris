@@ -74,28 +74,29 @@ namespace Iris {
 
 		// Gets set internally if there was a filepath given, otherwise it is specified by user
 		ImageFormat Format = ImageFormat::RGBA;
-		// Set by User and Also set internally if needed, ignored in case of storage images
+		// Set by User and Also set internally if needed. IGNORED by StorageImages
 		ImageUsage Usage = ImageUsage::Texture;
 
-		// Set by user
+		// Set by user. IGNORED by StorageImages
 		bool CreateSampler = true;
 		// Set by user
 		TextureWrap WrapMode = TextureWrap::Repeat;
 		// Set by user
 		TextureFilter FilterMode = TextureFilter::Linear;
 
-		// Multisampled Image... (1, 2, 4, 8, 16, 32, 64). NOTE: NOT SUPPORTED
+		// Multisampled Image... (1, 2, 4, 8, 16, 32, 64). NOTE: NOT SUPPORTED, DO NOT SET
 		uint32_t Samples = 1;
 
 		// Used for Transfer operations? (Affects the usage of the image)
 		bool Transfer = false;
 
-		// If usage is Attachment then it will be overriden to false otherwise used value is one set by user
+		// If usage is Attachment then it will be overriden to false otherwise used value is one set by user. IGNORED by StorageImages
 		bool GenerateMips = true;
 		// DO NOT SET THIS. This will be determined up on invalidation and is there for debugging purposes.
 		uint32_t Mips = 0;
 
-		// You could have a mipped, layered image. However if ImageUsage::Attachment is set then you are ONLY allowed to have a layered image, GenerateMips HAS to be false
+		// You could have a mipped, layered image. However if ImageUsage::Attachment is set then you are ONLY allowed to have a layered image, GenerateMips HAS to be false.
+		// IGNORED by StorageImages
 		uint32_t Layers = 1;
 	};
 
@@ -227,7 +228,7 @@ namespace Iris {
 		std::string m_AssetPath;
 		TextureSpecification m_Specification;
 
-		// Image ifno
+		// Image info
 		VkImage m_Image = nullptr;
 		VkImageView m_ImageView = nullptr;
 		VkSampler m_Sampler = nullptr;
@@ -255,6 +256,65 @@ namespace Iris {
 		// Desired layer for the image view
 		// Leave at -1 if you want to include ALL layers of the image in the image view
 		int Layer = -1;
+	};
+
+	/*
+	 * Storage images are separated from the Texture class for a couple of reasons, mainly not wanting to crowd the Texure class with alot of different
+	 * types of images and having to handle that produces spaghetti code
+	 * When using StorageImages:
+	 *  - They should be managed by the ComputePass and NOT the Material
+	 *  - Compute shader fills storage image with data
+	 *	- Other shaders sample from that storage image so it just becomes a sampled image after
+	 */
+
+	class StorageImage : public RefCountedObject
+	{
+	public:
+		StorageImage(const TextureSpecification& spec);
+		~StorageImage();
+
+		[[nodiscard]] static Ref<StorageImage> Create(const TextureSpecification& spec)
+		{
+			return CreateRef<StorageImage>(spec);
+		}
+
+		void Invalidate();
+		void RT_Invalidate();
+		void Resize(uint32_t width, uint32_t height);
+		void Release();
+
+		uint64_t GetHash() const { return reinterpret_cast<uint64_t>(m_ImageView); }
+
+		ImageFormat GetFormat() const noexcept { return m_Specification.Format; }
+		uint32_t GetWidth() const { return m_Specification.Width; }
+		uint32_t GetHeight() const { return m_Specification.Height; }
+		glm::vec2 GetSize() const { return { m_Specification.Width, m_Specification.Height }; }
+		bool Loaded() const { return m_Image != nullptr; }
+
+		const VkImage GetVulkanImage() const { return m_Image; }
+		const VkImageView GetVulkanImageView() const { return m_ImageView; }
+		const VkSampler GetVulkanSampler() const { return m_Sampler; }
+		const VmaAllocation GetMemoryAllocation() const { return m_MemoryAllocation; }
+
+		const VkDescriptorImageInfo& GetDescriptorImageInfo() const { return m_DescriptorInfo; }
+
+		TextureSpecification& GetTextureSpecification() { return m_Specification; }
+		const TextureSpecification& GetTextureSpecification() const { return m_Specification; }
+
+	private:
+		// Layers? Mips?
+		TextureSpecification m_Specification;
+
+		// Image info
+		VkImage m_Image = nullptr;
+		VkImageView m_ImageView = nullptr;
+		VkSampler m_Sampler = nullptr;
+		VmaAllocation m_MemoryAllocation = nullptr;
+
+		Buffer m_ImageData; // Local storage of the image
+
+		VkDescriptorImageInfo m_DescriptorInfo = {};
+
 	};
 
 	class ImageView : public RefCountedObject

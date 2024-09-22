@@ -66,6 +66,9 @@ namespace Iris {
 
 	// Primary panels for editor
 	private:
+		void OnScenePlay();
+		void OnSceneStop();
+
 		void UI_StartDocking();
 		void UI_EndDocking();
 
@@ -78,6 +81,7 @@ namespace Iris {
 		glm::vec3& GetSnapValues() { return m_GizmoSnapValues; }
 		void SetSnapValue(float value);
 		void UI_DrawViewportIcons();
+		void UI_DrawViewportOverlays();
 		void UI_DrawGizmos();
 		void UI_ShowNewSceneModal();
 		void UI_ShowNewProjectModal();
@@ -112,6 +116,7 @@ namespace Iris {
 
 		Ref<Scene> m_CurrentScene;
 		Ref<Scene> m_EditorScene;
+		Ref<Scene> m_RuntimeScene;
 
 		Ref<SceneRenderer> m_ViewportRenderer;
 		Ref<Renderer2D> m_Renderer2D;
@@ -153,6 +158,8 @@ namespace Iris {
 		bool m_ViewportPanelFocused = false;
 		bool m_AllowViewportCameraEvents = false;
 
+		bool m_AllowEditorCameraInRuntime = false;
+
 		// UI...
 		bool m_ShowImGuiStackToolWindow = false;
 		bool m_ShowImGuiMetricsWindow = false;
@@ -176,6 +183,9 @@ namespace Iris {
 
 		enum class SelectionMode { Entity = 0, SubMesh = 1 };
 		SelectionMode m_SelectionMode = SelectionMode::Entity;
+
+		enum class SceneState { Edit = 0, Play = 1, Pause = 2 };
+		SceneState m_SceneState = SceneState::Edit;
 
 		float m_TimeSinceLastSave = 0.0f;
 

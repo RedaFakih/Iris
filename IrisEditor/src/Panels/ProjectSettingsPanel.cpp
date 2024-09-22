@@ -24,7 +24,7 @@ namespace Iris {
 		{
 			// General Settings
 			{
-				ImGui::PushID("GeneralProjectSettings");
+				ImGui::PushID("General Project Settings");
 
 				if (UI::PropertyGridHeader("General"))
 				{
@@ -70,7 +70,7 @@ namespace Iris {
 
 			// Renderer Settings
 			{
-				ImGui::PushID("RendererSettings");
+				ImGui::PushID("Renderer Settings");
 
 				if (UI::PropertyGridHeader("Renderer", false))
 				{
@@ -82,7 +82,7 @@ namespace Iris {
 
 					static const char* mapSize[6] = { "128", "256", "512", "1024", "2048", "4096" };
 					int currentEnvMapSize = static_cast<int>(glm::log2(static_cast<float>(rendererConfig.EnvironmentMapResolution))) - 7;
-					if (UI::PropertyDropdown("Environment Map Size", mapSize, 6, &currentEnvMapSize))
+					if (UI::PropertyDropdown("Environment Map Size", mapSize, 6, &currentEnvMapSize, "Size of the generated environment map texture"))
 						rendererConfig.EnvironmentMapResolution = static_cast<uint32_t>(glm::pow(2, currentEnvMapSize + 7));
 
 					int currentIrradianceMapSamples = static_cast<int>(glm::log2(static_cast<float>(rendererConfig.IrradianceMapComputeSamples))) - 7;
@@ -100,7 +100,7 @@ namespace Iris {
 
 			// Logging Settings
 			{
-				ImGui::PushID("LoggingSettings");
+				ImGui::PushID("Logging Settings");
 
 				if (UI::PropertyGridHeader("Logging", false))
 				{

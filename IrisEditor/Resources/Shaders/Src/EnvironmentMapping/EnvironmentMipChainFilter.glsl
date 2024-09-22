@@ -109,7 +109,6 @@ float NDFGGX(float cosLh, float roughness)
 
 // Specify the size of invocations per workgroup
 layout(local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
-
 void main()
 {
 	// Make sure we won't write past output when computing higher mip levels

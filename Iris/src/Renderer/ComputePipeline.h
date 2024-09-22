@@ -5,6 +5,10 @@
 
 namespace Iris {
 
+	/*
+	 * NOTE: Currently compute shader are dispatched on the graphics queue to avoid queue ownership transfer of the used resources
+	 */
+
 	class ComputePipeline : public RefCountedObject
 	{
 	public:
@@ -16,8 +20,8 @@ namespace Iris {
 			return CreateRef<ComputePipeline>(shader, debugName);
 		}
 
-		void Begin(VkCommandBuffer commandBuffer = nullptr);
-		void RT_Begin(VkCommandBuffer commandBuffer = nullptr);
+		void Begin(Ref<RenderCommandBuffer> renderCommandBuffer = nullptr);
+		void RT_Begin(Ref<RenderCommandBuffer> renderCommandBuffer = nullptr);
 		void End();
 
 		void Dispatch(const glm::uvec3& workGroups) const;
@@ -28,7 +32,7 @@ namespace Iris {
 		bool IsUsingComputeQueue() const { return m_UsingGraphicsQueue == false; }
 
 		VkPipelineLayout GetPipelineLayout() const { return m_PipelineLayout; }
-		VkCommandBuffer GetActiveCommandBuffer() const { return m_ActiveComputeCommandBuffer; }
+		VkCommandBuffer GetActiveCommandBuffer() const { return m_ActiveCommandBuffer; }
 		Ref<Shader> GetShader() const { return m_Shader; }
 		std::string_view GetDebugName() const { return m_DebugName; }
 
@@ -44,7 +48,7 @@ namespace Iris {
 		VkPipelineLayout m_PipelineLayout = nullptr;
 		VkFence m_ComputeFence = nullptr;
 
-		VkCommandBuffer m_ActiveComputeCommandBuffer = nullptr;
+		VkCommandBuffer m_ActiveCommandBuffer = nullptr;
 
 		bool m_UsingGraphicsQueue = false;
 

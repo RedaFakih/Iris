@@ -76,6 +76,13 @@ namespace Iris {
 			needsSerialize = true;
 		}
 
+		bool shadowCasting = m_MaterialAsset->IsShadowCasting();
+		if (UI::Property("Shadow Casting", shadowCasting, "Set whether the object will cast shadows or not"))
+		{
+			m_MaterialAsset->SetShadowCasting(shadowCasting);
+			needsSerialize = true;
+		}
+
 		if (UI::Property("Tiling", m_MaterialAsset->GetTiling(), 0.1f, 0.01f, 100.0f, "Configure the tiling factor of the maps"))
 			needsSerialize = true;
 

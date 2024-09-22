@@ -27,7 +27,7 @@ layout(std140, set = 1, binding = 0) uniform Camera
 	vec2 DepthUnpackConsts;
 } u_Camera;
 
-layout(std140, set = 2, binding = 3) uniform DirectionalShadowData
+layout(std140, set = 1, binding = 3) uniform DirectionalShadowData
 {
 	mat4 DirectionalLightMatrices[4];
 } u_DirShadow;
@@ -136,7 +136,7 @@ layout(std140, set = 1, binding = 2) uniform SceneData
 	float EnvironmentMapIntensity; // This is used in the PBR shader and it mirrors the intensity that is used in the Skybox shader
 } u_Scene;
 
-layout(std140, set = 2, binding = 4) uniform RendererData
+layout(std140, set = 1, binding = 4) uniform RendererData
 {
     vec4 CascadeSplits;
 	float LightSize;

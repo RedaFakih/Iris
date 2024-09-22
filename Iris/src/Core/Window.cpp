@@ -82,19 +82,19 @@ namespace Iris {
 
 		// Set icon
 		{
-			GLFWimage icon;
+			GLFWimage icon{};
 			int channels;
-			if (!m_Specification.IconPath.empty())
-			{
-				std::string iconPathStr = m_Specification.IconPath.string();
-				icon.pixels = stbi_load(iconPathStr.c_str(), &icon.width, &icon.height, &channels, STBI_rgb_alpha);
+			if (m_Specification.IconPath.empty())
+			{				
+				// Embedded Iris icon
+				icon.pixels = stbi_load_from_memory(g_IrisIconPNG, sizeof(g_IrisIconPNG), &icon.width, &icon.height, &channels, STBI_rgb_alpha);
 				glfwSetWindowIcon(m_Window, 1, &icon);
 				stbi_image_free(icon.pixels);
 			}
 			else
 			{
-				// Embedded Iris icon
-				icon.pixels = stbi_load_from_memory(g_IrisIconPNG, sizeof(g_IrisIconPNG), &icon.width, &icon.height, &channels, STBI_rgb_alpha);
+				std::string iconPathStr = m_Specification.IconPath.string();
+				icon.pixels = stbi_load(iconPathStr.c_str(), &icon.width, &icon.height, &channels, STBI_rgb_alpha);
 				glfwSetWindowIcon(m_Window, 1, &icon);
 				stbi_image_free(icon.pixels);
 			}

@@ -22,7 +22,10 @@ namespace Iris {
 		EditorAssetThread();
 		~EditorAssetThread();
 
-		[[nodiscard]] static Ref<EditorAssetThread> Create();
+		[[nodiscard]] inline static Ref<EditorAssetThread> Create()
+		{
+			return CreateRef<EditorAssetThread>();
+		}
 
 		bool IsRunning() const { return m_Running; }
 		bool IsCurrentlyLoadingAssets() const;
@@ -39,6 +42,10 @@ namespace Iris {
 		void Wait(ThreadState stateToWait);
 		void Set(ThreadState stateToSet);
 		void WaitAndSet(ThreadState stateToWait, ThreadState stateToSet);
+
+		constexpr inline float GetAssetThreadSleepTime() const { return m_AssetThreadSleepTime; }
+		constexpr inline float GetAssetThreadWaitTime() const { return m_AssetThreadWaitTime; }
+		constexpr inline float GetAssetThreadEnsureCurrentTime() const { return m_AssetThreadEnsureCurrentTime; }
 
 	private:
 		void AssetThreadFunc();
@@ -62,11 +69,10 @@ namespace Iris {
 		std::unordered_map<AssetHandle, Ref<Asset>> m_AMLoadedAssets;
 		std::mutex m_AMLoadedAssetsMapMutex;
 
-		// TODO: What the heck?
 		// Asset Monitoring
-		float m_AssetUpdateDelay = 0.2f;
-		float m_AssetUpdateTimer = 0.2f;
-		float m_AssetUpdatePerf = 0.0f;
+		float m_AssetThreadSleepTime = 0.0f;
+		float m_AssetThreadWaitTime = 0.0f;
+		float m_AssetThreadEnsureCurrentTime = 0.0f;
 
 		inline static std::thread::id s_AssetThreadID;
 

@@ -1432,7 +1432,7 @@ namespace Iris {
 			int currentPorj = static_cast<int>(camComponent.Camera.GetProjectionType());
 
 			ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiEdit && IsInconsistentPrimitive<int, CameraComponent>([](const CameraComponent& other) { return static_cast<int>(other.Camera.GetProjectionType()); }));
-			if (UI::PropertyDropdown("Projection", projectionTypes, 2, &currentPorj, "Type of projection of the camera"))
+			if (UI::PropertyDropdown("Projection", projectionTypes, 2, &currentPorj, "Type of projection of the camera. NOTE: Orthographics projection currently is not supported"))
 			{
 				for (UUID entityID : entities)
 				{
@@ -1452,7 +1452,7 @@ namespace Iris {
 				float verticalFOV = camComponent.Camera.GetDegPerspectiveVerticalFOV();
 				ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiEdit && IsInconsistentPrimitive<float, CameraComponent>([](const CameraComponent& other) { return other.Camera.GetDegPerspectiveVerticalFOV(); }));
 
-				if (UI::Property("Vertical FOV", verticalFOV, 0.1f, 0.0f, 0.0f, "Field of view of the camera"))
+				if (UI::Property("Vertical FOV", verticalFOV, 0.1f, 0.0f, 0.0f, "Field of view of the camera in degrees"))
 				{
 					for (UUID entityID : entities)
 					{

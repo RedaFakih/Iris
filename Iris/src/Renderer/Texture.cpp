@@ -23,7 +23,7 @@ namespace Iris {
             }
 
             IR_ASSERT(false);
-            return (VkSamplerAddressMode)0;
+            return VK_SAMPLER_ADDRESS_MODE_MAX_ENUM;
         }
 
         static constexpr VkFilter GetVulkanSamplerFilter(TextureFilter filter)
@@ -35,7 +35,7 @@ namespace Iris {
             }
 
             IR_ASSERT(false);
-            return (VkFilter)0;
+            return VK_FILTER_MAX_ENUM;
         }
 
         static constexpr std::size_t GetMemorySize(ImageFormat format, uint32_t width, uint32_t height)
@@ -88,7 +88,8 @@ namespace Iris {
     Texture2D::Texture2D(const TextureSpecification& spec)
         : m_Specification(spec)
     {
-        IR_VERIFY(m_Specification.Width > 0 && m_Specification.Height > 0);
+        Utils::ValidateSpecification(m_Specification);
+
         m_Specification.GenerateMips = m_Specification.Usage == ImageUsage::Attachment ? false : m_Specification.GenerateMips;
     }
 
@@ -178,17 +179,13 @@ namespace Iris {
             else
                 usage |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
         }
+
         // We set it as a transfer src and dst for textures to generate mips
         // Also for attachments in case we want to blit them or copy to host buffers
         if (m_Specification.Transfer || m_Specification.Usage == ImageUsage::Texture || m_Specification.Usage == ImageUsage::Attachment)
         {
             usage |= VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
         }
-        // TODO: Storage Images will be their own thing
-        // if (m_Specification.Usage == ImageUsage::Storage)
-        // {
-        //     usage |= VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
-        // }
 
         VkImageAspectFlags aspectMask = Utils::IsDepthFormat(m_Specification.Format) ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
         if (m_Specification.Format == ImageFormat::Depth32FStencil8UINT || m_Specification.Format == ImageFormat::Depth24UNORMStencil8UINT || m_Specification.Format == ImageFormat::DepthDefault)
@@ -365,11 +362,6 @@ namespace Iris {
 
             allocator.DestroyBuffer(stagingBufferAlloc, stagingBuffer);
         }
-        // else
-        // {
-        //     // We should generally never not have data unless the texture is an attachment since not having data is only possible in case of
-        //     // storage iamges which will be separated into their own thing...
-        // }
 
         VkImageViewCreateInfo imageViewCI = {
             .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
@@ -424,7 +416,7 @@ namespace Iris {
         }
         
         // Update image descriptor info
-        VkImageLayout finalImageLayout;
+        VkImageLayout finalImageLayout = VK_IMAGE_LAYOUT_MAX_ENUM;
         if (m_Specification.Format == ImageFormat::Depth24UNORMStencil8UINT || m_Specification.Format == ImageFormat::Depth32FStencil8UINT || m_Specification.Format == ImageFormat::DepthDefault)
         {
             finalImageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
@@ -665,7 +657,7 @@ namespace Iris {
         // if Texture: Wait for nothing
         // if Attachment: Wait for color attachment
         // if Attachment and Depth format: Wait for fragment shadar execution
-        // if Storage: Will be handled in the storage images separately but it will be to wait for compute shader execution (most probably)
+        // TODO: if Storage: Will be handled in the storage images separately but it will be to wait for compute shader execution (most probably)
         VkPipelineStageFlags srcPipelineStageMask;
         if (m_Specification.Usage == ImageUsage::Texture) [[unlikely]]
         {
@@ -1147,7 +1139,8 @@ namespace Iris {
         };
         VmaAllocation stagingBufferAllocation = allocator.AllocateBuffer(&stagingBufferCI, VMA_MEMORY_USAGE_GPU_TO_CPU, &stagingBuffer);
 
-        uint32_t mipWidth = m_Specification.Width, mipHeight = m_Specification.Height;
+        uint32_t mipWidth = m_Specification.Width;
+        uint32_t mipHeight = m_Specification.Height;
 
         bool manualCommandBuffer = false;
         if (!commandBuffer)
@@ -1339,6 +1332,152 @@ namespace Iris {
         uint32_t b = glm::log2(glm::min(width, height));
 
         return a - b;
+    }
+
+    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    /// StorageImage
+    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    StorageImage::StorageImage(const TextureSpecification& spec)
+        : m_Specification(spec)
+    {
+        Utils::ValidateSpecification(m_Specification);
+
+        Invalidate();
+    }
+
+    StorageImage::~StorageImage()
+    {
+        Release();
+    }
+
+    void StorageImage::Resize(uint32_t width, uint32_t height)
+    {
+        m_Specification.Width = width;
+        m_Specification.Height = height;
+
+        Ref<StorageImage> instance = this;
+        Renderer::Submit([instance]() mutable
+        {
+            instance->Invalidate();
+        });
+    }
+
+    void StorageImage::Release()
+    {
+        // Does nothing to m_ImageData since that should have been released by `Invalidate`
+        if (m_Image == nullptr)
+            return;
+
+        Renderer::SubmitReseourceFree([image = m_Image, imageView = m_ImageView, sampler = m_Sampler, allocation = m_MemoryAllocation]()
+        {
+            VkDevice device = RendererContext::GetCurrentDevice()->GetVulkanDevice();
+            VulkanAllocator allocator("TextureCube");
+            vkDestroySampler(device, sampler, nullptr);
+            vkDestroyImageView(device, imageView, nullptr);
+            allocator.DestroyImage(allocation, image);
+        });
+
+        m_Image = nullptr;
+        m_ImageView = nullptr;
+        if (m_Specification.CreateSampler)
+            m_Sampler = nullptr;
+        m_MemoryAllocation = nullptr;
+        m_DescriptorInfo = {};
+    }
+
+    void StorageImage::RT_Invalidate()
+    {
+        Ref<StorageImage> instance = this;
+        Renderer::Submit([instance]() mutable
+        {
+            instance->Invalidate();
+        });
+    }
+
+    void StorageImage::Invalidate()
+    {
+        IR_ASSERT(m_Specification.Width > 0 && m_Specification.Height > 0);
+
+        Release();
+
+        Ref<VulkanDevice> logicalDevice = RendererContext::GetCurrentDevice();
+        VkDevice device = RendererContext::GetCurrentDevice()->GetVulkanDevice();
+        VulkanAllocator allocator("StorageImage");
+
+        VkImageUsageFlags usage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+
+        constexpr VkImageAspectFlags aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+
+        VkImageCreateInfo imageCI = {
+            .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+            .flags = 0,
+            .imageType = VK_IMAGE_TYPE_2D,
+            .format = Utils::GetVulkanImageFormat(m_Specification.Format),
+            .extent = {.width = m_Specification.Width, .height = m_Specification.Height, .depth = 1u },
+            .mipLevels = 1,
+            .arrayLayers = 1,
+            .samples = Utils::GetSamplerCount(m_Specification.Samples),
+            .tiling = VK_IMAGE_TILING_OPTIMAL,
+            .usage = usage,
+            .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+            .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED // Not usable by gpu and first transition will discard texels
+        };
+
+        VkDeviceSize gpuAllocationSize = 0;
+        constexpr VmaMemoryUsage memUsage = VMA_MEMORY_USAGE_GPU_ONLY;
+        m_MemoryAllocation = allocator.AllocateImage(&imageCI, memUsage, &m_Image, &gpuAllocationSize);
+        VKUtils::SetDebugUtilsObjectName(device, VK_OBJECT_TYPE_IMAGE, m_Specification.DebugName, m_Image);
+
+        VkImageViewCreateInfo imageViewCI = {
+            .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+            .image = m_Image,
+            .viewType = VK_IMAGE_VIEW_TYPE_2D,
+            .format = Utils::GetVulkanImageFormat(m_Specification.Format),
+            .components = {.r = VK_COMPONENT_SWIZZLE_R, .g = VK_COMPONENT_SWIZZLE_G, .b = VK_COMPONENT_SWIZZLE_B, .a = VK_COMPONENT_SWIZZLE_A },
+            .subresourceRange = {
+                .aspectMask = aspectMask,
+                .baseMipLevel = 0,
+                .levelCount = 1,
+                .baseArrayLayer = 0,
+                .layerCount = 1
+            }
+        };
+
+        VK_CHECK_RESULT(vkCreateImageView(device, &imageViewCI, nullptr, &m_ImageView));
+        VKUtils::SetDebugUtilsObjectName(device, VK_OBJECT_TYPE_IMAGE_VIEW, fmt::format("{} Image View", m_Specification.DebugName), m_ImageView);
+
+        Ref<VulkanPhysicalDevice> physicalDevice = RendererContext::GetCurrentDevice()->GetPhysicalDevice();
+        bool enableAnisotropy = physicalDevice->GetPhysicalDeviceFeatures().samplerAnisotropy;
+        float samplerAnisotorpy = enableAnisotropy ? physicalDevice->GetPhysicalDeviceProperties().limits.maxSamplerAnisotropy : 1.0f;
+
+        VkSamplerCreateInfo samplerCI = {
+            .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
+            .magFilter = Utils::GetVulkanSamplerFilter(m_Specification.FilterMode),
+            .minFilter = Utils::GetVulkanSamplerFilter(m_Specification.FilterMode),
+            .mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR,
+            .addressModeU = Utils::GetVulkanSamplerWrap(m_Specification.WrapMode),
+            .addressModeV = Utils::GetVulkanSamplerWrap(m_Specification.WrapMode),
+            .addressModeW = Utils::GetVulkanSamplerWrap(m_Specification.WrapMode),
+            .mipLodBias = 0.0f,
+            .anisotropyEnable = enableAnisotropy,
+            .maxAnisotropy = samplerAnisotorpy,
+            .compareEnable = VK_FALSE,
+            .compareOp = VK_COMPARE_OP_NEVER,
+            .minLod = 0.0f,
+            .maxLod = 1.0f,
+            .borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE,
+            // Use coordinate system [0, 1) in order to access texels in the texture instead of [0, textureWidth)
+            .unnormalizedCoordinates = VK_FALSE
+        };
+
+        VK_CHECK_RESULT(vkCreateSampler(device, &samplerCI, nullptr, &m_Sampler));
+
+        m_DescriptorInfo = VkDescriptorImageInfo{
+            .sampler = m_Sampler,
+            .imageView = m_ImageView,
+            .imageLayout = VK_IMAGE_LAYOUT_GENERAL // NOTE: Will be transfered to SHADER_READ_ONLY_OPTIMAL after filling with data
+        };
     }
 
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -40,7 +40,7 @@ namespace Iris {
 		io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;           // Enable Docking
 		io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;         // Enable Multi-Viewport / Platform Windows
 		io.FontGlobalScale = 1.0f;
-		// io.FontAllowUserScaling = true;
+		// io.FontAllowUserScaling = true;							// Enable Ctrl + Mouse Scroll to change font size per window
 		io.BackendPlatformName = "Win32";
 		io.BackendRendererName = "Iris Engine - Vulkan";
 

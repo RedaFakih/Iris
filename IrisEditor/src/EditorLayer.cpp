@@ -147,28 +147,62 @@ namespace Iris {
 		// Sync with the asset thread: Any assets loaded by the asset thread are returned to the asset manager so that they become visible to the engine
 		AssetManager::SyncWithAssetThread();
 
-		// TODO: Do this only in SceneState::Edit
-		if (const auto& project = Project::GetActive(); project && project->GetConfig().EnableAutoSave)
-		{
-			m_TimeSinceLastSave += ts;
-			if (m_TimeSinceLastSave > project->GetConfig().AutoSaveIntervalSeconds)
-			{
-				SaveSceneAuto();
-			}
-		}
-
-		m_PanelsManager->SetSceneContext(m_CurrentScene);
-
 		// Set jump flood pass on or off based on if we have selected something in the past frame...
 		m_ViewportRenderer->GetSpecification().JumpFloodPass = SelectionManager::GetSelectionCount(SelectionContext::Scene) > 0;
 
-		m_EditorCamera.SetActive(m_AllowViewportCameraEvents);
-		m_EditorCamera.OnUpdate(ts);
+		switch (m_SceneState)
+		{
+			case SceneState::Edit:
+			{
+				m_EditorCamera.SetActive(m_AllowViewportCameraEvents);
+				m_EditorCamera.OnUpdate(ts);
+							
+				m_CurrentScene->OnUpdateEditor(ts);
+				m_CurrentScene->OnRenderEditor(m_ViewportRenderer, ts, m_EditorCamera);
 
-		m_CurrentScene->OnUpdateEditor(ts);
-		m_CurrentScene->OnRenderEditor(m_ViewportRenderer, ts, m_EditorCamera);
+				OnRender2D();
 
-		OnRender2D();
+				if (const auto& project = Project::GetActive(); project && project->GetConfig().EnableAutoSave)
+				{
+					m_TimeSinceLastSave += ts;
+					if (m_TimeSinceLastSave > project->GetConfig().AutoSaveIntervalSeconds)
+					{
+						SaveSceneAuto();
+					}
+				}
+
+				break;
+			}
+			case SceneState::Play:
+			{
+				m_RuntimeScene->OnUpdateRuntime(ts);
+
+				if (m_AllowEditorCameraInRuntime)
+				{
+					m_EditorCamera.SetActive(m_ViewportPanelMouseOver || m_AllowViewportCameraEvents);
+					m_EditorCamera.OnUpdate(ts);
+
+					m_RuntimeScene->OnRenderEditor(m_ViewportRenderer, ts, m_EditorCamera);
+
+					OnRender2D();
+				}
+				else
+				{
+					m_RuntimeScene->OnRenderRuntime(m_ViewportRenderer, ts);
+				}
+
+				break;
+			}
+			case SceneState::Pause:
+			{
+				m_EditorCamera.SetActive(m_ViewportPanelMouseOver);
+				m_EditorCamera.OnUpdate(ts);
+
+				m_RuntimeScene->OnRenderRuntime(m_ViewportRenderer, ts);
+
+				break;
+			}
+		}
 
 		bool leftAltWithEitherLeftOrMiddleButtonOrJustRight = (Input::IsKeyDown(KeyCode::LeftAlt) && (Input::IsMouseButtonDown(MouseButton::Left) || (Input::IsMouseButtonDown(MouseButton::Middle)))) || Input::IsMouseButtonDown(MouseButton::Right);
 		bool notStartCameraViewportAndViewportHoveredFocused = !m_StartedCameraClickInViewport && m_ViewportPanelFocused && m_ViewportPanelMouseOver;
@@ -310,6 +344,43 @@ namespace Iris {
 			OpenProject(s_OpenProjectFilePathBuffer);
 	}
 
+	void EditorLayer::OnScenePlay()
+	{
+		m_SceneState = SceneState::Play;
+
+		SelectionManager::DeselectAll();
+
+		Input::SetCursorMode(CursorMode::Locked);
+
+		m_RuntimeScene = Scene::Create(fmt::format("{} - {}", m_EditorScene->GetName(), "Runtime"));
+		// TODO: OnRuntimeStart
+		m_EditorScene->CopyTo(m_RuntimeScene);
+		m_CurrentScene = m_RuntimeScene;
+
+		AssetEditorPanel::SetSceneContext(m_CurrentScene);
+		m_ViewportRenderer->GetOptions().ShowGrid = false;
+		m_PanelsManager->SetSceneContext(m_CurrentScene);
+	}
+
+	void EditorLayer::OnSceneStop()
+	{
+		m_SceneState = SceneState::Edit;
+
+		SelectionManager::DeselectAll();
+
+		m_ViewportRenderer->GetOptions().ShowGrid = true;
+		Input::SetCursorMode(CursorMode::Normal);
+
+		// TODO: OnRumtimeStop
+
+		// Unload runtime scene
+		m_RuntimeScene = nullptr;
+
+		m_CurrentScene = m_EditorScene;
+		AssetEditorPanel::SetSceneContext(m_CurrentScene);
+		m_PanelsManager->SetSceneContext(m_CurrentScene);
+	}
+
 	void EditorLayer::UI_StartDocking()
 	{
 		ImGuiIO& io = ImGui::GetIO();
@@ -317,9 +388,11 @@ namespace Iris {
 
 		if (ImGui::IsMouseClicked(ImGuiMouseButton_Left) || (ImGui::IsMouseClicked(ImGuiMouseButton_Right) && !m_StartedCameraClickInViewport))
 		{
-			// TODO: Check if scene is not playing
-			ImGui::FocusWindow(GImGui->HoveredWindow);
-			Input::SetCursorMode(CursorMode::Normal);
+			if (m_SceneState != SceneState::Play)
+			{
+				ImGui::FocusWindow(GImGui->HoveredWindow);
+				Input::SetCursorMode(CursorMode::Normal);
+			}
 		}
 
 		io.ConfigWindowsResizeFromEdges = io.BackendFlags & ImGuiBackendFlags_HasMouseCursors;
@@ -872,8 +945,6 @@ namespace Iris {
 
 	void EditorLayer::UI_DrawViewportIcons()
 	{
-		// TODO: In runtime scenes if we do not want to show gizmos we should not show the gizmo related icons
-
 		UI::PushID();
 		
 		UI::ImGuiScopedStyle spacing(ImGuiStyleVar_ItemSpacing, { 0.0f, 0.0f });
@@ -884,7 +955,6 @@ namespace Iris {
 		constexpr float buttonSize = 18.0f;
 		constexpr float edgeOffset = 4.0f;
 		constexpr float windowHeight = 32.0f; // imgui windows can not be smaller than 32 pixels
-		constexpr float numberOfButtons = 5.0f + 3.0f; // we add 3 for the dropdown buttons
 		constexpr float textOffset = 4.0f; // Offset between text and label
 
 		const ImColor SelectedGizmoButtonColor = Colors::Theme::Accent;
@@ -1204,7 +1274,7 @@ namespace Iris {
 
 					ImGui::EndPopup();
 				}
-				
+
 				if (openRenderSelectionPopup)
 					ImGui::OpenPopup("Render Selection Popup");
 
@@ -1252,8 +1322,68 @@ namespace Iris {
 			ImGui::End();
 		}
 
+		{
+			constexpr float numberOfButtons = 2.0f;
+			constexpr float backgroundWidth = edgeOffset * 6.0f + buttonSize * numberOfButtons + edgeOffset * (numberOfButtons - 1.0f) * 2.0f;
+			ImVec2 position = { (m_ViewportRect.Min.x + m_ViewportRect.Max.x) / 2.0f - (backgroundWidth / 2.0f), m_ViewportRect.Min.y + edgeOffset };
+			ImGui::SetNextWindowPos(position);
+			ImGui::SetNextWindowSize({ backgroundWidth, windowHeight });
+			ImGui::SetNextWindowBgAlpha(0.0f);
+			ImGui::Begin("##viewport_central_tools", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoDocking);
+
+			// To make a smaller window, we could just fill the desired height that we want with color
+			constexpr float desiredHeight = 26.0f;
+			ImRect background = UI::RectExpanded(ImGui::GetCurrentWindow()->Rect(), 0.0f, -(windowHeight - desiredHeight) / 2.0f);
+			// ImGui::GetWindowDrawList()->AddRectFilled(background.Min, background.Max, IM_COL32(15, 15, 15, 127), 4.0f);
+
+			ImGui::BeginVertical("##viewportCentralIconsV", { backgroundWidth, ImGui::GetContentRegionAvail().y });
+			ImGui::Spring();
+			ImGui::BeginHorizontal("##viewportCentralIconsH", { backgroundWidth, ImGui::GetContentRegionAvail().y });
+			ImGui::Spring();
+
+			{
+				UI::ImGuiScopedStyle enableSpacing(ImGuiStyleVar_ItemSpacing, { edgeOffset * 2.0f, 0.0f });
+
+				Ref<Texture2D> buttonTex = m_SceneState == SceneState::Play ? EditorResources::SceneStopIcon : EditorResources::ScenePlayIcon;
+				if (iconButton(buttonTex, UnselectedGizmoButtonColor, m_SceneState == SceneState::Play ? "Stop Scene" : "Play Scene").first)
+				{
+					m_TitleBarPreviousColor = m_TitleBarActiveColor;
+					if (m_SceneState == SceneState::Edit)
+					{
+						// Go into play mode
+						m_TitleBarTargetColor = Colors::Theme::TitlebarGreen;
+						OnScenePlay();
+					}
+					else
+					{
+						m_TitleBarTargetColor = Colors::Theme::TitlebarCyan;
+						OnSceneStop();
+					}
+					
+					m_AnimateTitleBarColor = true;
+				}
+
+				ImGui::Spring(1.0f);
+				if (iconButton(EditorResources::ScenePauseIcon, UnselectedGizmoButtonColor, m_SceneState == SceneState::Pause ? "Resume Scene" : "Pause Scene").first)
+				{
+					if (m_SceneState == SceneState::Play)
+						m_SceneState = SceneState::Pause;
+					else if (m_SceneState == SceneState::Pause)
+						m_SceneState = SceneState::Play;
+				}
+			}
+
+			ImGui::Spring();
+			ImGui::EndHorizontal();
+			ImGui::Spring();
+			ImGui::EndVertical();
+
+			ImGui::End();
+		}
+
 		// Top Right corner tools and icons
 		{
+			constexpr float numberOfButtons = 5.0f + 3.0f; // we add 3 for the dropdown buttons
 			constexpr float backgroundWidth = edgeOffset * 6.0f + buttonSize * numberOfButtons + edgeOffset * (numberOfButtons - 1.0f) * 2.0f;
 			ImVec2 position = { m_ViewportRect.Max.x - backgroundWidth - 14.0f, m_ViewportRect.Min.y + edgeOffset };
 			ImGui::SetNextWindowPos(position);
@@ -1478,6 +1608,11 @@ namespace Iris {
 
 		UI::PopID();
 
+		UI_DrawViewportOverlays();
+	}
+
+	void EditorLayer::UI_DrawViewportOverlays()
+	{
 		if (m_ShowRendererInfoOverlay)
 		{
 			ImGui::SetNextWindowBgAlpha(0.5f);
@@ -1540,8 +1675,19 @@ namespace Iris {
 		float snapValues[3] = { snapValue, snapValue, snapValue };
 
 		glm::mat4 projectionMatrix, viewMatrix;
-		projectionMatrix = m_EditorCamera.GetProjectionMatrix();
-		viewMatrix = m_EditorCamera.GetViewMatrix();
+		if (m_SceneState == SceneState::Play && !m_AllowEditorCameraInRuntime)
+		{
+			Entity cameraEntity = m_CurrentScene->GetMainCameraEntity();
+			SceneCamera& camera = cameraEntity.GetComponent<CameraComponent>().Camera;
+			projectionMatrix = camera.GetProjectionMatrix();
+			viewMatrix = glm::inverse(m_CurrentScene->GetWorldSpaceTransformMatrix(cameraEntity));
+		}
+		else
+		{
+			// Get from EditorCamera instead
+			projectionMatrix = m_EditorCamera.GetProjectionMatrix();
+			viewMatrix = m_EditorCamera.GetViewMatrix();
+		}
 
 		if (selections.size() == 1)
 		{
@@ -1831,6 +1977,10 @@ namespace Iris {
 		m_ViewportPanelMouseOver = ImGui::IsWindowHovered();
 		m_ViewportPanelFocused = ImGui::IsWindowFocused();	
 
+		// Set to true so that we we activate the EditorCamera in the SceneState::Pause
+		if (m_AllowEditorCameraInRuntime)
+			m_ViewportPanelMouseOver = true;
+
 		ImVec2 viewportOffset = ImGui::GetCursorPos(); // Includes tab bar
 		ImVec2 viewportSize = ImGui::GetContentRegionAvail();
 		m_ViewportRenderer->SetViewportSize(static_cast<uint32_t>(viewportSize.x), static_cast<uint32_t>(viewportSize.y), m_ViewportRenderer->GetSpecification().RendererScale);
@@ -2037,8 +2187,11 @@ namespace Iris {
 		AssetEditorPanel::OnEvent(e);
 		m_PanelsManager->OnEvent(e);
 
-		if (m_AllowViewportCameraEvents)
-			m_EditorCamera.OnEvent(e);
+		if (m_SceneState == SceneState::Edit)
+		{
+			if (m_AllowViewportCameraEvents)
+				m_EditorCamera.OnEvent(e);
+		}
 
 		Events::EventDispatcher dispatcher(e);
 		dispatcher.Dispatch<Events::KeyPressedEvent>([this](Events::KeyPressedEvent& e) { return OnKeyPressed(e); });
@@ -2049,6 +2202,13 @@ namespace Iris {
 			return true;
 		});
 		dispatcher.Dispatch<Events::TitleBarColorChangeEvent>([this](Events::TitleBarColorChangeEvent& e) { return OnTitleBarColorChange(e); });
+		dispatcher.Dispatch<Events::WindowCloseEvent>([this](Events::WindowCloseEvent& e)
+		{
+			if ((m_SceneState == SceneState::Play) || (m_SceneState == SceneState::Pause))
+				OnSceneStop();
+
+			return false;
+		});
 	}
 
 	bool EditorLayer::OnKeyPressed(Events::KeyPressedEvent& e)
@@ -2203,6 +2363,19 @@ namespace Iris {
 
 					break;
 				}
+			}
+		}
+
+		if (m_SceneState == SceneState::Play && e.GetKeyCode() == KeyCode::Escape)
+			Input::SetCursorMode(CursorMode::Normal);
+
+		if (m_SceneState == SceneState::Play && Input::IsKeyDown(KeyCode::LeftAlt))
+		{
+			switch (e.GetKeyCode())
+			{
+				case KeyCode::C:
+					m_AllowEditorCameraInRuntime = !m_AllowEditorCameraInRuntime;
+					break;
 			}
 		}
 
@@ -2575,6 +2748,9 @@ namespace Iris {
 			IR_CORE_ERROR("Tried loading a non-existing scene: {0}", filePath);
 			return false;
 		}
+
+		if (m_SceneState == SceneState::Play)
+			OnSceneStop();
 
 		Ref<Scene> newScene = Scene::Create("New Scene", true);
 		SceneSerializer::Deserialize(newScene, filePath);

@@ -36,8 +36,14 @@ namespace Iris {
 
 	struct SceneRendererOptions
 	{
+		// General
 		bool ShowGrid = true;
 		bool ShowSelectedInWireFrame = false;
+
+		// DOF
+		bool DOFEnabled = false;
+		float DOFFocusDistance = 0.0f;
+		float DOFBlurSize = 1.0f;
 	};
 
 	struct SceneRendererSpecification
@@ -45,10 +51,10 @@ namespace Iris {
 		float RendererScale = 1.0f;
 		bool JumpFloodPass = true;
 
-		ShadowResolutionSetting ShadowResolution = ShadowResolutionSetting::High;
+		ShadowResolutionSetting ShadowResolution = ShadowResolutionSetting::Low;
 		uint32_t NumberOfShadowCascades = 4;
 
-		// Means application window size
+		// Means viewport window size
 		uint32_t ViewportWidth = 0;
 		uint32_t ViewportHeight = 0;
 	};
@@ -178,6 +184,7 @@ namespace Iris {
 		void CompositePass();
 
 		void CalculateCascades(const SceneRendererCamera& sceneCamera, const glm::vec3& lightDirection, CascadeData* cascades) const;
+		void CopyFromDOFImage();
 
 		void UpdateStatistics();
 
@@ -238,13 +245,13 @@ namespace Iris {
 		} m_SceneDataUB;
 		Ref<UniformBufferSet> m_UBSSceneData;
 
-		struct UBDirectionalShadowData // (set = 2, binding = 3)
+		struct UBDirectionalShadowData // (set = 1, binding = 3)
 		{
 			glm::mat4 DirectionalLightMatrices[4]; // View Projection Matrices
 		} m_DirectionalShadowDataUB;
 		Ref<UniformBufferSet> m_UBSDirectionalShadowData;
 
-		struct UBRendererData // (set = 2, binding = 4)
+		struct UBRendererData // (set = 1, binding = 4)
 		{
 			glm::vec4 CascadeSplits;
 			float LightSize = 0.5f;
@@ -316,6 +323,10 @@ namespace Iris {
 		Ref<RenderPass> m_JumpFloodCompositePass;
 		Ref<Material> m_JumpFloodCompositeMaterial;
 		std::array<Ref<Framebuffer>, 2> m_JumpFloodFramebuffers;
+
+		// Depth Of Field
+		Ref<RenderPass> m_DOFPass;
+		Ref<Material> m_DOFMaterial;
 
 		// For external compositing
 		Ref<Framebuffer> m_CompositingFramebuffer;

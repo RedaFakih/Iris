@@ -179,7 +179,7 @@ namespace Iris {
         ////////////////////////////////////////////////////////
         ////// Application Info
         ////////////////////////////////////////////////////////
-        // This is kind of optional but it may provide some information to the driver in order to its own optimizations magic
+        // This is kind of optional but it may provide some information to the driver in order to do its own optimizations magic
         VkApplicationInfo appInfo = {
             .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
             .pApplicationName = "Iris",

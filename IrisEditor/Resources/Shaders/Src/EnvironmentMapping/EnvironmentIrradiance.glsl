@@ -92,7 +92,6 @@ vec3 SampleHemisphere(float u1, float u2)
 
 // Specify the size of invocations per workgroup
 layout(local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
-
 void main()
 {
 	vec3 N = GetCubeMapTexCoord(vec2(imageSize(o_OutputCubeMap)));

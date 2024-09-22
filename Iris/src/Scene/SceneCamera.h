@@ -42,7 +42,7 @@ namespace Iris {
 		ProjectionType m_ProjectionType = ProjectionType::Perspective;
 
 		float m_DegPerspectiveFOV = 45.0f;
-		float m_PerspectiveNear = 0.1f;
+		float m_PerspectiveNear = 0.01f;
 		float m_PerspectiveFar = 1000.0f;
 
 		float m_OrthographicSize = 10.0f;

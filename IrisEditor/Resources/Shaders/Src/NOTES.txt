@@ -51,22 +51,12 @@ layout(std140, set = 1, binding = 2) uniform SceneData
 	float EnvironmentMapIntensity; // This is used in the PBR shader and it mirrors the intensity that is used in the Skybox shader
 } u_Scene;
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////
-/// Set 2
-////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-// PBR Shader
-layout(set = 2, binding = 0) uniform samplerCube u_RadianceMap;
-layout(set = 2, binding = 1) uniform samplerCube u_IrradianceMap;
-
-layout(set = 2, binding = 2) uniform sampler2DArray u_ShadowMap;
-
-layout(std140, set = 2, binding = 3) uniform DirectionalShadowData
+layout(std140, set = 1, binding = 3) uniform DirectionalShadowData
 {
 	mat4 DirectionalLightMatrices[4];
 } u_DirShadow;
 
-layout(std140, set = 2, binding = 4) uniform RendererData
+layout(std140, set = 1, binding = 4) uniform RendererData
 {
     vec4 CascadeSplits;
 	float LightSize;
@@ -78,6 +68,16 @@ layout(std140, set = 2, binding = 4) uniform RendererData
 	bool ShowCascades;
 	bool Unlit;
 } u_RendererData;
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////
+/// Set 2
+////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// PBR Shader
+layout(set = 2, binding = 0) uniform samplerCube u_RadianceMap;
+layout(set = 2, binding = 1) uniform samplerCube u_IrradianceMap;
+
+layout(set = 2, binding = 2) uniform sampler2DArray u_ShadowMap;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////
 /// Set 3

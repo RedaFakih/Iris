@@ -78,11 +78,10 @@ namespace Iris {
 		m_DescriptorSetManager.SetInput(name, imageView);
 	}
 
-	// TODO:
-	//void RenderPass::SetInput(std::string_view name, Ref<Image2D> image)
-	//{
-	//	m_DescriptorSetManager.SetInput(name, image);
-	//}
+	void RenderPass::SetInput(std::string_view name, Ref<StorageImage> image)
+	{
+		m_DescriptorSetManager.SetInput(name, image);
+	}
 
 	Ref<Texture2D> RenderPass::GetOutput(uint32_t index) const
 	{

@@ -25,7 +25,7 @@ namespace Iris {
 		{
 			case ProjectionType::Perspective:
 			{
-				SetPerspectiveProjectionMatrix(glm::radians(m_DegPerspectiveFOV), static_cast<float>(width), static_cast<float>(height), m_PerspectiveNear, m_PerspectiveFar);
+				SetPerspectiveProjectionMatrix(m_DegPerspectiveFOV, static_cast<float>(width), static_cast<float>(height), m_PerspectiveNear, m_PerspectiveFar);
 				break;
 			}
 			case ProjectionType::Orthographic:

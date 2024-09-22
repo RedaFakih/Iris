@@ -114,8 +114,18 @@ namespace Iris {
 					.DebugName = fmt::format("DirectionalShadowPipeline-{}", i),
 					.Shader = Renderer::GetShadersLibrary()->Get("DirectionalShadow"),
 					.TargetFramebuffer = Framebuffer::Create(directionalShadowFBSpec),
-					.VertexLayout = vertexLayout,
-					.InstanceLayout = instanceLayout,
+					.VertexLayout = {
+						{ ShaderDataType::Float3, "a_Position" },
+						{ ShaderDataType::Float3, "a_Normal"   },
+						{ ShaderDataType::Float3, "a_Tangent"  },
+						{ ShaderDataType::Float3, "a_Binormal" },
+						{ ShaderDataType::Float2, "a_TexCoord" }
+					},
+					.InstanceLayout = {
+						{ ShaderDataType::Float4, "a_MatrixRow0" },
+						{ ShaderDataType::Float4, "a_MatrixRow1" },
+						{ ShaderDataType::Float4, "a_MatrixRow2" }
+					},
 					.DepthOperator = DepthCompareOperator::LessOrEqual
 				};
 
@@ -499,11 +509,11 @@ namespace Iris {
 		}
 
 		// References: <https://bgolus.medium.com/the-quest-for-very-wide-outlines-ba82ed442cd9>
-		// JFA (Outline)
+		// Jump Flood Algorithm JFA (Outline)
 		/*
 		 * Init pass renders into JumpFloodFB[0]
-		 * Even pass into JumpFloodFB[1]; // Reads from JumpFlood[0] => Transfer image layout of JumpFlood[0] to SHADER_READ_ONLY then back to COLOR_ATTACHMENT_OPTIMAL
-		 * Odd pass into JumpFloodFB[0]; // Reads from JumpFlood[1] => Transfer image layout of JumpFlood[1] to SHADER_READ_ONLY then we could do nothing since it is not used to composite
+		 * Even pass into JumpFloodFB[1];
+		 * Odd pass into JumpFloodFB[0];
 		 * Composite Reads from JumpFlood[0];
 		 */
 		{
@@ -512,13 +522,13 @@ namespace Iris {
 				.DebugName = "JumpFloodFramebuffer1",
 				.ClearColorOnLoad = true,
 				.ClearColor = { 0.1f, 0.1f, 0.5f, 1.0f },
-				.Attachments = { ImageFormat::RGBA32F },
-				.BlendMode = FramebufferBlendMode::OneZero
+					.Attachments = { ImageFormat::RGBA32F },
+					.BlendMode = FramebufferBlendMode::OneZero
 			};
 			m_JumpFloodFramebuffers[0] = Framebuffer::Create(jFFramebuffersSpec);
 			jFFramebuffersSpec.DebugName = "JumpFloodFramebuffer2";
 			m_JumpFloodFramebuffers[1] = Framebuffer::Create(jFFramebuffersSpec);
-		
+
 			// Init...
 			PipelineSpecification jumpFloodInitPipeline = {
 				.DebugName = "JumpFloodInitPipeline",
@@ -526,26 +536,26 @@ namespace Iris {
 				.TargetFramebuffer = m_JumpFloodFramebuffers[0],
 				.VertexLayout = {
 					{ ShaderDataType::Float3, "a_Position" },
-				    { ShaderDataType::Float2, "a_TexCoord" }
+					{ ShaderDataType::Float2, "a_TexCoord" }
 				},
 				.DepthWrite = false,
 				.ReleaseShaderModules = true
 			};
-		
+
 			RenderPassSpecification jumpFloodInitPass = {
 				.DebugName = "JumpFloodInitPass",
 				.Pipeline = Pipeline::Create(jumpFloodInitPipeline),
 				.MarkerColor = { 0.8f, 0.3f, 0.8f, 1.0f }
 			};
 			m_JumpFloodInitPass = RenderPass::Create(jumpFloodInitPass);
-		
+
 			m_JumpFloodInitPass->SetInput("u_Texture", m_SelectedGeometryPass->GetOutput(0));
 			m_JumpFloodInitPass->Bake();
-		
+
 			m_JumpFloodInitMaterial = Material::Create(jumpFloodInitPipeline.Shader, "JumpFloodInitMaterial");
-		
+
 			// Pass...
-			const char* passName[2] = { "EvenPass", "OddPass" };
+			constexpr const char* passName[2] = { "EvenPass", "OddPass" };
 			for (uint32_t i = 0; i < 2; i++)
 			{
 				PipelineSpecification jumpFloodPassPipeline = {
@@ -559,20 +569,20 @@ namespace Iris {
 					.DepthWrite = false,
 					.ReleaseShaderModules = i == 1 // On the second iteration we release shader modules
 				};
-		
+
 				RenderPassSpecification jumpFloodPassPass = {
 					.DebugName = fmt::format("JumpFlood{0}", passName[i]),
 					.Pipeline = Pipeline::Create(jumpFloodPassPipeline),
 					.MarkerColor = { 0.8f, 0.3f, 0.8f, 1.0f }
 				};
 				m_JumpFloodPass[i] = RenderPass::Create(jumpFloodPassPass);
-		
+
 				m_JumpFloodPass[i]->SetInput("u_Texture", m_JumpFloodFramebuffers[i]->GetImage(0));
 				m_JumpFloodPass[i]->Bake();
-		
+
 				m_JumpFloodPassMaterial[i] = Material::Create(jumpFloodPassPipeline.Shader, fmt::format("JumpFlood{0}Material", passName[i]));
 			}
-		
+
 			// Composite... We check this bool since we do not usualy want to do this in runtime... Unless otherwise specified
 			if (m_Specification.JumpFloodPass)
 			{
@@ -582,7 +592,7 @@ namespace Iris {
 					.Attachments = { ImageFormat::RGBA32F }
 				};
 				jumpFloodCompositeFB.ExistingImages[0] = m_CompositePass->GetOutput(0);
-		
+
 				PipelineSpecification jumpFloodCompositePipeline = {
 					.DebugName = "JumpFloodCompsitePipeline",
 					.Shader = Renderer::GetShadersLibrary()->Get("JumpFloodComposite"),
@@ -594,7 +604,7 @@ namespace Iris {
 					.DepthTest = false,
 					.ReleaseShaderModules = true
 				};
-		
+
 				RenderPassSpecification jumpFloodCompositePass = {
 					.DebugName = "JumpFloodCompositePass",
 					.Pipeline = Pipeline::Create(jumpFloodCompositePipeline),
@@ -603,11 +613,49 @@ namespace Iris {
 				m_JumpFloodCompositePass = RenderPass::Create(jumpFloodCompositePass);
 				m_JumpFloodCompositeMaterial = Material::Create(jumpFloodCompositePipeline.Shader, "JumpFloodCompositeMaterial");
 				m_JumpFloodCompositeMaterial->Set("u_Uniforms.Color", glm::vec4{ 0.14f, 0.8f, 0.52f, 1.0f });
-		
+
 				// Take the output of the first framebuffer since we only do two jump flood passes (ping pong only once)
 				m_JumpFloodCompositePass->SetInput("u_Texture", m_JumpFloodFramebuffers[0]->GetImage(0));
 				m_JumpFloodCompositePass->Bake();
 			}
+		}
+
+		// Depth Of Field
+		{
+			FramebufferSpecification dofFBSpec = {
+				.DebugName = "DOFFramebuffer",
+				.Width = m_Specification.ViewportWidth,
+				.Height = m_Specification.ViewportHeight,
+				.ClearColor = { 0.5f, 0.1f, 0.1f, 1.0f },
+				.Attachments = { ImageFormat::RGBA32F },
+				.Transfer = true
+			};
+
+			PipelineSpecification dofPipelineSpec = {
+				.DebugName = "DOFPipeline",
+				.Shader = Renderer::GetShadersLibrary()->Get("DepthOfField"),
+				.TargetFramebuffer = Framebuffer::Create(dofFBSpec),
+				.VertexLayout = {
+					{ ShaderDataType::Float3, "a_Position" },
+					{ ShaderDataType::Float2, "a_TexCoord" }
+				},
+				.BackFaceCulling = false,
+				.DepthWrite = false
+			};
+
+			RenderPassSpecification dofPassSpec = {
+				.DebugName = "DOFPass",
+				.Pipeline = Pipeline::Create(dofPipelineSpec),
+				.MarkerColor = { 0.3f, 0.8f, 0.3f, 1.0f }
+			};
+			m_DOFPass = RenderPass::Create(dofPassSpec);
+
+			m_DOFPass->SetInput("Camera", m_UBSCamera);
+			m_DOFPass->SetInput("u_Texture", m_CompositePass->GetOutput(0));
+			m_DOFPass->SetInput("u_DepthTexture", m_PreDepthPass->GetDepthOutput());
+			m_DOFPass->Bake();
+
+			m_DOFMaterial = Material::Create(dofPipelineSpec.Shader, "DOFMaterial");
 		}
 
 		// TODO: Resizable
@@ -681,6 +729,7 @@ namespace Iris {
 
 		m_DoubleSidedGeometryPass->SetInput("u_RadianceMap", m_SceneInfo.SceneEnvironment->RadianceMap);
 		m_DoubleSidedGeometryPass->SetInput("u_IrradianceMap", m_SceneInfo.SceneEnvironment->IrradianceMap);
+		m_DoubleSidedGeometryPass->SetInput("u_ShadowMap", m_DirectionalShadowPasses[0]->GetDepthOutput());
 
 		m_WireframeViewGeometryPass->SetInput("u_RadianceMap", m_SceneInfo.SceneEnvironment->RadianceMap);
 		m_WireframeViewGeometryPass->SetInput("u_IrradianceMap", m_SceneInfo.SceneEnvironment->IrradianceMap);
@@ -709,6 +758,9 @@ namespace Iris {
 		 
 		 	if (m_JumpFloodCompositePass)
 		 		m_JumpFloodCompositePass->GetTargetFramebuffer()->Resize(m_ViewportWidth, m_ViewportHeight);
+
+			if (m_DOFPass)
+				m_DOFPass->GetTargetFramebuffer()->Resize(m_ViewportWidth, m_ViewportHeight);
 		}
 
 		// Update uniform buffers data for the starting frame
@@ -780,7 +832,7 @@ namespace Iris {
 			});
 		}
 
-		// Directional Shadow Data uniform buffer (set = 2, binding = 3)
+		// Directional Shadow Data uniform buffer (set = 1, binding = 3)
 		{
 			UBDirectionalShadowData& dirShadowData = m_DirectionalShadowDataUB;
 
@@ -804,7 +856,7 @@ namespace Iris {
 			});
 		}
 
-		// Renderer Data uniform buffer (set = 2, binding = 4)
+		// Renderer Data uniform buffer (set = 1, binding = 4)
 		{
 			UBRendererData& rendererData = m_RendererDataUB;
 
@@ -972,25 +1024,26 @@ namespace Iris {
 
 	void SceneRenderer::ResetImageLayouts()
 	{
-		Renderer::Submit([cmdBuffer = m_CommandBuffer, preDepthPass = m_PreDepthPass, geoPass = m_GeometryPass, selectedGeo = m_SelectedGeometryPass, jfaFBs = m_JumpFloodFramebuffers, compPass = m_CompositePass, dirShadowPasses = m_DirectionalShadowPasses, spec = m_Specification]()
+		Ref<SceneRenderer> instance = this;
+		Renderer::Submit([instance]()
 		{
 			// Directional Shadow map image (NOTE: Do only for one of them since all the passes reference the same image)
 			Renderer::InsertImageMemoryBarrier(
-				cmdBuffer->GetActiveCommandBuffer(),
-				dirShadowPasses[0]->GetDepthOutput()->GetVulkanImage(),
+				instance->m_CommandBuffer->GetActiveCommandBuffer(),
+				instance->m_DirectionalShadowPasses[0]->GetDepthOutput()->GetVulkanImage(),
 				0,
 				VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
 				VK_IMAGE_LAYOUT_UNDEFINED,
 				VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL,
 				VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT,
 				VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT,
-				{ .aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = spec.NumberOfShadowCascades }
+				{ .aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = instance->m_Specification.NumberOfShadowCascades }
 			);
 
 			// PreDepth image
 			Renderer::InsertImageMemoryBarrier(
-				cmdBuffer->GetActiveCommandBuffer(),
-				preDepthPass->GetDepthOutput()->GetVulkanImage(),
+				instance->m_CommandBuffer->GetActiveCommandBuffer(),
+				instance->m_PreDepthPass->GetDepthOutput()->GetVulkanImage(),
 				0,
 				VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
 				VK_IMAGE_LAYOUT_UNDEFINED,
@@ -1002,8 +1055,8 @@ namespace Iris {
 
 			// Geometry Color images
 			Renderer::InsertImageMemoryBarrier(
-				cmdBuffer->GetActiveCommandBuffer(),
-				geoPass->GetOutput(0)->GetVulkanImage(),
+				instance->m_CommandBuffer->GetActiveCommandBuffer(),
+				instance->m_GeometryPass->GetOutput(0)->GetVulkanImage(),
 				0,
 				VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
 				VK_IMAGE_LAYOUT_UNDEFINED,
@@ -1014,12 +1067,12 @@ namespace Iris {
 			);
 
 			// JFA
-			if (spec.JumpFloodPass)
+			if (instance->m_Specification.JumpFloodPass)
 			{
 				// Selected geo isolation
 				Renderer::InsertImageMemoryBarrier(
-					cmdBuffer->GetActiveCommandBuffer(),
-					selectedGeo->GetOutput(0)->GetVulkanImage(),
+					instance->m_CommandBuffer->GetActiveCommandBuffer(),
+					instance->m_SelectedGeometryPass->GetOutput(0)->GetVulkanImage(),
 					0,
 					VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
 					VK_IMAGE_LAYOUT_UNDEFINED,
@@ -1030,11 +1083,11 @@ namespace Iris {
 				);
 
 				// Transition jumpflood framebuffers images into writing-to layouts
-				for (int i = 0; i < static_cast<int>(jfaFBs.size()); i++)
+				for (int i = 0; i < static_cast<int>(instance->m_JumpFloodFramebuffers.size()); i++)
 				{
 					Renderer::InsertImageMemoryBarrier(
-						cmdBuffer->GetActiveCommandBuffer(),
-						jfaFBs[i]->GetImage(0)->GetVulkanImage(),
+						instance->m_CommandBuffer->GetActiveCommandBuffer(),
+						instance->m_JumpFloodFramebuffers[i]->GetImage(0)->GetVulkanImage(),
 						0,
 						VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
 						VK_IMAGE_LAYOUT_UNDEFINED,
@@ -1048,8 +1101,8 @@ namespace Iris {
 
 			// Composite color image
 			Renderer::InsertImageMemoryBarrier(
-				cmdBuffer->GetActiveCommandBuffer(),
-				compPass->GetOutput(0)->GetVulkanImage(),
+				instance->m_CommandBuffer->GetActiveCommandBuffer(),
+				instance->m_CompositePass->GetOutput(0)->GetVulkanImage(),
 				0,
 				VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
 				VK_IMAGE_LAYOUT_UNDEFINED,
@@ -1058,6 +1111,22 @@ namespace Iris {
 				VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
 				{ .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = 1 }
 			);
+
+			if (instance->m_Options.DOFEnabled)
+			{
+				// Depth of Field image
+				Renderer::InsertImageMemoryBarrier(
+					instance->m_CommandBuffer->GetActiveCommandBuffer(),
+					instance->m_DOFPass->GetOutput(0)->GetVulkanImage(),
+					0,
+					VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
+					VK_IMAGE_LAYOUT_UNDEFINED,
+					VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+					VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
+					VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
+					{ .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = 1 }
+				);
+			}
 		});
 	}
 
@@ -1078,8 +1147,6 @@ namespace Iris {
 			if (m_Specification.JumpFloodPass)
 				JumpFloodPass();
 
-			// NOTE: If we want to sample the depth texture in the composite pass we need to transition to shader read only then transition back
-			// to attachment since the renderer2D uses it.
 			CompositePass();
 
 			m_CommandBuffer->End();
@@ -1132,12 +1199,13 @@ namespace Iris {
 
 	void SceneRenderer::ClearPass()
 	{
-		Renderer::Submit([cmdBuffer = m_CommandBuffer, preDepthPass = m_PreDepthPass, compPass = m_CompositePass]()
+		Ref<SceneRenderer> instance = this;
+		Renderer::Submit([instance]()
 		{
 			// PreDepth image
 			Renderer::InsertImageMemoryBarrier(
-				cmdBuffer->GetActiveCommandBuffer(),
-				preDepthPass->GetDepthOutput()->GetVulkanImage(),
+				instance->m_CommandBuffer->GetActiveCommandBuffer(),
+				instance->m_PreDepthPass->GetDepthOutput()->GetVulkanImage(),
 				0,
 				VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
 				VK_IMAGE_LAYOUT_UNDEFINED,
@@ -1149,8 +1217,8 @@ namespace Iris {
 
 			// Geometry Color images
 			Renderer::InsertImageMemoryBarrier(
-				cmdBuffer->GetActiveCommandBuffer(),
-				compPass->GetOutput(0)->GetVulkanImage(),
+				instance->m_CommandBuffer->GetActiveCommandBuffer(),
+				instance->m_CompositePass->GetOutput(0)->GetVulkanImage(),
 				0,
 				VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
 				VK_IMAGE_LAYOUT_UNDEFINED,
@@ -1185,18 +1253,19 @@ namespace Iris {
 			}
 
 			// Make image ready to be read from
-			Renderer::Submit([cmdBuffer = m_CommandBuffer, dirShadowPasses = m_DirectionalShadowPasses, cascades = m_Specification.NumberOfShadowCascades]()
+			Ref<SceneRenderer> instance = this;
+			Renderer::Submit([instance]()
 			{
 				Renderer::InsertImageMemoryBarrier(
-					cmdBuffer->GetActiveCommandBuffer(),
-					dirShadowPasses[0]->GetDepthOutput()->GetVulkanImage(),
+					instance->m_CommandBuffer->GetActiveCommandBuffer(),
+					instance->m_DirectionalShadowPasses[0]->GetDepthOutput()->GetVulkanImage(),
 					VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
 					VK_ACCESS_2_SHADER_READ_BIT,
 					VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL,
 					VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL,
 					VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT,
 					VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,
-					{ .aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = cascades }
+					{ .aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = instance->m_Specification.NumberOfShadowCascades }
 				);
 			});
 
@@ -1219,18 +1288,19 @@ namespace Iris {
 		}
 
 		// Make image ready to be read from
-		Renderer::Submit([cmdBuffer = m_CommandBuffer, dirShadowPasses = m_DirectionalShadowPasses, cascades = m_Specification.NumberOfShadowCascades]()
+		Ref<SceneRenderer> instance = this;
+		Renderer::Submit([instance]()
 		{
 				Renderer::InsertImageMemoryBarrier(
-				cmdBuffer->GetActiveCommandBuffer(),
-				dirShadowPasses[0]->GetDepthOutput()->GetVulkanImage(),
+				instance->m_CommandBuffer->GetActiveCommandBuffer(),
+				instance->m_DirectionalShadowPasses[0]->GetDepthOutput()->GetVulkanImage(),
 				VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
 				VK_ACCESS_2_SHADER_READ_BIT,
 				VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL,
 				VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL,
 				VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT,
 				VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,
-				{ .aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = cascades }
+				{ .aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = instance->m_Specification.NumberOfShadowCascades }
 			);
 		});
 	}
@@ -1407,11 +1477,12 @@ namespace Iris {
 	void SceneRenderer::JumpFloodPass()
 	{
 		// Init pass
-		Renderer::Submit([cmdBuffer = m_CommandBuffer, selectedGeo = m_SelectedGeometryPass]()
+		Ref<SceneRenderer> instance = this;
+		Renderer::Submit([instance]()
 		{
 			Renderer::InsertImageMemoryBarrier(
-				cmdBuffer->GetActiveCommandBuffer(),
-				selectedGeo->GetOutput(0)->GetVulkanImage(),
+				instance->m_CommandBuffer->GetActiveCommandBuffer(),
+				instance->m_SelectedGeometryPass->GetOutput(0)->GetVulkanImage(),
 				VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
 				VK_ACCESS_2_SHADER_READ_BIT,
 				VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
@@ -1434,11 +1505,11 @@ namespace Iris {
 		vertexOverrides.Write(reinterpret_cast<const uint8_t*>(glm::value_ptr(texelSize)), sizeof(glm::vec2));
 		
 		// Even Pass		
-		Renderer::Submit([cmdBuffer = m_CommandBuffer, jfaFBs = m_JumpFloodFramebuffers]()
+		Renderer::Submit([instance]()
 		{
 			Renderer::InsertImageMemoryBarrier(
-				cmdBuffer->GetActiveCommandBuffer(),
-				jfaFBs[0]->GetImage(0)->GetVulkanImage(),
+				instance->m_CommandBuffer->GetActiveCommandBuffer(),
+				instance->m_JumpFloodFramebuffers[0]->GetImage(0)->GetVulkanImage(),
 				VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
 				VK_ACCESS_2_SHADER_READ_BIT,
 				VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
@@ -1456,11 +1527,11 @@ namespace Iris {
 		Renderer::SubmitFullScreenQuadWithOverrides(m_CommandBuffer, m_JumpFloodPass[0]->GetPipeline(), m_JumpFloodPassMaterial[0], vertexOverrides, Buffer());
 		Renderer::EndRenderPass(m_CommandBuffer);
 
-		Renderer::Submit([cmdBuffer = m_CommandBuffer, jfaFBs = m_JumpFloodFramebuffers]()
+		Renderer::Submit([instance]()
 		{
 			Renderer::InsertImageMemoryBarrier(
-				cmdBuffer->GetActiveCommandBuffer(),
-				jfaFBs[0]->GetImage(0)->GetVulkanImage(),
+				instance->m_CommandBuffer->GetActiveCommandBuffer(),
+				instance->m_JumpFloodFramebuffers[0]->GetImage(0)->GetVulkanImage(),
 				VK_ACCESS_2_SHADER_READ_BIT,
 				VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
 				VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
@@ -1472,8 +1543,8 @@ namespace Iris {
 
 			// Odd Pass
 			Renderer::InsertImageMemoryBarrier(
-				cmdBuffer->GetActiveCommandBuffer(),
-				jfaFBs[1]->GetImage(0)->GetVulkanImage(),
+				instance->m_CommandBuffer->GetActiveCommandBuffer(),
+				instance->m_JumpFloodFramebuffers[1]->GetImage(0)->GetVulkanImage(),
 				VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
 				VK_ACCESS_2_SHADER_READ_BIT,
 				VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
@@ -1500,11 +1571,12 @@ namespace Iris {
 		// Composite the final scene image and apply gamma correction and tone mapping
 
 		// Transition Geometry Pass image to shader read only format
-		Renderer::Submit([cmd = m_CommandBuffer, geoPass = m_GeometryPass]()
+		Ref<SceneRenderer> instance = this;
+		Renderer::Submit([instance]()
 		{
 			Renderer::InsertImageMemoryBarrier(
-				cmd->GetActiveCommandBuffer(),
-				geoPass->GetOutput(0)->GetVulkanImage(),
+				instance->m_CommandBuffer->GetActiveCommandBuffer(),
+				instance->m_GeometryPass->GetOutput(0)->GetVulkanImage(),
 				VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
 				VK_ACCESS_2_SHADER_READ_BIT,
 				VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
@@ -1513,11 +1585,26 @@ namespace Iris {
 				VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,
 				{ .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = 1 }
 			);
+
+			if (instance->m_Options.DOFEnabled)
+			{
+				Renderer::InsertImageMemoryBarrier(
+					instance->m_CommandBuffer->GetActiveCommandBuffer(),
+					instance->m_PreDepthPass->GetDepthOutput()->GetVulkanImage(),
+					VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,  // Write access from the depth attachment
+					VK_ACCESS_2_SHADER_SAMPLED_READ_BIT,             // Read access by the fragment shader
+					VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL,        // Layout for depth attachment write
+					VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL,         // Layout for sampled read
+					VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT,    // Ensure writes during early fragment tests are done
+					VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,         // Reads will occur in the fragment shader
+					{ .aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = 1 }
+				);
+			}
 		});
 
 		uint32_t frameIndex = Renderer::GetCurrentFrameIndex();
 
-		float exposure = m_SceneInfo.Camera.Camera.GetExposure();
+		const float exposure = m_SceneInfo.Camera.Camera.GetExposure();
 
 		m_CompositeMaterial->Set("u_Uniforms.Exposure", exposure);
 		m_CompositeMaterial->Set("u_Uniforms.Opacity", m_Opacity);
@@ -1526,6 +1613,60 @@ namespace Iris {
 		Renderer::BeginRenderPass(m_CommandBuffer, m_CompositePass);
 		Renderer::SubmitFullScreenQuad(m_CommandBuffer, m_CompositePass->GetPipeline(), m_CompositeMaterial);
 		Renderer::EndRenderPass(m_CommandBuffer);
+
+		// Done first after the composite pass since we then copy the image back into the composite image because the next passes (Grid, Jumpflood, Wireframe) reference it.
+		if (m_Options.DOFEnabled)
+		{
+			Renderer::Submit([instance]()
+			{
+				Renderer::InsertImageMemoryBarrier(
+					instance->m_CommandBuffer->GetActiveCommandBuffer(),
+					instance->m_CompositePass->GetOutput(0)->GetVulkanImage(),
+					VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
+					VK_ACCESS_2_SHADER_READ_BIT,
+					VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+					VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+					VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
+					VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,
+					{ .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = 1 }
+				);
+			});
+
+			m_DOFMaterial->Set("u_Uniforms.DOFParams", glm::vec2{ m_Options.DOFFocusDistance, m_Options.DOFBlurSize });
+			Renderer::BeginRenderPass(m_CommandBuffer, m_DOFPass);
+			Renderer::SubmitFullScreenQuad(m_CommandBuffer, m_DOFPass->GetPipeline(), m_DOFMaterial);
+			Renderer::EndRenderPass(m_CommandBuffer);
+			
+			// Copy DOF image to composite pipeline
+			CopyFromDOFImage();
+
+			Renderer::Submit([instance]()
+			{
+				// TODO: Here we have a read after write hazard
+				Renderer::InsertImageMemoryBarrier(
+					instance->m_CommandBuffer->GetActiveCommandBuffer(),
+					instance->m_PreDepthPass->GetDepthOutput()->GetVulkanImage(),
+					VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_READ_BIT,
+					VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+					VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL,
+					VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL,
+					VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT,
+					VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT,
+					{ .aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = 1 }
+				);
+				// Renderer::InsertImageMemoryBarrier(
+				// 	instance->m_CommandBuffer->GetActiveCommandBuffer(),
+				// 	instance->m_PreDepthPass->GetDepthOutput()->GetVulkanImage(),
+				// 	VK_ACCESS_2_MEMORY_READ_BIT | VK_ACCESS_2_MEMORY_WRITE_BIT,
+				// 	VK_ACCESS_2_MEMORY_READ_BIT | VK_ACCESS_2_MEMORY_WRITE_BIT,
+				// 	VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL,
+				// 	VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL,
+				// 	VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+				// 	VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+				// 	{ .aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = 1 }
+				// );
+			});
+		}
 
 		if (m_Options.ShowGrid)
 		{
@@ -1692,6 +1833,97 @@ namespace Iris {
 
 			lastSplitDist = cascadeSplits[i];
 		}
+	}
+
+	void SceneRenderer::CopyFromDOFImage()
+	{
+		Renderer::Submit([commandBuffer = m_CommandBuffer, src = m_DOFPass->GetOutput(0), dst = m_CompositePass->GetOutput(0)]
+		{
+			const auto renderCommandBuffer = commandBuffer->GetCommandBuffer(Renderer::RT_GetCurrentFrameIndex());
+
+			VkDevice device = RendererContext::GetCurrentDevice()->GetVulkanDevice();
+
+			VkImage srcImage = src->GetVulkanImage();
+			VkImage dstImage = dst->GetVulkanImage();
+			glm::uvec2 srcSize = src->GetSize();
+			glm::uvec2 dstSize = dst->GetSize();
+
+			VkImageCopy region;
+			region.srcOffset = { 0, 0, 0 };
+			region.dstOffset = { 0, 0, 0 };
+			region.extent = { srcSize.x, srcSize.y, 1 };
+			region.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+			region.srcSubresource.baseArrayLayer = 0;
+			region.srcSubresource.layerCount = 1;
+			region.srcSubresource.mipLevel = 0;
+			region.dstSubresource = region.srcSubresource;
+
+			VkImageLayout srcImageLayout = src->GetDescriptorImageInfo().imageLayout;
+			VkImageLayout dstImageLayout = dst->GetDescriptorImageInfo().imageLayout;
+
+			// Src image
+			{
+				Renderer::InsertImageMemoryBarrier(
+					renderCommandBuffer,
+					srcImage,
+					VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
+					VK_ACCESS_2_TRANSFER_READ_BIT,
+					VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+					VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+					VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
+					VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+					{ .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = 1 }
+				);
+			}
+
+			// Dst image
+			{
+				Renderer::InsertImageMemoryBarrier(
+					renderCommandBuffer,
+					dstImage,
+					VK_ACCESS_2_SHADER_READ_BIT,
+					VK_ACCESS_2_TRANSFER_WRITE_BIT,
+					VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+					VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+					VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,
+					VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+					{ .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = 1 }
+				);
+			}
+
+			vkCmdCopyImage(renderCommandBuffer, srcImage, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+				dstImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+
+			// Src image back
+			{
+				Renderer::InsertImageMemoryBarrier(
+					renderCommandBuffer,
+					srcImage,
+					VK_ACCESS_2_TRANSFER_READ_BIT,
+					VK_ACCESS_2_SHADER_READ_BIT,
+					VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+					VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+					VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+					VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,
+					{ .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = 1 }
+				);
+			}
+
+			// Dst image back
+			{
+				Renderer::InsertImageMemoryBarrier(
+					renderCommandBuffer,
+					dstImage,
+					VK_ACCESS_2_TRANSFER_WRITE_BIT,
+					VK_ACCESS_2_COLOR_ATTACHMENT_READ_BIT,
+					VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+					VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+					VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+					VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
+					{ .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = 1 }
+				);
+			}
+		});
 	}
 
 	void SceneRenderer::UpdateStatistics()

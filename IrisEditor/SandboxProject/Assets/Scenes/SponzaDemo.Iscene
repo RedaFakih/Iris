@@ -1,8 +1,95 @@
 Scene: Editor Scene
+VisibleEntities:
+  - 10316880512109741319
+  - 11742091416900633685
+  - 10994765563948818646
+  - 9513305511711264707
+  - 5145820084894559874
+  - 3405481593139930175
 Entities:
+  - Entity: 3405481593139930175
+    TagComponent:
+      Tag: Torus
+    Parent: 0
+    Children:
+      []
+    TransformComponent:
+      Position: [0, 3.57339907, 0]
+      Rotation: [0.546735287, -0.00542539125, 0.122020788]
+      Scale: [2.19000006, 2.19000006, 2.19000006]
+    StaticMeshComponent:
+      AssetID: 11155005694498319828
+      MaterialTable:
+        0: 2353021548779436402
+  - Entity: 5145820084894559874
+    TagComponent:
+      Tag: Directional Light
+    Parent: 0
+    Children:
+      []
+    TransformComponent:
+      Position: [0, 0, 0]
+      Rotation: [2.24661064, 0.353583097, -0.0468181036]
+      Scale: [1, 1, 1]
+    DirectionalLightComponent:
+      Radiance: [1, 1, 1]
+      Intensity: 1
+      CastShadows: true
+      ShadowOpacity: 1
+  - Entity: 9513305511711264707
+    TagComponent:
+      Tag: Sprite
+    Parent: 0
+    Children:
+      []
+    TransformComponent:
+      Position: [0.482901156, 1.02058065, -0.65220207]
+      Rotation: [3.14159274, -1.57045102, 3.14159274]
+      Scale: [1, 1, 1]
+    SpriteRendererComponent:
+      Color: [0.97285068, 0.81079185, 0.655903876, 1]
+      Texture: 17444303624668688037
+      TilingFactor: 1
+      UV0: [0, 0]
+      UV1: [1, 1]
+  - Entity: 10316880512109741319
+    TagComponent:
+      Tag: Camera
+    Parent: 0
+    Children:
+      []
+    TransformComponent:
+      Position: [-8.46941185, 1.44550788, 1.08609724]
+      Rotation: [-0.167697638, -1.44325447, 0]
+      Scale: [0.99999994, 0.99999994, 1]
+    CameraComponent:
+      Camera:
+        ProjectionType: 0
+        PerspectiveFOV: 45
+        PerspectiveNear: 0.100000001
+        PerspectiveFar: 1000
+        OrthographicSize: 10
+        OrthographicNear: -1
+        OrthographicFar: 1
+      Primary: true
+  - Entity: 10994765563948818646
+    TagComponent:
+      Tag: Sky Light
+    Parent: 0
+    Children:
+      []
+    TransformComponent:
+      Position: [0, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    SkyLightComponent:
+      EnvironmentMap: 9111623399177370701
+      Intensity: 0.419999987
+      Lod: 1
+      DynamicSky: false
   - Entity: 11742091416900633685
     TagComponent:
-      Tag: Empty Entity
+      Tag: Sponza
     Parent: 0
     Children:
       []
@@ -14,44 +101,3 @@ Entities:
       AssetID: 7407597925920568692
       MaterialTable:
         0: 0
-        1: 0
-        2: 0
-        3: 0
-        4: 0
-        5: 0
-        6: 0
-        7: 0
-        8: 0
-        9: 0
-        10: 0
-        11: 0
-        12: 0
-        13: 0
-        14: 0
-        15: 0
-        16: 0
-        17: 0
-        18: 0
-        19: 0
-        20: 0
-        21: 0
-        22: 0
-        23: 0
-        24: 0
-        25: 0
-      Visible: true
-  - Entity: 16282644480529103363
-    TagComponent:
-      Tag: Cube
-    Parent: 0
-    Children:
-      []
-    TransformComponent:
-      Position: [-0.0138091743, 2.54499578, 0]
-      Rotation: [0, 0, 0]
-      Scale: [1.25, 1.25, 1.25]
-    StaticMeshComponent:
-      AssetID: 13164229695691519330
-      MaterialTable:
-        0: 0
-      Visible: true

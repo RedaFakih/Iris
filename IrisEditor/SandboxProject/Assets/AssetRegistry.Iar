@@ -59,6 +59,9 @@ Assets:
   - Handle: 2219528169467375815
     FilePath: Scenes/TestingOrthoScene.Iscene
     Type: Scene
+  - Handle: 2353021548779436402
+    FilePath: Materials/TorusMat.Imaterial
+    Type: Material
   - Handle: 2732277024539045285
     FilePath: Meshes/Default/Plane.Ismesh
     Type: StaticMesh

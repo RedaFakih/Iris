@@ -1,6 +1,7 @@
 Material:
   Transparent: false
   TwoSided: false
+  ShadowCasting: true
   AlbedoColor: [0.99992615, 1, 0.999899983]
   Emission: 0
   Tiling: 18
@@ -12,4 +13,4 @@ Material:
   NormalMap: 8577445622296034549
   RoughnessMap: 10248026832697820046
   MetalnessMap: 6377058224575319417
-  MaterialFlags: 6
+  MaterialFlags: 22

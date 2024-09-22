@@ -84,7 +84,7 @@ namespace Iris {
 		glm::vec3 CalculatePosition() const;
 
 	private:
-		float m_FOV = 45.0f;
+		float m_FOV = 0.78f; // In Radians
 		float m_AspectRatio = 1.778f;
 		float m_NearClip = 0.1f;
 		float m_FarClip = 1000.0f;
@@ -106,8 +106,6 @@ namespace Iris {
 
 		glm::vec2 m_InitialMousePosition = glm::vec2{ 0.0f };
 
-		bool m_IsActive = false;
-
 		float m_Distance = 25.0f;
 		float m_Zoom = 1.0f;
 
@@ -126,6 +124,8 @@ namespace Iris {
 
 		enum class OrthoPosition { Top, Bottom, Left, Right, Back, Front };
 		OrthoPosition m_OrthoPositioning = OrthoPosition::Top;
+
+		bool m_IsActive = false;
 
 		constexpr static float MIN_SPEED = 0.0005f;
 		constexpr static float MAX_SPEED = 2.0f;

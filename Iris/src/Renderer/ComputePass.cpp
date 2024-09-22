@@ -74,11 +74,10 @@ namespace Iris {
 		m_DescriptorSetManager.SetInput(name, imageView);
 	}
 
-	// TODO:
-	// void ComputePass::SetInput(std::string_view name, Ref<StorageImage> storageImage)
-	// {
-	//		m_DescriptorSetManager.SetInput(name, storageImage);
-	// }
+	void ComputePass::SetInput(std::string_view name, Ref<StorageImage> storageImage)
+	{
+		m_DescriptorSetManager.SetInput(name, storageImage);
+	}
 
 	uint32_t ComputePass::GetFirstSetIndex() const
 	{
