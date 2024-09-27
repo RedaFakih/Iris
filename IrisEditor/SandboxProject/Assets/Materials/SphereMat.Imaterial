@@ -1,0 +1,16 @@
+Material:
+  Transparent: false
+  TwoSided: false
+  ShadowCasting: true
+  AlbedoColor: [0.242307186, 0.399193525, 0.186719537]
+  Emission: 0
+  Tiling: 1
+  EnvMapRotation: 0
+  UseNormalMap: false
+  Roughness: 0.0599999987
+  Metalness: 1
+  AlbedoMap: 0
+  NormalMap: 0
+  RoughnessMap: 0
+  MetalnessMap: 0
+  MaterialFlags: 22

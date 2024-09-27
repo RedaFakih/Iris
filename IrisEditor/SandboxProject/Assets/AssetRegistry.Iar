@@ -122,6 +122,9 @@ Assets:
   - Handle: 5599009649531054923
     FilePath: Meshes/Evelynn/textures/DefaultMaterial_baseColor.jpeg
     Type: Texture
+  - Handle: 5633534451843583636
+    FilePath: Scenes/PhysicsTestScene.Iscene
+    Type: Scene
   - Handle: 6082897608703548102
     FilePath: Materials/TexturedMat.Imaterial
     Type: Material
@@ -131,6 +134,9 @@ Assets:
   - Handle: 6439264742179415899
     FilePath: Meshes/LowPolySponza/4871783166746854860.jpg
     Type: Texture
+  - Handle: 6440874333019988068
+    FilePath: Materials/SphereMat.Imaterial
+    Type: Material
   - Handle: 6462026432718398838
     FilePath: Meshes/LowPolySponza/white.png
     Type: Texture

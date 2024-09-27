@@ -102,6 +102,7 @@ namespace Iris {
 		void SC_CtrlF();
 		void SC_CtrlH(bool useSlashState = false);
 		void SC_Slash();
+		void SC_AltC();
 
 	private:
 		struct SelectionData
@@ -151,6 +152,7 @@ namespace Iris {
 		bool m_ShowNewSceneModal = false;
 		bool m_ShowNewProjectModal = false;
 
+		bool m_ShowIcons = true;
 		bool m_ShowGizmos = true;
 		bool m_GizmoAxisFlip = false;
 

@@ -295,6 +295,18 @@ namespace Iris {
 			}
 		}
 
+		if (m_ShowIcons)
+		{
+			{
+				auto entities = m_CurrentScene->GetAllEntitiesWith<CameraComponent>();
+				for (auto e : entities)
+				{
+					Entity entity = { e, m_CurrentScene.Raw() };
+					m_Renderer2D->DrawQuadBillboard(m_CurrentScene->GetWorldSpaceTransform(entity).Translation, { 1.0f, 1.0f }, EditorResources::CameraIcon);
+				}
+			}
+		}
+
 		// `true` indicates that we transition resulting images to presenting layouts...
 		m_Renderer2D->EndScene(true);
 	}
@@ -353,8 +365,8 @@ namespace Iris {
 		Input::SetCursorMode(CursorMode::Locked);
 
 		m_RuntimeScene = Scene::Create(fmt::format("{} - {}", m_EditorScene->GetName(), "Runtime"));
-		// TODO: OnRuntimeStart
 		m_EditorScene->CopyTo(m_RuntimeScene);
+		m_RuntimeScene->OnRuntimeStart();
 		m_CurrentScene = m_RuntimeScene;
 
 		AssetEditorPanel::SetSceneContext(m_CurrentScene);
@@ -371,7 +383,7 @@ namespace Iris {
 		m_ViewportRenderer->GetOptions().ShowGrid = true;
 		Input::SetCursorMode(CursorMode::Normal);
 
-		// TODO: OnRumtimeStop
+		m_RuntimeScene->OnRuntimeStop();
 
 		// Unload runtime scene
 		m_RuntimeScene = nullptr;
@@ -1351,7 +1363,7 @@ namespace Iris {
 					if (m_SceneState == SceneState::Edit)
 					{
 						// Go into play mode
-						m_TitleBarTargetColor = Colors::Theme::TitlebarGreen;
+						m_TitleBarTargetColor = Colors::Theme::TitlebarYellow;
 						OnScenePlay();
 					}
 					else
@@ -1366,10 +1378,22 @@ namespace Iris {
 				ImGui::Spring(1.0f);
 				if (iconButton(EditorResources::ScenePauseIcon, UnselectedGizmoButtonColor, m_SceneState == SceneState::Pause ? "Resume Scene" : "Pause Scene").first)
 				{
+					m_TitleBarPreviousColor = m_TitleBarActiveColor;
+
 					if (m_SceneState == SceneState::Play)
+					{
 						m_SceneState = SceneState::Pause;
+
+						m_TitleBarTargetColor = Colors::Theme::TitlebarRed;
+					}
 					else if (m_SceneState == SceneState::Pause)
+					{
 						m_SceneState = SceneState::Play;
+
+						m_TitleBarTargetColor = Colors::Theme::TitlebarYellow;
+					}
+
+					m_AnimateTitleBarColor = true;
 				}
 			}
 
@@ -1531,6 +1555,7 @@ namespace Iris {
 
 						if (UI::BeginSection("Display", sectionIndex))
 						{
+							UI::SectionCheckbox("Show Icons", m_ShowIcons, "Show viewport icons");
 							UI::SectionCheckbox("Show Gizmos", m_ShowGizmos, "Show transform gizmos");
 							if (UI::SectionCheckbox("Allow Gizmo Axis Flip", m_GizmoAxisFlip, "Allow transform gizmos to flip their\naxes with respect to the camera"))
 								ImGuizmo::AllowAxisFlip(m_GizmoAxisFlip);
@@ -1545,6 +1570,9 @@ namespace Iris {
 							SceneRendererOptions& rendererOptions = m_ViewportRenderer->GetOptions();
 							UI::SectionCheckbox("Show Grid", rendererOptions.ShowGrid, "Show Grid, Ctrl + G");
 							UI::SectionCheckbox("Selected in Wireframe", rendererOptions.ShowSelectedInWireFrame, "Show selected mesh in wireframe mode");
+
+							// TODO: Physics colliders view mode
+							UI::SectionCheckbox("Show Physics Colliders", rendererOptions.ShowPhysicsColliders, "Show phsyics colliders in the viewport");
 
 							if (UI::SectionDrag("Line Width", m_LineWidth, 0.1f, 0.1f, 10.0f, "Change pipeline line width"))
 							{
@@ -2182,6 +2210,11 @@ namespace Iris {
 		m_SC_SlashKeyState = !m_SC_SlashKeyState;
 	}
 
+	void EditorLayer::SC_AltC()
+	{
+		m_AllowEditorCameraInRuntime = !m_AllowEditorCameraInRuntime;
+	}
+
 	void EditorLayer::OnEvent(Events::Event& e)
 	{
 		AssetEditorPanel::OnEvent(e);
@@ -2325,7 +2358,7 @@ namespace Iris {
 				case KeyCode::D:
 				{
 					SC_CtrlD();
-
+					
 					break;
 				}
 				case KeyCode::S:
@@ -2374,8 +2407,11 @@ namespace Iris {
 			switch (e.GetKeyCode())
 			{
 				case KeyCode::C:
-					m_AllowEditorCameraInRuntime = !m_AllowEditorCameraInRuntime;
+				{
+					SC_AltC();
+
 					break;
+				}
 			}
 		}
 

@@ -56,6 +56,9 @@ namespace Iris {
 
 		void SetViewportSize(uint32_t width, uint32_t height);
 
+		void OnRuntimeStart();
+		void OnRuntimeStop();
+
 		void SetEntityDestroyedCallback(const std::function<void(Entity)>& callback) { m_OnEntityDestroyedCallback = callback; }
 
 		Entity GetMainCameraEntity();
@@ -143,6 +146,9 @@ namespace Iris {
 			srcScene->CopyComponentIfExists<TComponent>((entt::entity)dst, dstScene->m_Registry, (entt::entity)src);
 		}
 
+		float GetPhysics2DGravity();
+		void SetPhysics2DGravity(glm::vec2 gravity);
+
 		static AssetType GetStaticType() { return AssetType::Scene; }
 		virtual AssetType GetAssetType() const override { return GetStaticType(); }
 
@@ -151,6 +157,8 @@ namespace Iris {
 		void BuildMeshEntityHierarchy(Entity parent, Ref<StaticMesh> staticMesh, const MeshUtils::MeshNode& node);
 
 	private:
+		// Scene Entity to create some stuff that is owned by the scene and store it in the ECS registry
+		entt::entity m_SceneEntity{ entt::null };
 		UUID m_SceneID;
 		entt::registry m_Registry;
 

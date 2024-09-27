@@ -39,7 +39,7 @@ namespace Iris {
 			float cellSize = thumbnailSize + padding;
 
 			float panelWidth = ImGui::GetContentRegionAvail().x;
-			int columnCount = (int)(panelWidth / cellSize);
+			int columnCount = static_cast<int>(panelWidth / cellSize);
 			if (columnCount < 1)
 				columnCount = 1;
 

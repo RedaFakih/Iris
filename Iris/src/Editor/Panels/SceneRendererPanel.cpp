@@ -50,7 +50,7 @@ namespace Iris {
 					UI::Property("Show Cascades", rendererData.ShowCascades, "Visualize shadow cascades");
 					UI::Property("Fading", rendererData.CascadeFading, "Fade between cascades");
 					UI::Property("Transition Fade", rendererData.CascadeTransitionFade, 0.05f, 0.0f, FLT_MAX, "Change the amount of fading between cascades");
-					UI::Property("Split Lambda", m_Context->m_CascadeSplitLambda, 0.01f, 0.0f, 10.0f);
+					UI::Property("Split Lambda", m_Context->m_CascadeSplitLambda, 0.01f, 0.0f, 10.0f, "Lower values concentrates more detail in the near region in the\ncamera's view frustum. While a larger value spreads detail more evenly.\nA value of 0 results in linear splits while a value of 1 result in logarithmic splits.");
 					UI::Property("Near Plane Offset", m_Context->m_CascadeNearPlaneOffset, 0.1f, -FLT_MAX, 0.0f);
 					UI::Property("Far Plane Offset", m_Context->m_CascadeFarPlaneOffset, 0.1f, 0.0f, FLT_MAX);
 					UI::Property("Scale To Origin", m_Context->m_ScaleShadowCascadesToOrigin, 0.1f, 0.0f, 1.0f, "Higher value makes shadows around scene origin higher quality");

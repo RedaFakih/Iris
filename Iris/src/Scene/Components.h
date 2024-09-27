@@ -5,6 +5,8 @@
 #include "SceneCamera.h"
 #include "Utils/Math.h"
 
+#include <box2d/box2d.h>
+
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -186,12 +188,49 @@ namespace Iris {
 		float ShadowOpacity = 1.0f;
 	};
 
+	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	/// Physics
+	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	
+	struct Box2DWorldComponent
+	{
+		Scope<b2World> World;
+	};
+
+	struct RigidBody2DComponent
+	{
+		enum class Type { Static, Dynamic, Kinematic };
+		Type BodyType = Type::Static;
+
+		float Mass = 1.0f;
+		float LinearDrag = 0.01f;
+		float AngularDrag = 0.05f;
+		float GravityScale = 1.0f;
+		bool FixedRotation = false;
+
+		void* RuntimeBody = nullptr;
+	};
+
+	struct BoxCollider2DComponent
+	{
+		glm::vec2 Size = { 0.5f, 0.5f };
+		glm::vec2 Offset = { 0.0f, 0.0f };
+
+		// TODO: Move into physics material maybe?
+		float Density = 1.0f;
+		float Friction = 0.5f;
+
+		void* RuntimeFixture = nullptr;
+	};
+
+	// TODO: Add CircleColliders2D
+
 	template<typename... Components>
 	struct ComponentGroup
 	{
 	};
 
 	using AllComponents = ComponentGroup<IDComponent, TagComponent, RelationshipComponent, TransformComponent, CameraComponent, SpriteRendererComponent, StaticMeshComponent, 
-		TextComponent, SkyLightComponent, DirectionalLightComponent>;
+		TextComponent, SkyLightComponent, DirectionalLightComponent, RigidBody2DComponent, BoxCollider2DComponent>;
 
 }

@@ -31,6 +31,7 @@ outputdir = "%{cfg.architecture}-%{cfg.buildcfg}"
 
 group "Dependencies"
     include "Iris/dependencies/glfw"
+    include "Iris/dependencies/Box2D"
     include "Iris/dependencies/ImGui/imgui"
     include "Iris/dependencies/NFD-Extended"
     group "Dependencies/msdf"

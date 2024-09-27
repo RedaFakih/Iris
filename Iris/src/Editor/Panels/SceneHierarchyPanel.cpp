@@ -18,6 +18,32 @@
 
 namespace Iris {
 
+	namespace Utils {
+
+		void RemoveVisibilityComponentRecursive(Entity entity, Ref<Scene> scene)
+		{
+			for (UUID& uuid : entity.Children())
+			{
+				Entity entity = scene->GetEntityWithUUID(uuid);
+				entity.RemoveComponent<VisibleComponent>();
+				if (entity.Children().size())
+					RemoveVisibilityComponentRecursive(entity, scene);
+			}
+		}
+
+		void AddVisibilityComponentRecursive(Entity entity, Ref<Scene> scene)
+		{
+			for (UUID& uuid : entity.Children())
+			{
+				Entity entity = scene->GetEntityWithUUID(uuid);
+				entity.AddComponent<VisibleComponent>();
+				if (entity.Children().size())
+					AddVisibilityComponentRecursive(entity, scene);
+			}
+		}
+
+	}
+
 	static bool s_ActivateSearchWidget = false;
 	SelectionContext SceneHierarchyPanel::s_ActiveSelectionContext = SelectionContext::Scene;
 
@@ -567,7 +593,7 @@ namespace Iris {
 
 			if (!entity.Children().empty())
 			{
-				for (auto& childEntityID : entity.Children())
+				for (UUID& childEntityID : entity.Children())
 				{
 					Entity childEntity = m_Context->GetEntityWithUUID(childEntityID);
 					if (isAnyDescendantSelected(childEntity, isAnyDescendantSelected))
@@ -604,12 +630,12 @@ namespace Iris {
 		}
 
 		// Text coloring...
-		if (isSelected)
-			ImGui::PushStyleColor(ImGuiCol_Text, Colors::Theme::BackgroundDark);
-
 		bool isMeshValid = true;
-		// NOTE: We always highlight unset meshes
 		{
+			if (isSelected)
+				ImGui::PushStyleColor(ImGuiCol_Text, Colors::Theme::BackgroundDark);
+
+			// NOTE: We always highlight unset meshes
 			if (entity.HasComponent<StaticMeshComponent>())
 				isMeshValid = AssetManager::IsAssetValid(entity.GetComponent<StaticMeshComponent>().StaticMesh, true);
 
@@ -815,9 +841,15 @@ namespace Iris {
 		if (ImGui::InvisibleButton(UI::GenerateID(), { avaiLRegion.x, rowHeight }))
 		{
 			if (entity.HasComponent<VisibleComponent>())
+			{
 				entity.RemoveComponent<VisibleComponent>();
+				Utils::RemoveVisibilityComponentRecursive(entity, m_Context);
+			}
 			else
+			{
 				entity.AddComponent<VisibleComponent>();
+				Utils::AddVisibilityComponentRecursive(entity, m_Context);
+			}
 		}
 
 		m_CurrentlySelectedMeshViewIcon = entity.HasComponent<VisibleComponent>() ? EditorResources::EyeIcon : EditorResources::ClosedEyeIcon;
@@ -1300,6 +1332,9 @@ namespace Iris {
 
 						tc.Font = Font::GetDefaultFont()->Handle;
 					}, EditorResources::TextIcon);
+					// TODO: Change icons
+					Utils::DrawSimpleAddComponentButton<RigidBody2DComponent>(this, "Rigid Body 2D", EditorResources::AssetIcon);
+					Utils::DrawSimpleAddComponentButton<BoxCollider2DComponent>(this, "Box Collider 2D", EditorResources::AssetIcon);
 
 					ImGui::EndTable();
 				}
@@ -2034,6 +2069,81 @@ namespace Iris {
 
 			UI::EndPropertyGrid();
 		}, EditorResources::DirectionalLightIcon);
+
+		DrawComponent<RigidBody2DComponent>("Rigid Body 2D", [&](RigidBody2DComponent& rigidBodyComp, const std::vector<UUID>& entities, const bool isMultiSelect)
+		{
+			UI::BeginPropertyGrid();
+
+			// Body type
+			static const char* bodyType[3] = { "Static", "Dynamic", "Kinematic" };
+			int currentBodyType = static_cast<int>(rigidBodyComp.BodyType);
+
+			ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<int, RigidBody2DComponent>([](const RigidBody2DComponent& other) { return static_cast<int>(other.BodyType); }));
+			if (UI::PropertyDropdown("Body Type", bodyType, 3, &currentBodyType, "Type of Rigid Body. NOTE: Kinematic body types currently are not supported"))
+			{
+				for (UUID entityID : entities)
+				{
+					Entity entity = m_Context->GetEntityWithUUID(entityID);
+					entity.GetComponent<RigidBody2DComponent>().BodyType = static_cast<RigidBody2DComponent::Type>(currentBodyType);
+				}
+			}
+			ImGui::PopItemFlag();
+
+			// TODO: More settings for dynamic body type
+
+			UI::EndPropertyGrid();
+		}, EditorResources::AssetIcon);
+
+		DrawComponent<BoxCollider2DComponent>("Box Collider 2D", [&](BoxCollider2DComponent& boxColliderComp, const std::vector<UUID>& entities, const bool isMultiSelect)
+		{
+			UI::BeginPropertyGrid();
+
+			ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<glm::vec2, BoxCollider2DComponent>([](const BoxCollider2DComponent& other) { return other.Size; }));
+			if (UI::PropertyDrag("Size", boxColliderComp.Size, 0.1f, FLT_MIN, FLT_MAX, "Half Size of the Box Collider"))
+			{
+				for (auto& entityID : entities)
+				{
+					Entity entity = m_Context->GetEntityWithUUID(entityID);
+					entity.GetComponent<BoxCollider2DComponent>().Size= boxColliderComp.Size;
+				}
+			}
+			ImGui::PopItemFlag();
+
+			ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<glm::vec2, BoxCollider2DComponent>([](const BoxCollider2DComponent& other) { return other.Offset; }));
+			if (UI::PropertyDrag("Offset", boxColliderComp.Offset, 0.1f, FLT_MIN, FLT_MAX, "Offset of the Box Collider from its original position"))
+			{
+				for (auto& entityID : entities)
+				{
+					Entity entity = m_Context->GetEntityWithUUID(entityID);
+					entity.GetComponent<BoxCollider2DComponent>().Offset = boxColliderComp.Offset;
+				}
+			}
+			ImGui::PopItemFlag();
+
+			ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<float, BoxCollider2DComponent>([](const BoxCollider2DComponent& other) { return other.Density; }));
+			if (UI::Property("Density", boxColliderComp.Density, 0.1f, FLT_MIN, FLT_MAX, "Density of the Collider"))
+			{
+				for (auto& entityID : entities)
+				{
+					Entity entity = m_Context->GetEntityWithUUID(entityID);
+					entity.GetComponent<BoxCollider2DComponent>().Density = boxColliderComp.Density;
+				}
+			}
+			ImGui::PopItemFlag();
+
+			ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect&& IsInconsistentPrimitive<float, BoxCollider2DComponent>([](const BoxCollider2DComponent& other) { return other.Friction; }));
+			if (UI::Property("Friction", boxColliderComp.Friction, 0.1f, FLT_MIN, FLT_MAX, "Friction of the Collider"))
+			{
+				for (auto& entityID : entities)
+				{
+					Entity entity = m_Context->GetEntityWithUUID(entityID);
+					entity.GetComponent<BoxCollider2DComponent>().Friction = boxColliderComp.Friction;
+				}
+			}
+			ImGui::PopItemFlag();
+
+			UI::EndPropertyGrid();
+		}, EditorResources::AssetIcon);
 	}
 
 	void SceneHierarchyPanel::OnExternalEntityDestroyed(Entity entity)

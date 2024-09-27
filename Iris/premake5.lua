@@ -31,6 +31,7 @@ project "Iris"
         "src",
         "%{IncludeDir.assimp}",
         "%{IncludeDir.GLFW}",
+        "%{IncludeDir.Box2D}",
         "%{IncludeDir.ImGui}",
         "%{IncludeDir.glm}",
         "%{IncludeDir.VulkanSDK}",
@@ -47,6 +48,7 @@ project "Iris"
 
     links {
         "GLFW",
+        "Box2D",
         "ImGui",
         "msdf-atlas-gen",
         "NFD-Extended",

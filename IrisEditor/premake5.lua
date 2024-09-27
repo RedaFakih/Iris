@@ -12,6 +12,7 @@ project "IrisEditor"
     includedirs {
         "%{wks.location}/Iris/src",
         "%{wks.location}/Iris/dependencies",
+        "%{IncludeDir.Box2D}",
         "%{IncludeDir.spdlog}",
         "%{IncludeDir.ImGui}",
         "%{IncludeDir.glm}",

@@ -12,6 +12,23 @@
 
 namespace Iris {
 
+	namespace Utils {
+
+		static b2BodyType IrisRigidBody2DTypeToB2BodyType(RigidBody2DComponent::Type bodyType)
+		{
+			switch (bodyType)
+			{
+				case RigidBody2DComponent::Type::Static:		return b2_staticBody;
+				case RigidBody2DComponent::Type::Dynamic:		return b2_dynamicBody;
+				case RigidBody2DComponent::Type::Kinematic:		return b2_kinematicBody;
+			}
+
+			IR_VERIFY(false, "Unreachable");
+			return static_cast<b2BodyType>(0);
+		}
+
+	}
+
 	Ref<Scene> Scene::Create(const std::string& name, bool isEditorScene)
 	{
 		return CreateRef<Scene>(name, isEditorScene);
@@ -25,10 +42,25 @@ namespace Iris {
 	Scene::Scene(const std::string& name, bool isEditorScene)
 		: m_Name(name), m_IsEditorScene(isEditorScene)
 	{
+		m_SceneEntity = m_Registry.create();
+
+		// Create Physics 2D world on Scene initialization
+		Box2DWorldComponent& b2WorldComp = m_Registry.emplace<Box2DWorldComponent>(m_SceneEntity, std::make_unique<b2World>(b2Vec2{ 0.0f, -9.8f }));
 	}
 
 	Scene::~Scene()
 	{
+		// NOTE: VERY ugly hack around SkyLight GPU leaks
+		// This should be handled by the AssetManager when we create some system to auto detect when it should release assets...
+		// But for now this is good enough since that is a hard system to get in the engine since it requires alot of architecture
+		auto lights = m_Registry.view<SkyLightComponent>();
+		for (auto entity : lights)
+		{
+			const SkyLightComponent& skyLightComponent = lights.get<SkyLightComponent>(entity);
+			if (AssetManager::IsAssetHandleValid(skyLightComponent.SceneEnvironment) && skyLightComponent.DynamicSky)
+				AssetManager::RemoveAsset(skyLightComponent.SceneEnvironment);
+		}
+
 		m_Registry.clear();
 	}
 
@@ -66,9 +98,13 @@ namespace Iris {
 		CopyComponent<CameraComponent>(targetScene->m_Registry, m_Registry, enttMap);
 		CopyComponent<SpriteRendererComponent>(targetScene->m_Registry, m_Registry, enttMap);
 		CopyComponent<StaticMeshComponent>(targetScene->m_Registry, m_Registry, enttMap);
-		CopyComponent<TextComponent>(targetScene->m_Registry, m_Registry, enttMap);
 		CopyComponent<SkyLightComponent>(targetScene->m_Registry, m_Registry, enttMap);
 		CopyComponent<DirectionalLightComponent>(targetScene->m_Registry, m_Registry, enttMap);
+		CopyComponent<TextComponent>(targetScene->m_Registry, m_Registry, enttMap);
+		CopyComponent<RigidBody2DComponent>(targetScene->m_Registry, m_Registry, enttMap);
+		CopyComponent<BoxCollider2DComponent>(targetScene->m_Registry, m_Registry, enttMap);
+
+		targetScene->SetPhysics2DGravity({ 0.0f, GetPhysics2DGravity() });
 
 		targetScene->m_ViewportWidth = m_ViewportWidth;
 		targetScene->m_ViewportHeight = m_ViewportHeight;
@@ -78,7 +114,41 @@ namespace Iris {
 
 	void Scene::OnUpdateRuntime(TimeStep ts)
 	{
-		// NOTE: Should update some state for physics/scripting/animations but for now nothing...
+		// Box2D Physics
+		Scope<b2World>& world = m_Registry.get<Box2DWorldComponent>(m_Registry.view<Box2DWorldComponent>().front()).World;
+
+		// TODO: Maybe set in editor?
+		constexpr int32_t velocityIterations = 6;
+		constexpr int32_t positionIterations = 2;
+
+		{
+			Timer timer;
+			world->Step(ts, velocityIterations, positionIterations);
+		}
+
+		{
+			auto view = m_Registry.view<RigidBody2DComponent>();
+			for (auto entity : view)
+			{
+				Entity e = { entity, this };
+				RigidBody2DComponent& rigidBodyComp = e.GetComponent<RigidBody2DComponent>();
+
+				if (!rigidBodyComp.RuntimeBody)
+					continue;
+
+				b2Body* body = static_cast<b2Body*>(rigidBodyComp.RuntimeBody);
+
+				const b2Vec2& position = body->GetPosition();
+				TransformComponent& transformComp = e.Transform();
+
+				transformComp.Translation.x = position.x;
+				transformComp.Translation.y = position.y;
+
+				glm::vec3 rotation = transformComp.GetRotationEuler();
+				rotation.z = body->GetAngle();
+				transformComp.SetRotationEuler(rotation);
+			}
+		}
 	}
 
 	void Scene::OnRenderRuntime(Ref<SceneRenderer> renderer, TimeStep ts)
@@ -281,6 +351,24 @@ namespace Iris {
 
 				// TODO: Debug Renderer, eventhough the line width here might conflict with the renderer2D's line width since the vulkan command to change
 				// it is only called once on EndScene so if the debug renderer sets it then all the lines will be rendered with that width
+
+				// Render 2D Physics Debug
+				{
+					if (!renderer->GetOptions().ShowPhysicsColliders)
+						return;
+
+					// TODO: For now render all maybe change to have an option to render only selected the mesh
+					{
+						auto view = m_Registry.view<BoxCollider2DComponent>();
+						for (auto entity : view)
+						{
+							Entity e = { entity, this };
+							const auto& tc = GetWorldSpaceTransform(e);
+							auto& bc2d = e.GetComponent<BoxCollider2DComponent>();
+							renderer2D->DrawRotatedRect(glm::vec2{ tc.Translation.x, tc.Translation.y } + bc2d.Offset, (2.0f * bc2d.Size) * glm::vec2(tc.Scale), tc.GetRotationEuler().z, { 0.25f, 0.6f, 1.0f, 1.0f });
+						}
+					}
+				}
 
 				renderer2D->EndScene();
 				// Restore the line width
@@ -486,6 +574,24 @@ namespace Iris {
 				// TODO: Debug Renderer, eventhough the line width here might conflict with the renderer2D's line width since the vulkan command to change
 				// it is only called once on EndScene so if the debug renderer sets it then all the lines will be rendered with that width
 			
+				// Render 2D Physics Debug
+				{
+					if (!renderer->GetOptions().ShowPhysicsColliders)
+						return;
+
+					// TODO: For now render all maybe change to have an option to render only selected the mesh
+					{
+						auto view = m_Registry.view<BoxCollider2DComponent>();
+						for (auto entity : view)
+						{
+							Entity e = { entity, this };
+							const auto& tc = GetWorldSpaceTransform(e);
+							auto& bc2d = e.GetComponent<BoxCollider2DComponent>();
+							renderer2D->DrawRotatedRect(glm::vec2{ tc.Translation.x, tc.Translation.y } + bc2d.Offset, (2.0f * bc2d.Size) * glm::vec2(tc.Scale), tc.GetRotationEuler().z, { 0.25f, 0.6f, 1.0f, 1.0f });
+						}
+					}
+				}
+
 				renderer2D->EndScene();
 				// Restore the line width
 				renderer2D->SetLineWidth(lineWidth);
@@ -497,6 +603,78 @@ namespace Iris {
 	{
 		m_ViewportWidth = width;
 		m_ViewportHeight = height;
+	}
+
+	void Scene::OnRuntimeStart()
+	{
+		Scope<b2World>& world = m_Registry.get<Box2DWorldComponent>(m_Registry.view<Box2DWorldComponent>().front()).World;
+
+		{
+			auto view = m_Registry.group<RigidBody2DComponent>(entt::get<TransformComponent>);
+			for (auto entity : view)
+			{
+				Entity e = { entity, this };
+				UUID entityID = e.GetUUID();
+				TransformComponent& transformComp = e.Transform();
+				RigidBody2DComponent& rigidBodyComp = e.GetComponent<RigidBody2DComponent>();
+
+				b2BodyDef bodyDef;
+				bodyDef.type = Utils::IrisRigidBody2DTypeToB2BodyType(rigidBodyComp.BodyType);
+				
+				bodyDef.position.Set(transformComp.Translation.x, transformComp.Translation.y);
+				bodyDef.angle = transformComp.GetRotationEuler().z;
+
+				b2MassData massData;
+
+				b2Body* body = world->CreateBody(&bodyDef);
+				body->GetMassData(&massData);
+				massData.mass = rigidBodyComp.Mass;
+				body->SetMassData(&massData);
+				body->SetFixedRotation(rigidBodyComp.FixedRotation);
+				body->SetGravityScale(rigidBodyComp.GravityScale);
+				body->SetLinearDamping(rigidBodyComp.LinearDrag);
+				body->SetAngularDamping(rigidBodyComp.AngularDrag);
+				body->GetUserData().pointer = static_cast<uintptr_t>(entityID);
+				rigidBodyComp.RuntimeBody = body;
+			}
+		}
+
+		{
+			auto view = m_Registry.view<BoxCollider2DComponent>();
+			for (auto entity : view)
+			{
+				Entity e = { entity, this };
+				TransformComponent& transformComp = e.Transform();
+
+				BoxCollider2DComponent& boxColliderComp = e.GetComponent<BoxCollider2DComponent>();
+				if (e.HasComponent<RigidBody2DComponent>())
+				{
+					RigidBody2DComponent& rigidBodyComp = e.GetComponent<RigidBody2DComponent>();
+					IR_ASSERT(rigidBodyComp.RuntimeBody);
+
+					b2Body* body = static_cast<b2Body*>(rigidBodyComp.RuntimeBody);
+					
+					b2PolygonShape polygonShape;
+					polygonShape.SetAsBox(
+						transformComp.Scale.x * boxColliderComp.Size.x,
+						transformComp.Scale.y * boxColliderComp.Size.y,
+						b2Vec2{ boxColliderComp.Offset.x, boxColliderComp.Offset.y },
+						0.0f
+					);
+
+					b2FixtureDef fixtureDef;
+					fixtureDef.shape = &polygonShape;
+					fixtureDef.friction = boxColliderComp.Friction;
+					fixtureDef.density = boxColliderComp.Density;
+					body->CreateFixture(&fixtureDef);
+				}
+			}
+		}
+	}
+
+	void Scene::OnRuntimeStop()
+	{
+		// TODO: Should we call b2DesetroyWorld?
 	}
 
 	Entity Scene::GetMainCameraEntity()
@@ -657,6 +835,8 @@ namespace Iris {
 		// CopyComponentIfExists<SkyLightComponent>(newEntity.m_EntityHandle, m_Registry, entity); // NOTE: You can not duplicate sky lights since you should only have one
 		CopyComponentIfExists<DirectionalLightComponent>(newEntity.m_EntityHandle, m_Registry, entity);
 		CopyComponentIfExists<TextComponent>(newEntity.m_EntityHandle, m_Registry, entity);
+		CopyComponentIfExists<RigidBody2DComponent>(newEntity.m_EntityHandle, m_Registry, entity);
+		CopyComponentIfExists<BoxCollider2DComponent>(newEntity.m_EntityHandle, m_Registry, entity);
 
 		// Need to copy the children here because the collection is mutated below
 		std::vector<UUID> childIDs = entity.Children();
@@ -816,6 +996,16 @@ namespace Iris {
 			ConvertToWorldSpace(entity);
 
 		entity.SetParentUUID(0);
+	}
+
+	float Scene::GetPhysics2DGravity()
+	{
+		return m_Registry.get<Box2DWorldComponent>(m_SceneEntity).World->GetGravity().y;
+	}
+
+	void Scene::SetPhysics2DGravity(glm::vec2 gravity)
+	{
+		m_Registry.get<Box2DWorldComponent>(m_SceneEntity).World->SetGravity({ gravity.x, gravity.y });
 	}
 
 	void Scene::SortEntities()

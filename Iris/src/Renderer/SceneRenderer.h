@@ -39,6 +39,7 @@ namespace Iris {
 		// General
 		bool ShowGrid = true;
 		bool ShowSelectedInWireFrame = false;
+		bool ShowPhysicsColliders = false;
 
 		// DOF
 		bool DOFEnabled = false;
@@ -51,7 +52,7 @@ namespace Iris {
 		float RendererScale = 1.0f;
 		bool JumpFloodPass = true;
 
-		ShadowResolutionSetting ShadowResolution = ShadowResolutionSetting::Low;
+		ShadowResolutionSetting ShadowResolution = ShadowResolutionSetting::Medium;
 		uint32_t NumberOfShadowCascades = 4;
 
 		// Means viewport window size

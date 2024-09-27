@@ -8,6 +8,7 @@
  * - Always Checkout https://gpuopen.com/learn/rdna-performance-guide/ and https://developer.nvidia.com/blog/vulkan-dos-donts/ for any extra optimisations we could find from the vulkan side
  *
  * TODO: DynamicRendering branch:
+ * - Duplicated Meshes all reference the same material and have the same material table
  * - Add the Depth Of Field Picker
  * - Need to clean up image layouts for the depth of field
  * - When creating a logging console panel we need to enable some sort of flag in compile time that reroutes all logging for both application console and also console panel 

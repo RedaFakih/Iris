@@ -180,6 +180,36 @@ namespace Iris {
 			out << YAML::EndMap;
 		}
 
+		if (entity.HasComponent<RigidBody2DComponent>())
+		{
+			out << YAML::Key << "RigidBody2DComponent";
+			out << YAML::BeginMap;
+
+			const auto& rigidbody2DComponent = entity.GetComponent<RigidBody2DComponent>();
+			out << YAML::Key << "BodyType" << YAML::Value << static_cast<int>(rigidbody2DComponent.BodyType);
+			out << YAML::Key << "Mass" << YAML::Value << rigidbody2DComponent.Mass;
+			out << YAML::Key << "LinearDrag" << YAML::Value << rigidbody2DComponent.LinearDrag;
+			out << YAML::Key << "AngularDrag" << YAML::Value << rigidbody2DComponent.AngularDrag;
+			out << YAML::Key << "GravityScale" << YAML::Value << rigidbody2DComponent.GravityScale;
+			out << YAML::Key << "FixedRotation" << YAML::Value << rigidbody2DComponent.FixedRotation;
+
+			out << YAML::EndMap;
+		}
+
+		if (entity.HasComponent<BoxCollider2DComponent>())
+		{
+			out << YAML::Key << "BoxCollider2DComponent";
+			out << YAML::BeginMap;
+
+			auto& boxCollider2DComponent = entity.GetComponent<BoxCollider2DComponent>();
+			out << YAML::Key << "Size" << YAML::Value << boxCollider2DComponent.Size;
+			out << YAML::Key << "Offset" << YAML::Value << boxCollider2DComponent.Offset;
+			out << YAML::Key << "Density" << YAML::Value << boxCollider2DComponent.Density;
+			out << YAML::Key << "Friction" << YAML::Value << boxCollider2DComponent.Friction;
+
+			out << YAML::EndMap;
+		}
+
 		out << YAML::EndMap;
 	}
 
@@ -343,6 +373,27 @@ namespace Iris {
 				component.ShadowOpacity = dirLightComp["ShadowOpacity"].as<float>(1.0f);
 			}
 
+			YAML::Node rigidBody2DComponent = entity["RigidBody2DComponent"];
+			if (rigidBody2DComponent)
+			{
+				auto& component = deserializedEntity.AddComponent<RigidBody2DComponent>();
+				component.BodyType = static_cast<RigidBody2DComponent::Type>(rigidBody2DComponent["BodyType"].as<int>(0));
+				component.FixedRotation = rigidBody2DComponent["FixedRotation"].as<bool>(false);
+				component.Mass = rigidBody2DComponent["Mass"].as<float>(1.0f);
+				component.LinearDrag = rigidBody2DComponent["LinearDrag"].as<float>(0.01f);
+				component.AngularDrag = rigidBody2DComponent["AngularDrag"].as<float>(0.05f);
+				component.GravityScale = rigidBody2DComponent["GravityScale"].as<float>(1.0f);
+			}
+
+			YAML::Node boxCollider2DComponent = entity["BoxCollider2DComponent"];
+			if (boxCollider2DComponent)
+			{
+				BoxCollider2DComponent& component = deserializedEntity.AddComponent<BoxCollider2DComponent>();
+				component.Size = boxCollider2DComponent["Size"].as<glm::vec2>(glm::vec2{0.5f, 0.5f});
+				component.Offset = boxCollider2DComponent["Offset"].as<glm::vec2>(glm::vec2{ 0.0f, 0.0f });
+				component.Density = boxCollider2DComponent["Density"].as<float>(1.0f);
+				component.Friction = boxCollider2DComponent["Friction"].as<float>(0.5f);
+			}
 		}
 
 		scene->SortEntities();

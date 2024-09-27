@@ -1,0 +1,170 @@
+Scene: PhysicsTestScene
+VisibleEntities:
+  - 13684802884496168827
+  - 12649258275151874464
+  - 14704026428187291133
+  - 7551451357683168586
+  - 5305009254399922957
+  - 4409050500666236214
+  - 4195671325320845374
+  - 2419040638841338767
+  - 2131521204784265677
+Entities:
+  - Entity: 2131521204784265677
+    TagComponent:
+      Tag: Camera
+    Parent: 0
+    Children:
+      []
+    TransformComponent:
+      Position: [-0.241029322, 1.47412288, -5.9713788]
+      Rotation: [3.04367971, 0, 3.14159274]
+      Scale: [1, 1, 1]
+    CameraComponent:
+      Camera:
+        ProjectionType: 0
+        PerspectiveFOV: 45
+        PerspectiveNear: 0.00999999978
+        PerspectiveFar: 1000
+        OrthographicSize: 10
+        OrthographicNear: -1
+        OrthographicFar: 1
+      Primary: true
+  - Entity: 2419040638841338767
+    TagComponent:
+      Tag: Walls
+    Parent: 0
+    Children:
+      - Handle: 4409050500666236214
+      - Handle: 7551451357683168586
+    TransformComponent:
+      Position: [0, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+  - Entity: 4195671325320845374
+    TagComponent:
+      Tag: Directional Light
+    Parent: 0
+    Children:
+      []
+    TransformComponent:
+      Position: [0, 0, 0]
+      Rotation: [0.223852068, 0.367636085, -2.57652164]
+      Scale: [1, 1, 1]
+    DirectionalLightComponent:
+      Radiance: [1, 0.630757749, 0.235363945]
+      Intensity: 1
+      CastShadows: true
+      ShadowOpacity: 1
+  - Entity: 4409050500666236214
+    TagComponent:
+      Tag: Cube
+    Parent: 2419040638841338767
+    Children:
+      []
+    TransformComponent:
+      Position: [-0.300000012, 2.68000007, -21.6900005]
+      Rotation: [-1.57079697, 0.000690460263, 3.14151764]
+      Scale: [43.3799934, 0.64862144, 5.24999952]
+    StaticMeshComponent:
+      AssetID: 13164229695691519330
+      MaterialTable:
+        0: 0
+  - Entity: 5305009254399922957
+    TagComponent:
+      Tag: Sky Light
+    Parent: 0
+    Children:
+      []
+    TransformComponent:
+      Position: [0, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    SkyLightComponent:
+      EnvironmentMap: 0
+      Intensity: 1
+      Lod: 0
+      DynamicSky: true
+      TurbidityAzimuthInclinationSunSize: [6.40999985, -0.104719758, 1.30620432, 0.0450000018]
+      DirectionalLightEntityID: 4195671325320845374
+      LinkDirectionalLightRadiance: true
+  - Entity: 7551451357683168586
+    TagComponent:
+      Tag: Cube
+    Parent: 2419040638841338767
+    Children:
+      []
+    TransformComponent:
+      Position: [21.639822, 2.68668008, -0.000335544348]
+      Rotation: [1.57131433, 1.57030797, 0.000517955748]
+      Scale: [44, 0.64862144, 5.25]
+    StaticMeshComponent:
+      AssetID: 13164229695691519330
+      MaterialTable:
+        0: 0
+  - Entity: 12649258275151874464
+    TagComponent:
+      Tag: Sphere
+    Parent: 0
+    Children:
+      []
+    TransformComponent:
+      Position: [1.07588553, 0.761979342, 0.734478354]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+    StaticMeshComponent:
+      AssetID: 18398963716275400970
+      MaterialTable:
+        0: 6440874333019988068
+  - Entity: 13684802884496168827
+    TagComponent:
+      Tag: Static Cube
+    Parent: 0
+    Children:
+      []
+    TransformComponent:
+      Position: [-1.01964164, 2.65412521, 0.124821067]
+      Rotation: [0, 0, 0.753724754]
+      Scale: [1, 1, 1]
+    StaticMeshComponent:
+      AssetID: 13164229695691519330
+      MaterialTable:
+        0: 0
+    RigidBody2DComponent:
+      BodyType: 1
+      Mass: 1
+      LinearDrag: 0.00999999978
+      AngularDrag: 0.0500000007
+      GravityScale: 1
+      FixedRotation: false
+    BoxCollider2DComponent:
+      Size: [0.5, 0.5]
+      Offset: [0, 0]
+      Density: 1
+      Friction: 0.5
+  - Entity: 14704026428187291133
+    TagComponent:
+      Tag: Plane
+    Parent: 0
+    Children:
+      []
+    TransformComponent:
+      Position: [0.0165784359, 0.0582056642, 0]
+      Rotation: [0, 0.00114536285, 0]
+      Scale: [44, 44, 44]
+    StaticMeshComponent:
+      AssetID: 2732277024539045285
+      MaterialTable:
+        0: 3086571681816161946
+    RigidBody2DComponent:
+      BodyType: 0
+      Mass: 1
+      LinearDrag: 0.00999999978
+      AngularDrag: 0.0500000007
+      GravityScale: 1
+      FixedRotation: false
+    BoxCollider2DComponent:
+      Size: [0.5, 1.17549435e-38]
+      Offset: [0, 0]
+      Density: 1
+      Friction: 0.5

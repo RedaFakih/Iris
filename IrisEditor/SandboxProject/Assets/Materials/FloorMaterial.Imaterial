@@ -4,7 +4,7 @@ Material:
   ShadowCasting: true
   AlbedoColor: [0.99992615, 1, 0.999899983]
   Emission: 0
-  Tiling: 18
+  Tiling: 1
   EnvMapRotation: 0
   UseNormalMap: true
   Roughness: 1

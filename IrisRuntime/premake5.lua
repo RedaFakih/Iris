@@ -19,6 +19,7 @@ project "IrisRuntime"
         "%{wks.location}/Iris/dependencies",
         "%{IncludeDir.ImGui}",
         "%{IncludeDir.spdlog}",
+        "%{IncludeDir.Box2D}",
         "%{IncludeDir.glm}",
         "%{IncludeDir.choc}",
         "%{IncludeDir.EnTT}",
