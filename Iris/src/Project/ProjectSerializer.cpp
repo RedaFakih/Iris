@@ -1,6 +1,8 @@
 #include "IrisPCH.h"
 #include "ProjectSerializer.h"
 
+#include "Utils/YAMLSerializationHelpers.h"
+
 #include <yaml-cpp/yaml.h>
 
 namespace Iris {
@@ -23,6 +25,9 @@ namespace Iris {
 			out << YAML::Key << "StartScene" << YAML::Value << project->m_Config.StartScene;
 			out << YAML::Key << "AutoSave" << YAML::Value << project->m_Config.EnableAutoSave;
 			out << YAML::Key << "AutoSaveInterval" << YAML::Value << project->m_Config.AutoSaveIntervalSeconds;
+			out << YAML::Key << "ViewportSelectionOutlineColor" << YAML::Value << project->m_Config.ViewportSelectionOutlineColor;
+			out << YAML::Key << "Viewport2DColliderOutlineColor" << YAML::Value << project->m_Config.Viewport2DColliderOutlineColor;
+			out << YAML::Key << "Viewport3DColliderOutlineColor" << YAML::Value << project->m_Config.Viewport3DColliderOutlineColor;
 
 			out << YAML::Key << "Log" << YAML::Value;
 			{
@@ -85,8 +90,11 @@ namespace Iris {
 		if (rootNode["StartScene"])
 			config.StartScene = rootNode["StartScene"].as<std::string>();
 
-		config.EnableAutoSave = rootNode["AutoSave"].as<bool>();
-		config.AutoSaveIntervalSeconds = rootNode["AutoSaveInterval"].as<int>();
+		config.EnableAutoSave = rootNode["AutoSave"].as<bool>(false);
+		config.AutoSaveIntervalSeconds = rootNode["AutoSaveInterval"].as<int>(300);
+		config.ViewportSelectionOutlineColor = rootNode["ViewportSelectionOutlineColor"].as<glm::vec4>(glm::vec4{ 0.14f, 0.8f, 0.52f, 1.0f });
+		config.Viewport2DColliderOutlineColor = rootNode["Viewport2DColliderOutlineColor"].as<glm::vec4>(glm::vec4{ 0.25f, 0.6f, 1.0f, 1.0f });
+		config.Viewport3DColliderOutlineColor = rootNode["Viewport3DColliderOutlineColor"].as<glm::vec4>(glm::vec4{ 0.2f, 1.0f, 0.2f, 1.0f });
 
 		YAML::Node logNode = rootNode["Log"];
 		if (logNode)

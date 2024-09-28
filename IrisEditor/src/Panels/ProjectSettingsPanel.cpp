@@ -58,7 +58,7 @@ namespace Iris {
 							serializeProject = true;
 						}
 					}
-
+					
 					UI::EndPropertyGrid();
 					ImGui::TreePop(); // For the property grid header
 				}
@@ -88,6 +88,15 @@ namespace Iris {
 					int currentIrradianceMapSamples = static_cast<int>(glm::log2(static_cast<float>(rendererConfig.IrradianceMapComputeSamples))) - 7;
 					if (UI::PropertyDropdown("Irradiance Map Compute Samples", mapSize, 6, &currentIrradianceMapSamples))
 						rendererConfig.IrradianceMapComputeSamples = static_cast<uint32_t>(glm::pow(2, currentEnvMapSize + 7));
+
+					if (UI::PropertyColor4("Viewport Outline Color", m_Context->m_Config.ViewportSelectionOutlineColor))
+						serializeProject = true;
+
+					if (UI::PropertyColor4("2D Collider Debug Color", m_Context->m_Config.Viewport2DColliderOutlineColor))
+						serializeProject = true;
+
+					if (UI::PropertyColor4("3D Collider Debug Color", m_Context->m_Config.Viewport3DColliderOutlineColor))
+						serializeProject = true;
 
 					UI::EndPropertyGrid();
 					ImGui::TreePop();

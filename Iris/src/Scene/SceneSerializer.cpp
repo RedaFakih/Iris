@@ -206,6 +206,24 @@ namespace Iris {
 			out << YAML::Key << "Offset" << YAML::Value << boxCollider2DComponent.Offset;
 			out << YAML::Key << "Density" << YAML::Value << boxCollider2DComponent.Density;
 			out << YAML::Key << "Friction" << YAML::Value << boxCollider2DComponent.Friction;
+			out << YAML::Key << "Restitution" << YAML::Value << boxCollider2DComponent.Restitution;
+			out << YAML::Key << "RestitutionThreshold" << YAML::Value << boxCollider2DComponent.RestitutionThreshold;
+
+			out << YAML::EndMap;
+		}
+
+		if (entity.HasComponent<CircleCollider2DComponent>())
+		{
+			out << YAML::Key << "CircleCollider2DComponent";
+			out << YAML::BeginMap;
+
+			CircleCollider2DComponent& circleCollider2DComponent = entity.GetComponent<CircleCollider2DComponent>();
+			out << YAML::Key << "Offset" << YAML::Value << circleCollider2DComponent.Offset;
+			out << YAML::Key << "Radius" << YAML::Value << circleCollider2DComponent.Radius;
+			out << YAML::Key << "Density" << YAML::Value << circleCollider2DComponent.Density;
+			out << YAML::Key << "Friction" << YAML::Value << circleCollider2DComponent.Friction;
+			out << YAML::Key << "Restitution" << YAML::Value << circleCollider2DComponent.Restitution;
+			out << YAML::Key << "RestitutionThreshold" << YAML::Value << circleCollider2DComponent.RestitutionThreshold;
 
 			out << YAML::EndMap;
 		}
@@ -393,6 +411,20 @@ namespace Iris {
 				component.Offset = boxCollider2DComponent["Offset"].as<glm::vec2>(glm::vec2{ 0.0f, 0.0f });
 				component.Density = boxCollider2DComponent["Density"].as<float>(1.0f);
 				component.Friction = boxCollider2DComponent["Friction"].as<float>(0.5f);
+				component.Restitution = boxCollider2DComponent["Restitution"].as<float>(0.0f);
+				component.RestitutionThreshold = boxCollider2DComponent["RestitutionThreshold"].as<float>(0.5f);
+			}
+
+			YAML::Node circleCollider2DComponent = entity["CircleCollider2DComponent"];
+			if (circleCollider2DComponent)
+			{
+				CircleCollider2DComponent& component = deserializedEntity.AddComponent<CircleCollider2DComponent>();
+				component.Offset = circleCollider2DComponent["Offset"].as<glm::vec2>(glm::vec2{ 0.0f, 0.0f });
+				component.Radius = circleCollider2DComponent["Radius"].as<float>(1.0f);
+				component.Density = circleCollider2DComponent["Density"].as<float>(1.0f);
+				component.Friction = circleCollider2DComponent["Friction"].as<float>(0.5f);
+				component.Restitution = circleCollider2DComponent["Restitution"].as<float>(0.0f);
+				component.RestitutionThreshold = circleCollider2DComponent["RestitutionThreshold"].as<float>(0.5f);
 			}
 		}
 

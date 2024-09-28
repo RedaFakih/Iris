@@ -216,14 +216,28 @@ namespace Iris {
 		glm::vec2 Size = { 0.5f, 0.5f };
 		glm::vec2 Offset = { 0.0f, 0.0f };
 
-		// TODO: Move into physics material maybe?
+		// NOTE: Move into physics material maybe?
 		float Density = 1.0f;
 		float Friction = 0.5f;
+		float Restitution = 0.0f;
+		float RestitutionThreshold = 0.5f;
 
 		void* RuntimeFixture = nullptr;
 	};
 
-	// TODO: Add CircleColliders2D
+	struct CircleCollider2DComponent
+	{
+		glm::vec2 Offset = { 0.0f, 0.0f };
+		float Radius = 0.5f;
+
+		// NOTE: Move into physics material maybe?
+		float Density = 1.0f;
+		float Friction = 1.0f;
+		float Restitution = 0.0f;
+		float RestitutionThreshold = 0.5f;
+
+		void* RuntimeFixture = nullptr;
+	};
 
 	template<typename... Components>
 	struct ComponentGroup

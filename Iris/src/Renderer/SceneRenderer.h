@@ -39,6 +39,9 @@ namespace Iris {
 		// General
 		bool ShowGrid = true;
 		bool ShowSelectedInWireFrame = false;
+
+		enum class PhysicsColliderViewOptions { SelectedEntity = 0, All };
+		PhysicsColliderViewOptions PhysicsColliderViewMode = PhysicsColliderViewOptions::SelectedEntity;
 		bool ShowPhysicsColliders = false;
 
 		// DOF

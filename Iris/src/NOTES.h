@@ -8,6 +8,7 @@
  * - Always Checkout https://gpuopen.com/learn/rdna-performance-guide/ and https://developer.nvidia.com/blog/vulkan-dos-donts/ for any extra optimisations we could find from the vulkan side
  *
  * TODO: DynamicRendering branch:
+ * - Handle OnRuntimeStop?
  * - Duplicated Meshes all reference the same material and have the same material table
  * - Add the Depth Of Field Picker
  * - Need to clean up image layouts for the depth of field

@@ -1,8 +1,8 @@
 Scene: PhysicsTestScene
 VisibleEntities:
+  - 14704026428187291133
   - 13684802884496168827
   - 12649258275151874464
-  - 14704026428187291133
   - 7551451357683168586
   - 5305009254399922957
   - 4409050500666236214
@@ -109,13 +109,27 @@ Entities:
     Children:
       []
     TransformComponent:
-      Position: [1.07588553, 0.761979342, 0.734478354]
+      Position: [0.635295153, 2.43836927, -0.000122269674]
       Rotation: [0, 0, 0]
       Scale: [1, 1, 1]
     StaticMeshComponent:
       AssetID: 18398963716275400970
       MaterialTable:
         0: 6440874333019988068
+    RigidBody2DComponent:
+      BodyType: 1
+      Mass: 10
+      LinearDrag: 0.00999999978
+      AngularDrag: 0.0500000007
+      GravityScale: 1
+      FixedRotation: false
+    CircleCollider2DComponent:
+      Offset: [0, 0]
+      Radius: 0.5
+      Density: 1
+      Friction: 1
+      Restitution: 0.600000024
+      RestitutionThreshold: 0.5
   - Entity: 13684802884496168827
     TagComponent:
       Tag: Static Cube
@@ -123,7 +137,7 @@ Entities:
     Children:
       []
     TransformComponent:
-      Position: [-1.01964164, 2.65412521, 0.124821067]
+      Position: [-1.01964164, 2.65412521, 0]
       Rotation: [0, 0, 0.753724754]
       Scale: [1, 1, 1]
     StaticMeshComponent:
@@ -132,7 +146,7 @@ Entities:
         0: 0
     RigidBody2DComponent:
       BodyType: 1
-      Mass: 1
+      Mass: 0.5
       LinearDrag: 0.00999999978
       AngularDrag: 0.0500000007
       GravityScale: 1
@@ -140,8 +154,10 @@ Entities:
     BoxCollider2DComponent:
       Size: [0.5, 0.5]
       Offset: [0, 0]
-      Density: 1
+      Density: 0.400000006
       Friction: 0.5
+      Restitution: 0.600000024
+      RestitutionThreshold: 0.5
   - Entity: 14704026428187291133
     TagComponent:
       Tag: Plane
@@ -149,7 +165,7 @@ Entities:
     Children:
       []
     TransformComponent:
-      Position: [0.0165784359, 0.0582056642, 0]
+      Position: [0.0165784359, 0.0582048297, 0]
       Rotation: [0, 0.00114536285, 0]
       Scale: [44, 44, 44]
     StaticMeshComponent:
@@ -168,3 +184,5 @@ Entities:
       Offset: [0, 0]
       Density: 1
       Friction: 0.5
+      Restitution: 0
+      RestitutionThreshold: 0.5

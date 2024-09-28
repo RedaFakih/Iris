@@ -1695,6 +1695,8 @@ namespace Iris {
 				);
 			});
 
+			m_JumpFloodCompositeMaterial->Set("u_Uniforms.Color", Project::GetActive()->GetConfig().ViewportSelectionOutlineColor);
+
 			Renderer::BeginRenderPass(m_CommandBuffer, m_JumpFloodCompositePass);
 			Renderer::SubmitFullScreenQuad(m_CommandBuffer, m_JumpFloodCompositePass->GetPipeline(), m_JumpFloodCompositeMaterial);
 			Renderer::EndRenderPass(m_CommandBuffer);

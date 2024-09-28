@@ -147,52 +147,6 @@ vec3 CalculateSunContribution(vec3 sunDir, vec3 viewDir, vec3 sunColor, float su
     return sunColor * sunIntensity;
 }
 
-// Simple noise function for clouds
-float Hash(float n)
-{
-    return fract(sin(n) * 43758.5453123f);
-}
-
-float Noise(vec3 p)
-{
-    vec3 i = floor(p);
-    vec3 f = fract(p);
-    f = f * f * (3.0f - 2.0f * f);
-
-    float n = dot(i, vec3(1.0f, 57.0f, 113.0f));
-    return mix(mix(mix(Hash(n + 0.0f), Hash(n + 1.0f), f.x),
-                   mix(Hash(n + 57.0f), Hash(n + 58.0f), f.x), f.y),
-               mix(mix(Hash(n + 113.0f), Hash(n + 114.0f), f.x),
-                   mix(Hash(n + 170.0f), Hash(n + 171.0f), f.x), f.y), f.z);
-}
-
-float Fbm(vec3 p)
-{
-    float v = 0.0f;
-    float a = 0.5f; // Around 0.5f is the most dense
-    vec3 shift = vec3(100.0f);
-
-    // 4 Octaves
-    for (int i = 0; i < 4; ++i)
-    {
-        v += a * Noise(p);
-        p = p * 2.0f + shift;
-        a *= 0.5f; // 0.5f here is the gain
-    }
-    return v;
-}
-
-// Calculate cloud coverage
-float CalculateClouds(vec3 dir)
-{
-    float fade = smoothstep(0.0f, 0.2f, dir.y);
-    float fade2 = smoothstep(1.0f, 0.9f, dir.y);
-
-    fade2 = 1.0f;
-    vec3 p = dir * 8.0f; // Scale for tiling the noise
-    return fade * fade2 * smoothstep(0.3f, 0.55f, Fbm(p)); // 0.3f and 0.55f adjust the transtition between cloudy and clear areas
-}
-
 layout(local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
 void main()
 {
@@ -208,16 +162,7 @@ void main()
 
 	// Sun
 	vec3 sunContribution = CalculateSunContribution(sunDir, viewDir, CalculateSunColor(inclination), sunSize, inclination);
-    
-    // Clouds
-//    float cloudCoverage = CalculateClouds(viewDir);
-
-//    float sunHeightFactor = clamp(cos(inclination), 0.0f, 1.0f);
-    // Adjust cloud color based on sun's height
-//    vec3 cloudColor = mix(skyLuminance, vec3(1.0f),sunHeightFactor);
-//    cloudColor = mix(skyLuminance, cloudColor, cloudCoverage);
 
     vec4 color = vec4(skyLuminance * 0.05f + sunContribution, 1.0f);
-//    vec4 color = vec4(skyLuminance * 0.05f + sunContribution + cloudColor * 0.05f, 1.0f);
 	imageStore(o_OutputCubeMap, ivec3(gl_GlobalInvocationID), color);
 }

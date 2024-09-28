@@ -38,6 +38,9 @@ namespace Iris {
 		inline static Ref<Texture2D> ClosedEyeIcon = nullptr;
 		inline static Ref<Texture2D> TransformIcon = nullptr;
 		inline static Ref<Texture2D> PencilIcon = nullptr;
+		inline static Ref<Texture2D> RigidBody2DIcon = nullptr;
+		inline static Ref<Texture2D> BoxCollider2DIcon = nullptr;
+		inline static Ref<Texture2D> CircleCollider2DIcon = nullptr;
 
 		// Viewport
 		inline static Ref<Texture2D> LitMaterialIcon = nullptr;
@@ -94,6 +97,9 @@ namespace Iris {
 			ClosedEyeIcon = LoadTexture("Icons/SceneHierarchyPanel/ClosedEye.png", "ClosedEyeIcon", spec);
 			TransformIcon = LoadTexture("Icons/SceneHierarchyPanel/Transform.png", "TransformIcon", spec);
 			PencilIcon = LoadTexture("Icons/SceneHierarchyPanel/Pencil.png", "PencilIcon", spec);
+			RigidBody2DIcon = LoadTexture("Icons/SceneHierarchyPanel/RigidBody2D.png", "RigidBody2DIcon", spec);
+			BoxCollider2DIcon = LoadTexture("Icons/SceneHierarchyPanel/BoxCollider2D.png", "BoxCollider2DIcon", spec);
+			CircleCollider2DIcon = LoadTexture("Icons/SceneHierarchyPanel/CircleCollider2D.png", "CicleCollider2DIcon", spec);
 
 			// Viewport
 			LitMaterialIcon = LoadTexture("Icons/Viewport/LitMaterial.png", "LitMaterialIcon", spec);
@@ -148,6 +154,9 @@ namespace Iris {
 			ClosedEyeIcon.Reset();
 			TransformIcon.Reset();
 			PencilIcon.Reset();
+			RigidBody2DIcon.Reset();
+			BoxCollider2DIcon.Reset();
+			CircleCollider2DIcon.Reset();
 
 			// Viewport
 			LitMaterialIcon.Reset();

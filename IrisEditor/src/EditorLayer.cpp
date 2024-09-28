@@ -1571,8 +1571,9 @@ namespace Iris {
 							UI::SectionCheckbox("Show Grid", rendererOptions.ShowGrid, "Show Grid, Ctrl + G");
 							UI::SectionCheckbox("Selected in Wireframe", rendererOptions.ShowSelectedInWireFrame, "Show selected mesh in wireframe mode");
 
-							// TODO: Physics colliders view mode
 							UI::SectionCheckbox("Show Physics Colliders", rendererOptions.ShowPhysicsColliders, "Show phsyics colliders in the viewport");
+							static const char* s_PhysicsColliderDebugViewMode[] = { "Selected Entity", "All" };
+							UI::SectionDropdown("Selection Mode", s_PhysicsColliderDebugViewMode, 2, reinterpret_cast<int32_t*>(&rendererOptions.PhysicsColliderViewMode), "Select the debug view mode of physics colliders");
 
 							if (UI::SectionDrag("Line Width", m_LineWidth, 0.1f, 0.1f, 10.0f, "Change pipeline line width"))
 							{

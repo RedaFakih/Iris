@@ -20,6 +20,10 @@ namespace Iris {
 		bool EnableAutoSave = false;
 		uint32_t AutoSaveIntervalSeconds = 300; // 5 minutes
 
+		glm::vec4 ViewportSelectionOutlineColor = { 0.14f, 0.8f, 0.52f, 1.0f };
+		glm::vec4 Viewport2DColliderOutlineColor = { 0.25f, 0.6f, 1.0f, 1.0f };
+		glm::vec4 Viewport3DColliderOutlineColor = { 0.2f, 1.0f, 0.2f, 1.0f };
+
 		// Not serialized
 		std::string ProjectFileName;
 		std::string ProjectDirectory;
@@ -75,6 +79,12 @@ namespace Iris {
 		{
 			IR_ASSERT(s_ActiveProject);
 			return std::filesystem::path(s_ActiveProject->GetConfig().ProjectDirectory) / "Cache";
+		}
+
+		inline static glm::vec4 GetViewportSelectionOutlineColor()
+		{
+			IR_ASSERT(s_ActiveProject);
+			return s_ActiveProject->GetConfig().ViewportSelectionOutlineColor;
 		}
 
 	private:

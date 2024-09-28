@@ -7,6 +7,9 @@ Project:
   StartScene: Scenes/PhysicsTestScene.Iscene
   AutoSave: false
   AutoSaveInterval: 300
+  ViewportSelectionOutlineColor: [0.140000001, 0.800000012, 0.519999981, 1]
+  Viewport2DColliderOutlineColor: [0.25, 0.600000024, 1, 1]
+  Viewport3DColliderOutlineColor: [0.200000003, 1, 0.200000003, 1]
   Log:
     AssetManager:
       Enabled: true
