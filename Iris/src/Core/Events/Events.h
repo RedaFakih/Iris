@@ -7,6 +7,7 @@
 #include <string>
 
 #define IR_STRINGIFY_MACRO(x) #x
+#define IR_SET_EVENT_FN(function) [this](auto&&... args) -> decltype(auto) { return this->function(std::forward<decltype(args)>(args)...); }
 
 namespace Iris::Events {
 

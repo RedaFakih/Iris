@@ -11,6 +11,7 @@
 namespace Iris {
 
 	class SceneRenderer;
+	class Renderer2D;
 
 	// Just a POD type that holds all the data (from the DirectionalLightComponent and also other places) needed for a directional light in the scene
 	struct SceneDirectionalLight
@@ -155,6 +156,8 @@ namespace Iris {
 	private:
 		void SortEntities();
 		void BuildMeshEntityHierarchy(Entity parent, Ref<StaticMesh> staticMesh, const MeshUtils::MeshNode& node);
+
+		void Render2DPhysicsDebug(Ref<SceneRenderer> renderer, Ref<Renderer2D> renderer2D);
 
 	private:
 		// Scene Entity to create some stuff that is owned by the scene and store it in the ECS registry

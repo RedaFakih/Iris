@@ -6,6 +6,7 @@ IncludeDir = {}
 IncludeDir["GLFW"]                = "%{wks.location}/Iris/dependencies/glfw/include"
 IncludeDir["Box2D"]               = "%{wks.location}/Iris/dependencies/Box2D/include"
 IncludeDir["ImGui"]               = "%{wks.location}/Iris/dependencies/ImGui"
+IncludeDir["JoltPhysics"]         = "%{wks.location}/Iris/dependencies/JoltPhysics/JoltPhysics"
 IncludeDir["stb"]                 = "%{wks.location}/Iris/dependencies/stb"
 IncludeDir["glm"]                 = "%{wks.location}/Iris/dependencies/glm"
 IncludeDir["spdlog"]              = "%{wks.location}/Iris/dependencies/spdlog/include"

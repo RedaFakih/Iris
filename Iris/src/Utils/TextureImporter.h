@@ -13,7 +13,7 @@ namespace Iris::Utils {
 
 		// NOTE: This exists since we load the images with stb which uses malloc and our Buffer class uses delete[] to clear memory.
 		// this malloc/delete mismatch could lead to UB
-		static void FreeImageMemory(const uint8_t* data);
+		static void FreeImageMemory(uint8_t* data);
 	};
 
 }

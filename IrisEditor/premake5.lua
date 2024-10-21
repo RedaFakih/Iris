@@ -13,6 +13,7 @@ project "IrisEditor"
         "%{wks.location}/Iris/src",
         "%{wks.location}/Iris/dependencies",
         "%{IncludeDir.Box2D}",
+        "%{IncludeDir.JoltPhysics}",
         "%{IncludeDir.spdlog}",
         "%{IncludeDir.ImGui}",
         "%{IncludeDir.glm}",
@@ -40,6 +41,7 @@ project "IrisEditor"
 
     filter "configurations:Release"
         optimize "Full"
+        symbols "off"
         vectorextensions "AVX2"
         isaextensions {
             "BMI", "POPCNT", "LZCNT", "F16C"

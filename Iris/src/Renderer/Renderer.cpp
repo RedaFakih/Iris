@@ -47,8 +47,6 @@ namespace Iris {
 		std::vector<Ref<Material>> Meterials;
 	};
 
-	static std::unordered_map<std::size_t, ShaderDependencies> s_ShaderDependencies;
-
 	struct RendererData
 	{
 		Ref<ShadersLibrary> ShaderLibrary;
@@ -95,6 +93,7 @@ namespace Iris {
 	};
 
 	static RendererConfiguration s_RendererConfig;
+	static std::unordered_map<std::size_t, ShaderDependencies> s_ShaderDependencies;
 	static RendererData* s_Data = nullptr;
 	
 	void Renderer::Init()

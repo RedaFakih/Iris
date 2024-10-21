@@ -362,8 +362,6 @@ namespace Iris {
 
 		SelectionManager::DeselectAll();
 
-		Input::SetCursorMode(CursorMode::Locked);
-
 		m_RuntimeScene = Scene::Create(fmt::format("{} - {}", m_EditorScene->GetName(), "Runtime"));
 		m_EditorScene->CopyTo(m_RuntimeScene);
 		m_RuntimeScene->OnRuntimeStart();
@@ -381,7 +379,6 @@ namespace Iris {
 		SelectionManager::DeselectAll();
 
 		m_ViewportRenderer->GetOptions().ShowGrid = true;
-		Input::SetCursorMode(CursorMode::Normal);
 
 		m_RuntimeScene->OnRuntimeStop();
 

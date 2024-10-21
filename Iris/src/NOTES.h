@@ -7,8 +7,16 @@
  * 
  * - Always Checkout https://gpuopen.com/learn/rdna-performance-guide/ and https://developer.nvidia.com/blog/vulkan-dos-donts/ for any extra optimisations we could find from the vulkan side
  *
+ * TODO: Jolt Physics
+ * - Was working on PhysicsSystem:
+ * - - Keep extending it with some heplper functions now
+ * 
  * TODO: DynamicRendering branch:
- * - Handle OnRuntimeStop?
+ * - Finish the ContentBrowserPanel
+ * - Add Thumbnails...?
+ * - Add Point Lights
+ * - Add Spot Lights
+ * - Handle Scene::OnRuntimeStop?
  * - Duplicated Meshes all reference the same material and have the same material table
  * - Add the Depth Of Field Picker
  * - Need to clean up image layouts for the depth of field
@@ -25,13 +33,11 @@
  *		- Try updating driver and VulkanSDK see if they go
  *		- Look into why the optimizations are causing artefacts
  * - NOT HIGH PRIORITY:
- *      - Make the clouds work in the preetham shader
  *      - Maybe Generate the BRDFLut Texture ourselves?
  *		- Add Tracy for profiling
  *
  * TODO: Creative Ideas:
  * - Provide an option for the SceneRenderer to show the ACTUAL draw call count since now it only accounts for the color pass draws
- * - For any object other than the primitives we always have an extra material for some reason
  * - Submesh selection when we have a content browser Both static and dynamic meshes will support submesh selection
  * - Need to fix everything regarding orthographic projection views
  * - Gizmo controls and orthographic camera movement collision

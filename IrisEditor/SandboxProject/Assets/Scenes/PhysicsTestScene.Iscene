@@ -3,6 +3,8 @@ VisibleEntities:
   - 14704026428187291133
   - 13684802884496168827
   - 12649258275151874464
+  - 12599562076012510748
+  - 10781268972243530617
   - 7551451357683168586
   - 5305009254399922957
   - 4409050500666236214
@@ -102,6 +104,35 @@ Entities:
       AssetID: 13164229695691519330
       MaterialTable:
         0: 0
+  - Entity: 10781268972243530617
+    TagComponent:
+      Tag: Heart
+    Parent: 0
+    Children:
+      []
+    TransformComponent:
+      Position: [-1.56803179, 1.45204854, 6.39725876]
+      Rotation: [-0.145326987, -0.666769862, 0.0172257256]
+      Scale: [1, 1, 1]
+    StaticMeshComponent:
+      AssetID: 16179563803417760851
+      MaterialTable:
+        0: 0
+        1: 0
+  - Entity: 12599562076012510748
+    TagComponent:
+      Tag: Stairs
+    Parent: 0
+    Children:
+      []
+    TransformComponent:
+      Position: [0, 1.93582308, 5.25084972]
+      Rotation: [3.14159274, 0.785743594, 3.14159274]
+      Scale: [3.65312672, 3.65194464, 1.71159244]
+    StaticMeshComponent:
+      AssetID: 6952546901326962044
+      MaterialTable:
+        0: 0
   - Entity: 12649258275151874464
     TagComponent:
       Tag: Sphere
@@ -109,7 +140,7 @@ Entities:
     Children:
       []
     TransformComponent:
-      Position: [0.635295153, 2.43836927, -0.000122269674]
+      Position: [0.634426177, 2.62526011, -0.000307947397]
       Rotation: [0, 0, 0]
       Scale: [1, 1, 1]
     StaticMeshComponent:
@@ -119,8 +150,8 @@ Entities:
     RigidBody2DComponent:
       BodyType: 1
       Mass: 10
-      LinearDrag: 0.00999999978
-      AngularDrag: 0.0500000007
+      LinearDrag: 0.100000001
+      AngularDrag: 0.100000001
       GravityScale: 1
       FixedRotation: false
     CircleCollider2DComponent:
@@ -137,7 +168,7 @@ Entities:
     Children:
       []
     TransformComponent:
-      Position: [-1.01964164, 2.65412521, 0]
+      Position: [-1.01992607, 2.65412521, 0]
       Rotation: [0, 0, 0.753724754]
       Scale: [1, 1, 1]
     StaticMeshComponent:

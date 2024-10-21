@@ -23,6 +23,9 @@ Project:
     Mesh:
       Enabled: true
       LevelFilter: Trace
+    Physics:
+      Enabled: true
+      LevelFilter: Trace
     Renderer:
       Enabled: true
       LevelFilter: Trace

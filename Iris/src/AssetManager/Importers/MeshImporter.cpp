@@ -223,7 +223,8 @@ namespace Iris {
 
 				ma->SetRoughness(roughness);
 
-				if (aiMaterial->Get(AI_MATKEY_REFLECTIVITY, metalness) != AI_SUCCESS)
+				//if (aiMaterial->Get(AI_MATKEY_REFLECTIVITY, metalness) != AI_SUCCESS)
+				if (aiMaterial->Get(AI_MATKEY_METALLIC_FACTOR, metalness) != AI_SUCCESS)
 					metalness = 0.0f; // Default value
 
 				// Physically realistic materials are either metals or they are not

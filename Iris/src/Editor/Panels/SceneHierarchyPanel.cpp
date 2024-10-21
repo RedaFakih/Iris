@@ -384,7 +384,7 @@ namespace Iris {
 
 			if (ImGui::BeginMenu("2D"))
 			{
-				// TODO: Add lines and circles
+				// TODO: Add circles
 
 				if (ImGui::MenuItem("Sprite"))
 				{
@@ -1100,7 +1100,7 @@ namespace Iris {
 
 						std::string meshMaterialName = meshMaterialAsset->GetMaterial()->GetName();
 						if (meshMaterialName.empty())
-							meshMaterialName = "Unnamed Material";
+							meshMaterialName = "No Material";
 
 						ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, entities.size() > 1 && panel->IsInconsistentPrimitive<AssetHandle, T>([i](const T& component)
 						{
@@ -1487,7 +1487,7 @@ namespace Iris {
 				float verticalFOV = camComponent.Camera.GetDegPerspectiveVerticalFOV();
 				ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiEdit && IsInconsistentPrimitive<float, CameraComponent>([](const CameraComponent& other) { return other.Camera.GetDegPerspectiveVerticalFOV(); }));
 
-				if (UI::Property("Vertical FOV", verticalFOV, 0.1f, 0.0f, 0.0f, "Field of view of the camera in degrees"))
+				if (UI::Property("Vertical FOV", verticalFOV, 0.1f, 10.0f, 120.0f, "Field of view of the camera in degrees"))
 				{
 					for (UUID entityID : entities)
 					{
@@ -2283,7 +2283,7 @@ namespace Iris {
 			ImGui::PopItemFlag();
 
 			ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect&& IsInconsistentPrimitive<float, CircleCollider2DComponent>([](const CircleCollider2DComponent& other) { return other.RestitutionThreshold; }));
-			if (UI::Property("Restitution Threshold", circleColliderComp.RestitutionThreshold, 0.1f, 0.0f, 1.0f, "Restitution velocity threshold, usually in m/s.\nCollisions above this speed have restitution applied (will bounce)."))
+			if (UI::Property("Threshold", circleColliderComp.RestitutionThreshold, 0.1f, 0.0f, 1.0f, "Restitution velocity threshold, usually in m/s.\nCollisions above this speed have restitution applied (will bounce)."))
 			{
 				for (UUID entityID : entities)
 				{

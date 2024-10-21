@@ -112,7 +112,7 @@ namespace YAML {
 		static Node encode(const Iris::AssetHandle& rhs)
 		{
 			Node node;
-			node.push_back((uint64_t)rhs);
+			node.push_back(static_cast<uint64_t>(rhs));
 			return node;
 		}
 

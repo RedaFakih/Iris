@@ -32,6 +32,7 @@ project "Iris"
         "%{IncludeDir.assimp}",
         "%{IncludeDir.GLFW}",
         "%{IncludeDir.Box2D}",
+        "%{IncludeDir.JoltPhysics}",
         "%{IncludeDir.ImGui}",
         "%{IncludeDir.glm}",
         "%{IncludeDir.VulkanSDK}",
@@ -49,6 +50,7 @@ project "Iris"
     links {
         "GLFW",
         "Box2D",
+        "JoltPhysics",
         "ImGui",
         "msdf-atlas-gen",
         "NFD-Extended",
@@ -77,6 +79,7 @@ project "Iris"
     filter "configurations:Release"
         runtime "Release"
         optimize "Full"
+        symbols "off"
         vectorextensions "AVX2"
         isaextensions {
             "BMI", "POPCNT", "LZCNT", "F16C"

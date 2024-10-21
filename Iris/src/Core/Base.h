@@ -10,8 +10,6 @@
 
 #include "Assert.h"
 
-#define IR_SET_EVENT_FN(function) [this](auto&&... args) -> decltype(auto) { return this->function(std::forward<decltype(args)>(args)...); }
-
 // For creating enum bit fields
 #define BIT(x) 1 << x
 

@@ -141,7 +141,7 @@ namespace Iris {
 		auto size = end - stream.tellg();
 		IR_ASSERT(size != 0);
 
-		buffer.Allocate((uint32_t)size);
+		buffer.Allocate(static_cast<uint32_t>(size));
 		stream.read(reinterpret_cast<char*>(buffer.Data), buffer.Size);
 		stream.close();
 

@@ -60,13 +60,13 @@ namespace Iris::Utils {
 		char buffer[33]{};
 
 		if (bytes > GB)
-			snprintf(buffer, 32, "%.2f GB", (float)bytes / (float)GB);
+			snprintf(buffer, 32, "%.2f GB", static_cast<float>(bytes) / static_cast<float>(GB));
 		else if (bytes > MB)
-			snprintf(buffer, 32, "%.2f MB", (float)bytes / (float)MB);
+			snprintf(buffer, 32, "%.2f MB", static_cast<float>(bytes) / static_cast<float>(MB));
 		else if (bytes > KB)
-			snprintf(buffer, 32, "%.2f KB", (float)bytes / (float)KB);
+			snprintf(buffer, 32, "%.2f KB", static_cast<float>(bytes) / static_cast<float>(KB));
 		else
-			snprintf(buffer, 32, "%.2f Bytes", (float)bytes);
+			snprintf(buffer, 32, "%.2f Bytes", static_cast<float>(bytes));
 
 		return buffer;
 	}

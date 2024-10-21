@@ -58,9 +58,9 @@ namespace Iris::Utils {
         return result;
 	}
 
-    void TextureImporter::FreeImageMemory(const uint8_t* data)
+    void TextureImporter::FreeImageMemory(uint8_t* data)
     {
-        stbi_image_free((void*)data);
+        stbi_image_free(reinterpret_cast<void*>(data));
     }
 
 }

@@ -354,79 +354,7 @@ namespace Iris {
 				// it is only called once on EndScene so if the debug renderer sets it then all the lines will be rendered with that width
 
 				// Render 2D Physics Debug
-				{
-					if (!renderer->GetOptions().ShowPhysicsColliders)
-						return;
-
-					if (renderer->GetOptions().PhysicsColliderViewMode == SceneRendererOptions::PhysicsColliderViewOptions::SelectedEntity)
-					{
-						if (SelectionManager::GetSelectionCount(SelectionContext::Scene) == 0)
-							return;
-
-						for (UUID entityID : SelectionManager::GetSelections(SelectionContext::Scene))
-						{
-							Entity entity = GetEntityWithUUID(entityID);
-
-							if (entity.HasComponent<BoxCollider2DComponent>())
-							{
-								const TransformComponent& tc = GetWorldSpaceTransform(entity);
-								const BoxCollider2DComponent& boxCollider = entity.GetComponent<BoxCollider2DComponent>();
-								renderer2D->DrawRotatedRect(
-									glm::vec2{ tc.Translation.x, tc.Translation.y } + boxCollider.Offset,
-									(2.0f * boxCollider.Size)* glm::vec2(tc.Scale),
-									tc.GetRotationEuler().z,
-									Project::GetActive()->GetConfig().Viewport2DColliderOutlineColor
-								);
-							}
-
-							if (entity.HasComponent<CircleCollider2DComponent>())
-							{
-								const TransformComponent& tc = GetWorldSpaceTransform(entity);
-								const CircleCollider2DComponent& circleCollider = entity.GetComponent<CircleCollider2DComponent>();
-								renderer2D->DrawCircle(
-									glm::vec3{ tc.Translation.x, tc.Translation.y, 0.0f } + glm::vec3(circleCollider.Offset, 0.0f),
-									glm::vec3(0.0f),
-									circleCollider.Radius * tc.Scale.x,
-									Project::GetActive()->GetConfig().Viewport2DColliderOutlineColor
-								);
-							}
-						}
-					}
-					else
-					{
-						{
-							auto view = m_Registry.view<BoxCollider2DComponent>();
-							for (auto entity : view)
-							{
-								Entity e = { entity, this };
-								const TransformComponent& tc = GetWorldSpaceTransform(e);
-								BoxCollider2DComponent& boxCollider = e.GetComponent<BoxCollider2DComponent>();
-								renderer2D->DrawRotatedRect(
-									glm::vec2{ tc.Translation.x, tc.Translation.y } + boxCollider.Offset,
-									(2.0f * boxCollider.Size) * glm::vec2(tc.Scale),
-									tc.GetRotationEuler().z,
-									Project::GetActive()->GetConfig().Viewport2DColliderOutlineColor
-								);
-							}
-						}
-
-						{
-							auto view = m_Registry.view<CircleCollider2DComponent>();
-							for (auto entity : view)
-							{
-								Entity e = { entity, this };
-								const TransformComponent& tc = GetWorldSpaceTransform(e);
-								CircleCollider2DComponent& circleCollider = e.GetComponent<CircleCollider2DComponent>();
-								renderer2D->DrawCircle(
-									glm::vec3{ tc.Translation.x, tc.Translation.y, 0.0f } + glm::vec3(circleCollider.Offset, 0.0f),
-									glm::vec3(0.0f),
-									circleCollider.Radius * tc.Scale.x,
-									{ 0.25f, 0.6f, 1.0f, 1.0f }
-								);
-							}
-						}
-					}
-				}
+				Render2DPhysicsDebug(renderer, renderer2D);
 
 				renderer2D->EndScene();
 				// Restore the line width
@@ -633,79 +561,7 @@ namespace Iris {
 				// it is only called once on EndScene so if the debug renderer sets it then all the lines will be rendered with that width
 			
 				// Render 2D Physics Debug
-				{
-					if (!renderer->GetOptions().ShowPhysicsColliders)
-						return;
-
-					if (renderer->GetOptions().PhysicsColliderViewMode == SceneRendererOptions::PhysicsColliderViewOptions::SelectedEntity)
-					{
-						if (SelectionManager::GetSelectionCount(SelectionContext::Scene) == 0)
-							return;
-
-						for (UUID entityID : SelectionManager::GetSelections(SelectionContext::Scene))
-						{
-							Entity entity = GetEntityWithUUID(entityID);
-
-							if (entity.HasComponent<BoxCollider2DComponent>())
-							{
-								const TransformComponent& tc = GetWorldSpaceTransform(entity);
-								const BoxCollider2DComponent& boxCollider = entity.GetComponent<BoxCollider2DComponent>();
-								renderer2D->DrawRotatedRect(
-									glm::vec2{ tc.Translation.x, tc.Translation.y } + boxCollider.Offset,
-									(2.0f * boxCollider.Size) * glm::vec2(tc.Scale),
-									tc.GetRotationEuler().z,
-									Project::GetActive()->GetConfig().Viewport2DColliderOutlineColor
-								);
-							}
-
-							if (entity.HasComponent<CircleCollider2DComponent>())
-							{
-								const TransformComponent& tc = GetWorldSpaceTransform(entity);
-								const CircleCollider2DComponent& circleCollider = entity.GetComponent<CircleCollider2DComponent>();
-								renderer2D->DrawCircle(
-									glm::vec3{ tc.Translation.x, tc.Translation.y, 0.0f } + glm::vec3(circleCollider.Offset, 0.0f),
-									glm::vec3(0.0f),
-									circleCollider.Radius * tc.Scale.x,
-									Project::GetActive()->GetConfig().Viewport2DColliderOutlineColor
-								);
-							}
-						}
-					}
-					else
-					{
-						{
-							auto view = m_Registry.view<BoxCollider2DComponent>();
-							for (auto entity : view)
-							{
-								Entity e = { entity, this };
-								const TransformComponent& tc = GetWorldSpaceTransform(e);
-								BoxCollider2DComponent& boxCollider = e.GetComponent<BoxCollider2DComponent>();
-								renderer2D->DrawRotatedRect(
-									glm::vec2{ tc.Translation.x, tc.Translation.y } + boxCollider.Offset,
-									(2.0f * boxCollider.Size) * glm::vec2(tc.Scale),
-									tc.GetRotationEuler().z,
-									Project::GetActive()->GetConfig().Viewport2DColliderOutlineColor
-								);
-							}
-						}
-
-						{
-							auto view = m_Registry.view<CircleCollider2DComponent>();
-							for (auto entity : view)
-							{
-								Entity e = { entity, this };
-								const TransformComponent& tc = GetWorldSpaceTransform(e);
-								CircleCollider2DComponent& circleCollider = e.GetComponent<CircleCollider2DComponent>();
-								renderer2D->DrawCircle(
-									glm::vec3{ tc.Translation.x, tc.Translation.y, 0.0f } + glm::vec3(circleCollider.Offset, 0.0f),
-									glm::vec3(0.0f),
-									circleCollider.Radius * tc.Scale.x,
-									{ 0.25f, 0.6f, 1.0f, 1.0f }
-								);
-							}
-						}
-					}
-				}
+				Render2DPhysicsDebug(renderer, renderer2D);
 
 				renderer2D->EndScene();
 				// Restore the line width
@@ -1202,6 +1058,81 @@ namespace Iris {
 
 		for (uint32_t child : node.Children)
 			BuildMeshEntityHierarchy(nodeEntity, staticMesh, nodes[child]);
+	}
+
+	void Scene::Render2DPhysicsDebug(Ref<SceneRenderer> renderer, Ref<Renderer2D> renderer2D)
+	{
+		if (!renderer->GetOptions().ShowPhysicsColliders)
+			return;
+
+		if (renderer->GetOptions().PhysicsColliderViewMode == SceneRendererOptions::PhysicsColliderViewOptions::SelectedEntity)
+		{
+			if (SelectionManager::GetSelectionCount(SelectionContext::Scene) == 0)
+				return;
+
+			for (UUID entityID : SelectionManager::GetSelections(SelectionContext::Scene))
+			{
+				Entity entity = GetEntityWithUUID(entityID);
+
+				if (entity.HasComponent<BoxCollider2DComponent>())
+				{
+					const TransformComponent& tc = GetWorldSpaceTransform(entity);
+					const BoxCollider2DComponent& boxCollider = entity.GetComponent<BoxCollider2DComponent>();
+					renderer2D->DrawRotatedRect(
+						glm::vec2{ tc.Translation.x, tc.Translation.y } + boxCollider.Offset,
+						(2.0f * boxCollider.Size) * glm::vec2(tc.Scale),
+						tc.GetRotationEuler().z,
+						Project::GetActive()->GetConfig().Viewport2DColliderOutlineColor
+					);
+				}
+
+				if (entity.HasComponent<CircleCollider2DComponent>())
+				{
+					const TransformComponent& tc = GetWorldSpaceTransform(entity);
+					const CircleCollider2DComponent& circleCollider = entity.GetComponent<CircleCollider2DComponent>();
+					renderer2D->DrawCircle(
+						glm::vec3{ tc.Translation.x, tc.Translation.y, 0.0f } + glm::vec3(circleCollider.Offset, 0.0f),
+						glm::vec3(0.0f),
+						circleCollider.Radius * tc.Scale.x,
+						Project::GetActive()->GetConfig().Viewport2DColliderOutlineColor
+					);
+				}
+			}
+		}
+		else
+		{
+			{
+				auto view = m_Registry.view<BoxCollider2DComponent>();
+				for (auto entity : view)
+				{
+					Entity e = { entity, this };
+					const TransformComponent& tc = GetWorldSpaceTransform(e);
+					BoxCollider2DComponent& boxCollider = e.GetComponent<BoxCollider2DComponent>();
+					renderer2D->DrawRotatedRect(
+						glm::vec2{ tc.Translation.x, tc.Translation.y } + boxCollider.Offset,
+						(2.0f * boxCollider.Size) * glm::vec2(tc.Scale),
+						tc.GetRotationEuler().z,
+						Project::GetActive()->GetConfig().Viewport2DColliderOutlineColor
+					);
+				}
+			}
+
+			{
+				auto view = m_Registry.view<CircleCollider2DComponent>();
+				for (auto entity : view)
+				{
+					Entity e = { entity, this };
+					const TransformComponent& tc = GetWorldSpaceTransform(e);
+					CircleCollider2DComponent& circleCollider = e.GetComponent<CircleCollider2DComponent>();
+					renderer2D->DrawCircle(
+						glm::vec3{ tc.Translation.x, tc.Translation.y, 0.0f } + glm::vec3(circleCollider.Offset, 0.0f),
+						glm::vec3(0.0f),
+						circleCollider.Radius * tc.Scale.x,
+						{ 0.25f, 0.6f, 1.0f, 1.0f }
+					);
+				}
+			}
+		}
 	}
 
 }
