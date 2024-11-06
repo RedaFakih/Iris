@@ -1,9 +1,6 @@
 #include "IrisPCH.h"
 #include "PanelsManager.h"
 
-#include "Renderer/StorageBufferSet.h"
-#include "Renderer/Texture.h"
-#include "Renderer/UniformBufferSet.h"
 #include "Scene/Scene.h"
 #include "Utils/FileSystem.h"
 

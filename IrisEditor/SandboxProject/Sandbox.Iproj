@@ -7,9 +7,16 @@ Project:
   StartScene: Scenes/PhysicsTestScene.Iscene
   AutoSave: false
   AutoSaveInterval: 300
+  SceneSaveOnEditorClose: false
   ViewportSelectionOutlineColor: [0.140000001, 0.800000012, 0.519999981, 1]
   Viewport2DColliderOutlineColor: [0.25, 0.600000024, 1, 1]
   Viewport3DColliderOutlineColor: [0.200000003, 1, 0.200000003, 1]
+  Physics:
+    FixedTimestep: 0.0166666675
+    Gravity: [0, -9.81000042, 0]
+    PositionSolverIterations: 2
+    VelocitySolverIterations: 8
+    MaxBodies: 5700
   Log:
     AssetManager:
       Enabled: true

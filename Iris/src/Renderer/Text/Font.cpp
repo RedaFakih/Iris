@@ -3,8 +3,6 @@
 
 #include "AssetManager/AssetManager.h"
 #include "MSDFData.h"
-#include "Renderer/StorageBufferSet.h"
-#include "Renderer/UniformBufferSet.h"
 #include "Utils/FileSystem.h"
 
 namespace Iris {

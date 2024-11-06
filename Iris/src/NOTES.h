@@ -7,16 +7,32 @@
  * 
  * - Always Checkout https://gpuopen.com/learn/rdna-performance-guide/ and https://developer.nvidia.com/blog/vulkan-dos-donts/ for any extra optimisations we could find from the vulkan side
  *
+ * TODO: Renderer Re-write
+ * - - Re-write the renderer using NVRHI which will help make it alot more stable and portable
+ * 
  * TODO: Jolt Physics
- * - Was working on PhysicsSystem:
- * - - Keep extending it with some heplper functions now
+ * - Go through all todos in physics system since some of them need to be handled
+ * - See why there is this rotation bug
+ * - Project Serializer maybe also serialize 2D physics?
+ * - Project Panel Physics Settings
+ * - Almost done, now we need to add stuff in the SceneHierarchyPanel so that we can actually create the shapes in UI and test
+ * - Render 3D Physics Debug
+ * - Started work on PhysicsScene
+ * - - Need to add alot more methods and start implementing, Bulk storage stuff is not really needed since it is not gonna be used for now.
+ * - Need to work on PhysicsBody that will be where the jolt physics body and collider shape created
+ * - - - (NOTE: For the PhysicsShape, we do not need to have an array for each ShapeType since a body should be linked to only one collider shape but apparently C# needed to have the api that Hazel has)
+ * - - - Finish all the TODOs in the PhysicsBody
+ * - PhysicsSystem has some todos for the CookingFactory and the MeshCache
+ * - JoltContactListener: Two methods need the scripting engine to be implemented
+ * - In Jolt: Collider shapes are joined in the same entity with the rigid body, so if we add a shape collider component to an entity, in code we have to add a
+ *			  default rigid body as well because thats how it works in Jolt unlike Box2D where the rigid body is separate from the collider shape
  * 
  * TODO: DynamicRendering branch:
+ * - When we have the ConsolePanel, we should cleanup the logging settings in the project panel and make it comply with only stuff that logs to the console panel
  * - Finish the ContentBrowserPanel
  * - Add Thumbnails...?
  * - Add Point Lights
  * - Add Spot Lights
- * - Handle Scene::OnRuntimeStop?
  * - Duplicated Meshes all reference the same material and have the same material table
  * - Add the Depth Of Field Picker
  * - Need to clean up image layouts for the depth of field

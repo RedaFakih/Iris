@@ -1,12 +1,6 @@
 #include "IrisPCH.h"
 #include "Physics.h"
 
-#include <Jolt/Jolt.h>
-#include <Jolt/Core/Factory.h>
-#include <Jolt/RegisterTypes.h>
-#include <Jolt/Core/TempAllocator.h>
-#include <Jolt/Core/JobSystemThreadPool.h>
-
 namespace Iris {
 
 	struct PhysicsSystemData
@@ -65,7 +59,8 @@ namespace Iris {
 
 		// We need a temp allocator for temporary allocations during the physics update. We're
 		// pre-allocating 10 MB to avoid having to do allocations during the physics update.
-		s_Data->TemporariesAllocator = new JPH::TempAllocatorImpl(10 * 1024 * 1024);
+		// TODO: What is this 300 here we should change it or lower the numbers that we create the JPH::PhysicsSystem with
+		s_Data->TemporariesAllocator = new JPH::TempAllocatorImpl(300 * 1024 * 1024);
 
 		// We need a job system that will execute physics jobs on multiple threads.
 		s_Data->JobSystemThreadPool = CreateScope<JPH::JobSystemThreadPool>(2048, 8, 6);
@@ -85,6 +80,21 @@ namespace Iris {
 		s_Data = nullptr;
 
 		delete JPH::Factory::sInstance;
+	}
+
+	JPH::TempAllocator* PhysicsSystem::GetTemporariesAllocator()
+	{
+		return s_Data->TemporariesAllocator;
+	}
+
+	JPH::JobSystemThreadPool* PhysicsSystem::GetJobSystemThreadPool()
+	{
+		return s_Data->JobSystemThreadPool.get();
+	}
+
+	const std::string_view PhysicsSystem::GetLastErrorMessage()
+	{
+		return std::string_view(s_Data->LastErrorMessage);
 	}
 
 }

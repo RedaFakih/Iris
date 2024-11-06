@@ -20,6 +20,7 @@ project "IrisRuntime"
         "%{IncludeDir.ImGui}",
         "%{IncludeDir.spdlog}",
         "%{IncludeDir.Box2D}",
+        "%{IncludeDir.JoltPhysics}",
         "%{IncludeDir.glm}",
         "%{IncludeDir.choc}",
         "%{IncludeDir.EnTT}",
@@ -41,15 +42,32 @@ project "IrisRuntime"
         systemversion "latest"
 
     filter "configurations:Debug"
-        defines "IR_CONFIG_DEBUG"
         runtime "Debug"
         symbols "on"
 
+        defines
+        {
+            "IR_CONFIG_DEBUG",
+
+            "JPH_DEBUG_RENDERER",
+            "JPH_FLOATING_POINT_EXCEPTIONS_ENABLED",
+            "JPH_EXTERNAL_PROFILE"
+        }
+
     filter "configurations:Release"
-        defines "IR_CONFIG_RELEASE"
         runtime "Release"
+        -- symbols "off"
         optimize "Speed"
         inlining "Auto"
+
+        defines
+        {
+            "IR_CONFIG_RELEASE",
+
+            "JPH_DEBUG_RENDERER",
+            "JPH_FLOATING_POINT_EXCEPTIONS_ENABLED",
+            "JPH_EXTERNAL_PROFILE"
+        }
 
     -- TODO: For now these are here but when we have asset packing they should be removed!
     filter { "system:windows", "configurations:Debug" }

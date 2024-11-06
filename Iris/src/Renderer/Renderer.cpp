@@ -13,9 +13,6 @@
 #include "Scene/SceneEnvironment.h"
 #include "Shaders/Compiler/ShaderCompiler.h"
 #include "Shaders/Shader.h"
-#include "StorageBufferSet.h"
-#include "Texture.h"
-#include "UniformBufferSet.h"
 #include "VertexBuffer.h"
 
 #include <glm/glm.hpp>

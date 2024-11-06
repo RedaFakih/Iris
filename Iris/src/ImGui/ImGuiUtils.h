@@ -260,6 +260,10 @@ namespace Iris::UI {
 	void BeginPropertyGrid(uint32_t columns = 2, float width = 0.0f, bool setWidth = true);
 	void EndPropertyGrid();
 
+	void BeginCheckBoxGroup(const char* label, int numOfExpectedCheckBoxes);
+	bool PropertyCheckBoxGroup(const char* label, bool& value);
+	void EndCheckBoxGroup();
+
 	bool TreeNodeWithIcon(const std::string& label, const Ref<Texture2D>& icon, const ImVec2& size, bool openByDefault = true);
 
 	void Separator(ImVec2 size, ImVec4 color);
@@ -331,6 +335,8 @@ namespace Iris::UI {
 	}
 
 	bool PropertyDropdown(const char* label, const char** options, int optionCount, int* selected, const char* helpText = "");
+
+	bool PropertyDropdown(const char* label, const std::vector<std::string>& options, int optionCount, int* selected, const char* helpText = "");
 
 	bool PropertyDropdownNoLabel(const char* strID, const char** options, int optionCount, int* selected);
 

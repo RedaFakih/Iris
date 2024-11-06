@@ -20,6 +20,8 @@ namespace Iris {
 		bool EnableAutoSave = false;
 		uint32_t AutoSaveIntervalSeconds = 300; // 5 minutes
 
+		bool EnableSceneSaveOnEditorClose = false;
+
 		glm::vec4 ViewportSelectionOutlineColor = { 0.14f, 0.8f, 0.52f, 1.0f };
 		glm::vec4 Viewport2DColliderOutlineColor = { 0.25f, 0.6f, 1.0f, 1.0f };
 		glm::vec4 Viewport3DColliderOutlineColor = { 0.2f, 1.0f, 0.2f, 1.0f };

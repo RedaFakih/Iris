@@ -3,9 +3,6 @@
 
 #include "Core/Application.h"
 #include "Core/Input/Input.h"
-#include "Renderer/StorageBufferSet.h"
-#include "Renderer/Texture.h"
-#include "Renderer/UniformBufferSet.h"
 
 #include <imgui/imgui_impl_vulkan.h>
 
@@ -113,6 +110,10 @@ namespace Iris::UI {
 	static uint32_t s_Counter = 0;
 	static char s_IDBuffer[16 + 2 + 1] = "##";
 	static char s_LabelIDBuffer[1024 + 1];
+
+	// CheckBox Group
+	static int s_CheckboxGroupCount = 0;
+	static float s_AmountOfSpacingBetweenCheckBoxesInGroup = 0.0f;
 
 	const char* GenerateID()
 	{
@@ -509,6 +510,46 @@ namespace Iris::UI {
 		ImGui::PopStyleVar(2);
 		ShiftCursorY(7.0f);
 		PopID();
+	}
+
+	void BeginCheckBoxGroup(const char* label, int numOfExpectedCheckBoxes)
+	{
+		ShiftCursor(10.0f, 9.0f);
+		ImGui::Text(label);
+		ImGui::NextColumn();
+		ImGui::PushItemWidth(-1);
+
+		constexpr float edgeOffset = 10.0f;
+		constexpr float buttonAndLabelSize = 42.0f;
+		s_AmountOfSpacingBetweenCheckBoxesInGroup = (ImGui::GetColumnWidth() - numOfExpectedCheckBoxes * buttonAndLabelSize - edgeOffset) / static_cast<float>(numOfExpectedCheckBoxes);
+	}
+
+	bool PropertyCheckBoxGroup(const char* label, bool& value)
+	{
+		bool modified = false;
+
+		if (++s_CheckboxGroupCount > 1)
+		{
+			ImGui::SameLine();
+			ShiftCursor(s_AmountOfSpacingBetweenCheckBoxesInGroup, -4.0f);
+		}
+		else
+		{
+			ShiftCursor(10.0f, 9.0f);
+		}
+
+		ImGui::Text(label);
+
+		ImGui::SameLine();
+		ShiftCursorY(-4.0f);
+		return UI::Checkbox(GenerateID(), &value);
+	}
+
+	void EndCheckBoxGroup()
+	{
+		ImGui::PopItemWidth();
+		ImGui::NextColumn();
+		s_CheckboxGroupCount = 0;
 	}
 
 	bool TreeNodeWithIcon(const std::string& label, const Ref<Texture2D>& icon, const ImVec2& size, bool openByDefault)
@@ -946,6 +987,56 @@ namespace Iris::UI {
 				if (ImGui::Selectable(options[i], isSelected))
 				{
 					current = options[i];
+					*selected = i;
+					modified = true;
+				}
+
+				if (isSelected)
+					ImGui::SetItemDefaultFocus();
+			}
+
+			ImGui::EndCombo();
+		}
+		ImGui::PopStyleVar();
+
+		if (!IsItemDisabled())
+			DrawItemActivityOutline();
+
+		ImGui::PopItemWidth();
+		ImGui::NextColumn();
+		UnderLine();
+
+		return modified;
+	}
+
+	bool PropertyDropdown(const char* label, const std::vector<std::string>& options, int optionCount, int* selected, const char* helpText)
+	{
+		bool modified = false;
+		const char* current = options[*selected].c_str();
+
+		ShiftCursor(10.0f, 9.0f);
+		ImGui::Text(label);
+
+		if (std::strlen(helpText) != 0)
+		{
+			ImGui::SameLine();
+			ShowHelpMarker(helpText);
+		}
+
+		ImGui::NextColumn();
+		ShiftCursorY(4.0f);
+
+		ImGui::PushItemWidth(-1);
+		const std::string id = fmt::format("##{0}", label);
+		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 5.0f, 5.0f });
+		if (ImGui::BeginCombo(id.c_str(), current))
+		{
+			for (int i = 0; i < optionCount; i++)
+			{
+				bool isSelected = (current == options[i]);
+				if (ImGui::Selectable(options[i].c_str(), isSelected))
+				{
+					current = options[i].c_str();
 					*selected = i;
 					modified = true;
 				}

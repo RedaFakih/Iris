@@ -6,7 +6,6 @@
 #include "Renderer/Core/RenderCommandBuffer.h"
 #include "RenderPass.h"
 #include "Text/Font.h"
-#include "UniformBufferSet.h"
 #include "VertexBuffer.h"
 
 #include <glm/glm.hpp>

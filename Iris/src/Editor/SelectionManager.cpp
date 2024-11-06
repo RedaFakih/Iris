@@ -1,10 +1,6 @@
 #include "IrisPCH.h"
 #include "SelectionManager.h"
 
-#include "Renderer/StorageBufferSet.h"
-#include "Renderer/Texture.h"
-#include "Renderer/UniformBufferSet.h"
-
 namespace Iris {
 
 	void SelectionManager::Select(SelectionContext context, UUID selectionID)

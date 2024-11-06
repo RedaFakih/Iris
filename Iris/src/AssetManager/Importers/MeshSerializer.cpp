@@ -4,9 +4,6 @@
 #include "AssetManager/AssetManager.h"
 #include "MeshImporter.h"
 #include "Project/Project.h"
-#include "Renderer/StorageBufferSet.h"
-#include "Renderer/Texture.h"
-#include "Renderer/UniformBufferSet.h"
 
 #include <yaml-cpp/yaml.h>
 

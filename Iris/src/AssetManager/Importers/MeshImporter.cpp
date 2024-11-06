@@ -6,9 +6,6 @@
 #include "Renderer/Mesh/Mesh.h"
 #include "Renderer/Renderer.h"
 #include "Renderer/Shaders/Shader.h"
-#include "Renderer/StorageBufferSet.h"
-#include "Renderer/Texture.h"
-#include "Renderer/UniformBufferSet.h"
 #include "Utils/AssimpLogStream.h"
 #include "Utils/TextureImporter.h"
 

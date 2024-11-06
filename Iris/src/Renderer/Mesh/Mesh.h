@@ -50,8 +50,6 @@ namespace Iris {
 			std::string NodeName;
 			std::string MeshName;
 
-			// bool IsRigged = false; // For animation...
-
 			// TODO: Add serialize and deserialize methods for asset serialization later...
 		};
 

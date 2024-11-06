@@ -3,10 +3,7 @@
 
 #include "AssetManager/AssetManager.h"
 #include "Project/Project.h"
-#include "Renderer/StorageBufferSet.h"
 #include "Renderer/Text/Font.h"
-#include "Renderer/Texture.h"
-#include "Renderer/UniformBufferSet.h"
 #include "Utils/YAMLSerializationHelpers.h"
 
 #include <yaml-cpp/yaml.h>
@@ -180,12 +177,113 @@ namespace Iris {
 			out << YAML::EndMap;
 		}
 
+		if (entity.HasComponent<RigidBodyComponent>())
+		{
+			out << YAML::Key << "RigidBodyComponent";
+			out << YAML::BeginMap;
+
+			const RigidBodyComponent& rigidbodyComponent = entity.GetComponent<RigidBodyComponent>();
+			out << YAML::Key << "BodyType" << YAML::Value << static_cast<int>(rigidbodyComponent.BodyType);
+			out << YAML::Key << "LayerID" << YAML::Value << rigidbodyComponent.LayerID;
+			out << YAML::Key << "EnableDynamicTypeChange" << YAML::Value << rigidbodyComponent.EnableDynamicTypeChange;
+			out << YAML::Key << "Mass" << YAML::Value << rigidbodyComponent.Mass;
+			out << YAML::Key << "LinearDrag" << YAML::Value << rigidbodyComponent.LinearDrag;
+			out << YAML::Key << "AngularDrag" << YAML::Value << rigidbodyComponent.AngularDrag;
+			out << YAML::Key << "DisableGravity" << YAML::Value << rigidbodyComponent.DisableGravity;
+			out << YAML::Key << "IsTrigger" << YAML::Value << rigidbodyComponent.IsTrigger;
+			out << YAML::Key << "CollisionDetection" << YAML::Value << static_cast<int>(rigidbodyComponent.CollisionDetection);
+			out << YAML::Key << "InitialLinearVelocity" << YAML::Value << rigidbodyComponent.InitialLinearVelocity;
+			out << YAML::Key << "MaxLinearVelocity" << YAML::Value << rigidbodyComponent.MaxLinearVelocity;
+			out << YAML::Key << "InitialAngularVelocity" << YAML::Value << rigidbodyComponent.InitialAngularVelocity;
+			out << YAML::Key << "MaxAngularVelocity" << YAML::Value << rigidbodyComponent.MaxAngularVelocity;
+			out << YAML::Key << "LockedAxes" << YAML::Value << static_cast<uint32_t>(rigidbodyComponent.LockedAxes);
+
+			out << YAML::EndMap;
+		}
+
+		if (entity.HasComponent<BoxColliderComponent>())
+		{
+			out << YAML::Key << "BoxColliderComponent";
+			out << YAML::BeginMap;
+
+			const BoxColliderComponent& boxColliderComponent = entity.GetComponent<BoxColliderComponent>();
+			out << YAML::Key << "HalfSize" << YAML::Value << boxColliderComponent.HalfSize;
+			out << YAML::Key << "Offset" << YAML::Value << boxColliderComponent.Offset;
+			out << YAML::Key << "Friction" << YAML::Value << boxColliderComponent.Material.Friction;
+			out << YAML::Key << "Restitution" << YAML::Value << boxColliderComponent.Material.Restitution;
+
+			out << YAML::EndMap;
+		}
+
+		if (entity.HasComponent<SphereColliderComponent>())
+		{
+			out << YAML::Key << "SphereColliderComponent";
+			out << YAML::BeginMap;
+
+			const SphereColliderComponent& sphereColliderComponent = entity.GetComponent<SphereColliderComponent>();
+			out << YAML::Key << "Offset" << YAML::Value << sphereColliderComponent.Offset;
+			out << YAML::Key << "Radius" << YAML::Value << sphereColliderComponent.Radius;
+			out << YAML::Key << "Friction" << YAML::Value << sphereColliderComponent.Material.Friction;
+			out << YAML::Key << "Restitution" << YAML::Value << sphereColliderComponent.Material.Restitution;
+
+			out << YAML::EndMap;
+		}
+
+		if (entity.HasComponent<CylinderColliderComponent>())
+		{
+			out << YAML::Key << "CylinderColliderComponent";
+			out << YAML::BeginMap;
+
+			const CylinderColliderComponent& cylinderColliderComponent = entity.GetComponent<CylinderColliderComponent>();
+			out << YAML::Key << "Offset" << YAML::Value << cylinderColliderComponent.Offset;
+			out << YAML::Key << "Radius" << YAML::Value << cylinderColliderComponent.Radius;
+			out << YAML::Key << "HalfHeight" << YAML::Value << cylinderColliderComponent.HalfHeight;
+			out << YAML::Key << "Friction" << YAML::Value << cylinderColliderComponent.Material.Friction;
+			out << YAML::Key << "Restitution" << YAML::Value << cylinderColliderComponent.Material.Restitution;
+
+			out << YAML::EndMap;
+		}
+
+		if (entity.HasComponent<CapsuleColliderComponent>())
+		{
+			out << YAML::Key << "CapsuleColliderComponent";
+			out << YAML::BeginMap;
+
+			const CapsuleColliderComponent& capsuleColliderComponent = entity.GetComponent<CapsuleColliderComponent>();
+			out << YAML::Key << "Offset" << YAML::Value << capsuleColliderComponent.Offset;
+			out << YAML::Key << "Radius" << YAML::Value << capsuleColliderComponent.Radius;
+			out << YAML::Key << "HalfHeight" << YAML::Value << capsuleColliderComponent.HalfHeight;
+			out << YAML::Key << "Friction" << YAML::Value << capsuleColliderComponent.Material.Friction;
+			out << YAML::Key << "Restitution" << YAML::Value << capsuleColliderComponent.Material.Restitution;
+
+			out << YAML::EndMap;
+		}
+
+		if (entity.HasComponent<CompoundColliderComponent>())
+		{
+			out << YAML::Key << "CompoundColliderComponent";
+			out << YAML::BeginMap;
+
+			const CompoundColliderComponent& compoundColliderComponent = entity.GetComponent<CompoundColliderComponent>();
+			out << YAML::Key << "IsImmutable" << YAML::Value << compoundColliderComponent.IsImmutable;
+			out << YAML::Key << "IncludeStaticChildColliders" << YAML::Value << compoundColliderComponent.IncludeStaticChildColliders;
+
+			out << YAML::Key << "CompoundedColliderEntities" << YAML::Value << YAML::BeginSeq;
+
+			for (UUID uuid : compoundColliderComponent.CompoundedColliderEntities)
+				out << static_cast<uint64_t>(uuid);
+
+			out << YAML::EndSeq;
+
+			out << YAML::EndMap;
+		}
+
 		if (entity.HasComponent<RigidBody2DComponent>())
 		{
 			out << YAML::Key << "RigidBody2DComponent";
 			out << YAML::BeginMap;
 
-			const auto& rigidbody2DComponent = entity.GetComponent<RigidBody2DComponent>();
+			const RigidBody2DComponent& rigidbody2DComponent = entity.GetComponent<RigidBody2DComponent>();
 			out << YAML::Key << "BodyType" << YAML::Value << static_cast<int>(rigidbody2DComponent.BodyType);
 			out << YAML::Key << "Mass" << YAML::Value << rigidbody2DComponent.Mass;
 			out << YAML::Key << "LinearDrag" << YAML::Value << rigidbody2DComponent.LinearDrag;
@@ -201,12 +299,12 @@ namespace Iris {
 			out << YAML::Key << "BoxCollider2DComponent";
 			out << YAML::BeginMap;
 
-			auto& boxCollider2DComponent = entity.GetComponent<BoxCollider2DComponent>();
-			out << YAML::Key << "Size" << YAML::Value << boxCollider2DComponent.Size;
+			const BoxCollider2DComponent& boxCollider2DComponent = entity.GetComponent<BoxCollider2DComponent>();
+			out << YAML::Key << "HalfSize" << YAML::Value << boxCollider2DComponent.HalfSize;
 			out << YAML::Key << "Offset" << YAML::Value << boxCollider2DComponent.Offset;
 			out << YAML::Key << "Density" << YAML::Value << boxCollider2DComponent.Density;
-			out << YAML::Key << "Friction" << YAML::Value << boxCollider2DComponent.Friction;
-			out << YAML::Key << "Restitution" << YAML::Value << boxCollider2DComponent.Restitution;
+			out << YAML::Key << "Friction" << YAML::Value << boxCollider2DComponent.Material.Friction;
+			out << YAML::Key << "Restitution" << YAML::Value << boxCollider2DComponent.Material.Restitution;
 			out << YAML::Key << "RestitutionThreshold" << YAML::Value << boxCollider2DComponent.RestitutionThreshold;
 
 			out << YAML::EndMap;
@@ -217,12 +315,12 @@ namespace Iris {
 			out << YAML::Key << "CircleCollider2DComponent";
 			out << YAML::BeginMap;
 
-			CircleCollider2DComponent& circleCollider2DComponent = entity.GetComponent<CircleCollider2DComponent>();
+			const CircleCollider2DComponent& circleCollider2DComponent = entity.GetComponent<CircleCollider2DComponent>();
 			out << YAML::Key << "Offset" << YAML::Value << circleCollider2DComponent.Offset;
 			out << YAML::Key << "Radius" << YAML::Value << circleCollider2DComponent.Radius;
 			out << YAML::Key << "Density" << YAML::Value << circleCollider2DComponent.Density;
-			out << YAML::Key << "Friction" << YAML::Value << circleCollider2DComponent.Friction;
-			out << YAML::Key << "Restitution" << YAML::Value << circleCollider2DComponent.Restitution;
+			out << YAML::Key << "Friction" << YAML::Value << circleCollider2DComponent.Material.Friction;
+			out << YAML::Key << "Restitution" << YAML::Value << circleCollider2DComponent.Material.Restitution;
 			out << YAML::Key << "RestitutionThreshold" << YAML::Value << circleCollider2DComponent.RestitutionThreshold;
 
 			out << YAML::EndMap;
@@ -391,11 +489,89 @@ namespace Iris {
 				component.ShadowOpacity = dirLightComp["ShadowOpacity"].as<float>(1.0f);
 			}
 
+			YAML::Node rigidBodyComponent = entity["RigidBodyComponent"];
+			if (rigidBodyComponent)
+			{
+				RigidBodyComponent& component = deserializedEntity.AddComponent<RigidBodyComponent>();
+				component.BodyType = static_cast<PhysicsBodyType>(rigidBodyComponent["BodyType"].as<int>(0));
+				component.LayerID = rigidBodyComponent["LayerID"].as<uint32_t>(0);
+				component.EnableDynamicTypeChange = rigidBodyComponent["EnableDynamicTypeChange"].as<bool>(false);
+				component.Mass = rigidBodyComponent["Mass"].as<float>(1.0f);
+				component.LinearDrag = rigidBodyComponent["LinearDrag"].as<float>(0.01f);
+				component.AngularDrag = rigidBodyComponent["AngularDrag"].as<float>(0.05f);
+				component.DisableGravity = rigidBodyComponent["DisableGravity"].as<bool>(false);
+				component.IsTrigger = rigidBodyComponent["IsTrigger"].as<bool>(false);
+				component.CollisionDetection = static_cast<PhysicsCollisionDetectionType>(rigidBodyComponent["CollisionDetection"].as<int>(0));
+				component.InitialLinearVelocity = rigidBodyComponent["InitialLinearVelocity"].as<glm::vec3>(glm::vec3{ 0.0f, 0.0f, 0.0f });
+				component.MaxLinearVelocity = rigidBodyComponent["MaxLinearVelocity"].as<float>(500.0f);
+				component.InitialAngularVelocity = rigidBodyComponent["InitialAngularVelocity"].as<glm::vec3>(glm::vec3{ 0.0f, 0.0f, 0.0f });
+				component.MaxAngularVelocity = rigidBodyComponent["MaxAngularVelocity"].as<float>(50.0f);
+				component.LockedAxes = static_cast<PhysicsActorAxis>(rigidBodyComponent["LockedAxes"].as<uint32_t>(0));
+			}
+
+			YAML::Node boxColliderComponent = entity["BoxColliderComponent"];
+			if (boxColliderComponent)
+			{
+				BoxColliderComponent& component = deserializedEntity.AddComponent<BoxColliderComponent>();
+				component.HalfSize = boxColliderComponent["HalfSize"].as<glm::vec3>(glm::vec3{ 0.5f, 0.5f, 0.5f });
+				component.Offset = boxColliderComponent["Offset"].as<glm::vec3>(glm::vec3{ 0.0f, 0.0f, 0.0f });
+				component.Material.Friction = boxColliderComponent["Friction"].as<float>(0.5f);
+				component.Material.Restitution = boxColliderComponent["Restitution"].as<float>(0.0f);
+			}
+
+			YAML::Node sphereColliderComponent = entity["SphereColliderComponent"];
+			if (sphereColliderComponent)
+			{
+				SphereColliderComponent& component = deserializedEntity.AddComponent<SphereColliderComponent>();
+				component.Offset = sphereColliderComponent["Offset"].as<glm::vec3>(glm::vec3{ 0.0f, 0.0f, 0.0f });
+				component.Radius = sphereColliderComponent["Radius"].as<float>(0.5f);
+				component.Material.Friction = sphereColliderComponent["Friction"].as<float>(0.5f);
+				component.Material.Restitution = sphereColliderComponent["Restitution"].as<float>(0.0f);
+			}
+
+			YAML::Node cylinderColliderComponent = entity["CylinderColliderComponent"];
+			if (cylinderColliderComponent)
+			{
+				CylinderColliderComponent& component = deserializedEntity.AddComponent<CylinderColliderComponent>();
+				component.Offset = cylinderColliderComponent["Offset"].as<glm::vec3>(glm::vec3{ 0.0f, 0.0f, 0.0f });
+				component.Radius = cylinderColliderComponent["Radius"].as<float>(0.5f);
+				component.HalfHeight = cylinderColliderComponent["HalfHeight"].as<float>(0.5f);
+				component.Material.Friction = cylinderColliderComponent["Friction"].as<float>(0.5f);
+				component.Material.Restitution = cylinderColliderComponent["Restitution"].as<float>(0.0f);
+			}
+
+			YAML::Node capsuleColliderComponent = entity["CapsuleColliderComponent"];
+			if (capsuleColliderComponent)
+			{
+				CapsuleColliderComponent& component = deserializedEntity.AddComponent<CapsuleColliderComponent>();
+				component.Offset = capsuleColliderComponent["Offset"].as<glm::vec3>(glm::vec3{ 0.0f, 0.0f, 0.0f });
+				component.Radius = capsuleColliderComponent["Radius"].as<float>(0.5f);
+				component.HalfHeight = capsuleColliderComponent["HalfHeight"].as<float>(0.5f);
+				component.Material.Friction = capsuleColliderComponent["Friction"].as<float>(0.5f);
+				component.Material.Restitution = capsuleColliderComponent["Restitution"].as<float>(0.0f);
+			}
+
+			YAML::Node compoundColliderComponent = entity["CompoundColliderComponent"];
+			if (compoundColliderComponent)
+			{
+				CompoundColliderComponent& component = deserializedEntity.AddComponent<CompoundColliderComponent>();
+				component.IsImmutable = compoundColliderComponent["IsImmutable"].as<bool>(true);
+				component.IncludeStaticChildColliders = compoundColliderComponent["IncludeStaticChildColliders"].as<bool>(true);
+
+				YAML::Node compoundedChildEntitiesNode = compoundColliderComponent["CompoundedColliderEntities"];
+				if (compoundedChildEntitiesNode)
+				{
+					component.CompoundedColliderEntities.reserve(compoundedChildEntitiesNode.size());
+					for (auto uuid : compoundedChildEntitiesNode)
+						component.CompoundedColliderEntities.push_back(uuid.as<uint64_t>());
+				}
+			}
+
 			YAML::Node rigidBody2DComponent = entity["RigidBody2DComponent"];
 			if (rigidBody2DComponent)
 			{
-				auto& component = deserializedEntity.AddComponent<RigidBody2DComponent>();
-				component.BodyType = static_cast<RigidBody2DComponent::Type>(rigidBody2DComponent["BodyType"].as<int>(0));
+				RigidBody2DComponent& component = deserializedEntity.AddComponent<RigidBody2DComponent>();
+				component.BodyType = static_cast<PhysicsBodyType>(rigidBody2DComponent["BodyType"].as<int>(0));
 				component.FixedRotation = rigidBody2DComponent["FixedRotation"].as<bool>(false);
 				component.Mass = rigidBody2DComponent["Mass"].as<float>(1.0f);
 				component.LinearDrag = rigidBody2DComponent["LinearDrag"].as<float>(0.01f);
@@ -407,11 +583,11 @@ namespace Iris {
 			if (boxCollider2DComponent)
 			{
 				BoxCollider2DComponent& component = deserializedEntity.AddComponent<BoxCollider2DComponent>();
-				component.Size = boxCollider2DComponent["Size"].as<glm::vec2>(glm::vec2{0.5f, 0.5f});
+				component.HalfSize = boxCollider2DComponent["HalfSize"].as<glm::vec2>(glm::vec2{ 0.5f, 0.5f });
 				component.Offset = boxCollider2DComponent["Offset"].as<glm::vec2>(glm::vec2{ 0.0f, 0.0f });
 				component.Density = boxCollider2DComponent["Density"].as<float>(1.0f);
-				component.Friction = boxCollider2DComponent["Friction"].as<float>(0.5f);
-				component.Restitution = boxCollider2DComponent["Restitution"].as<float>(0.0f);
+				component.Material.Friction = boxCollider2DComponent["Friction"].as<float>(0.5f);
+				component.Material.Restitution = boxCollider2DComponent["Restitution"].as<float>(0.0f);
 				component.RestitutionThreshold = boxCollider2DComponent["RestitutionThreshold"].as<float>(0.5f);
 			}
 
@@ -422,8 +598,8 @@ namespace Iris {
 				component.Offset = circleCollider2DComponent["Offset"].as<glm::vec2>(glm::vec2{ 0.0f, 0.0f });
 				component.Radius = circleCollider2DComponent["Radius"].as<float>(1.0f);
 				component.Density = circleCollider2DComponent["Density"].as<float>(1.0f);
-				component.Friction = circleCollider2DComponent["Friction"].as<float>(0.5f);
-				component.Restitution = circleCollider2DComponent["Restitution"].as<float>(0.0f);
+				component.Material.Friction = circleCollider2DComponent["Friction"].as<float>(0.5f);
+				component.Material.Restitution = circleCollider2DComponent["Restitution"].as<float>(0.0f);
 				component.RestitutionThreshold = circleCollider2DComponent["RestitutionThreshold"].as<float>(0.5f);
 			}
 		}
@@ -446,7 +622,7 @@ namespace Iris {
 			for (auto e : visibleEntities)
 			{
 				Entity entity = { e, scene.Raw() };
-				out << entity.GetUUID();
+				out << static_cast<uint64_t>(entity.GetUUID());
 			}
 
 			out << YAML::EndSeq;
@@ -489,8 +665,13 @@ namespace Iris {
 
 			// Visible Entities
 			std::vector<UUID> visibleEntities;
-			for (auto uuid : data["VisibleEntities"])
-				visibleEntities.push_back(uuid.as<uint64_t>());
+			YAML::Node visibleEntitiesNode = data["VisibleEntities"];
+			if (visibleEntitiesNode)
+			{
+				visibleEntities.reserve(visibleEntitiesNode.size());
+				for (auto uuid : visibleEntitiesNode)
+					visibleEntities.push_back(uuid.as<uint64_t>());
+			}
 
 			auto entities = data["Entities"];
 			if(entities)

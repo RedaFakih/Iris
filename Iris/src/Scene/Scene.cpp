@@ -3,24 +3,23 @@
 
 #include "AssetManager/AssetManager.h"
 #include "Editor/SelectionManager.h"
+#include "Physics/Physics.h"
+#include "Physics/PhysicsScene.h"
 #include "Renderer/Renderer.h"
 #include "Renderer/SceneRenderer.h"
 #include "Renderer/Shaders/Shader.h"
-#include "Renderer/StorageBufferSet.h"
-#include "Renderer/Texture.h"
-#include "Renderer/UniformBufferSet.h"
 
 namespace Iris {
 
 	namespace Utils {
 
-		static b2BodyType IrisRigidBody2DTypeToB2BodyType(RigidBody2DComponent::Type bodyType)
+		static b2BodyType IrisRigidBody2DTypeToB2BodyType(PhysicsBodyType bodyType)
 		{
 			switch (bodyType)
 			{
-				case RigidBody2DComponent::Type::Static:		return b2_staticBody;
-				case RigidBody2DComponent::Type::Dynamic:		return b2_dynamicBody;
-				case RigidBody2DComponent::Type::Kinematic:		return b2_kinematicBody;
+				case PhysicsBodyType::Static:		return b2_staticBody;
+				case PhysicsBodyType::Dynamic:		return b2_dynamicBody;
+				case PhysicsBodyType::Kinematic:	return b2_kinematicBody;
 			}
 
 			IR_VERIFY(false, "Unreachable");
@@ -39,13 +38,19 @@ namespace Iris {
 		return CreateRef<Scene>("Empty", false);
 	}
 
+	Ref<Scene> Scene::GetScene(UUID uuid)
+	{
+		if (s_ActiveScenes.contains(uuid))
+			return s_ActiveScenes.at(uuid);
+
+		return {};
+	}
+
 	Scene::Scene(const std::string& name, bool isEditorScene)
 		: m_Name(name), m_IsEditorScene(isEditorScene)
 	{
 		m_SceneEntity = m_Registry.create();
-
-		// Create Physics 2D world on Scene initialization
-		Box2DWorldComponent& b2WorldComp = m_Registry.emplace<Box2DWorldComponent>(m_SceneEntity, std::make_unique<b2World>(b2Vec2{ 0.0f, -9.8f }));
+		s_ActiveScenes[m_SceneID] = this;
 	}
 
 	Scene::~Scene()
@@ -61,6 +66,7 @@ namespace Iris {
 				AssetManager::RemoveAsset(skyLightComponent.SceneEnvironment);
 		}
 
+		s_ActiveScenes.erase(m_SceneID);
 		m_Registry.clear();
 	}
 
@@ -101,11 +107,17 @@ namespace Iris {
 		CopyComponent<SkyLightComponent>(targetScene->m_Registry, m_Registry, enttMap);
 		CopyComponent<DirectionalLightComponent>(targetScene->m_Registry, m_Registry, enttMap);
 		CopyComponent<TextComponent>(targetScene->m_Registry, m_Registry, enttMap);
+		CopyComponent<RigidBodyComponent>(targetScene->m_Registry, m_Registry, enttMap);
+		CopyComponent<BoxColliderComponent>(targetScene->m_Registry, m_Registry, enttMap);
+		CopyComponent<SphereColliderComponent>(targetScene->m_Registry, m_Registry, enttMap);
+		CopyComponent<CylinderColliderComponent>(targetScene->m_Registry, m_Registry, enttMap);
+		CopyComponent<CapsuleColliderComponent>(targetScene->m_Registry, m_Registry, enttMap);
+		CopyComponent<CompoundColliderComponent>(targetScene->m_Registry, m_Registry, enttMap);
 		CopyComponent<RigidBody2DComponent>(targetScene->m_Registry, m_Registry, enttMap);
 		CopyComponent<BoxCollider2DComponent>(targetScene->m_Registry, m_Registry, enttMap);
 		CopyComponent<CircleCollider2DComponent>(targetScene->m_Registry, m_Registry, enttMap);
 
-		targetScene->SetPhysics2DGravity({ 0.0f, GetPhysics2DGravity() });
+		targetScene->SetPhysics2DGravity(m_Box2DGravity);
 
 		targetScene->m_ViewportWidth = m_ViewportWidth;
 		targetScene->m_ViewportHeight = m_ViewportHeight;
@@ -116,15 +128,11 @@ namespace Iris {
 	void Scene::OnUpdateRuntime(TimeStep ts)
 	{
 		// Box2D Physics
-		Scope<b2World>& world = m_Registry.get<Box2DWorldComponent>(m_Registry.view<Box2DWorldComponent>().front()).World;
-
-		// TODO: Maybe set in editor?
-		constexpr int32_t velocityIterations = 6;
-		constexpr int32_t positionIterations = 2;
+		Scope<b2World>& world2D = m_Registry.get<Box2DWorldComponent>(m_SceneEntity).World;
 
 		{
 			Timer timer;
-			world->Step(ts, velocityIterations, positionIterations);
+			world2D->Step(ts, PhysicsSystem::GetSettings().VelocitySolverIterations, PhysicsSystem::GetSettings().PositionSolverIterations);
 		}
 
 		{
@@ -148,6 +156,17 @@ namespace Iris {
 				glm::vec3 rotation = transformComp.GetRotationEuler();
 				rotation.z = body->GetAngle();
 				transformComp.SetRotationEuler(rotation);
+			}
+		}
+
+
+		if (m_ShouldSimulate)
+		{
+			Ref<PhysicsScene> physicsScene = GetPhysicsScene();
+
+			{
+				Timer timer;
+				physicsScene->Simulate(ts);
 			}
 		}
 	}
@@ -292,6 +311,8 @@ namespace Iris {
 					}
 				}
 			}
+
+			RenderPhysicsDebug(renderer);
 
 			renderer->EndScene();
 
@@ -500,6 +521,8 @@ namespace Iris {
 				}
 			}
 
+			RenderPhysicsDebug(renderer);
+
 			renderer->EndScene();
 
 			if (renderer->GetFinalPassImage())
@@ -578,7 +601,12 @@ namespace Iris {
 
 	void Scene::OnRuntimeStart()
 	{
-		Scope<b2World>& world = m_Registry.get<Box2DWorldComponent>(m_Registry.view<Box2DWorldComponent>().front()).World;
+		m_ShouldSimulate = true;
+		m_IsPlaying = true;
+
+		// Create Physics 2D world
+		Box2DWorldComponent& b2WorldComp = m_Registry.emplace<Box2DWorldComponent>(m_SceneEntity);
+		b2WorldComp.World = CreateScope<b2World>(b2Vec2{ m_Box2DGravity.x, m_Box2DGravity.y });
 
 		{
 			auto view = m_Registry.group<RigidBody2DComponent>(entt::get<TransformComponent>);
@@ -597,7 +625,7 @@ namespace Iris {
 
 				b2MassData massData;
 
-				b2Body* body = world->CreateBody(&bodyDef);
+				b2Body* body = b2WorldComp.World->CreateBody(&bodyDef);
 				body->GetMassData(&massData);
 				massData.mass = rigidBodyComp.Mass;
 				body->SetMassData(&massData);
@@ -627,17 +655,17 @@ namespace Iris {
 					
 					b2PolygonShape polygonShape;
 					polygonShape.SetAsBox(
-						transformComp.Scale.x * boxColliderComp.Size.x,
-						transformComp.Scale.y * boxColliderComp.Size.y,
+						transformComp.Scale.x * boxColliderComp.HalfSize.x,
+						transformComp.Scale.y * boxColliderComp.HalfSize.y,
 						b2Vec2{ boxColliderComp.Offset.x, boxColliderComp.Offset.y },
 						0.0f
 					);
 
 					b2FixtureDef fixtureDef;
 					fixtureDef.shape = &polygonShape;
-					fixtureDef.friction = boxColliderComp.Friction;
+					fixtureDef.friction = boxColliderComp.Material.Friction;
 					fixtureDef.density = boxColliderComp.Density;
-					fixtureDef.restitution = boxColliderComp.Restitution;
+					fixtureDef.restitution = boxColliderComp.Material.Restitution;
 					fixtureDef.restitutionThreshold = boxColliderComp.RestitutionThreshold;
 					body->CreateFixture(&fixtureDef);
 				}
@@ -665,18 +693,31 @@ namespace Iris {
 					b2FixtureDef fixtureDef;
 					fixtureDef.shape = &circleShape;
 					fixtureDef.density = circleColliderComp.Density;
-					fixtureDef.friction = circleColliderComp.Friction;
-					fixtureDef.restitution = circleColliderComp.Restitution;
+					fixtureDef.friction = circleColliderComp.Material.Friction;
+					fixtureDef.restitution = circleColliderComp.Material.Restitution;
 					fixtureDef.restitutionThreshold = circleColliderComp.RestitutionThreshold;
 					body->CreateFixture(&fixtureDef);
 				}
 			}
 		}
+
+		JoltWorldComponent& joltWorldComp = m_Registry.emplace<JoltWorldComponent>(m_SceneEntity);
+		joltWorldComp.PhysicsWorld = PhysicsSystem::CreatePhysicsScene(this);
 	}
 
 	void Scene::OnRuntimeStop()
 	{
-		// TODO: Should we call b2DesetroyWorld?
+		// B2World destructor automatically does all necessary cleanup
+		Box2DWorldComponent& b2WorldComp = m_Registry.get<Box2DWorldComponent>(m_SceneEntity);
+		b2WorldComp.World = nullptr;
+		
+		JoltWorldComponent& joltWorldComp = m_Registry.get<JoltWorldComponent>(m_SceneEntity);
+		joltWorldComp.PhysicsWorld->Destroy();
+		joltWorldComp.PhysicsWorld = nullptr;
+		m_Registry.remove<JoltWorldComponent>(m_SceneEntity);
+
+		m_IsPlaying = false;
+		m_ShouldSimulate = false;
 	}
 
 	Entity Scene::GetMainCameraEntity()
@@ -770,6 +811,21 @@ namespace Iris {
 		if (!entity)
 			return;
 
+		if (!m_IsEditorScene)
+		{
+			Ref<PhysicsScene> physicsScene = GetPhysicsScene();
+
+			if (entity.HasComponent<RigidBodyComponent>())
+				physicsScene->DestroyBody(entity);
+
+			if (entity.HasComponent<RigidBody2DComponent>())
+			{
+				Scope<b2World>& b2DWorld = m_Registry.get<Box2DWorldComponent>(m_SceneEntity).World;
+				b2Body* body = reinterpret_cast<b2Body*>(entity.GetComponent<RigidBody2DComponent>().RuntimeBody);
+				b2DWorld->DestroyBody(body);
+			}
+		}
+
 		if (m_OnEntityDestroyedCallback)
 			m_OnEntityDestroyedCallback(entity);
 
@@ -837,6 +893,12 @@ namespace Iris {
 		// CopyComponentIfExists<SkyLightComponent>(newEntity.m_EntityHandle, m_Registry, entity); // NOTE: You can not duplicate sky lights since you should only have one
 		CopyComponentIfExists<DirectionalLightComponent>(newEntity.m_EntityHandle, m_Registry, entity);
 		CopyComponentIfExists<TextComponent>(newEntity.m_EntityHandle, m_Registry, entity);
+		CopyComponentIfExists<RigidBodyComponent>(newEntity.m_EntityHandle, m_Registry, entity);
+		CopyComponentIfExists<BoxColliderComponent>(newEntity.m_EntityHandle, m_Registry, entity);
+		CopyComponentIfExists<SphereColliderComponent>(newEntity.m_EntityHandle, m_Registry, entity);
+		CopyComponentIfExists<CylinderColliderComponent>(newEntity.m_EntityHandle, m_Registry, entity);
+		CopyComponentIfExists<CapsuleColliderComponent>(newEntity.m_EntityHandle, m_Registry, entity);
+		CopyComponentIfExists<CompoundColliderComponent>(newEntity.m_EntityHandle, m_Registry, entity);
 		CopyComponentIfExists<RigidBody2DComponent>(newEntity.m_EntityHandle, m_Registry, entity);
 		CopyComponentIfExists<BoxCollider2DComponent>(newEntity.m_EntityHandle, m_Registry, entity);
 		CopyComponentIfExists<CircleCollider2DComponent>(newEntity.m_EntityHandle, m_Registry, entity);
@@ -1001,14 +1063,12 @@ namespace Iris {
 		entity.SetParentUUID(0);
 	}
 
-	float Scene::GetPhysics2DGravity()
+	Ref<PhysicsScene> Scene::GetPhysicsScene() const
 	{
-		return m_Registry.get<Box2DWorldComponent>(m_SceneEntity).World->GetGravity().y;
-	}
+		if (!m_Registry.has<JoltWorldComponent>(m_SceneEntity))
+			return nullptr;
 
-	void Scene::SetPhysics2DGravity(glm::vec2 gravity)
-	{
-		m_Registry.get<Box2DWorldComponent>(m_SceneEntity).World->SetGravity({ gravity.x, gravity.y });
+		return m_Registry.get<JoltWorldComponent>(m_SceneEntity).PhysicsWorld;
 	}
 
 	void Scene::SortEntities()
@@ -1060,6 +1120,14 @@ namespace Iris {
 			BuildMeshEntityHierarchy(nodeEntity, staticMesh, nodes[child]);
 	}
 
+	void Scene::RenderPhysicsDebug(Ref<SceneRenderer> renderer)
+	{
+		if (!renderer->GetOptions().ShowPhysicsColliders)
+			return;
+
+		// TODO:
+	}
+
 	void Scene::Render2DPhysicsDebug(Ref<SceneRenderer> renderer, Ref<Renderer2D> renderer2D)
 	{
 		if (!renderer->GetOptions().ShowPhysicsColliders)
@@ -1080,7 +1148,7 @@ namespace Iris {
 					const BoxCollider2DComponent& boxCollider = entity.GetComponent<BoxCollider2DComponent>();
 					renderer2D->DrawRotatedRect(
 						glm::vec2{ tc.Translation.x, tc.Translation.y } + boxCollider.Offset,
-						(2.0f * boxCollider.Size) * glm::vec2(tc.Scale),
+						(2.0f * boxCollider.HalfSize) * glm::vec2(tc.Scale),
 						tc.GetRotationEuler().z,
 						Project::GetActive()->GetConfig().Viewport2DColliderOutlineColor
 					);
@@ -1110,7 +1178,7 @@ namespace Iris {
 					BoxCollider2DComponent& boxCollider = e.GetComponent<BoxCollider2DComponent>();
 					renderer2D->DrawRotatedRect(
 						glm::vec2{ tc.Translation.x, tc.Translation.y } + boxCollider.Offset,
-						(2.0f * boxCollider.Size) * glm::vec2(tc.Scale),
+						(2.0f * boxCollider.HalfSize) * glm::vec2(tc.Scale),
 						tc.GetRotationEuler().z,
 						Project::GetActive()->GetConfig().Viewport2DColliderOutlineColor
 					);
@@ -1128,7 +1196,7 @@ namespace Iris {
 						glm::vec3{ tc.Translation.x, tc.Translation.y, 0.0f } + glm::vec3(circleCollider.Offset, 0.0f),
 						glm::vec3(0.0f),
 						circleCollider.Radius * tc.Scale.x,
-						{ 0.25f, 0.6f, 1.0f, 1.0f }
+						Project::GetActive()->GetConfig().Viewport2DColliderOutlineColor
 					);
 				}
 			}

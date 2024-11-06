@@ -1,7 +1,7 @@
 #pragma once
 
 #include "AssetSerializer.h"
-#include "Renderer/Mesh//Mesh.h"
+#include "Renderer/Mesh/Mesh.h"
 
 namespace Iris {
 

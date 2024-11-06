@@ -6,9 +6,6 @@
 #include "Renderer/Renderer.h"
 #include "Scene/SceneEnvironment.h"
 #include "Shaders/Shader.h"
-#include "StorageBufferSet.h"
-#include "Texture.h"
-#include "UniformBufferSet.h"
 
 #include <glm/gtx/compatibility.hpp>
 

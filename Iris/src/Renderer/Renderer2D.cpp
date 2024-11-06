@@ -2,7 +2,6 @@
 #include "Renderer2D.h"
 
 #include "Renderer.h"
-#include "StorageBufferSet.h"
 #include "Text/MSDFData.h"
 
 namespace Iris {

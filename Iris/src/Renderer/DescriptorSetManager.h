@@ -2,10 +2,14 @@
 
 #include "Core/Base.h"
 
+#include "StorageBufferSet.h"
+#include "Texture.h"
+#include "UniformBufferSet.h"
+
 #include <vulkan/vulkan.h>
 
-#include <set>
 #include <map>
+#include <set>
 
 /*
  * The way that the descriptor sets will work is by their increasing update frequency
@@ -127,16 +131,7 @@ namespace Iris {
 
 	}
 
-	// Forward declares
 	class Shader;
-	class Texture2D;
-	class StorageImage;
-	class TextureCube;
-	class ImageView;
-	class UniformBuffer;
-	class UniformBufferSet;
-	class StorageBuffer;
-	class StorageBufferSet;
 
 	struct RenderPassInput
 	{

@@ -64,7 +64,16 @@ project "Iris"
     filter "configurations:Debug"
         runtime "Debug"
         symbols "on"
-        defines { "IR_CONFIG_DEBUG" }
+
+        defines
+        { 
+            "IR_CONFIG_DEBUG",
+			
+            "JPH_DEBUG_RENDERER",
+			"JPH_FLOATING_POINT_EXCEPTIONS_ENABLED",
+			"JPH_EXTERNAL_PROFILE",
+			"JPH_ENABLE_ASSERTS"
+        }
 
         links
         {
@@ -79,13 +88,22 @@ project "Iris"
     filter "configurations:Release"
         runtime "Release"
         optimize "Full"
-        symbols "off"
+        -- symbols "off"
         vectorextensions "AVX2"
         isaextensions {
             "BMI", "POPCNT", "LZCNT", "F16C"
         }
         inlining "Auto"
-        defines { "IR_CONFIG_RELEASE" }
+
+        defines
+        { 
+            "IR_CONFIG_RELEASE",
+			
+            "JPH_NO_DEBUG",
+            "JPH_DEBUG_RENDERER",
+			"JPH_FLOATING_POINT_EXCEPTIONS_ENABLED",
+			"JPH_EXTERNAL_PROFILE"
+        }
 
         links {
             "%{Library.AssimpRelease}",

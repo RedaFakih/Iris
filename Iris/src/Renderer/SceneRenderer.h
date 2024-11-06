@@ -55,7 +55,7 @@ namespace Iris {
 		float RendererScale = 1.0f;
 		bool JumpFloodPass = true;
 
-		ShadowResolutionSetting ShadowResolution = ShadowResolutionSetting::Medium;
+		ShadowResolutionSetting ShadowResolution = ShadowResolutionSetting::High;
 		uint32_t NumberOfShadowCascades = 4;
 
 		// Means viewport window size

@@ -1,9 +1,6 @@
 #include "IrisPCH.h"
 #include "ComputePass.h"
 
-#include "StorageBufferSet.h"
-#include "UniformBufferSet.h"
-
 namespace Iris {
 
 	Ref<ComputePass> ComputePass::Create(const ComputePassSpecification& spec)

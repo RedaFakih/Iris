@@ -10,6 +10,8 @@
 
 namespace Iris {
 
+	// TODO: Physics Settings
+
 	void ProjectSettingsPanel::OnImGuiRender(bool& isOpen)
 	{
 		if (!m_Context)
@@ -49,6 +51,9 @@ namespace Iris {
 					if (UI::Property("Auto-save interval (seconds)", m_Context->m_Config.AutoSaveIntervalSeconds, 1, 300, 7200))
 						serializeProject = true;
 
+					if (UI::Property("Save Scene on Editor close", m_Context->m_Config.EnableSceneSaveOnEditorClose))
+						serializeProject = true;
+
 					if (UI::PropertyAssetReference<Scene>("Startup Scene", m_StartScene))
 					{
 						const AssetMetaData& metaData = Project::GetEditorAssetManager()->GetMetaData(m_StartScene);
@@ -67,6 +72,8 @@ namespace Iris {
 
 				ImGui::PopID();
 			}
+
+			// TODO: Physics Settings
 
 			// Renderer Settings
 			{

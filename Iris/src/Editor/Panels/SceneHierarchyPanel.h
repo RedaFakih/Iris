@@ -4,8 +4,6 @@
 #include "Editor/SelectionManager.h"
 #include "ImGui/CustomTreeNode.h"
 #include "ImGui/ImGuiUtils.h"
-#include "Renderer/Texture.h"
-#include "Renderer/UniformBufferSet.h"
 #include "Scene/Scene.h"
 
 #include <magic_enum.hpp>

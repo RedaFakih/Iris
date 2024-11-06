@@ -8,8 +8,9 @@
 #include "ImGui/CustomTreeNode.h"
 #include "ImGui/FontAwesome.h"
 #include "ImGui/ImGuiUtils.h"
+#include "Physics/PhysicsLayer.h"
+#include "Physics/PhysicsScene.h"
 #include "Project/Project.h"
-#include "Renderer/StorageBufferSet.h"
 #include "Renderer/Text/Font.h"
 #include "Scene/SceneEnvironment.h"
 
@@ -1328,10 +1329,22 @@ namespace Iris {
 					Utils::DrawSimpleAddComponentButton<DirectionalLightComponent>(this, "Directional Light", EditorResources::DirectionalLightIcon);
 					Utils::DrawAddComponentButton<TextComponent>(this, "Text", [](Entity entity, TextComponent& tc)
 					{
-						(void)entity;
+						static_cast<void>(entity);
 
 						tc.Font = Font::GetDefaultFont()->Handle;
 					}, EditorResources::TextIcon);
+					Utils::DrawSimpleAddComponentButton<RigidBodyComponent>(this, "Rigid Body", EditorResources::RigidBodyIcon);
+					Utils::DrawSimpleAddComponentButton<BoxColliderComponent>(this, "Box Collider", EditorResources::BoxColliderIcon);
+					Utils::DrawSimpleAddComponentButton<SphereColliderComponent>(this, "Sphere Collider", EditorResources::SphereColliderIcon);
+					Utils::DrawSimpleAddComponentButton<CylinderColliderComponent>(this, "Cylinder Collider", EditorResources::CylinderColliderIcon);
+					Utils::DrawSimpleAddComponentButton<CapsuleColliderComponent>(this, "Capsule Collider", EditorResources::CapsuleColliderIcon);
+					Utils::DrawAddComponentButton<CompoundColliderComponent>(this, "Compound Collider", [this](Entity entity, CompoundColliderComponent& compoundCollComp)
+					{
+						// All the children of this entity are set in the referenced compounded colliders entities
+						compoundCollComp.CompoundedColliderEntities = m_Context->GetAllChildren(entity);
+						// Then we also add the entity that has the CompoundColliderComponent itself
+						compoundCollComp.CompoundedColliderEntities.push_back(entity.GetUUID());
+					}, EditorResources::CompoundColliderIcon);
 					Utils::DrawSimpleAddComponentButton<RigidBody2DComponent>(this, "Rigid Body 2D", EditorResources::RigidBody2DIcon);
 					Utils::DrawSimpleAddComponentButton<BoxCollider2DComponent>(this, "Box Collider 2D", EditorResources::BoxCollider2DIcon);
 					Utils::DrawSimpleAddComponentButton<CircleCollider2DComponent>(this, "Circle Collider 2D", EditorResources::CircleCollider2DIcon);
@@ -1848,7 +1861,7 @@ namespace Iris {
 					slc.DynamicSky = !skylightComp.SceneEnvironment; // If we have environment map => false, otherwise true
 					if (!slc.DynamicSky)
 					{
-						slc.Intensity = 1.0;
+						slc.Intensity = 1.0f;
 						slc.Lod = 0.0f;
 						slc.TurbidityAzimuthInclinationSunSize = { 2.0f, 0.0f, 0.0f, 0.01f };
 					}
@@ -2070,29 +2083,653 @@ namespace Iris {
 			UI::EndPropertyGrid();
 		}, EditorResources::DirectionalLightIcon);
 
+		DrawComponent<RigidBodyComponent>("Rigid Body", [&](RigidBodyComponent& rigidBodyComp, const std::vector<UUID>& entities, const bool isMultiSelect)
+		{
+			UI::BeginPropertyGrid();
+			
+			if (!PhysicsLayerManager::IsLayerValid(rigidBodyComp.LayerID))
+			{
+				for (UUID entityID : entities)
+				{
+					Entity entity = m_Context->GetEntityWithUUID(entityID);
+					entity.GetComponent<RigidBodyComponent>().LayerID = 0;
+
+					if (m_Context->IsPlaying())
+					{
+						m_Context->GetPhysicsScene()->GetExistingPhysicsBody(entity)->SetCollisionLayer(rigidBodyComp.LayerID);
+					}
+				}
+			}
+
+			// Body type
+			static const char* s_BodyType[3] = { "Static", "Dynamic", "Kinematic" };
+			int currentBodyType = static_cast<int>(rigidBodyComp.BodyType);
+
+			ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<int, RigidBodyComponent>([](const RigidBodyComponent& other) { return static_cast<int>(other.BodyType); }));
+			if (UI::PropertyDropdown("Body Type", s_BodyType, 3, &currentBodyType, "Type of Rigid Body."))
+			{
+				for (UUID entityID : entities)
+				{
+					Entity entity = m_Context->GetEntityWithUUID(entityID);
+					RigidBodyComponent& rigidBodyComp = entity.GetComponent<RigidBodyComponent>();
+					rigidBodyComp.BodyType = static_cast<PhysicsBodyType>(currentBodyType);
+
+					if (m_Context->IsPlaying() && rigidBodyComp.EnableDynamicTypeChange)
+						m_Context->GetPhysicsScene()->SetBodyType(entity, rigidBodyComp.BodyType);
+				}
+			}
+			ImGui::PopItemFlag();
+
+			ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<bool, RigidBodyComponent>([](const RigidBodyComponent& other) { return other.EnableDynamicTypeChange; }));
+			if (UI::Property("Dynamic Type\nChange", rigidBodyComp.EnableDynamicTypeChange, "If you want to change a static entity to a dynamic one during runtime set this to True"))
+			{
+				for (UUID entityID : entities)
+				{
+					Entity entity = m_Context->GetEntityWithUUID(entityID);
+					entity.GetComponent<RigidBodyComponent>().EnableDynamicTypeChange = rigidBodyComp.EnableDynamicTypeChange;
+				}
+			}
+			ImGui::PopItemFlag();
+
+			ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<bool, RigidBodyComponent>([](const RigidBodyComponent& other) { return other.IsTrigger; }));
+			if (UI::Property("Trigger", rigidBodyComp.IsTrigger, "Set this body to be a Trigger/Sensor, it will only detect when other body collides with it\nbut won't repel itself"))
+			{
+				for (UUID entityID : entities)
+				{
+					Entity entity = m_Context->GetEntityWithUUID(entityID);
+					entity.GetComponent<RigidBodyComponent>().IsTrigger = rigidBodyComp.IsTrigger;
+				}
+			}
+			ImGui::PopItemFlag();
+
+			const std::vector<std::string>& layerNames = PhysicsLayerManager::GetLayerNames();
+			int oldLayer = static_cast<int>(rigidBodyComp.LayerID);
+
+			ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, entities.size() > 1 && IsInconsistentPrimitive<int, RigidBodyComponent>([](const RigidBodyComponent& other) { return other.LayerID; }));
+			if (UI::PropertyDropdown("Layer", layerNames, static_cast<int>(layerNames.size()), &oldLayer, "Physics Layer that the physics simulation happens in"))
+			{
+				for (UUID entityID : entities)
+				{
+					Entity entity = m_Context->GetEntityWithUUID(entityID);
+					entity.GetComponent<RigidBodyComponent>().LayerID = static_cast<uint32_t>(oldLayer);
+
+					if (m_Context->IsPlaying())
+					{
+						m_Context->GetPhysicsScene()->GetExistingPhysicsBody(entity)->SetCollisionLayer(static_cast<uint32_t>(oldLayer));
+					}
+				}
+			}
+			ImGui::PopItemFlag();
+
+			if (rigidBodyComp.BodyType == PhysicsBodyType::Static)
+				UI::EndPropertyGrid();
+			else
+			{
+				ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<float, RigidBodyComponent>([](const RigidBodyComponent& other) { return other.Mass; }));
+				if (UI::Property("Mass", rigidBodyComp.Mass, 0.1f, 0.00001f, FLT_MAX, "Set the Mass in Kilograms of the Rigid Body"))
+				{
+					for (UUID entityID : entities)
+					{
+						Entity entity = m_Context->GetEntityWithUUID(entityID);
+						entity.GetComponent<RigidBodyComponent>().Mass = rigidBodyComp.Mass;
+
+						if (m_Context->IsPlaying())
+						{
+							m_Context->GetPhysicsScene()->GetExistingPhysicsBody(entity)->SetMass(rigidBodyComp.Mass);
+						}
+					}
+				}
+				ImGui::PopItemFlag();
+
+				ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<float, RigidBodyComponent>([](const RigidBodyComponent& other) { return other.LinearDrag; }));
+				if (UI::Property("Linear Drag", rigidBodyComp.LinearDrag, 0.1f, 0.0f, FLT_MAX, "Set the Linear Drag/Damping of the Rigid Body"))
+				{
+					for (UUID entityID : entities)
+					{
+						Entity entity = m_Context->GetEntityWithUUID(entityID);
+						entity.GetComponent<RigidBodyComponent>().LinearDrag = rigidBodyComp.LinearDrag;
+
+						if (m_Context->IsPlaying())
+						{
+							m_Context->GetPhysicsScene()->GetExistingPhysicsBody(entity)->SetLinearDrag(rigidBodyComp.LinearDrag);
+						}
+					}
+				}
+				ImGui::PopItemFlag();
+
+				ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<float, RigidBodyComponent>([](const RigidBodyComponent& other) { return other.AngularDrag; }));
+				if (UI::Property("Angular Drag", rigidBodyComp.AngularDrag, 0.1f, 0.0f, FLT_MAX, "Set the Angular Drag/Damping of the Rigid Body"))
+				{
+					for (UUID entityID : entities)
+					{
+						Entity entity = m_Context->GetEntityWithUUID(entityID);
+						entity.GetComponent<RigidBodyComponent>().AngularDrag = rigidBodyComp.AngularDrag;
+
+						if (m_Context->IsPlaying())
+						{
+							m_Context->GetPhysicsScene()->GetExistingPhysicsBody(entity)->SetAngularDrag(rigidBodyComp.AngularDrag);
+						}
+					}
+				}
+				ImGui::PopItemFlag();
+
+				ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<bool, RigidBodyComponent>([](const RigidBodyComponent& other) { return other.DisableGravity; }));
+				if (UI::Property("Disable Gravity", rigidBodyComp.DisableGravity, "Set whether this body experiences forces of gravity or not"))
+				{
+					for (UUID entityID : entities)
+					{
+						Entity entity = m_Context->GetEntityWithUUID(entityID);
+						entity.GetComponent<RigidBodyComponent>().DisableGravity = rigidBodyComp.DisableGravity;
+
+						if (m_Context->IsPlaying())
+						{
+							m_Context->GetPhysicsScene()->GetExistingPhysicsBody(entity)->SetGravityEnabled(rigidBodyComp.DisableGravity);
+						}
+					}
+				}
+				ImGui::PopItemFlag();
+
+				static const char* s_CollisionDetectionNames[] = { "Discrete", "Continuous" };
+				int currentCollisionDetection = static_cast<int>(rigidBodyComp.CollisionDetection);
+
+				ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<int, RigidBodyComponent>([](const RigidBodyComponent& other) { return static_cast<int>(other.CollisionDetection); }));
+				if (UI::PropertyDropdown("Collision\nDetection", s_CollisionDetectionNames, 2, &currentCollisionDetection, "Collision Detection method to use."))
+				{
+					for (UUID entityID : entities)
+					{
+						Entity entity = m_Context->GetEntityWithUUID(entityID);
+						entity.GetComponent<RigidBodyComponent>().CollisionDetection = static_cast<PhysicsCollisionDetectionType>(currentCollisionDetection);
+
+						if (m_Context->IsPlaying())
+						{
+							m_Context->GetPhysicsScene()->GetExistingPhysicsBody(entity)->SetCollisionDetectionMode(static_cast<PhysicsCollisionDetectionType>(currentCollisionDetection));
+						}
+					}
+				}
+				ImGui::PopItemFlag();
+
+				ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<glm::vec3, RigidBodyComponent>([](const RigidBodyComponent& other) { return other.InitialLinearVelocity; }));
+				if (UI::PropertyDrag("Initial Linear\nVelocity", rigidBodyComp.InitialLinearVelocity, 0.1f, 0.0f, 0.0f, "Initial Linear Velocity to apply to the body"))
+				{
+					for (UUID entityID : entities)
+					{
+						Entity entity = m_Context->GetEntityWithUUID(entityID);
+						entity.GetComponent<RigidBodyComponent>().InitialLinearVelocity = rigidBodyComp.InitialLinearVelocity;
+					}
+				}
+				ImGui::PopItemFlag();
+
+				ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<glm::vec3, RigidBodyComponent>([](const RigidBodyComponent& other) { return other.InitialAngularVelocity; }));
+				if (UI::PropertyDrag("Initial Angular\nVelocity", rigidBodyComp.InitialAngularVelocity, 0.1f, 0.0f, 0.0f, "Initial Angular Velocity to apply to the body"))
+				{
+					for (UUID entityID : entities)
+					{
+						Entity entity = m_Context->GetEntityWithUUID(entityID);
+						entity.GetComponent<RigidBodyComponent>().InitialAngularVelocity = rigidBodyComp.InitialAngularVelocity;
+					}
+				}
+				ImGui::PopItemFlag();
+
+				ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<float, RigidBodyComponent>([](const RigidBodyComponent& other) { return other.MaxLinearVelocity; }));
+				if (UI::Property("Max Linear\nVelocity", rigidBodyComp.MaxLinearVelocity, 0.1f, 0.0f, 0.0f, "Max Linear Velocity that the body can reach"))
+				{
+					for (UUID entityID : entities)
+					{
+						Entity entity = m_Context->GetEntityWithUUID(entityID);
+						entity.GetComponent<RigidBodyComponent>().MaxLinearVelocity = rigidBodyComp.MaxLinearVelocity;
+					}
+				}
+				ImGui::PopItemFlag();
+
+				ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<float, RigidBodyComponent>([](const RigidBodyComponent& other) { return other.MaxAngularVelocity; }));
+				if (UI::Property("Max Angular\nVelocity", rigidBodyComp.MaxAngularVelocity, 0.1f, 0.0f, 0.0f, "Max Angular Velocity that the body can reach"))
+				{
+					for (UUID entityID : entities)
+					{
+						Entity entity = m_Context->GetEntityWithUUID(entityID);
+						entity.GetComponent<RigidBodyComponent>().MaxAngularVelocity = rigidBodyComp.MaxAngularVelocity;
+					}
+				}
+				ImGui::PopItemFlag();
+
+				UI::EndPropertyGrid();
+
+				if (UI::PropertyGridHeader("Constraints", false))
+				{
+					UI::BeginPropertyGrid();
+
+					PhysicsActorAxis lockedAxes = PhysicsActorAxis::None;
+
+					if (m_Context->IsPlaying())
+						lockedAxes = m_Context->GetPhysicsScene()->GetExistingPhysicsBody(firstEntity)->GetLockedAxes();
+					else
+						lockedAxes = rigidBodyComp.LockedAxes;
+
+					bool translationX = (lockedAxes & PhysicsActorAxis::TranslationX) != PhysicsActorAxis::None;
+					bool translationY = (lockedAxes & PhysicsActorAxis::TranslationY) != PhysicsActorAxis::None;
+					bool translationZ = (lockedAxes & PhysicsActorAxis::TranslationZ) != PhysicsActorAxis::None;
+					bool rotationX = (lockedAxes & PhysicsActorAxis::RotationX) != PhysicsActorAxis::None;
+					bool rotationY = (lockedAxes & PhysicsActorAxis::RotationY) != PhysicsActorAxis::None;
+					bool rotationZ = (lockedAxes & PhysicsActorAxis::RotationZ) != PhysicsActorAxis::None;
+
+					UI::BeginCheckBoxGroup("Lock Position", 3);
+
+					ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<PhysicsActorAxis, RigidBodyComponent>([](const RigidBodyComponent& other) { return other.LockedAxes & PhysicsActorAxis::TranslationX; }));
+					if (UI::PropertyCheckBoxGroup("X", translationX))
+					{
+						for (UUID entityID : entities)
+						{
+							Entity entity = m_Context->GetEntityWithUUID(entityID);
+							RigidBodyComponent& component = entity.GetComponent<RigidBodyComponent>();
+
+							if (translationX)
+								component.LockedAxes |= PhysicsActorAxis::TranslationX;
+							else
+								component.LockedAxes &= ~PhysicsActorAxis::TranslationX;
+
+							if (m_Context->IsPlaying())
+							{
+								m_Context->GetPhysicsScene()->GetExistingPhysicsBody(entity)->SetAxisLock(PhysicsActorAxis::TranslationX, translationX, true);;
+							}
+						}
+					}
+					ImGui::PopItemFlag();
+
+					ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<PhysicsActorAxis, RigidBodyComponent>([](const RigidBodyComponent& other) { return other.LockedAxes & PhysicsActorAxis::TranslationY; }));
+					if (UI::PropertyCheckBoxGroup("Y", translationY))
+					{
+						for (UUID entityID : entities)
+						{
+							Entity entity = m_Context->GetEntityWithUUID(entityID);
+							RigidBodyComponent& component = entity.GetComponent<RigidBodyComponent>();
+
+							if (translationY)
+								component.LockedAxes |= PhysicsActorAxis::TranslationY;
+							else
+								component.LockedAxes &= ~PhysicsActorAxis::TranslationY;
+
+							if (m_Context->IsPlaying())
+							{
+								m_Context->GetPhysicsScene()->GetExistingPhysicsBody(entity)->SetAxisLock(PhysicsActorAxis::TranslationY, translationY, true);
+							}
+						}
+					}
+					ImGui::PopItemFlag();
+
+					ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<PhysicsActorAxis, RigidBodyComponent>([](const RigidBodyComponent& other) { return other.LockedAxes & PhysicsActorAxis::TranslationZ; }));
+					if (UI::PropertyCheckBoxGroup("Z", translationZ))
+					{
+						for (UUID entityID : entities)
+						{
+							Entity entity = m_Context->GetEntityWithUUID(entityID);
+							RigidBodyComponent& component = entity.GetComponent<RigidBodyComponent>();
+
+							if (translationZ)
+								component.LockedAxes |= PhysicsActorAxis::TranslationZ;
+							else
+								component.LockedAxes &= ~PhysicsActorAxis::TranslationZ;
+
+							if (m_Context->IsPlaying())
+							{
+								m_Context->GetPhysicsScene()->GetExistingPhysicsBody(entity)->SetAxisLock(PhysicsActorAxis::TranslationZ, translationZ, true);
+							}
+						}
+					}
+					ImGui::PopItemFlag();
+
+					UI::EndCheckBoxGroup();
+
+					UI::BeginCheckBoxGroup("Lock Rotation", 3);
+
+					ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<PhysicsActorAxis, RigidBodyComponent>([](const RigidBodyComponent& other) { return other.LockedAxes & PhysicsActorAxis::RotationX; }));
+					if (UI::PropertyCheckBoxGroup("X", rotationX))
+					{
+						for (UUID entityID : entities)
+						{
+							Entity entity = m_Context->GetEntityWithUUID(entityID);
+							RigidBodyComponent& component = entity.GetComponent<RigidBodyComponent>();
+
+							if (rotationX)
+								component.LockedAxes |= PhysicsActorAxis::RotationX;
+							else
+								component.LockedAxes &= ~PhysicsActorAxis::RotationX;
+
+							if (m_Context->IsPlaying())
+							{
+								m_Context->GetPhysicsScene()->GetExistingPhysicsBody(entity)->SetAxisLock(PhysicsActorAxis::RotationX, rotationX, true);
+							}
+						}
+					}
+					ImGui::PopItemFlag();
+
+					ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<PhysicsActorAxis, RigidBodyComponent>([](const RigidBodyComponent& other) { return other.LockedAxes & PhysicsActorAxis::RotationY; }));
+					if (UI::PropertyCheckBoxGroup("Y", rotationY))
+					{
+						for (UUID entityID : entities)
+						{
+							Entity entity = m_Context->GetEntityWithUUID(entityID);
+							RigidBodyComponent& component = entity.GetComponent<RigidBodyComponent>();
+
+							if (rotationY)
+								component.LockedAxes |= PhysicsActorAxis::RotationY;
+							else
+								component.LockedAxes &= ~PhysicsActorAxis::RotationY;
+
+							if (m_Context->IsPlaying())
+							{
+								m_Context->GetPhysicsScene()->GetExistingPhysicsBody(entity)->SetAxisLock(PhysicsActorAxis::RotationY, rotationY, true);
+							}
+						}
+					}
+					ImGui::PopItemFlag();
+
+					ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<PhysicsActorAxis, RigidBodyComponent>([](const RigidBodyComponent& other) { return other.LockedAxes & PhysicsActorAxis::RotationZ; }));
+					if (UI::PropertyCheckBoxGroup("Z", rotationZ))
+					{
+						for (UUID entityID : entities)
+						{
+							Entity entity = m_Context->GetEntityWithUUID(entityID);
+							RigidBodyComponent& component = entity.GetComponent<RigidBodyComponent>();
+
+							if (rotationZ)
+								component.LockedAxes |= PhysicsActorAxis::RotationZ;
+							else
+								component.LockedAxes &= ~PhysicsActorAxis::RotationZ;
+
+							if (m_Context->IsPlaying())
+							{
+								m_Context->GetPhysicsScene()->GetExistingPhysicsBody(entity)->SetAxisLock(PhysicsActorAxis::RotationZ, rotationZ, true);
+							}
+						}
+					}
+					ImGui::PopItemFlag();
+
+					UI::EndCheckBoxGroup();
+
+					UI::EndPropertyGrid();
+					ImGui::TreePop();
+				}
+			}
+		}, EditorResources::RigidBodyIcon);
+
+		DrawComponent<BoxColliderComponent>("Box Collider", [&](BoxColliderComponent& boxColliderComp, const std::vector<UUID>& entities, const bool isMultiSelect)
+		{
+			UI::BeginPropertyGrid();
+
+			ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<glm::vec3, BoxColliderComponent>([](const BoxColliderComponent& other) { return other.HalfSize; }));
+			if (UI::PropertyDrag("Half Size", boxColliderComp.HalfSize, 0.1f, FLT_MIN, FLT_MAX, "Half Size of the Box Collider"))
+			{
+				for (UUID entityID : entities)
+				{
+					Entity entity = m_Context->GetEntityWithUUID(entityID);
+					entity.GetComponent<BoxColliderComponent>().HalfSize = boxColliderComp.HalfSize;
+				}
+			}
+			ImGui::PopItemFlag();
+
+			ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<glm::vec3, BoxColliderComponent>([](const BoxColliderComponent& other) { return other.Offset; }));
+			if (UI::PropertyDrag("Offset", boxColliderComp.Offset, 0.1f, FLT_MIN, FLT_MAX, "Offset of the Box Collider from its original position"))
+			{
+				for (UUID entityID : entities)
+				{
+					Entity entity = m_Context->GetEntityWithUUID(entityID);
+					entity.GetComponent<BoxColliderComponent>().Offset = boxColliderComp.Offset;
+				}
+			}
+			ImGui::PopItemFlag();
+
+			ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<float, BoxColliderComponent>([](const BoxColliderComponent& other) { return other.Material.Friction; }));
+			if (UI::Property("Friction", boxColliderComp.Material.Friction, 0.1f, 0.0f, 1.0f, "Friction of the Collider"))
+			{
+				for (UUID entityID : entities)
+				{
+					Entity entity = m_Context->GetEntityWithUUID(entityID);
+					entity.GetComponent<BoxColliderComponent>().Material.Friction = boxColliderComp.Material.Friction;
+				}
+			}
+			ImGui::PopItemFlag();
+
+			ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect&& IsInconsistentPrimitive<float, BoxColliderComponent>([](const BoxColliderComponent& other) { return other.Material.Restitution; }));
+			if (UI::Property("Restitution", boxColliderComp.Material.Restitution, 0.1f, 0.0f, 1.0f, "Restitution of the Collider controls the elasticity"))
+			{
+				for (UUID entityID : entities)
+				{
+					Entity entity = m_Context->GetEntityWithUUID(entityID);
+					entity.GetComponent<BoxColliderComponent>().Material.Restitution = boxColliderComp.Material.Restitution;
+				}
+			}
+			ImGui::PopItemFlag();
+
+			UI::EndPropertyGrid();
+		}, EditorResources::BoxColliderIcon);
+
+		DrawComponent<SphereColliderComponent>("Sphere Collider", [&](SphereColliderComponent& sphereColliderComp, const std::vector<UUID>& entities, const bool isMultiSelect)
+		{
+			UI::BeginPropertyGrid();
+
+			ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<float, SphereColliderComponent>([](const SphereColliderComponent& other) { return other.Radius; }));
+			if (UI::Property("Radius", sphereColliderComp.Radius, 0.1f, 0.0001f, FLT_MAX, "Radius of the Sphere Collider"))
+			{
+				for (UUID entityID : entities)
+				{
+					Entity entity = m_Context->GetEntityWithUUID(entityID);
+					entity.GetComponent<SphereColliderComponent>().Radius = sphereColliderComp.Radius;
+				}
+			}
+			ImGui::PopItemFlag();
+
+			ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<glm::vec3, SphereColliderComponent>([](const SphereColliderComponent& other) { return other.Offset; }));
+			if (UI::PropertyDrag("Offset", sphereColliderComp.Offset, 0.1f, FLT_MIN, FLT_MAX, "Offset of the Sphere Collider from its original position"))
+			{
+				for (UUID entityID : entities)
+				{
+					Entity entity = m_Context->GetEntityWithUUID(entityID);
+					entity.GetComponent<SphereColliderComponent>().Offset = sphereColliderComp.Offset;
+				}
+			}
+			ImGui::PopItemFlag();
+
+			ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<float, SphereColliderComponent>([](const SphereColliderComponent& other) { return other.Material.Friction; }));
+			if (UI::Property("Friction", sphereColliderComp.Material.Friction, 0.1f, 0.0f, 1.0f, "Friction of the Collider"))
+			{
+				for (UUID entityID : entities)
+				{
+					Entity entity = m_Context->GetEntityWithUUID(entityID);
+					entity.GetComponent<SphereColliderComponent>().Material.Friction = sphereColliderComp.Material.Friction;
+				}
+			}
+			ImGui::PopItemFlag();
+
+			ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<float, SphereColliderComponent>([](const SphereColliderComponent& other) { return other.Material.Restitution; }));
+			if (UI::Property("Restitution", sphereColliderComp.Material.Restitution, 0.1f, 0.0f, 1.0f, "Restitution of the Collider controls the elasticity"))
+			{
+				for (UUID entityID : entities)
+				{
+					Entity entity = m_Context->GetEntityWithUUID(entityID);
+					entity.GetComponent<SphereColliderComponent>().Material.Restitution = sphereColliderComp.Material.Restitution;
+				}
+			}
+			ImGui::PopItemFlag();
+
+			UI::EndPropertyGrid();
+		}, EditorResources::SphereColliderIcon);
+
+		DrawComponent<CylinderColliderComponent>("Cylinder Collider", [&](CylinderColliderComponent& cylinderColliderComp, const std::vector<UUID>& entities, const bool isMultiSelect)
+		{
+			UI::BeginPropertyGrid();
+
+			ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<float, CylinderColliderComponent>([](const CylinderColliderComponent& other) { return other.Radius; }));
+			if (UI::Property("Radius", cylinderColliderComp.Radius, 0.1f, 0.0001f, FLT_MAX, "Radius of the Cylinder Collider"))
+			{
+				for (UUID entityID : entities)
+				{
+					Entity entity = m_Context->GetEntityWithUUID(entityID);
+					entity.GetComponent<CylinderColliderComponent>().Radius = cylinderColliderComp.Radius;
+				}
+			}
+			ImGui::PopItemFlag();
+
+			ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<float, CylinderColliderComponent>([](const CylinderColliderComponent& other) { return other.HalfHeight; }));
+			if (UI::Property("Half Height", cylinderColliderComp.HalfHeight, 0.1f, 0.0001f, FLT_MAX, "Half the total height of the Cylinder Collider"))
+			{
+				for (UUID entityID : entities)
+				{
+					Entity entity = m_Context->GetEntityWithUUID(entityID);
+					entity.GetComponent<CylinderColliderComponent>().HalfHeight = cylinderColliderComp.HalfHeight;
+				}
+			}
+			ImGui::PopItemFlag();
+
+			ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<glm::vec3, CylinderColliderComponent>([](const CylinderColliderComponent& other) { return other.Offset; }));
+			if (UI::PropertyDrag("Offset", cylinderColliderComp.Offset, 0.1f, FLT_MIN, FLT_MAX, "Offset of the Cylinder Collider from its original position"))
+			{
+				for (UUID entityID : entities)
+				{
+					Entity entity = m_Context->GetEntityWithUUID(entityID);
+					entity.GetComponent<CylinderColliderComponent>().Offset = cylinderColliderComp.Offset;
+				}
+			}
+			ImGui::PopItemFlag();
+
+			ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<float, CylinderColliderComponent>([](const CylinderColliderComponent& other) { return other.Material.Friction; }));
+			if (UI::Property("Friction", cylinderColliderComp.Material.Friction, 0.1f, 0.0f, 1.0f, "Friction of the Collider"))
+			{
+				for (UUID entityID : entities)
+				{
+					Entity entity = m_Context->GetEntityWithUUID(entityID);
+					entity.GetComponent<CylinderColliderComponent>().Material.Friction = cylinderColliderComp.Material.Friction;
+				}
+			}
+			ImGui::PopItemFlag();
+
+			ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<float, CylinderColliderComponent>([](const CylinderColliderComponent& other) { return other.Material.Restitution; }));
+			if (UI::Property("Restitution", cylinderColliderComp.Material.Restitution, 0.1f, 0.0f, 1.0f, "Restitution of the Collider controls the elasticity"))
+			{
+				for (UUID entityID : entities)
+				{
+					Entity entity = m_Context->GetEntityWithUUID(entityID);
+					entity.GetComponent<CylinderColliderComponent>().Material.Restitution = cylinderColliderComp.Material.Restitution;
+				}
+			}
+			ImGui::PopItemFlag();
+
+			UI::EndPropertyGrid();
+		}, EditorResources::CylinderColliderIcon);
+
+		DrawComponent<CapsuleColliderComponent>("Capsule Collider", [&](CapsuleColliderComponent& capsuleColliderComp, const std::vector<UUID>& entities, const bool isMultiSelect)
+		{
+			UI::BeginPropertyGrid();
+
+			ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<float, CapsuleColliderComponent>([](const CapsuleColliderComponent& other) { return other.Radius; }));
+			if (UI::Property("Radius", capsuleColliderComp.Radius, 0.1f, 0.0001f, FLT_MAX, "Radius of the Capsule Collider"))
+			{
+				for (UUID entityID : entities)
+				{
+					Entity entity = m_Context->GetEntityWithUUID(entityID);
+					entity.GetComponent<CapsuleColliderComponent>().Radius = capsuleColliderComp.Radius;
+				}
+			}
+			ImGui::PopItemFlag();
+
+			ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<float, CapsuleColliderComponent>([](const CapsuleColliderComponent& other) { return other.HalfHeight; }));
+			if (UI::Property("Half Height", capsuleColliderComp.HalfHeight, 0.1f, 0.0001f, FLT_MAX, "Half the total height of the Capsule Collider"))
+			{
+				for (UUID entityID : entities)
+				{
+					Entity entity = m_Context->GetEntityWithUUID(entityID);
+					entity.GetComponent<CapsuleColliderComponent>().HalfHeight = capsuleColliderComp.HalfHeight;
+				}
+			}
+			ImGui::PopItemFlag();
+
+			ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<glm::vec3, CapsuleColliderComponent>([](const CapsuleColliderComponent& other) { return other.Offset; }));
+			if (UI::PropertyDrag("Offset", capsuleColliderComp.Offset, 0.1f, FLT_MIN, FLT_MAX, "Offset of the Capsule Collider from its original position"))
+			{
+				for (UUID entityID : entities)
+				{
+					Entity entity = m_Context->GetEntityWithUUID(entityID);
+					entity.GetComponent<CapsuleColliderComponent>().Offset = capsuleColliderComp.Offset;
+				}
+			}
+			ImGui::PopItemFlag();
+
+			ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<float, CapsuleColliderComponent>([](const CapsuleColliderComponent& other) { return other.Material.Friction; }));
+			if (UI::Property("Friction", capsuleColliderComp.Material.Friction, 0.1f, 0.0f, 1.0f, "Friction of the Collider"))
+			{
+				for (UUID entityID : entities)
+				{
+					Entity entity = m_Context->GetEntityWithUUID(entityID);
+					entity.GetComponent<CapsuleColliderComponent>().Material.Friction = capsuleColliderComp.Material.Friction;
+				}
+			}
+			ImGui::PopItemFlag();
+
+			ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<float, CapsuleColliderComponent>([](const CapsuleColliderComponent& other) { return other.Material.Restitution; }));
+			if (UI::Property("Restitution", capsuleColliderComp.Material.Restitution, 0.1f, 0.0f, 1.0f, "Restitution of the Collider controls the elasticity"))
+			{
+				for (UUID entityID : entities)
+				{
+					Entity entity = m_Context->GetEntityWithUUID(entityID);
+					entity.GetComponent<CapsuleColliderComponent>().Material.Restitution = capsuleColliderComp.Material.Restitution;
+				}
+			}
+			ImGui::PopItemFlag();
+
+			UI::EndPropertyGrid();
+		}, EditorResources::CapsuleColliderIcon);
+
+		DrawComponent<CompoundColliderComponent>("Compound Collider", [&](CompoundColliderComponent& compoundColliderComp, const std::vector<UUID>& entities, const bool isMultiSelect)
+		{
+			UI::BeginPropertyGrid();
+
+			ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect&& IsInconsistentPrimitive<bool, CompoundColliderComponent>([](const CompoundColliderComponent& other) { return other.IsImmutable; }));
+			if (UI::Property("Is Immutable", compoundColliderComp.IsImmutable, "An Immutable Compound Collider cannot be changed during runtime allowing\nfor certain performance optimizations. Set to False if you're planning to add\nor remove colliders during runtime"))
+			{
+				for (UUID entityID : entities)
+				{
+					Entity entity = m_Context->GetEntityWithUUID(entityID);
+					entity.GetComponent<CompoundColliderComponent>().IsImmutable = compoundColliderComp.IsImmutable;
+				}
+			}
+			ImGui::PopItemFlag();
+
+			ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect&& IsInconsistentPrimitive<bool, CompoundColliderComponent>([](const CompoundColliderComponent& other) { return other.IncludeStaticChildColliders; }));
+			if (UI::Property("Include Static\nChild Colliders", compoundColliderComp.IncludeStaticChildColliders, "If set to True, any child entity that has a collider, and is STATIC,\n will have its collider merged into this Compound Collider"))
+			{
+				for (UUID entityID : entities)
+				{
+					Entity entity = m_Context->GetEntityWithUUID(entityID);
+					entity.GetComponent<CompoundColliderComponent>().IncludeStaticChildColliders = compoundColliderComp.IncludeStaticChildColliders;
+				}
+			}
+			ImGui::PopItemFlag();
+
+			UI::EndPropertyGrid();
+		}, EditorResources::CompoundColliderIcon);
+
 		DrawComponent<RigidBody2DComponent>("Rigid Body 2D", [&](RigidBody2DComponent& rigidBodyComp, const std::vector<UUID>& entities, const bool isMultiSelect)
 		{
 			UI::BeginPropertyGrid();
 
 			// Body type
-			static const char* bodyType[3] = { "Static", "Dynamic", "Kinematic" };
+			static const char* s_BodyType[3] = { "Static", "Dynamic", "Kinematic" };
 			int currentBodyType = static_cast<int>(rigidBodyComp.BodyType);
 
 			ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<int, RigidBody2DComponent>([](const RigidBody2DComponent& other) { return static_cast<int>(other.BodyType); }));
-			if (UI::PropertyDropdown("Body Type", bodyType, 3, &currentBodyType, "Type of Rigid Body. NOTE: Kinematic body types currently are not supported"))
+			if (UI::PropertyDropdown("Body Type", s_BodyType, 3, &currentBodyType, "Type of Rigid Body."))
 			{
 				for (UUID entityID : entities)
 				{
 					Entity entity = m_Context->GetEntityWithUUID(entityID);
-					entity.GetComponent<RigidBody2DComponent>().BodyType = static_cast<RigidBody2DComponent::Type>(currentBodyType);
+					entity.GetComponent<RigidBody2DComponent>().BodyType = static_cast<PhysicsBodyType>(currentBodyType);
 				}
 			}
 			ImGui::PopItemFlag();
 
-			if (rigidBodyComp.BodyType == RigidBody2DComponent::Type::Dynamic)
+			if (rigidBodyComp.BodyType == PhysicsBodyType::Dynamic)
 			{
 				ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<float, RigidBody2DComponent>([](const RigidBody2DComponent& other) { return other.Mass; }));
-				if (UI::Property("Mass", rigidBodyComp.Mass, 0.1f, 0.0f, FLT_MAX, "Set the Mass in Kilograms of the Rigid Body"))
+				if (UI::Property("Mass", rigidBodyComp.Mass, 0.1f, 0.00001f, FLT_MAX, "Set the Mass in Kilograms of the Rigid Body"))
 				{
 					for (UUID entityID : entities)
 					{
@@ -2146,6 +2783,10 @@ namespace Iris {
 				}
 				ImGui::PopItemFlag();
 			}
+			else if (rigidBodyComp.BodyType == PhysicsBodyType::Kinematic)
+			{
+				UI::PropertyStringReadOnly("Error", "Not supported yet", true);
+			}
 
 			UI::EndPropertyGrid();
 		}, EditorResources::RigidBody2DIcon);
@@ -2154,13 +2795,13 @@ namespace Iris {
 		{
 			UI::BeginPropertyGrid();
 
-			ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<glm::vec2, BoxCollider2DComponent>([](const BoxCollider2DComponent& other) { return other.Size; }));
-			if (UI::PropertyDrag("Size", boxColliderComp.Size, 0.1f, FLT_MIN, FLT_MAX, "Half Size of the Box Collider"))
+			ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<glm::vec2, BoxCollider2DComponent>([](const BoxCollider2DComponent& other) { return other.HalfSize; }));
+			if (UI::PropertyDrag("Half Size", boxColliderComp.HalfSize, 0.1f, FLT_MIN, FLT_MAX, "Half Size of the Box Collider"))
 			{
 				for (UUID entityID : entities)
 				{
 					Entity entity = m_Context->GetEntityWithUUID(entityID);
-					entity.GetComponent<BoxCollider2DComponent>().Size= boxColliderComp.Size;
+					entity.GetComponent<BoxCollider2DComponent>().HalfSize = boxColliderComp.HalfSize;
 				}
 			}
 			ImGui::PopItemFlag();
@@ -2187,30 +2828,30 @@ namespace Iris {
 			}
 			ImGui::PopItemFlag();
 
-			ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<float, BoxCollider2DComponent>([](const BoxCollider2DComponent& other) { return other.Friction; }));
-			if (UI::Property("Friction", boxColliderComp.Friction, 0.1f, 0.0f, 1.0f, "Friction of the Collider"))
+			ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<float, BoxCollider2DComponent>([](const BoxCollider2DComponent& other) { return other.Material.Friction; }));
+			if (UI::Property("Friction", boxColliderComp.Material.Friction, 0.1f, 0.0f, 1.0f, "Friction of the Collider"))
 			{
 				for (UUID entityID : entities)
 				{
 					Entity entity = m_Context->GetEntityWithUUID(entityID);
-					entity.GetComponent<BoxCollider2DComponent>().Friction = boxColliderComp.Friction;
+					entity.GetComponent<BoxCollider2DComponent>().Material.Friction = boxColliderComp.Material.Friction;
 				}
 			}
 			ImGui::PopItemFlag();
 
-			ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<float, BoxCollider2DComponent>([](const BoxCollider2DComponent& other) { return other.Restitution; }));
-			if (UI::Property("Restitution", boxColliderComp.Restitution, 0.1f, 0.0f, 1.0f, "Restitution of the Collider controls the elasticity"))
+			ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<float, BoxCollider2DComponent>([](const BoxCollider2DComponent& other) { return other.Material.Restitution; }));
+			if (UI::Property("Restitution", boxColliderComp.Material.Restitution, 0.1f, 0.0f, 1.0f, "Restitution of the Collider controls the elasticity"))
 			{
 				for (UUID entityID : entities)
 				{
 					Entity entity = m_Context->GetEntityWithUUID(entityID);
-					entity.GetComponent<BoxCollider2DComponent>().Restitution = boxColliderComp.Restitution;
+					entity.GetComponent<BoxCollider2DComponent>().Material.Restitution = boxColliderComp.Material.Restitution;
 				}
 			}
 			ImGui::PopItemFlag();
 
 			ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<float, BoxCollider2DComponent>([](const BoxCollider2DComponent& other) { return other.RestitutionThreshold; }));
-			if (UI::Property("Restitution Threshold", boxColliderComp.RestitutionThreshold, 0.1f, 0.0f, 1.0f, "Restitution velocity threshold, usually in m/s.\nCollisions above this speed have restitution applied (will bounce)."))
+			if (UI::Property("Restitution\nThreshold", boxColliderComp.RestitutionThreshold, 0.1f, 0.0f, 1.0f, "Restitution velocity threshold, usually in m/s.\nCollisions above this speed have restitution applied (will bounce)."))
 			{
 				for (UUID entityID : entities)
 				{
@@ -2260,30 +2901,30 @@ namespace Iris {
 			}
 			ImGui::PopItemFlag();
 
-			ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<float, CircleCollider2DComponent>([](const CircleCollider2DComponent& other) { return other.Friction; }));
-			if (UI::Property("Friction", circleColliderComp.Friction, 0.1f, 0.0f, 1.0f, "Friction of the Collider"))
+			ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<float, CircleCollider2DComponent>([](const CircleCollider2DComponent& other) { return other.Material.Friction; }));
+			if (UI::Property("Friction", circleColliderComp.Material.Friction, 0.1f, 0.0f, 1.0f, "Friction of the Collider"))
 			{
 				for (UUID entityID : entities)
 				{
 					Entity entity = m_Context->GetEntityWithUUID(entityID);
-					entity.GetComponent<CircleCollider2DComponent>().Friction = circleColliderComp.Friction;
+					entity.GetComponent<CircleCollider2DComponent>().Material.Friction = circleColliderComp.Material.Friction;
 				}
 			}
 			ImGui::PopItemFlag();
 
-			ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<float, CircleCollider2DComponent>([](const CircleCollider2DComponent& other) { return other.Restitution; }));
-			if (UI::Property("Restitution", circleColliderComp.Restitution, 0.1f, 0.0f, 1.0f, "Restitution of the Collider controls the elasticity"))
+			ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<float, CircleCollider2DComponent>([](const CircleCollider2DComponent& other) { return other.Material.Restitution; }));
+			if (UI::Property("Restitution", circleColliderComp.Material.Restitution, 0.1f, 0.0f, 1.0f, "Restitution of the Collider controls the elasticity"))
 			{
 				for (UUID entityID : entities)
 				{
 					Entity entity = m_Context->GetEntityWithUUID(entityID);
-					entity.GetComponent<CircleCollider2DComponent>().Restitution = circleColliderComp.Restitution;
+					entity.GetComponent<CircleCollider2DComponent>().Material.Restitution = circleColliderComp.Material.Restitution;
 				}
 			}
 			ImGui::PopItemFlag();
 
 			ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect&& IsInconsistentPrimitive<float, CircleCollider2DComponent>([](const CircleCollider2DComponent& other) { return other.RestitutionThreshold; }));
-			if (UI::Property("Threshold", circleColliderComp.RestitutionThreshold, 0.1f, 0.0f, 1.0f, "Restitution velocity threshold, usually in m/s.\nCollisions above this speed have restitution applied (will bounce)."))
+			if (UI::Property("Restitution\nThreshold", circleColliderComp.RestitutionThreshold, 0.1f, 0.0f, 1.0f, "Restitution velocity threshold, usually in m/s.\nCollisions above this speed have restitution applied (will bounce)."))
 			{
 				for (UUID entityID : entities)
 				{

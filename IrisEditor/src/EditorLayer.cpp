@@ -362,6 +362,8 @@ namespace Iris {
 
 		SelectionManager::DeselectAll();
 
+		m_GizmoType = -1;
+
 		m_RuntimeScene = Scene::Create(fmt::format("{} - {}", m_EditorScene->GetName(), "Runtime"));
 		m_EditorScene->CopyTo(m_RuntimeScene);
 		m_RuntimeScene->OnRuntimeStart();
@@ -1569,8 +1571,11 @@ namespace Iris {
 							UI::SectionCheckbox("Selected in Wireframe", rendererOptions.ShowSelectedInWireFrame, "Show selected mesh in wireframe mode");
 
 							UI::SectionCheckbox("Show Physics Colliders", rendererOptions.ShowPhysicsColliders, "Show phsyics colliders in the viewport");
-							static const char* s_PhysicsColliderDebugViewMode[] = { "Selected Entity", "All" };
-							UI::SectionDropdown("Selection Mode", s_PhysicsColliderDebugViewMode, 2, reinterpret_cast<int32_t*>(&rendererOptions.PhysicsColliderViewMode), "Select the debug view mode of physics colliders");
+							if (rendererOptions.ShowPhysicsColliders)
+							{
+								static const char* s_PhysicsColliderDebugViewMode[] = { "Selected Entity", "All" };
+								UI::SectionDropdown("Selection Mode", s_PhysicsColliderDebugViewMode, 2, reinterpret_cast<int32_t*>(&rendererOptions.PhysicsColliderViewMode), "Select the debug view mode of physics colliders");
+							}
 
 							if (UI::SectionDrag("Line Width", m_LineWidth, 0.1f, 0.1f, 10.0f, "Change pipeline line width"))
 							{
@@ -2081,9 +2086,17 @@ namespace Iris {
 		if (SelectionManager::GetSelectionCount(SelectionContext::Scene) == 0)
 			return;
 
-		UUID selectedEntityID = SelectionManager::GetSelections(SelectionContext::Scene).front();
-		Entity selectedEntity = m_CurrentScene->GetEntityWithUUID(selectedEntityID);
-		m_EditorCamera.Focus(m_CurrentScene->GetWorldSpaceTransform(selectedEntity).Translation);
+		glm::vec3 medianPoint = { 0.0f, 0.0f, 0.0f };
+		const std::vector<UUID>& selectedEntityIDs = SelectionManager::GetSelections(SelectionContext::Scene);
+		for (uint32_t i = 0; i < selectedEntityIDs.size(); i++)
+		{
+			Entity selectedEntity = m_CurrentScene->GetEntityWithUUID(selectedEntityIDs[i]);
+			medianPoint += selectedEntity.Transform().Translation;
+		}
+
+		medianPoint /= selectedEntityIDs.size();
+
+		m_EditorCamera.Focus(medianPoint);
 	}
 
 	void EditorLayer::SC_H()
@@ -2237,6 +2250,9 @@ namespace Iris {
 		{
 			if ((m_SceneState == SceneState::Play) || (m_SceneState == SceneState::Pause))
 				OnSceneStop();
+
+			if (Project::GetActive()->GetConfig().EnableSceneSaveOnEditorClose)
+				SaveScene();
 
 			return false;
 		});

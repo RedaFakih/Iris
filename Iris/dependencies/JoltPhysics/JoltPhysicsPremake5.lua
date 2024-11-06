@@ -1,7 +1,7 @@
 project "JoltPhysics"
     kind "StaticLib"
     language "C++"
-    cppdialect "C++20"
+    cppdialect "C++17"
 
     targetdir ("bin/" .. outputdir .. "/%{prj.name}")
     objdir ("bin/Intermediates/" .. outputdir .. "/%{prj.name}")
@@ -11,7 +11,9 @@ project "JoltPhysics"
         "JoltPhysics/Jolt/**.cpp",
         "JoltPhysics/Jolt/**.h",
         "JoltPhysics/Jolt/**.inl",
-        "JoltPhysics/Jolt/**.gliffy"
+        "JoltPhysics/Jolt/**.gliffy",
+
+        "JoltDummyProfiler.cpp"
     }
 
     includedirs
@@ -40,7 +42,7 @@ project "JoltPhysics"
 
     filter "configurations:Release"
         runtime "Release"
-        symbols "off"
+        -- symbols "off"
         optimize "Full"
         vectorextensions "AVX2"
         isaextensions {
@@ -50,6 +52,7 @@ project "JoltPhysics"
 
         defines
         {
+            "JPH_NO_DEBUG",
             "JPH_DEBUG_RENDERER",
             "JPH_FLOATING_POINT_EXCEPTIONS_ENABLED",
             "JPH_EXTERNAL_PROFILE"

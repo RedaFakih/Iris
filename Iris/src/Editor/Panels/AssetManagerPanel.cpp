@@ -2,9 +2,6 @@
 #include "AssetManagerPanel.h"
 
 #include "ImGui/ImGuiUtils.h"
-#include "Renderer/StorageBufferSet.h"
-#include "Renderer/Texture.h"
-#include "Renderer/UniformBufferSet.h"
 
 namespace Iris {
 

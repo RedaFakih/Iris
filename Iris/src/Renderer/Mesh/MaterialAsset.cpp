@@ -4,9 +4,6 @@
 #include "AssetManager/AssetManager.h"
 #include "Renderer/Renderer.h"
 #include "Renderer/Shaders/Shader.h"
-#include "Renderer/StorageBufferSet.h"
-#include "Renderer/Texture.h"
-#include "Renderer/UniformBufferSet.h"
 
 namespace Iris {
 

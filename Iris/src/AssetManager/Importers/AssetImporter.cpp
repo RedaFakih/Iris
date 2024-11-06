@@ -3,9 +3,6 @@
 
 #include "MeshSerializer.h"
 #include "Project/Project.h"
-#include "Renderer/StorageBufferSet.h"
-#include "Renderer/Texture.h"
-#include "Renderer/UniformBufferSet.h"
 
 namespace Iris {
 

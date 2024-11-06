@@ -2,10 +2,7 @@
 #include "AssetManager.h"
 
 #include "Renderer/Renderer.h"
-#include "Renderer/StorageBufferSet.h"
 #include "Renderer/Text/Font.h"
-#include "Renderer/UniformBufferSet.h"
-#include "Renderer/Texture.h"
 #include "Scene/SceneEnvironment.h"
 
 namespace Iris {

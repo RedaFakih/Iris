@@ -1,6 +1,8 @@
 #pragma once
 
 #include "Core/UUID.h"
+#include "Physics/ColliderMaterial.h"
+#include "Physics/PhysicsTypes.h"
 #include "Renderer/Mesh/Mesh.h"
 #include "SceneCamera.h"
 #include "Utils/Math.h"
@@ -192,6 +194,95 @@ namespace Iris {
 	/// Physics
 	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	
+	/// 3D
+
+	class PhysicsScene;
+
+	struct JoltWorldComponent
+	{
+		Ref<PhysicsScene> PhysicsWorld = nullptr;
+	};
+	
+	struct RigidBodyComponent
+	{
+		PhysicsBodyType BodyType = PhysicsBodyType::Static;
+		uint32_t LayerID = 0;
+		bool EnableDynamicTypeChange = false;
+
+		float Mass = 1.0f;
+		float LinearDrag = 0.01f;
+		float AngularDrag = 0.05f;
+		bool DisableGravity = false;
+		bool IsTrigger = false;
+		PhysicsCollisionDetectionType CollisionDetection = PhysicsCollisionDetectionType::Discrete;
+
+		glm::vec3 InitialLinearVelocity = { 0.0f, 0.0f, 0.0f };
+		float MaxLinearVelocity = 500.0f;
+
+		glm::vec3 InitialAngularVelocity = { 0.0f, 0.0f, 0.0f };
+		float MaxAngularVelocity = 50.0f;
+
+		PhysicsActorAxis LockedAxes = PhysicsActorAxis::None;
+	};
+
+	struct BoxColliderComponent
+	{
+		glm::vec3 HalfSize = { 0.5f, 0.5f, 0.5f };
+		glm::vec3 Offset = { 0.0f, 0.0f, 0.0f };
+
+		ColliderMaterial Material;
+	};
+
+	struct SphereColliderComponent
+	{
+		glm::vec3 Offset = { 0.0f, 0.0f, 0.0f };
+		float Radius = 0.5f;
+
+		ColliderMaterial Material;
+	};
+
+	struct CylinderColliderComponent
+	{
+		glm::vec3 Offset = { 0.0f, 0.0f, 0.0f };
+		float Radius = 0.5f;
+		float HalfHeight = 0.5f;
+
+		ColliderMaterial Material;
+	};
+
+	struct CapsuleColliderComponent
+	{
+		glm::vec3 Offset = { 0.0f, 0.0f, 0.0f };
+		float Radius = 0.5f;
+		float HalfHeight = 0.5f;
+
+		ColliderMaterial Material;
+	};
+
+	/*
+	 * The way Compound Colliders work is that you can create a top level parent entity, add children to it that have ColliderComponents AND RigidBodyComponents,
+	 * then add a CompoundColliderComponent to the top level parent entity AND a RigidBodyComponent and then that will combine all the child colliders
+	 * into one collider
+	 */
+	struct CompoundColliderComponent
+	{
+		bool IsImmutable = true;
+		bool IncludeStaticChildColliders = true;
+		
+		std::vector<UUID> CompoundedColliderEntities;
+	};
+
+	struct MeshColliderComponent
+	{
+		AssetHandle ColliderAsset = 0;
+		uint32_t SubMeshIndex = 0;
+		bool UseSharedShape = false; // TODO: What is this?
+		ColliderMaterial Material;
+		PhysicsCollisionComplexity CollisionComplexity = PhysicsCollisionComplexity::Default;
+	};
+
+	/// 2D
+
 	struct Box2DWorldComponent
 	{
 		Scope<b2World> World;
@@ -199,8 +290,7 @@ namespace Iris {
 
 	struct RigidBody2DComponent
 	{
-		enum class Type { Static, Dynamic, Kinematic };
-		Type BodyType = Type::Static;
+		PhysicsBodyType BodyType = PhysicsBodyType::Static;
 
 		float Mass = 1.0f;
 		float LinearDrag = 0.01f;
@@ -213,13 +303,11 @@ namespace Iris {
 
 	struct BoxCollider2DComponent
 	{
-		glm::vec2 Size = { 0.5f, 0.5f };
+		glm::vec2 HalfSize = { 0.5f, 0.5f };
 		glm::vec2 Offset = { 0.0f, 0.0f };
 
-		// NOTE: Move into physics material maybe?
 		float Density = 1.0f;
-		float Friction = 0.5f;
-		float Restitution = 0.0f;
+		ColliderMaterial Material;
 		float RestitutionThreshold = 0.5f;
 
 		void* RuntimeFixture = nullptr;
@@ -230,10 +318,8 @@ namespace Iris {
 		glm::vec2 Offset = { 0.0f, 0.0f };
 		float Radius = 0.5f;
 
-		// NOTE: Move into physics material maybe?
 		float Density = 1.0f;
-		float Friction = 1.0f;
-		float Restitution = 0.0f;
+		ColliderMaterial Material;
 		float RestitutionThreshold = 0.5f;
 
 		void* RuntimeFixture = nullptr;

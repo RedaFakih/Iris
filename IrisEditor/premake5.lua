@@ -35,20 +35,36 @@ project "IrisEditor"
         systemversion "latest"
 
     filter "configurations:Debug"
-        defines "IR_CONFIG_DEBUG"
         runtime "Debug"
         symbols "on"
 
+        defines
+        {
+            "IR_CONFIG_DEBUG",
+
+            "JPH_DEBUG_RENDERER",
+            "JPH_FLOATING_POINT_EXCEPTIONS_ENABLED",
+            "JPH_EXTERNAL_PROFILE"
+        }
+
     filter "configurations:Release"
         optimize "Full"
-        symbols "off"
+        -- symbols "off"
         vectorextensions "AVX2"
         isaextensions {
             "BMI", "POPCNT", "LZCNT", "F16C"
         }
         runtime "Release"
         inlining "Auto"
-        defines "IR_CONFIG_RELEASE"
+
+        defines
+        {
+            "IR_CONFIG_RELEASE",
+
+            "JPH_DEBUG_RENDERER",
+            "JPH_FLOATING_POINT_EXCEPTIONS_ENABLED",
+            "JPH_EXTERNAL_PROFILE"
+        }
 
     filter { "system:windows", "configurations:Debug" }
         postbuildcommands {

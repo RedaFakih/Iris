@@ -2,12 +2,12 @@ Material:
   Transparent: false
   TwoSided: false
   ShadowCasting: true
-  AlbedoColor: [0.242307186, 0.399193525, 0.186719537]
+  AlbedoColor: [0.128862992, 0.399193525, 0.117504552]
   Emission: 0
   Tiling: 1
   EnvMapRotation: 0
   UseNormalMap: false
-  Roughness: 0.0599999987
+  Roughness: 0
   Metalness: 1
   AlbedoMap: 0
   NormalMap: 0

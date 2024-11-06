@@ -3,10 +3,7 @@
 
 #include "ImGui/ImGuiUtils.h"
 #include "Renderer/SceneRenderer.h"
-#include "Renderer/StorageBufferSet.h"
 #include "Renderer/Text/Font.h"
-#include "Renderer/Texture.h"
-#include "Renderer/UniformBufferSet.h"
 
 namespace Iris {
 

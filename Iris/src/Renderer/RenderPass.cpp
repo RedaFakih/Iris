@@ -1,9 +1,6 @@
 #include "IrisPCH.h"
 #include "RenderPass.h"
 
-#include "StorageBufferSet.h"
-#include "UniformBufferSet.h"
-
 namespace Iris {
 
 	Ref<RenderPass> RenderPass::Create(const RenderPassSpecification& spec)

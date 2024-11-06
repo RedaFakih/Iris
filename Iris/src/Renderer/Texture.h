@@ -10,6 +10,8 @@
 #include <glm/gtc/integer.hpp>
 #include <vulkan/vulkan.h>
 
+#include <filesystem>
+
 namespace Iris {
 
 	enum class ImageFormat : uint8_t

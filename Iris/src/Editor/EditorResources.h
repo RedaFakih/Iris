@@ -38,6 +38,12 @@ namespace Iris {
 		inline static Ref<Texture2D> ClosedEyeIcon = nullptr;
 		inline static Ref<Texture2D> TransformIcon = nullptr;
 		inline static Ref<Texture2D> PencilIcon = nullptr;
+		inline static Ref<Texture2D> RigidBodyIcon = nullptr;
+		inline static Ref<Texture2D> BoxColliderIcon = nullptr;
+		inline static Ref<Texture2D> SphereColliderIcon = nullptr;
+		inline static Ref<Texture2D> CylinderColliderIcon = nullptr;
+		inline static Ref<Texture2D> CapsuleColliderIcon = nullptr;
+		inline static Ref<Texture2D> CompoundColliderIcon = nullptr;
 		inline static Ref<Texture2D> RigidBody2DIcon = nullptr;
 		inline static Ref<Texture2D> BoxCollider2DIcon = nullptr;
 		inline static Ref<Texture2D> CircleCollider2DIcon = nullptr;
@@ -97,6 +103,13 @@ namespace Iris {
 			ClosedEyeIcon = LoadTexture("Icons/SceneHierarchyPanel/ClosedEye.png", "ClosedEyeIcon", spec);
 			TransformIcon = LoadTexture("Icons/SceneHierarchyPanel/Transform.png", "TransformIcon", spec);
 			PencilIcon = LoadTexture("Icons/SceneHierarchyPanel/Pencil.png", "PencilIcon", spec);
+			RigidBodyIcon = LoadTexture("Icons/SceneHierarchyPanel/RigidBody.png", "RigidBodyIcon", spec);
+			BoxColliderIcon = LoadTexture("Icons/SceneHierarchyPanel/BoxCollider.png", "BoxColliderIcon", spec);
+			SphereColliderIcon = LoadTexture("Icons/SceneHierarchyPanel/SphereCollider.png", "SphereColliderIcon", spec);
+			// TODO: For now it uses the capsule collider icon, however we need to create a new CylinderCollider icon
+			CylinderColliderIcon = LoadTexture("Icons/SceneHierarchyPanel/CapsuleCollider.png", "CapsuleColliderIcon", spec);
+			CapsuleColliderIcon = LoadTexture("Icons/SceneHierarchyPanel/CapsuleCollider.png", "CapsuleColliderIcon", spec);
+			CompoundColliderIcon = LoadTexture("Icons/SceneHierarchyPanel/CompoundCollider.png", "CompoundColliderIcon", spec);
 			RigidBody2DIcon = LoadTexture("Icons/SceneHierarchyPanel/RigidBody2D.png", "RigidBody2DIcon", spec);
 			BoxCollider2DIcon = LoadTexture("Icons/SceneHierarchyPanel/BoxCollider2D.png", "BoxCollider2DIcon", spec);
 			CircleCollider2DIcon = LoadTexture("Icons/SceneHierarchyPanel/CircleCollider2D.png", "CicleCollider2DIcon", spec);
@@ -154,6 +167,12 @@ namespace Iris {
 			ClosedEyeIcon.Reset();
 			TransformIcon.Reset();
 			PencilIcon.Reset();
+			RigidBodyIcon.Reset();
+			BoxColliderIcon.Reset();
+			SphereColliderIcon.Reset();
+			CylinderColliderIcon.Reset();
+			CapsuleColliderIcon.Reset();
+			CompoundColliderIcon.Reset();
 			RigidBody2DIcon.Reset();
 			BoxCollider2DIcon.Reset();
 			CircleCollider2DIcon.Reset();

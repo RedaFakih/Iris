@@ -12,6 +12,7 @@ namespace Iris {
 
 	class SceneRenderer;
 	class Renderer2D;
+	class PhysicsScene;
 
 	// Just a POD type that holds all the data (from the DirectionalLightComponent and also other places) needed for a directional light in the scene
 	struct SceneDirectionalLight
@@ -45,13 +46,13 @@ namespace Iris {
 		[[nodiscard]] static Ref<Scene> Create(const std::string& name = "UntitledScene", bool isEditorScene = false);
 		[[nodiscard]] static Ref<Scene> CreateEmpty();
 
+		static Ref<Scene> GetScene(UUID uuid);
+
 		void CopyTo(Ref<Scene>& targetScene);
 
-		// TODO:
 		void OnUpdateRuntime(TimeStep ts);
 		void OnRenderRuntime(Ref<SceneRenderer> renderer, TimeStep ts);
 
-		// TODO:
 		void OnUpdateEditor(TimeStep ts);
 		void OnRenderEditor(Ref<SceneRenderer> renderer, TimeStep ts, const EditorCamera& camera);
 
@@ -147,8 +148,14 @@ namespace Iris {
 			srcScene->CopyComponentIfExists<TComponent>((entt::entity)dst, dstScene->m_Registry, (entt::entity)src);
 		}
 
-		float GetPhysics2DGravity();
-		void SetPhysics2DGravity(glm::vec2 gravity);
+		// 2D Physics
+		glm::vec2 GetPhysics2DGravity() const { return m_Box2DGravity; }
+		void SetPhysics2DGravity(glm::vec2 gravity) { m_Box2DGravity = gravity; }
+
+		// 3D Physics
+		Ref<PhysicsScene> GetPhysicsScene() const;
+
+		bool IsPlaying() const { return m_IsPlaying; }
 
 		static AssetType GetStaticType() { return AssetType::Scene; }
 		virtual AssetType GetAssetType() const override { return GetStaticType(); }
@@ -157,6 +164,7 @@ namespace Iris {
 		void SortEntities();
 		void BuildMeshEntityHierarchy(Entity parent, Ref<StaticMesh> staticMesh, const MeshUtils::MeshNode& node);
 
+		void RenderPhysicsDebug(Ref<SceneRenderer> renderer);
 		void Render2DPhysicsDebug(Ref<SceneRenderer> renderer, Ref<Renderer2D> renderer2D);
 
 	private:
@@ -179,6 +187,15 @@ namespace Iris {
 		LightEnvironment m_LightEnvironment;
 
 		std::function<void(Entity)> m_OnEntityDestroyedCallback;
+
+		bool m_ShouldSimulate = false;
+		bool m_IsPlaying = false;
+
+		glm::vec2 m_Box2DGravity = { 0.0f, -9.81f };
+
+		// The Scene class also keeps a map of currently active scenes in case we have multiple active at the same time
+		// This way we can get access in the scene that a certain entity exists in...
+		inline static std::unordered_map<UUID, Scene*> s_ActiveScenes;
 
 		friend class Entity;
 		friend class ECSDebugPanel;

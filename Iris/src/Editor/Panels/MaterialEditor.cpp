@@ -3,9 +3,6 @@
 
 #include "ImGui/ImGuiUtils.h"
 #include "Renderer/Renderer.h"
-#include "Renderer/StorageBufferSet.h"
-#include "Renderer/Texture.h"
-#include "Renderer/UniformBufferSet.h"
 
 #include <imgui/imgui.h>
 

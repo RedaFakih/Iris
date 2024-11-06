@@ -1,7 +1,20 @@
 Scene: PhysicsTestScene
 VisibleEntities:
+  - 1164292098323295422
+  - 18434944454801327763
+  - 11408097666428386747
+  - 4680931479666901323
+  - 17961032067484319051
+  - 7978731426112845976
+  - 16293967308316088148
+  - 16242505162018475188
+  - 16803111224735038987
+  - 17982637338818041142
+  - 17274912491859835808
   - 14704026428187291133
   - 13684802884496168827
+  - 13410138448210773750
+  - 12653037794705165742
   - 12649258275151874464
   - 12599562076012510748
   - 10781268972243530617
@@ -9,9 +22,79 @@ VisibleEntities:
   - 5305009254399922957
   - 4409050500666236214
   - 4195671325320845374
+  - 3204644133444135314
   - 2419040638841338767
   - 2131521204784265677
+  - 1591102392629627214
 Entities:
+  - Entity: 1164292098323295422
+    TagComponent:
+      Tag: Sphere 1
+    Parent: 11408097666428386747
+    Children:
+      []
+    TransformComponent:
+      Position: [1.33514404e-05, -2.28881836e-05, -0.747741222]
+      Rotation: [7.45058131e-08, 1.34110451e-07, -1.49011576e-08]
+      Scale: [1, 0.999999881, 0.999999881]
+    StaticMeshComponent:
+      AssetID: 18398963716275400970
+      MaterialTable:
+        0: 6440874333019988068
+    RigidBodyComponent:
+      BodyType: 0
+      LayerID: 0
+      EnableDynamicTypeChange: false
+      Mass: 1
+      LinearDrag: 0.00999999978
+      AngularDrag: 0.0500000007
+      DisableGravity: false
+      IsTrigger: false
+      CollisionDetection: 0
+      InitialLinearVelocity: [0, 0, 0]
+      MaxLinearVelocity: 500
+      InitialAngularVelocity: [0, 0, 0]
+      MaxAngularVelocity: 50
+      LockedAxes: 0
+    SphereColliderComponent:
+      Offset: [0, 0, 0]
+      Radius: 0.5
+      Friction: 0.5
+      Restitution: 0.150000006
+  - Entity: 1591102392629627214
+    TagComponent:
+      Tag: Sphere
+    Parent: 17961032067484319051
+    Children:
+      []
+    TransformComponent:
+      Position: [-0.409557164, 10.6010408, 0.265097916]
+      Rotation: [0, -0, 0]
+      Scale: [1, 1, 1]
+    StaticMeshComponent:
+      AssetID: 18398963716275400970
+      MaterialTable:
+        0: 6440874333019988068
+    RigidBodyComponent:
+      BodyType: 1
+      LayerID: 0
+      EnableDynamicTypeChange: false
+      Mass: 1
+      LinearDrag: 0.00999999978
+      AngularDrag: 0.0500000007
+      DisableGravity: false
+      IsTrigger: false
+      CollisionDetection: 0
+      InitialLinearVelocity: [0, 0, 0]
+      MaxLinearVelocity: 500
+      InitialAngularVelocity: [0, 0, 0]
+      MaxAngularVelocity: 50
+      LockedAxes: 0
+    SphereColliderComponent:
+      Offset: [0, 0, 0]
+      Radius: 0.5
+      Friction: 0.5
+      Restitution: 1
   - Entity: 2131521204784265677
     TagComponent:
       Tag: Camera
@@ -19,8 +102,8 @@ Entities:
     Children:
       []
     TransformComponent:
-      Position: [-0.241029322, 1.47412288, -5.9713788]
-      Rotation: [3.04367971, 0, 3.14159274]
+      Position: [-0.241029322, 6.15954351, 13.6823664]
+      Rotation: [-0.09791255, 1.1920929e-07, 6.28318548]
       Scale: [1, 1, 1]
     CameraComponent:
       Camera:
@@ -43,16 +126,36 @@ Entities:
       Position: [0, 0, 0]
       Rotation: [0, 0, 0]
       Scale: [1, 1, 1]
+  - Entity: 3204644133444135314
+    TagComponent:
+      Tag: Cube
+    Parent: 17961032067484319051
+    Children:
+      []
+    TransformComponent:
+      Position: [0, 4.75694227, 0]
+      Rotation: [0, -0, 0]
+      Scale: [9.46018505, 0.301509768, 11.9234133]
+    StaticMeshComponent:
+      AssetID: 13164229695691519330
+      MaterialTable:
+        0: 0
+        1: 0
+    BoxColliderComponent:
+      HalfSize: [0.5, 0.5, 0.5]
+      Offset: [0, 0, 0]
+      Friction: 0.5
+      Restitution: 0.150000006
   - Entity: 4195671325320845374
     TagComponent:
       Tag: Directional Light
-    Parent: 0
+    Parent: 16293967308316088148
     Children:
       []
     TransformComponent:
       Position: [0, 0, 0]
-      Rotation: [0.223852068, 0.367636085, -2.57652164]
-      Scale: [1, 1, 1]
+      Rotation: [0.223852053, 0.367636144, -2.57652164]
+      Scale: [1.00000012, 1.00000012, 1]
     DirectionalLightComponent:
       Radiance: [1, 0.630757749, 0.235363945]
       Intensity: 1
@@ -72,15 +175,26 @@ Entities:
       AssetID: 13164229695691519330
       MaterialTable:
         0: 0
+  - Entity: 4680931479666901323
+    TagComponent:
+      Tag: Decor
+    Parent: 0
+    Children:
+      - Handle: 12599562076012510748
+      - Handle: 10781268972243530617
+    TransformComponent:
+      Position: [0, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
   - Entity: 5305009254399922957
     TagComponent:
       Tag: Sky Light
-    Parent: 0
+    Parent: 16293967308316088148
     Children:
       []
     TransformComponent:
       Position: [0, 0, 0]
-      Rotation: [0, 0, 0]
+      Rotation: [0, -0, 0]
       Scale: [1, 1, 1]
     SkyLightComponent:
       EnvironmentMap: 0
@@ -104,44 +218,89 @@ Entities:
       AssetID: 13164229695691519330
       MaterialTable:
         0: 0
+  - Entity: 7978731426112845976
+    TagComponent:
+      Tag: 2D Physics Simulation
+    Parent: 0
+    Children:
+      - Handle: 13684802884496168827
+      - Handle: 12649258275151874464
+    TransformComponent:
+      Position: [0, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
   - Entity: 10781268972243530617
     TagComponent:
       Tag: Heart
-    Parent: 0
+    Parent: 4680931479666901323
     Children:
       []
     TransformComponent:
-      Position: [-1.56803179, 1.45204854, 6.39725876]
-      Rotation: [-0.145326987, -0.666769862, 0.0172257256]
-      Scale: [1, 1, 1]
+      Position: [-7.15255737e-07, 1.45204854, -10.8577213]
+      Rotation: [2.99626565, 0.666769326, 3.124367]
+      Scale: [1.00000024, 1, 1.00000048]
     StaticMeshComponent:
       AssetID: 16179563803417760851
       MaterialTable:
         0: 0
         1: 0
+  - Entity: 11408097666428386747
+    TagComponent:
+      Tag: Compound Collider
+    Parent: 17961032067484319051
+    Children:
+      - Handle: 18434944454801327763
+      - Handle: 1164292098323295422
+    TransformComponent:
+      Position: [2.97135019, 8.34991646, 6.81150246]
+      Rotation: [0.751235902, -0.74826932, -0.941276908]
+      Scale: [0.999999881, 0.999999881, 0.999999881]
+    RigidBodyComponent:
+      BodyType: 1
+      LayerID: 0
+      EnableDynamicTypeChange: false
+      Mass: 1
+      LinearDrag: 0.00999999978
+      AngularDrag: 0.0500000007
+      DisableGravity: false
+      IsTrigger: false
+      CollisionDetection: 0
+      InitialLinearVelocity: [0, 0, 0]
+      MaxLinearVelocity: 500
+      InitialAngularVelocity: [0, 0, 0]
+      MaxAngularVelocity: 50
+      LockedAxes: 0
+    CompoundColliderComponent:
+      IsImmutable: true
+      IncludeStaticChildColliders: true
+      CompoundedColliderEntities:
+        - 1164292098323295422
+        - 18434944454801327763
+        - 11408097666428386747
   - Entity: 12599562076012510748
     TagComponent:
       Tag: Stairs
-    Parent: 0
+    Parent: 4680931479666901323
     Children:
       []
     TransformComponent:
-      Position: [0, 1.93582308, 5.25084972]
-      Rotation: [3.14159274, 0.785743594, 3.14159274]
-      Scale: [3.65312672, 3.65194464, 1.71159244]
+      Position: [-1.56803274, 1.93582308, -9.71131325]
+      Rotation: [8.74230466e-08, -0.785745084, -8.74230111e-08]
+      Scale: [3.65312552, 3.65194464, 1.71159244]
     StaticMeshComponent:
       AssetID: 6952546901326962044
       MaterialTable:
         0: 0
+        1: 0
   - Entity: 12649258275151874464
     TagComponent:
       Tag: Sphere
-    Parent: 0
+    Parent: 7978731426112845976
     Children:
       []
     TransformComponent:
       Position: [0.634426177, 2.62526011, -0.000307947397]
-      Rotation: [0, 0, 0]
+      Rotation: [0, -0, 0]
       Scale: [1, 1, 1]
     StaticMeshComponent:
       AssetID: 18398963716275400970
@@ -161,20 +320,90 @@ Entities:
       Friction: 1
       Restitution: 0.600000024
       RestitutionThreshold: 0.5
+  - Entity: 12653037794705165742
+    TagComponent:
+      Tag: Sphere
+    Parent: 17961032067484319051
+    Children:
+      []
+    TransformComponent:
+      Position: [0.44446075, 7.59029484, 0.777554035]
+      Rotation: [0, -0, 0]
+      Scale: [1, 1, 1]
+    StaticMeshComponent:
+      AssetID: 18398963716275400970
+      MaterialTable:
+        0: 6440874333019988068
+    RigidBodyComponent:
+      BodyType: 1
+      LayerID: 0
+      EnableDynamicTypeChange: false
+      Mass: 1
+      LinearDrag: 0.00999999978
+      AngularDrag: 0.0500000007
+      DisableGravity: false
+      IsTrigger: false
+      CollisionDetection: 0
+      InitialLinearVelocity: [0, 0, 0]
+      MaxLinearVelocity: 500
+      InitialAngularVelocity: [0, 0, 0]
+      MaxAngularVelocity: 50
+      LockedAxes: 0
+    SphereColliderComponent:
+      Offset: [0, 0, 0]
+      Radius: 0.5
+      Friction: 0.5
+      Restitution: 1
+  - Entity: 13410138448210773750
+    TagComponent:
+      Tag: Capsule
+    Parent: 17961032067484319051
+    Children:
+      []
+    TransformComponent:
+      Position: [-2.17992973, 6.28482008, 2.02205324]
+      Rotation: [0.188093469, 0.0851378888, -0.42073372]
+      Scale: [1, 1, 1]
+    StaticMeshComponent:
+      AssetID: 4835715805608920513
+      MaterialTable:
+        0: 2353021548779436402
+    RigidBodyComponent:
+      BodyType: 1
+      LayerID: 0
+      EnableDynamicTypeChange: false
+      Mass: 10
+      LinearDrag: 0.00999999978
+      AngularDrag: 0.0500000007
+      DisableGravity: false
+      IsTrigger: false
+      CollisionDetection: 0
+      InitialLinearVelocity: [0, 0, 0]
+      MaxLinearVelocity: 500
+      InitialAngularVelocity: [0, 0, 0]
+      MaxAngularVelocity: 50
+      LockedAxes: 0
+    CapsuleColliderComponent:
+      Offset: [0, 0, 0]
+      Radius: 0.5
+      HalfHeight: 0.5
+      Friction: 0.5
+      Restitution: 0.150000006
   - Entity: 13684802884496168827
     TagComponent:
       Tag: Static Cube
-    Parent: 0
+    Parent: 7978731426112845976
     Children:
       []
     TransformComponent:
       Position: [-1.01992607, 2.65412521, 0]
-      Rotation: [0, 0, 0.753724754]
+      Rotation: [0, -0, 0.753724754]
       Scale: [1, 1, 1]
     StaticMeshComponent:
       AssetID: 13164229695691519330
       MaterialTable:
         0: 0
+        1: 0
     RigidBody2DComponent:
       BodyType: 1
       Mass: 0.5
@@ -183,7 +412,7 @@ Entities:
       GravityScale: 1
       FixedRotation: false
     BoxCollider2DComponent:
-      Size: [0.5, 0.5]
+      HalfSize: [0.5, 0.5]
       Offset: [0, 0]
       Density: 0.400000006
       Friction: 0.5
@@ -192,12 +421,12 @@ Entities:
   - Entity: 14704026428187291133
     TagComponent:
       Tag: Plane
-    Parent: 0
+    Parent: 16242505162018475188
     Children:
       []
     TransformComponent:
       Position: [0.0165784359, 0.0582048297, 0]
-      Rotation: [0, 0.00114536285, 0]
+      Rotation: [0, 0.00114536274, 0]
       Scale: [44, 44, 44]
     StaticMeshComponent:
       AssetID: 2732277024539045285
@@ -211,9 +440,170 @@ Entities:
       GravityScale: 1
       FixedRotation: false
     BoxCollider2DComponent:
-      Size: [0.5, 1.17549435e-38]
+      HalfSize: [0.5, 0]
       Offset: [0, 0]
       Density: 1
       Friction: 0.5
       Restitution: 0
       RestitutionThreshold: 0.5
+  - Entity: 16242505162018475188
+    TagComponent:
+      Tag: Floor
+    Parent: 0
+    Children:
+      - Handle: 16803111224735038987
+      - Handle: 14704026428187291133
+    TransformComponent:
+      Position: [0, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+  - Entity: 16293967308316088148
+    TagComponent:
+      Tag: Ambient
+    Parent: 0
+    Children:
+      - Handle: 5305009254399922957
+      - Handle: 4195671325320845374
+    TransformComponent:
+      Position: [0, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+  - Entity: 16803111224735038987
+    TagComponent:
+      Tag: Cube
+    Parent: 16242505162018475188
+    Children:
+      []
+    TransformComponent:
+      Position: [0, 0, 0]
+      Rotation: [0, -0, 0]
+      Scale: [44.4000015, 0.110022761, 44.4000015]
+    StaticMeshComponent:
+      AssetID: 13164229695691519330
+      MaterialTable:
+        0: 0
+        1: 0
+    BoxColliderComponent:
+      HalfSize: [0.5, 0.5, 0.5]
+      Offset: [0, 0, 0]
+      Friction: 0.5
+      Restitution: 0.150000006
+  - Entity: 17274912491859835808
+    TagComponent:
+      Tag: Cube
+    Parent: 17961032067484319051
+    Children:
+      []
+    TransformComponent:
+      Position: [0.229917869, 6.35093403, 0.373953342]
+      Rotation: [2.64172316, 1.16937685, -2.92001247]
+      Scale: [1.00000012, 1, 1.00000012]
+    StaticMeshComponent:
+      AssetID: 13164229695691519330
+      MaterialTable:
+        0: 6082897608703548102
+    RigidBodyComponent:
+      BodyType: 1
+      LayerID: 0
+      EnableDynamicTypeChange: false
+      Mass: 1
+      LinearDrag: 0.00999999978
+      AngularDrag: 0.0500000007
+      DisableGravity: false
+      IsTrigger: false
+      CollisionDetection: 0
+      InitialLinearVelocity: [0, 0, 0]
+      MaxLinearVelocity: 500
+      InitialAngularVelocity: [0, 0, 0]
+      MaxAngularVelocity: 50
+      LockedAxes: 0
+    BoxColliderComponent:
+      HalfSize: [0.5, 0.5, 0.5]
+      Offset: [0, 0, 0]
+      Friction: 0.5
+      Restitution: 0.150000006
+  - Entity: 17961032067484319051
+    TagComponent:
+      Tag: 3D Physics Simulation
+    Parent: 0
+    Children:
+      - Handle: 3204644133444135314
+      - Handle: 13410138448210773750
+      - Handle: 17274912491859835808
+      - Handle: 17982637338818041142
+      - Handle: 12653037794705165742
+      - Handle: 1591102392629627214
+      - Handle: 11408097666428386747
+    TransformComponent:
+      Position: [0, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
+  - Entity: 17982637338818041142
+    TagComponent:
+      Tag: Cylinder
+    Parent: 17961032067484319051
+    Children:
+      []
+    TransformComponent:
+      Position: [1.60507059, 6.04394007, -0.296805501]
+      Rotation: [0.481366098, 0.192424044, 0.512144148]
+      Scale: [1, 1, 1]
+    StaticMeshComponent:
+      AssetID: 13315839447845139405
+      MaterialTable:
+        0: 3086571681816161946
+    RigidBodyComponent:
+      BodyType: 1
+      LayerID: 0
+      EnableDynamicTypeChange: false
+      Mass: 1
+      LinearDrag: 0.00999999978
+      AngularDrag: 0.0500000007
+      DisableGravity: false
+      IsTrigger: false
+      CollisionDetection: 0
+      InitialLinearVelocity: [0, 0, 0]
+      MaxLinearVelocity: 500
+      InitialAngularVelocity: [0, 0, 0]
+      MaxAngularVelocity: 50
+      LockedAxes: 0
+    CylinderColliderComponent:
+      Offset: [0, 0, 0]
+      Radius: 0.5
+      HalfHeight: 0.5
+      Friction: 0.5
+      Restitution: 0.150000006
+  - Entity: 18434944454801327763
+    TagComponent:
+      Tag: Sphere 2
+    Parent: 11408097666428386747
+    Children:
+      []
+    TransformComponent:
+      Position: [2.38418579e-07, -9.53674316e-07, 1.1524322]
+      Rotation: [1.4901163e-08, 4.47034836e-08, -1.4901163e-08]
+      Scale: [1, 0.999999881, 0.99999994]
+    StaticMeshComponent:
+      AssetID: 18398963716275400970
+      MaterialTable:
+        0: 6440874333019988068
+    RigidBodyComponent:
+      BodyType: 0
+      LayerID: 0
+      EnableDynamicTypeChange: false
+      Mass: 1
+      LinearDrag: 0.00999999978
+      AngularDrag: 0.0500000007
+      DisableGravity: false
+      IsTrigger: false
+      CollisionDetection: 0
+      InitialLinearVelocity: [0, 0, 0]
+      MaxLinearVelocity: 500
+      InitialAngularVelocity: [0, 0, 0]
+      MaxAngularVelocity: 50
+      LockedAxes: 0
+    SphereColliderComponent:
+      Offset: [0, 0, 0]
+      Radius: 0.5
+      Friction: 0.5
+      Restitution: 0.150000006

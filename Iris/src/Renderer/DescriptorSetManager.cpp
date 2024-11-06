@@ -4,9 +4,6 @@
 #include "Renderer.h"
 #include "Renderer/Core/Vulkan.h"
 #include "Shaders/Shader.h"
-#include "StorageBufferSet.h"
-#include "Texture.h"
-#include "UniformBufferSet.h"
 
 namespace Iris {
 
