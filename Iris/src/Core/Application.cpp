@@ -128,6 +128,11 @@ namespace Iris {
 						layer->OnUpdate(m_TimeStep);
 				}
 
+				{
+					for (Layer* layer : m_LayerStack)
+						layer->OnRender(m_TimeStep);
+				}
+
 				if (m_Specification.EnableImGui)
 				{
 					Renderer::Submit([app]()

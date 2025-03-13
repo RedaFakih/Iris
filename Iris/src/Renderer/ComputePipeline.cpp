@@ -72,10 +72,10 @@ namespace Iris {
 			//VkQueue computeQueue = RendererContext::GetCurrentDevice()->GetComputeQueue();
 			VkQueue graphicsQueue = RendererContext::GetCurrentDevice()->GetGraphicsQueue();
 
-			vkEndCommandBuffer(m_ActiveCommandBuffer);
+			VK_CHECK_RESULT(vkEndCommandBuffer(m_ActiveCommandBuffer));
 
-			vkWaitForFences(device, 1, &m_ComputeFence, VK_TRUE, UINT64_MAX);
-			vkResetFences(device, 1, &m_ComputeFence);
+			VK_CHECK_RESULT(vkWaitForFences(device, 1, &m_ComputeFence, VK_TRUE, UINT64_MAX));
+			VK_CHECK_RESULT(vkResetFences(device, 1, &m_ComputeFence));
 
 			VkSubmitInfo submitInfo = {
 				.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
@@ -88,7 +88,7 @@ namespace Iris {
 			// Wait for compute shader execution for safety reasons...
 			{
 				Timer timer;
-				vkWaitForFences(device, 1, &m_ComputeFence, VK_TRUE, UINT64_MAX);
+				VK_CHECK_RESULT(vkWaitForFences(device, 1, &m_ComputeFence, VK_TRUE, UINT64_MAX));
 				IR_CORE_INFO("Compute shader execution: {}", timer.ElapsedMillis());
 			}
 		}

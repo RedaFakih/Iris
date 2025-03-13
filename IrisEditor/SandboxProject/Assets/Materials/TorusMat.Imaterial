@@ -2,7 +2,7 @@ Material:
   Transparent: false
   TwoSided: false
   ShadowCasting: true
-  AlbedoColor: [0.925956011, 0.600806475, 1]
+  AlbedoColor: [0.924459994, 0.592741966, 1]
   Emission: 0
   Tiling: 1
   EnvMapRotation: 0

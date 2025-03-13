@@ -147,9 +147,6 @@ namespace Iris {
 		// Sync with the asset thread: Any assets loaded by the asset thread are returned to the asset manager so that they become visible to the engine
 		AssetManager::SyncWithAssetThread();
 
-		// Set jump flood pass on or off based on if we have selected something in the past frame...
-		m_ViewportRenderer->GetSpecification().JumpFloodPass = SelectionManager::GetSelectionCount(SelectionContext::Scene) > 0;
-
 		switch (m_SceneState)
 		{
 			case SceneState::Edit:
@@ -158,11 +155,9 @@ namespace Iris {
 				m_EditorCamera.OnUpdate(ts);
 							
 				m_CurrentScene->OnUpdateEditor(ts);
-				m_CurrentScene->OnRenderEditor(m_ViewportRenderer, ts, m_EditorCamera);
 
-				OnRender2D();
-
-				if (const auto& project = Project::GetActive(); project && project->GetConfig().EnableAutoSave)
+				const Ref<Project>& project = Project::GetActive();
+				if (project && project->GetConfig().EnableAutoSave)
 				{
 					m_TimeSinceLastSave += ts;
 					if (m_TimeSinceLastSave > project->GetConfig().AutoSaveIntervalSeconds)
@@ -181,14 +176,6 @@ namespace Iris {
 				{
 					m_EditorCamera.SetActive(m_ViewportPanelMouseOver || m_AllowViewportCameraEvents);
 					m_EditorCamera.OnUpdate(ts);
-
-					m_RuntimeScene->OnRenderEditor(m_ViewportRenderer, ts, m_EditorCamera);
-
-					OnRender2D();
-				}
-				else
-				{
-					m_RuntimeScene->OnRenderRuntime(m_ViewportRenderer, ts);
 				}
 
 				break;
@@ -197,8 +184,6 @@ namespace Iris {
 			{
 				m_EditorCamera.SetActive(m_ViewportPanelMouseOver);
 				m_EditorCamera.OnUpdate(ts);
-
-				m_RuntimeScene->OnRenderRuntime(m_ViewportRenderer, ts);
 
 				break;
 			}
@@ -214,6 +199,45 @@ namespace Iris {
 			m_StartedCameraClickInViewport = false;
 
 		AssetEditorPanel::OnUpdate(ts);
+	}
+
+	void EditorLayer::OnRender(TimeStep ts)
+	{
+		// Set jump flood pass on or off based on if we have selected something in the past frame...
+		m_ViewportRenderer->GetSpecification().JumpFloodPass = SelectionManager::GetSelectionCount(SelectionContext::Scene) > 0;
+
+		switch (m_SceneState)
+		{
+			case SceneState::Edit:
+			{
+				m_CurrentScene->OnRenderEditor(m_ViewportRenderer, ts, m_EditorCamera);
+
+				OnRender2D();
+
+				break;
+			}
+			case SceneState::Play:
+			{
+				if (m_AllowEditorCameraInRuntime)
+				{
+					m_RuntimeScene->OnRenderEditor(m_ViewportRenderer, ts, m_EditorCamera);
+
+					OnRender2D();
+				}
+				else
+				{
+					m_RuntimeScene->OnRenderRuntime(m_ViewportRenderer, ts);
+				}
+
+				break;
+			}
+			case SceneState::Pause:
+			{
+				m_RuntimeScene->OnRenderRuntime(m_ViewportRenderer, ts);
+
+				break;
+			}
+		}
 	}
 
 	void EditorLayer::OnEntityDeleted(Entity e)
@@ -1549,6 +1573,8 @@ namespace Iris {
 							static const char* s_TransformAroundOrigin[] = { "Local", "World" };
 							UI::SectionDropdown("Transformation Origin", s_TransformAroundOrigin, 2, reinterpret_cast<int32_t*>(&m_TransformationOrigin), "Transform around origin of the entity/entities\nor around the origin of the world");
 
+							UI::SectionCheckbox("Allow Editor Camera in Runtime", m_AllowEditorCameraInRuntime, "Allow the editor camera during the runtime simulation");
+
 							UI::EndSection();
 						}
 
@@ -2132,9 +2158,6 @@ namespace Iris {
 		for (const auto& entityID : selectedEntities)
 		{
 			Entity entity = m_CurrentScene->TryGetEntityWithUUID(entityID);
-
-			if (entity.GetParent())
-				continue;
 
 			Entity duplicate = m_CurrentScene->DuplicateEntity(entity);
 			SelectionManager::Deselect(SelectionContext::Scene, entity.GetUUID());

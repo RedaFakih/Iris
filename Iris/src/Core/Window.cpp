@@ -310,7 +310,7 @@ namespace Iris {
 
 	bool Window::IsMaximized() const
 	{
-		return (bool)glfwGetWindowAttrib(m_Window, GLFW_MAXIMIZED);
+		return static_cast<bool>(glfwGetWindowAttrib(m_Window, GLFW_MAXIMIZED));
 	}
 
 	bool Window::IsFullScreen() const

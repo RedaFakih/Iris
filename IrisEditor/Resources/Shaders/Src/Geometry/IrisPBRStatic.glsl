@@ -49,8 +49,9 @@ struct VertexOutput
 
 layout(location = 0) out VertexOutput Output;
 
+// NOTE(IMPORTANT): Causes jitters on Nvidia driver versions post 552.44
 // Make sure both the PreDdepth shader and the PBR shader compute the exact same result
-invariant gl_Position;
+// invariant gl_Position;
 
 void main()
 {

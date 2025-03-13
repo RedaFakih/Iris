@@ -44,6 +44,7 @@ namespace Iris {
 		inline static Ref<Texture2D> CylinderColliderIcon = nullptr;
 		inline static Ref<Texture2D> CapsuleColliderIcon = nullptr;
 		inline static Ref<Texture2D> CompoundColliderIcon = nullptr;
+		inline static Ref<Texture2D> MeshColliderIcon = nullptr;
 		inline static Ref<Texture2D> RigidBody2DIcon = nullptr;
 		inline static Ref<Texture2D> BoxCollider2DIcon = nullptr;
 		inline static Ref<Texture2D> CircleCollider2DIcon = nullptr;
@@ -110,6 +111,7 @@ namespace Iris {
 			CylinderColliderIcon = LoadTexture("Icons/SceneHierarchyPanel/CapsuleCollider.png", "CapsuleColliderIcon", spec);
 			CapsuleColliderIcon = LoadTexture("Icons/SceneHierarchyPanel/CapsuleCollider.png", "CapsuleColliderIcon", spec);
 			CompoundColliderIcon = LoadTexture("Icons/SceneHierarchyPanel/CompoundCollider.png", "CompoundColliderIcon", spec);
+			MeshColliderIcon = LoadTexture("Icons/SceneHierarchyPanel/MeshCollider.png", "MeshColliderIcon", spec);
 			RigidBody2DIcon = LoadTexture("Icons/SceneHierarchyPanel/RigidBody2D.png", "RigidBody2DIcon", spec);
 			BoxCollider2DIcon = LoadTexture("Icons/SceneHierarchyPanel/BoxCollider2D.png", "BoxCollider2DIcon", spec);
 			CircleCollider2DIcon = LoadTexture("Icons/SceneHierarchyPanel/CircleCollider2D.png", "CicleCollider2DIcon", spec);
@@ -173,6 +175,7 @@ namespace Iris {
 			CylinderColliderIcon.Reset();
 			CapsuleColliderIcon.Reset();
 			CompoundColliderIcon.Reset();
+			MeshColliderIcon.Reset();
 			RigidBody2DIcon.Reset();
 			BoxCollider2DIcon.Reset();
 			CircleCollider2DIcon.Reset();

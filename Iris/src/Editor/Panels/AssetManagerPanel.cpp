@@ -72,6 +72,10 @@ namespace Iris {
 						}
 						else
 							UI::PropertyStringReadOnly(" - Handle", fmt::format("{}", metaData.Handle).c_str());
+						if (filePath.empty() && !metaData.IsMemoryAsset)
+						{
+							IR_CORE_ERROR_TAG("AssetManager", "An asset is not properly configured since it has no filepath but is also NOT a memory asset");
+						}
 						UI::PropertyStringReadOnly("   File Path", filePath.empty() ? "Renderer Only" : filePath.c_str(), filePath.empty());
 						UI::PropertyStringReadOnly("   Type", type.c_str());
 

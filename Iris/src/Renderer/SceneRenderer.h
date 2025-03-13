@@ -100,6 +100,8 @@ namespace Iris {
 		void SubmitStaticMesh(Ref<StaticMesh> staticMesh, Ref<MeshSource> meshSource, Ref<MaterialTable> materialTable, const glm::mat4& transform = glm::mat4(1.0f), Ref<Material> overrideMaterial = nullptr);
 		void SubmitSelectedStaticMesh(Ref<StaticMesh> staticMesh, Ref<MeshSource> meshSource, Ref<MaterialTable> materialTable, const glm::mat4& transform = glm::mat4(1.0f), Ref<Material> overrideMaterial = nullptr);
 
+		void SubmitPhysicsStaticDebugMesh(Ref<StaticMesh> staticMesh, Ref<MeshSource> meshSource, const glm::mat4& transform = glm::mat4(1.0f), const bool isSimpleCollider = true);
+
 		Ref<Texture2D> GetFinalPassImage();
 
 		Ref<Framebuffer> GetExternalCompositeFramebuffer() { return m_CompositingFramebuffer; }
@@ -378,6 +380,12 @@ namespace Iris {
 
 		// Shadow Draw Lists
 		std::map<MeshKey, StaticDrawCommand> m_StaticMeshShadowDrawList;
+
+		// Debug Physics Draw List
+		std::map<MeshKey, StaticDrawCommand> m_StaticColliderDrawList;
+
+		Ref<Material> m_SimpleColliderMaterial;
+		Ref<Material> m_ComplexColliderMaterial;
 
 		uint32_t m_ViewportWidth = 0;
 		uint32_t m_ViewportHeight = 0;

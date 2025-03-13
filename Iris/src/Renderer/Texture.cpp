@@ -616,7 +616,7 @@ namespace Iris {
         Ref<VulkanDevice> logicalDevice = RendererContext::GetCurrentDevice();
         VulkanAllocator allocator("Texture2D");
 
-        uint32_t mipCount = writeMips && m_Specification.GenerateMips ? GetMipLevelCount() : 1;
+        uint32_t mipCount = (writeMips && m_Specification.GenerateMips) ? GetMipLevelCount() : 1;
         uint32_t mipWidth = m_Specification.Width;
         uint32_t mipHeight = m_Specification.Height;
 

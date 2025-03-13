@@ -17,6 +17,7 @@ namespace Iris {
 		virtual void OnAttach() {}
 		virtual void OnDetach() {}
 		virtual void OnUpdate(TimeStep ts) { (void)ts; }
+		virtual void OnRender(TimeStep ts) { (void)ts; }
 		virtual void OnImGuiRender() {}
 		virtual void OnEvent(Events::Event& event) { (void)event; }
 

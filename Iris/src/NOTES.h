@@ -11,12 +11,12 @@
  * - - Re-write the renderer using NVRHI which will help make it alot more stable and portable
  * 
  * TODO: Jolt Physics
+ * - MeshColliderCache currently serializes to the disk but the that happens everytime the engine is restarted since the colliders will have different UUIDs so the filenames will not match
  * - Go through all todos in physics system since some of them need to be handled
  * - See why there is this rotation bug
- * - Project Serializer maybe also serialize 2D physics?
+ * - Project Serializer maybe also serialize 2D physics settings?
  * - Project Panel Physics Settings
  * - Almost done, now we need to add stuff in the SceneHierarchyPanel so that we can actually create the shapes in UI and test
- * - Render 3D Physics Debug
  * - Started work on PhysicsScene
  * - - Need to add alot more methods and start implementing, Bulk storage stuff is not really needed since it is not gonna be used for now.
  * - Need to work on PhysicsBody that will be where the jolt physics body and collider shape created
@@ -73,6 +73,9 @@
  * - Remember to clear stuff that need to be cleared most importantly renderer related stuff
  * - RenderPassInputTypes...
  *
+ * NOTE (Physics):
+ *	- TODO: Describe how the physics system works
+ * 
  * NOTE (SceneRenderer):
  *	- Currently the scene renderer renders only opaque meshes in one single geometry pass
  *	- We will want to split that into to separate draw lists that get submitted separatly

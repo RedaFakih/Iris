@@ -102,7 +102,10 @@ namespace Iris {
 					if (UI::PropertyColor4("2D Collider Debug Color", m_Context->m_Config.Viewport2DColliderOutlineColor))
 						serializeProject = true;
 
-					if (UI::PropertyColor4("3D Collider Debug Color", m_Context->m_Config.Viewport3DColliderOutlineColor))
+					if (UI::PropertyColor4("Simple 3D Collider Debug Color", m_Context->m_Config.ViewportSimple3DColliderOutlineColor))
+						serializeProject = true;
+
+					if (UI::PropertyColor4("Complex 3D Collider Debug Color", m_Context->m_Config.ViewportComplex3DColliderOutlineColor))
 						serializeProject = true;
 
 					UI::EndPropertyGrid();

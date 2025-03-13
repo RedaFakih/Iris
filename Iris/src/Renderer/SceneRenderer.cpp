@@ -655,6 +655,14 @@ namespace Iris {
 			m_DOFMaterial = Material::Create(dofPipelineSpec.Shader, "DOFMaterial");
 		}
 
+		// Collider Materials
+		{
+			m_SimpleColliderMaterial = Material::Create(Renderer::GetShadersLibrary()->Get("WireFrame"), "SimpleColliderMaterial");
+			m_SimpleColliderMaterial->Set("u_Uniforms.Color", Project::GetActive()->GetConfig().ViewportSimple3DColliderOutlineColor);
+			m_ComplexColliderMaterial = Material::Create(Renderer::GetShadersLibrary()->Get("WireFrame"), "ComplexColliderMaterial");
+			m_ComplexColliderMaterial->Set("u_Uniforms.Color", Project::GetActive()->GetConfig().ViewportComplex3DColliderOutlineColor);
+		}
+
 		// TODO: Resizable
 		constexpr std::size_t TransformBufferCount = 10 * 1024; // 10240 transforms
 		m_MeshTransformBuffers.resize(framesInFlight);
@@ -996,6 +1004,33 @@ namespace Iris {
 		}
 	}
 
+	void SceneRenderer::SubmitPhysicsStaticDebugMesh(Ref<StaticMesh> staticMesh, Ref<MeshSource> meshSource, const glm::mat4& transform, const bool isSimpleCollider)
+	{
+		const std::vector<MeshUtils::SubMesh>& subMeshData = meshSource->GetSubMeshes();
+		for (uint32_t subMeshIndex : staticMesh->GetSubMeshes())
+		{
+			const MeshUtils::SubMesh& subMesh = subMeshData[subMeshIndex];
+
+			glm::mat4 subMeshTransform = transform * subMesh.Transform;
+
+			MeshKey meshKey = { staticMesh->Handle, 0, subMeshIndex, false };
+			TransformVertexData& transformStorage = m_MeshTransformMap[meshKey].Transforms.emplace_back();
+
+			transformStorage.MatrixRow[0] = { subMeshTransform[0][0], subMeshTransform[1][0], subMeshTransform[2][0], subMeshTransform[3][0] };
+			transformStorage.MatrixRow[1] = { subMeshTransform[0][1], subMeshTransform[1][1], subMeshTransform[2][1], subMeshTransform[3][1] };
+			transformStorage.MatrixRow[2] = { subMeshTransform[0][2], subMeshTransform[1][2], subMeshTransform[2][2], subMeshTransform[3][2] };
+
+			{
+				auto& dc = m_StaticColliderDrawList[meshKey];
+				dc.StaticMesh = staticMesh;
+				dc.MeshSource = meshSource;
+				dc.SubMeshIndex = subMeshIndex;
+				dc.OverrideMaterial = isSimpleCollider ? m_SimpleColliderMaterial : m_ComplexColliderMaterial;
+				dc.InstanceCount++;
+			}
+		}
+	}
+
 	Ref<Texture2D> SceneRenderer::GetFinalPassImage()
 	{
 		if (!m_ResourcesCreated)
@@ -1166,6 +1201,7 @@ namespace Iris {
 		m_SelectedStaticMeshDrawList.clear();
 		m_DoubleSidedSelectedStaticMeshDrawList.clear();
 		m_StaticMeshShadowDrawList.clear();
+		m_StaticColliderDrawList.clear();
 
 		m_SceneInfo = {};
 
@@ -1715,6 +1751,22 @@ namespace Iris {
 				Renderer::RenderStaticMeshWithMaterial(m_CommandBuffer, m_GeometryWireFramePass->GetPipeline(), dc.StaticMesh, dc.MeshSource, dc.SubMeshIndex, m_WireFrameMaterial, m_MeshTransformBuffers[frameIndex].VertexBuffer, transformData.TransformOffset + dc.InstanceOffset * sizeof(TransformVertexData), dc.InstanceCount);
 			}
 		
+			Renderer::EndRenderPass(m_CommandBuffer);
+		}
+
+		if (m_Options.ShowPhysicsColliders)
+		{
+			m_SimpleColliderMaterial->Set("u_Uniforms.Color", Project::GetActive()->GetConfig().ViewportSimple3DColliderOutlineColor);
+			m_ComplexColliderMaterial->Set("u_Uniforms.Color", Project::GetActive()->GetConfig().ViewportSimple3DColliderOutlineColor);
+
+			Renderer::BeginRenderPass(m_CommandBuffer, m_GeometryWireFramePass);
+
+			for (const auto& [mk, dc] : m_StaticColliderDrawList)
+			{
+				const auto& transformData = m_MeshTransformMap.at(mk);
+				Renderer::RenderStaticMeshWithMaterial(m_CommandBuffer, m_GeometryWireFramePass->GetPipeline(), dc.StaticMesh, dc.MeshSource, dc.SubMeshIndex, dc.OverrideMaterial ? dc.OverrideMaterial : m_ComplexColliderMaterial, m_MeshTransformBuffers[frameIndex].VertexBuffer, transformData.TransformOffset, dc.InstanceCount);
+			}
+
 			Renderer::EndRenderPass(m_CommandBuffer);
 		}
 	}

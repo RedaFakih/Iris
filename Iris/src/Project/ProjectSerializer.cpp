@@ -30,7 +30,8 @@ namespace Iris {
 			out << YAML::Key << "SceneSaveOnEditorClose" << YAML::Value << project->m_Config.EnableSceneSaveOnEditorClose;
 			out << YAML::Key << "ViewportSelectionOutlineColor" << YAML::Value << project->m_Config.ViewportSelectionOutlineColor;
 			out << YAML::Key << "Viewport2DColliderOutlineColor" << YAML::Value << project->m_Config.Viewport2DColliderOutlineColor;
-			out << YAML::Key << "Viewport3DColliderOutlineColor" << YAML::Value << project->m_Config.Viewport3DColliderOutlineColor;
+			out << YAML::Key << "ViewportSimple3DColliderOutlineColor" << YAML::Value << project->m_Config.ViewportSimple3DColliderOutlineColor;
+			out << YAML::Key << "ViewportComplex3DColliderOutlineColor" << YAML::Value << project->m_Config.ViewportComplex3DColliderOutlineColor;
 
 			// TODO: Physics
 			out << YAML::Key << "Physics" << YAML::Value;
@@ -147,7 +148,8 @@ namespace Iris {
 		config.EnableSceneSaveOnEditorClose = rootNode["SceneSaveOnEditorClose"].as<bool>(false);
 		config.ViewportSelectionOutlineColor = rootNode["ViewportSelectionOutlineColor"].as<glm::vec4>(glm::vec4{ 0.14f, 0.8f, 0.52f, 1.0f });
 		config.Viewport2DColliderOutlineColor = rootNode["Viewport2DColliderOutlineColor"].as<glm::vec4>(glm::vec4{ 0.25f, 0.6f, 1.0f, 1.0f });
-		config.Viewport3DColliderOutlineColor = rootNode["Viewport3DColliderOutlineColor"].as<glm::vec4>(glm::vec4{ 0.2f, 1.0f, 0.2f, 1.0f });
+		config.ViewportSimple3DColliderOutlineColor = rootNode["ViewportSimple3DColliderOutlineColor"].as<glm::vec4>(glm::vec4{ 0.2f, 1.0f, 0.2f, 1.0f });
+		config.ViewportComplex3DColliderOutlineColor = rootNode["ViewportComplex3DColliderOutlineColor"].as<glm::vec4>(glm::vec4{ 0.5f, 0.5f, 1.0f, 1.0f });
 
 		// Physics
 		YAML::Node physicsNode = rootNode["Physics"];

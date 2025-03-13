@@ -78,7 +78,7 @@ namespace Iris {
 		void FlushCommandBuffer(VkCommandBuffer commandBuffer, VkQueue queue);
 
 		VkCommandPool GetGraphicsCommandPool(uint32_t frameIndex) const { IR_ASSERT(frameIndex < m_GraphicsCommandPools.size()); return m_GraphicsCommandPools[frameIndex]; }
-		VkCommandPool GetComputeCommandPool(uint32_t frameIndex) const { IR_ASSERT(frameIndex < m_GraphicsCommandPools.size(), ""); return m_ComputeCommandPools[frameIndex]; }
+		VkCommandPool GetComputeCommandPool(uint32_t frameIndex) const { IR_ASSERT(frameIndex < m_ComputeCommandPools.size()); return m_ComputeCommandPools[frameIndex]; }
 
 	private:
 		// Per-frame command pools to get better perf
