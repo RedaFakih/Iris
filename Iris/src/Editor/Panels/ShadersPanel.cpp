@@ -23,6 +23,8 @@ namespace Iris {
     {
         ImGui::Begin("Shaders", &isOpen, ImGuiWindowFlags_NoCollapse);
 
+        m_WindowFocused = ImGui::IsWindowFocused();
+
         constexpr float edgeOffset = 4.0f;
         UI::ShiftCursorX(edgeOffset * 3.0f);
         UI::ShiftCursorY(edgeOffset * 2.0f);
@@ -100,6 +102,9 @@ namespace Iris {
 
     bool ShadersPanel::OnKeyPressed(Events::KeyPressedEvent& e)
     {
+        if (!m_WindowFocused)
+            return false;
+
         if (Input::IsKeyDown(KeyCode::LeftControl))
         {
             switch (e.GetKeyCode())
@@ -107,7 +112,7 @@ namespace Iris {
                 case KeyCode::F:
                 {
                     s_ActivateSearchWidget = true;
-                    break;
+                    return true; // Since the 
                 }
             }
         }

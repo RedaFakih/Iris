@@ -20,7 +20,7 @@ void main()
 {
 	v_Color = a_Color;
 
-	gl_Position = u_ViewProjection * u_Renderer.Transform * vec4(a_Position, 1.0);
+	gl_Position = u_ViewProjection * u_Renderer.Transform * vec4(a_Position, 1.0f);
 }
 
 #version 450 core

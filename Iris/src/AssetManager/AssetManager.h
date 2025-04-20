@@ -66,18 +66,6 @@ namespace Iris {
 			static_assert(std::is_base_of<Asset, T>::value, "CreateMemoryOnlyAsset only works for types derived from Asset");
 		
 			Ref<T> asset = T::Create(std::forward<Args>(args)...);
-			asset->Handle = AssetHandle(); // NOTE: Should we generate the handle here?
-		
-			Project::GetAssetManager()->AddMemoryOnlyAsset(asset);
-			return asset->Handle;
-		}
-		
-		template<typename T, typename... Args>
-		static AssetHandle CreateMemoryOnlyRendererAsset(Args&&... args)
-		{
-			static_assert(std::is_base_of<Asset, T>::value, "CreateMemoryOnlyAsset only works for types derived from Asset");
-		
-			Ref<T> asset = T::Create(std::forward<Args>(args)...);
 			asset->Handle = AssetHandle();
 		
 			Project::GetAssetManager()->AddMemoryOnlyAsset(asset);

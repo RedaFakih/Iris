@@ -5,7 +5,7 @@
 
 namespace Iris {
 
-	UniformBufferSet::UniformBufferSet(size_t size, uint32_t framesInFlight)
+	UniformBufferSet::UniformBufferSet(std::size_t size, uint32_t framesInFlight)
 	{
 		if (framesInFlight == 0)
 			framesInFlight = Renderer::GetConfig().FramesInFlight;

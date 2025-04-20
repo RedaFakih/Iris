@@ -26,14 +26,6 @@ namespace Iris {
 
 		void Focus(const glm::vec3& focusPoint);
 
-		void SetPerspectiveView();
-		void SetTopView();
-		void SetBottomView();
-		void SetLeftView();
-		void SetRightView();
-		void SetBackView();
-		void SetFrontView();
-
 		void SetViewportSize(uint32_t width, uint32_t height);
 		void SetFOV(float degFov);
 
@@ -54,13 +46,14 @@ namespace Iris {
 		glm::vec3 GetForwardDirection() const;
 		glm::quat GetOrientation() const;
 
-		const glm::vec3& GetPosition() const { return IsPerspectiveProjection() ? m_Position : m_OrthoPosition; }
+		const glm::vec3& GetPosition() const { return m_Position; }
 
 		inline float GetDistance() const { return m_Distance; }
 		inline void SetDistance(float distance) { m_Distance = distance; }
 
-		const glm::mat4& GetViewMatrix() const { return IsPerspectiveProjection() ? m_ViewMatrix : m_OrthographicViewMatrix; }
+		const glm::mat4& GetViewMatrix() const { return m_ViewMatrix; }
 		glm::mat4 GetViewProjection() const { return GetProjectionMatrix() * GetViewMatrix(); }
+		glm::mat4 GetUnReversedViewProjection() const { return GetUnReversedProjectionMatrix() * m_ViewMatrix; }
 
 		float GetPitch() const { return m_Pitch; }
 		float GetYaw() const { return m_Yaw; }
@@ -84,36 +77,31 @@ namespace Iris {
 		glm::vec3 CalculatePosition() const;
 
 	private:
-		float m_FOV = 0.78f; // In Radians
-		float m_AspectRatio = 1.778f;
+		float m_FOV; // In Radians
+		float m_AspectRatio;
 		float m_NearClip = 0.1f;
 		float m_FarClip = 1000.0f;
 
 		glm::mat4 m_ViewMatrix;
-		glm::mat4 m_OrthographicViewMatrix;
 
-		glm::vec3 m_FocalPoint = glm::vec3{ 0.0f };
+		glm::vec3 m_FocalPoint;
 		glm::vec3 m_FocalPointDelta = glm::vec3{ 0.0f };
 
-		glm::vec3 m_Position = glm::vec3{ 0.0f };
+		glm::vec3 m_Position;
 		glm::vec3 m_PositionDelta = glm::vec4{ 0.0f };
 
-		glm::vec3 m_OrthoPosition = glm::vec3{ 0.0f };
-		glm::vec3 m_OrthoPositionDelta = glm::vec3{ 0.0f };
-
 		glm::vec3 m_Direction;
-		glm::vec3 m_RightDirection;
+		glm::vec3 m_RightDirection = {};
 
-		glm::vec2 m_InitialMousePosition = glm::vec2{ 0.0f };
+		glm::vec2 m_InitialMousePosition = {};
 
 		float m_Distance = 25.0f;
-		float m_Zoom = 1.0f;
 
 		float m_NormalSpeed = 0.002f;
 
-		float m_Pitch = 0.25f;
+		float m_Pitch;
 		float m_PitchDelta = 0.0f;
-		float m_Yaw = 0.0f;
+		float m_Yaw;
 		float m_YawDelta = 0.0f;
 
 		float m_MinFocusDistance = 100.0f;
@@ -121,9 +109,6 @@ namespace Iris {
 		CameraType m_CameraType = CameraType::ArcBall;
 
 		uint32_t m_ViewportWidth = 1280, m_ViewportHeight = 720;
-
-		enum class OrthoPosition { Top, Bottom, Left, Right, Back, Front };
-		OrthoPosition m_OrthoPositioning = OrthoPosition::Top;
 
 		bool m_IsActive = false;
 

@@ -134,31 +134,41 @@ namespace Iris {
 	class StaticMesh : public Asset
 	{
 	public:
-		explicit StaticMesh(AssetHandle meshSource);
-		StaticMesh(AssetHandle meshSource, const std::vector<uint32_t>& subMeshes);
+		explicit StaticMesh(AssetHandle meshSource, bool generateColliders);
+		StaticMesh(AssetHandle meshSource, const std::vector<uint32_t>& subMeshes, bool generateColliders);
 		virtual ~StaticMesh() = default;
 
-		[[nodiscard]] static Ref<StaticMesh> Create(AssetHandle meshSource);
-		[[nodiscard]] static Ref<StaticMesh> Create(AssetHandle meshSource, const std::vector<uint32_t>& subMeshes);
+		[[nodiscard]] inline static Ref<StaticMesh> Create(AssetHandle meshSource, bool generateColliders)
+		{
+			return CreateRef<StaticMesh>(meshSource, generateColliders);
+		}
 
-		AssetHandle GetMeshSource() const { return m_MeshSource; }
-		void SetMeshSource(AssetHandle meshSource) { m_MeshSource = meshSource; }
+		[[nodiscard]] inline static Ref<StaticMesh> Create(AssetHandle meshSource, const std::vector<uint32_t>& subMeshes, bool generateColliders)
+		{
+			return CreateRef<StaticMesh>(meshSource, subMeshes, generateColliders);
+		}
 
-		const std::vector<uint32_t>& GetSubMeshes() const { return m_SubMeshes; }
+		inline AssetHandle GetMeshSource() const { return m_MeshSource; }
+		inline void SetMeshSource(AssetHandle meshSource) { m_MeshSource = meshSource; }
+
+		inline const std::vector<uint32_t>& GetSubMeshes() const { return m_SubMeshes; }
 		void SetSubMeshes(const std::vector<uint32_t>& subMeshes, Ref<MeshSource> meshSource); // Pass empty vector to set all submeshes
 
-		Ref<MaterialTable> GetMaterials() const { return m_MaterialTable; }
+		inline Ref<MaterialTable> GetMaterials() const { return m_MaterialTable; }
+
+		inline bool ShouldGenerateColliders() const { return m_GenerateColliders; }
 
 		static AssetType GetStaticType() { return AssetType::StaticMesh; }
 		virtual AssetType GetAssetType() const override { return GetStaticType(); }
-
-		static const std::vector<uint32_t>& GetCurrentlyLoadingMeshSourceIndices();
 
 	private:
 		AssetHandle m_MeshSource;
 		std::vector<uint32_t> m_SubMeshes;
 
 		Ref<MaterialTable> m_MaterialTable;
+
+		// Sets whether we generate physics colliders when (re)loading this mesh
+		bool m_GenerateColliders = false;
 	};
 
 }

@@ -1,9 +1,12 @@
 #include "IrisPCH.h"
 #include "PhysicsBody.h"
 
-#include "PhysicsUtils.h"
-#include "PhysicsScene.h"
+#include "AssetManager/Asset/MeshColliderAsset.h"
+#include "AssetManager/AssetManager.h"
+#include "Physics.h"
 #include "PhysicsLayer.h"
+#include "PhysicsScene.h"
+#include "PhysicsUtils.h"
 
 #include <Jolt/Physics/Body/BodyCreationSettings.h>
 
@@ -38,7 +41,7 @@ namespace Iris {
 
 	PhysicsBody::~PhysicsBody()
 	{
-		// TODO: Maybe we can add Release here?
+		Release();
 	}
 
 	void PhysicsBody::SetCollisionLayer(uint32_t layerId)
@@ -729,7 +732,7 @@ namespace Iris {
 		Ref<Scene> scene = Scene::GetScene(entity.GetSceneUUID());
 
 		/*
-		 * TODO: Compound collision shape is one rigid body that is composed from multiple different collision shapes linked to each other, meaning it could be one body
+		 * NOTE: Compound collision shape is one rigid body that is composed from multiple different collision shapes linked to each other, meaning it could be one body
 		 * but that one body has a box and a sphere shape linked to it as its collision shapes, so for that to work we need to have a generic array or map
 		 * of shape type to vector of collision shapes since it may also have multiple of each shape type
 		 */
@@ -796,7 +799,42 @@ namespace Iris {
 			m_Shapes[PhysicsShapeType::Capsule].push_back(CapsulePhysicsShape::Create(entity, rigidBodyComp.Mass));
 		}
 
-		// TODO: Other types MeshCollider
+		if (entity.HasComponent<MeshColliderComponent>())
+		{
+			const MeshColliderComponent& component = entity.GetComponent<MeshColliderComponent>();
+
+			Ref<MeshColliderAsset> colliderAsset = AssetManager::GetAsset<MeshColliderAsset>(component.ColliderAsset);
+			IR_VERIFY(colliderAsset);
+
+			auto& meshCache = PhysicsSystem::GetMesheColliderCache();
+
+			if (!meshCache->Exists(colliderAsset))
+			{
+				auto [simpleColliderResult, complexColliderResult] = MeshCookingFactory::CookMesh(colliderAsset);
+
+				if (simpleColliderResult != PhysicsCookingResult::Success && complexColliderResult != PhysicsCookingResult::Success)
+				{
+					IR_CORE_WARN_TAG("Physics", "Tried to add a Mesh Collider with an invalid collider asset. Please make sure your collider has been cooked.");
+					return;
+				}
+			}
+
+			const CachedColliderData& colliderData = meshCache->GetMeshData(colliderAsset);
+
+			if (colliderAsset->CollisionComplexity == PhysicsCollisionComplexity::UseComplexAsSimple && rigidBodyComp.BodyType == PhysicsBodyType::Dynamic)
+			{
+				IR_CORE_ERROR_TAG("Physics", "Entity '{0}' ({1}) has a dynamic RigidBodyComponent along with a Complex MeshColliderComponent! This isn't allowed.", m_Entity.Name(), m_Entity.GetUUID());
+				return;
+			}
+
+			// Create and add simple collider
+			if (colliderData.SimpleColliderData.SubMeshes.size() > 0 && colliderAsset->CollisionComplexity != PhysicsCollisionComplexity::UseComplexAsSimple)
+				m_Shapes[PhysicsShapeType::ConvexMesh].push_back(ConvexMeshShape::Create(entity, rigidBodyComp.Mass));
+
+			// Create and add complex collider
+			if (colliderData.ComplexColliderData.SubMeshes.size() > 0 && colliderAsset->CollisionComplexity != PhysicsCollisionComplexity::UseSimpleAsComplex)
+				m_Shapes[PhysicsShapeType::TriangleMesh].push_back(TriangleMeshShape::Create(entity));
+		}
 	}
 
 	void PhysicsBody::CreateAxisLockConstraint(JPH::Body& body)

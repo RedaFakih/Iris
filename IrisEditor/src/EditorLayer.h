@@ -34,7 +34,7 @@ namespace Iris {
 		virtual void OnImGuiRender() override;
 		virtual void OnEvent(Events::Event& e) override;
 
-		void OnRender2D();
+		void OnRender2D(bool onlyTransitionImages = false);
 
 		bool OnKeyPressed(Events::KeyPressedEvent& e);
 		bool OnMouseButtonPressed(Events::MouseButtonPressedEvent& e);
@@ -58,6 +58,7 @@ namespace Iris {
 		void SaveSceneAs();
 
 		void SceneHierarchySetEditorCameraTransform(Entity entity);
+		void OnCreateMeshFromMeshSource(Entity entity, Ref<MeshSource> meshSource);
 
 	private:
 		std::pair<float, float> GetMouseInViewportSpace() const;
@@ -79,13 +80,15 @@ namespace Iris {
 		bool UI_TitleBarHitTest(int x, int y) const;
 		void UI_DrawMainMenuBar();
 		float GetSnapValue();
-		glm::vec3& GetSnapValues() { return m_GizmoSnapValues; }
 		void SetSnapValue(float value);
 		void UI_DrawViewportIcons();
 		void UI_DrawViewportOverlays();
 		void UI_DrawGizmos();
+		void UI_HandleAssetDrop();
 		void UI_ShowNewSceneModal();
 		void UI_ShowNewProjectModal();
+		void UI_ShowInvalidAssetModal();
+		void UI_ShowCreateAssetsFromMeshSourcePopup();
 
 		void DeleteEntity(Entity entity);
 
@@ -113,6 +116,13 @@ namespace Iris {
 			float Distance = 0.0f;
 		};
 
+		struct CreateNewMeshPopupData
+		{
+			Ref<MeshSource> MeshToCreate = nullptr;
+			std::string CreateStaticMeshFilenameBuffer = "";
+			Entity TargetEntity{};
+		};
+
 	private:
 		Ref<UserPreferences> m_UserPreferences;
 
@@ -134,7 +144,6 @@ namespace Iris {
 
 		int m_GizmoType = -1; // -1 = No gizmo
 		int m_GizmoMode = 0; // 0 = local
-		glm::vec3 m_GizmoSnapValues = { 1.0f, 45.0f, 1.0f }; // Translation, Rotation, Scale. Defaults: 1 meter, 45 degress, 1 meter
 
 		float m_LineWidth = 2.0f;
 
@@ -150,13 +159,14 @@ namespace Iris {
 		bool m_ShowBoundingBoxSelectedMeshOnly = false;
 		bool m_ShowBoundingBoxSubMeshes = false;
 
-		bool m_ShowNewSceneModal = false;
-		bool m_ShowNewProjectModal = false;
-
 		bool m_ShowIcons = true;
 		bool m_ShowGizmos = true;
 		bool m_GizmoAxisFlip = false;
 
+		// This is for the main window
+		bool m_MainWindowPanelTabOpened = true;
+
+		// This is for the final image viewport
 		bool m_ViewportPanelMouseOver = false;
 		bool m_ViewportPanelFocused = false;
 		bool m_AllowViewportCameraEvents = false;
@@ -177,6 +187,12 @@ namespace Iris {
 		// Just references
 		Ref<Texture2D> m_CurrentlySelectedViewIcon = nullptr;
 		Ref<Texture2D> m_CurrentlySelectedRenderIcon = nullptr;
+
+		// For the Invalid Asset popup
+		AssetMetaData m_InvalidAssetMetadataPopupData;
+
+		// For creating a mesh from meshsource
+		CreateNewMeshPopupData m_CreateNewMeshPopupData;
 
 		enum class TransformationTarget { MedianPoint, IndividualOrigins };
 		TransformationTarget m_MultiTransformTarget = TransformationTarget::MedianPoint;

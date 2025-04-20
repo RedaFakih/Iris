@@ -161,7 +161,7 @@ namespace Iris {
 		}
 
 		RenderPassInput(Ref<Texture2D> texture)
-			: Type(DescriptorResourceType::Texture2D), Input(std::vector<Ref<RefCountedObject>>(1, texture))
+			: Type(texture->GetTextureSpecification().Usage == ImageUsage::Texture ? DescriptorResourceType::Texture2D : DescriptorResourceType::StorageImage), Input(std::vector<Ref<RefCountedObject>>(1, texture))
 		{
 		}
 
@@ -172,11 +172,6 @@ namespace Iris {
 
 		RenderPassInput(Ref<ImageView> imageView)
 			: Type(DescriptorResourceType::ImageView), Input(std::vector<Ref<RefCountedObject>>(1, imageView))
-		{
-		}
-
-		RenderPassInput(Ref<StorageImage> storageImage)
-			: Type(DescriptorResourceType::StorageImage), Input(std::vector<Ref<RefCountedObject>>(1, storageImage))
 		{
 		}
 
@@ -206,7 +201,11 @@ namespace Iris {
 
 		void Set(Ref<Texture2D> texture, uint32_t index = 0)
 		{
-			Type = DescriptorResourceType::Texture2D;
+			if (texture->GetTextureSpecification().Usage == ImageUsage::Texture)
+				Type = DescriptorResourceType::Texture2D;
+			else if (texture->GetTextureSpecification().Usage == ImageUsage::Storage)
+				Type = DescriptorResourceType::StorageImage;
+
 			Input[index] = texture;
 		}
 
@@ -220,12 +219,6 @@ namespace Iris {
 		{
 			Type = DescriptorResourceType::ImageView;
 			Input[index] = imageView;
-		}
-
-		void Set(Ref<StorageImage> storageImage, uint32_t index = 0)
-		{
-			Type = DescriptorResourceType::StorageImage;
-			Input[index] = storageImage;
 		}
 	};
 
@@ -287,7 +280,6 @@ namespace Iris {
 		void SetInput(std::string_view name, Ref<Texture2D> texture, uint32_t index = 0);
 		void SetInput(std::string_view name, Ref<TextureCube> textureCube);
 		void SetInput(std::string_view name, Ref<ImageView> imageView);
-		void SetInput(std::string_view name, Ref<StorageImage> storageImage, uint32_t index = 0);
 
 		template<typename T>
 		Ref<T> GetInput(std::string_view name)

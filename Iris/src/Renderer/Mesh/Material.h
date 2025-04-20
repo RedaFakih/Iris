@@ -27,8 +27,15 @@ namespace Iris {
 		Material(Ref<Material> other, const std::string& name = "");
 		virtual ~Material();
 
-		[[nodiscard]] static Ref<Material> Create(Ref<Shader> shader, const std::string& name = "");
-		[[nodiscard]] static Ref<Material> Create(Ref<Material> other, const std::string& name = "");
+		[[nodiscard]] inline static Ref<Material> Create(Ref<Shader> shader, const std::string& name = "")
+		{
+			return CreateRef<Material>(shader, name);
+		}
+
+		[[nodiscard]] inline static Ref<Material> Create(Ref<Material> other, const std::string& name = "")
+		{
+			return CreateRef<Material>(other, name);
+		}
 
 		void Prepare();
 		void OnShaderReloaded();
@@ -144,6 +151,7 @@ namespace Iris {
 
 		uint32_t m_MaterialFlags = 0;
 
+		// Stores all the uniform data
 		Buffer m_UniformStorageBuffer;
 	};
 

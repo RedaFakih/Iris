@@ -27,6 +27,7 @@ namespace Iris {
 			// User Preferences
 			{
 				if (!FileSystem::Exists(m_PersistentStoragePath / "UserPreferences.yaml"))
+					// Create a default
 					UserPreferencesSerializer::Serialize(m_UserPreferences, m_PersistentStoragePath / "UserPreferences.yaml");
 				else
 					UserPreferencesSerializer::Deserialize(m_UserPreferences, m_PersistentStoragePath / "UserPreferences.yaml");

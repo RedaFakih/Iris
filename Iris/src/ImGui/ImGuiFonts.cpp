@@ -5,13 +5,12 @@
 
 namespace Iris {
 
-	void ImGuiFontsLibrary::SetDefaultFont(const std::string_view name)
+	void ImGuiFontsLibrary::SetDefaultFont(DefaultFonts font)
 	{
-		std::string nameStr(name);
-		if (m_Fonts.contains(nameStr))
+		if (m_Fonts.contains(font))
 		{
 			ImGuiIO& io = ImGui::GetIO();
-			io.FontDefault = m_Fonts.at(nameStr);
+			io.FontDefault = m_Fonts.at(font);
 
 			return;
 		}
@@ -40,10 +39,10 @@ namespace Iris {
 			io.FontDefault = font;
 	}
 
-	void ImGuiFontsLibrary::PushFont(const std::string_view name) const
+	void ImGuiFontsLibrary::PushFont(const char* name) const
 	{
-		std::string nameStr(name);
-		if (!m_Fonts.contains(nameStr))
+		DefaultFonts font = Utils::DefaultFontsNameFromString(name);
+		if (!m_Fonts.contains(font))
 		{
 			ImGuiIO& io = ImGui::GetIO();
 			ImGui::PushFont(io.FontDefault);
@@ -51,7 +50,20 @@ namespace Iris {
 			return;
 		}
 
-		ImGui::PushFont(m_Fonts.at(nameStr));
+		ImGui::PushFont(m_Fonts.at(font));
+	}
+
+	void ImGuiFontsLibrary::PushFont(DefaultFonts font) const
+	{
+		if (!m_Fonts.contains(font))
+		{
+			ImGuiIO& io = ImGui::GetIO();
+			ImGui::PushFont(io.FontDefault);
+
+			return;
+		}
+
+		ImGui::PushFont(m_Fonts.at(font));
 	}
 
 	void ImGuiFontsLibrary::PopFont() const
@@ -59,11 +71,17 @@ namespace Iris {
 		ImGui::PopFont();
 	}
 
-	ImFont* ImGuiFontsLibrary::GetFont(const std::string_view name) const
+	ImFont* ImGuiFontsLibrary::GetFont(const char* name) const
 	{
-		std::string nameStr(name);
-		IR_VERIFY(m_Fonts.contains(nameStr), "Failed to find the font with provided name!");
-		return m_Fonts.at(nameStr);
+		DefaultFonts font = Utils::DefaultFontsNameFromString(name);
+		IR_VERIFY(m_Fonts.contains(font), "Failed to find the font with provided name!");
+		return m_Fonts.at(font);
+	}
+
+	ImFont* ImGuiFontsLibrary::GetFont(DefaultFonts font) const
+	{
+		IR_VERIFY(m_Fonts.contains(font), "Failed to find the font with provided name!");
+		return m_Fonts.at(font);
 	}
 
 	const ImFont* ImGuiFontsLibrary::GetDefaultFont() const

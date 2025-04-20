@@ -9,6 +9,7 @@
 namespace Iris {
 
 	typedef int ImGuiWindowFlags;
+	typedef unsigned int ImGuiID;
 
 	class AssetEditor
 	{
@@ -20,7 +21,7 @@ namespace Iris {
 
 		virtual void OnUpdate(TimeStep ts) { (void)ts; }
 		virtual void OnEvent(Events::Event& e) { (void)e; }
-		virtual void OnImGuiRender();
+		void OnImGuiRender();
 		virtual void SetSceneContext(const Ref<Scene>& scene) { (void)scene; }
 		virtual void SetAsset(const Ref<Asset>& asset) = 0;
 

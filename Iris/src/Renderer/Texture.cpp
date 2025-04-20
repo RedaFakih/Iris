@@ -65,32 +65,15 @@ namespace Iris {
     /// Texture2D
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    Ref<Texture2D> Texture2D::CreateNull(const TextureSpecification& spec)
-    {
-        return CreateRef<Texture2D>(spec);
-    }
-
-    Ref<Texture2D> Texture2D::Create(const TextureSpecification& spec, const std::filesystem::path& filePath, VkCommandBuffer commandBuffer)
-    {   
-        return Texture2D::Create(spec, filePath.string(), commandBuffer);
-    }
-
-    Ref<Texture2D> Texture2D::Create(const TextureSpecification& spec, const std::string& filePath, VkCommandBuffer commandBuffer)
-    {
-        return CreateRef<Texture2D>(spec, filePath, commandBuffer);
-    }
-
-    Ref<Texture2D> Texture2D::Create(const TextureSpecification& spec, Buffer imageData, VkCommandBuffer commandBuffer)
-    {
-        return CreateRef<Texture2D>(spec, imageData, commandBuffer);
-    }
-
     Texture2D::Texture2D(const TextureSpecification& spec)
         : m_Specification(spec)
     {
         Utils::ValidateSpecification(m_Specification);
 
         m_Specification.GenerateMips = m_Specification.Usage == ImageUsage::Attachment ? false : m_Specification.GenerateMips;
+        m_Specification.Mips = m_Specification.GenerateMips ? GetMipLevelCount() : 1;
+
+        IR_VERIFY(m_Specification.Format != ImageFormat::None);
     }
 
     Texture2D::Texture2D(const TextureSpecification& spec, const std::string& filePath, VkCommandBuffer commandBuffer)
@@ -146,6 +129,8 @@ namespace Iris {
             }
         }
         
+        // If the image is an attachment then we do not want any mips
+        m_Specification.GenerateMips = m_Specification.Usage == ImageUsage::Attachment ? false : m_Specification.GenerateMips;
         m_Specification.Mips = m_Specification.GenerateMips ? GetMipLevelCount() : 1;
 
         IR_VERIFY(m_Specification.Format != ImageFormat::None);
@@ -178,6 +163,10 @@ namespace Iris {
                 usage |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
             else
                 usage |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+        }
+        else if (m_Specification.Usage == ImageUsage::Storage)
+        {
+            usage |= VK_IMAGE_USAGE_STORAGE_BIT;
         }
 
         // We set it as a transfer src and dst for textures to generate mips
@@ -212,7 +201,8 @@ namespace Iris {
         m_MemoryAllocation = allocator.AllocateImage(&imageCI, memUsage, &m_Image, &gpuAllocationSize);
         VKUtils::SetDebugUtilsObjectName(device, VK_OBJECT_TYPE_IMAGE, m_Specification.DebugName, m_Image);
 
-        if (m_ImageData && m_Specification.Usage != ImageUsage::Attachment)
+        // Only ImageUsage texture can have predefined data
+        if (m_ImageData && m_Specification.Usage != ImageUsage::Attachment && m_Specification.Usage != ImageUsage::Storage)
         {
             VkBuffer stagingBuffer;
             VkBufferCreateInfo stagingBufferCI = {
@@ -388,7 +378,7 @@ namespace Iris {
         // Attachment images will have samplers which allows the user to sample from them in another pass if they want
         if (m_Specification.CreateSampler)
         {
-            Ref<VulkanPhysicalDevice> physicalDevice = RendererContext::GetCurrentDevice()->GetPhysicalDevice();
+            Ref<VulkanPhysicalDevice> physicalDevice = logicalDevice->GetPhysicalDevice();
             bool enableAnisotropy = physicalDevice->GetPhysicalDeviceFeatures().samplerAnisotropy;
             float samplerAnisotorpy = enableAnisotropy ? physicalDevice->GetPhysicalDeviceProperties().limits.maxSamplerAnisotropy : 1.0f;
 
@@ -432,7 +422,7 @@ namespace Iris {
         m_DescriptorInfo = VkDescriptorImageInfo{
             .sampler = m_Sampler,
             .imageView = m_ImageView,
-            .imageLayout = finalImageLayout
+            .imageLayout = m_Specification.Usage == ImageUsage::Storage ? VK_IMAGE_LAYOUT_GENERAL : finalImageLayout
         };
 
         if (m_Specification.GenerateMips && mipCount > 1)
@@ -464,6 +454,22 @@ namespace Iris {
         {
             commandBuffer = logicalDevice->GetCommandBuffer(true);
             manualCommandBuffer = true;
+        }
+
+        if (m_Specification.Usage == ImageUsage::Storage)
+        {
+            // Transition first mip to TRANSFER_SRC so that we can blit from it to the next mip in the chain
+            Renderer::InsertImageMemoryBarrier(
+                commandBuffer,
+                m_Image,
+                manualCommandBuffer ? 0 : VK_ACCESS_2_SHADER_WRITE_BIT,
+                VK_ACCESS_2_TRANSFER_READ_BIT,
+                VK_IMAGE_LAYOUT_UNDEFINED,
+                VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                manualCommandBuffer ? VK_PIPELINE_STAGE_2_TRANSFER_BIT : VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+                VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+                { .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = 1 }
+            );
         }
 
         for (uint32_t i = 1; i < mipCount; i++) // Loop starts at 1 since mip 0 is the original image
@@ -537,7 +543,7 @@ namespace Iris {
             VK_ACCESS_2_TRANSFER_READ_BIT,
             VK_ACCESS_2_SHADER_READ_BIT,
             VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+            m_Specification.Usage == ImageUsage::Storage ? VK_IMAGE_LAYOUT_GENERAL : VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
             VK_PIPELINE_STAGE_2_TRANSFER_BIT,
             manualCommandBuffer ? VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT : VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
             { .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .levelCount = mipCount, .baseArrayLayer = 0, .layerCount = m_Specification.Layers }
@@ -657,7 +663,6 @@ namespace Iris {
         // if Texture: Wait for nothing
         // if Attachment: Wait for color attachment
         // if Attachment and Depth format: Wait for fragment shadar execution
-        // TODO: if Storage: Will be handled in the storage images separately but it will be to wait for compute shader execution (most probably)
         VkPipelineStageFlags srcPipelineStageMask;
         if (m_Specification.Usage == ImageUsage::Texture) [[unlikely]]
         {
@@ -988,7 +993,7 @@ namespace Iris {
         );
 
         // Start from the the second mip in the chain and blit from previous mip into current mip
-        uint32_t mipCount = GetMipLevelCount();
+        const uint32_t mipCount = GetMipLevelCount();
         for (uint32_t i = 1; i < mipCount; i++)
         {
             VkImageBlit imageBlit = {
@@ -1332,152 +1337,6 @@ namespace Iris {
         uint32_t b = glm::log2(glm::min(width, height));
 
         return a - b;
-    }
-
-    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    /// StorageImage
-    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-    StorageImage::StorageImage(const TextureSpecification& spec)
-        : m_Specification(spec)
-    {
-        Utils::ValidateSpecification(m_Specification);
-
-        Invalidate();
-    }
-
-    StorageImage::~StorageImage()
-    {
-        Release();
-    }
-
-    void StorageImage::Resize(uint32_t width, uint32_t height)
-    {
-        m_Specification.Width = width;
-        m_Specification.Height = height;
-
-        Ref<StorageImage> instance = this;
-        Renderer::Submit([instance]() mutable
-        {
-            instance->Invalidate();
-        });
-    }
-
-    void StorageImage::Release()
-    {
-        // Does nothing to m_ImageData since that should have been released by `Invalidate`
-        if (m_Image == nullptr)
-            return;
-
-        Renderer::SubmitReseourceFree([image = m_Image, imageView = m_ImageView, sampler = m_Sampler, allocation = m_MemoryAllocation]()
-        {
-            VkDevice device = RendererContext::GetCurrentDevice()->GetVulkanDevice();
-            VulkanAllocator allocator("TextureCube");
-            vkDestroySampler(device, sampler, nullptr);
-            vkDestroyImageView(device, imageView, nullptr);
-            allocator.DestroyImage(allocation, image);
-        });
-
-        m_Image = nullptr;
-        m_ImageView = nullptr;
-        if (m_Specification.CreateSampler)
-            m_Sampler = nullptr;
-        m_MemoryAllocation = nullptr;
-        m_DescriptorInfo = {};
-    }
-
-    void StorageImage::RT_Invalidate()
-    {
-        Ref<StorageImage> instance = this;
-        Renderer::Submit([instance]() mutable
-        {
-            instance->Invalidate();
-        });
-    }
-
-    void StorageImage::Invalidate()
-    {
-        IR_ASSERT(m_Specification.Width > 0 && m_Specification.Height > 0);
-
-        Release();
-
-        Ref<VulkanDevice> logicalDevice = RendererContext::GetCurrentDevice();
-        VkDevice device = RendererContext::GetCurrentDevice()->GetVulkanDevice();
-        VulkanAllocator allocator("StorageImage");
-
-        VkImageUsageFlags usage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
-
-        constexpr VkImageAspectFlags aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-
-        VkImageCreateInfo imageCI = {
-            .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
-            .flags = 0,
-            .imageType = VK_IMAGE_TYPE_2D,
-            .format = Utils::GetVulkanImageFormat(m_Specification.Format),
-            .extent = {.width = m_Specification.Width, .height = m_Specification.Height, .depth = 1u },
-            .mipLevels = 1,
-            .arrayLayers = 1,
-            .samples = Utils::GetSamplerCount(m_Specification.Samples),
-            .tiling = VK_IMAGE_TILING_OPTIMAL,
-            .usage = usage,
-            .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
-            .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED // Not usable by gpu and first transition will discard texels
-        };
-
-        VkDeviceSize gpuAllocationSize = 0;
-        constexpr VmaMemoryUsage memUsage = VMA_MEMORY_USAGE_GPU_ONLY;
-        m_MemoryAllocation = allocator.AllocateImage(&imageCI, memUsage, &m_Image, &gpuAllocationSize);
-        VKUtils::SetDebugUtilsObjectName(device, VK_OBJECT_TYPE_IMAGE, m_Specification.DebugName, m_Image);
-
-        VkImageViewCreateInfo imageViewCI = {
-            .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
-            .image = m_Image,
-            .viewType = VK_IMAGE_VIEW_TYPE_2D,
-            .format = Utils::GetVulkanImageFormat(m_Specification.Format),
-            .components = {.r = VK_COMPONENT_SWIZZLE_R, .g = VK_COMPONENT_SWIZZLE_G, .b = VK_COMPONENT_SWIZZLE_B, .a = VK_COMPONENT_SWIZZLE_A },
-            .subresourceRange = {
-                .aspectMask = aspectMask,
-                .baseMipLevel = 0,
-                .levelCount = 1,
-                .baseArrayLayer = 0,
-                .layerCount = 1
-            }
-        };
-
-        VK_CHECK_RESULT(vkCreateImageView(device, &imageViewCI, nullptr, &m_ImageView));
-        VKUtils::SetDebugUtilsObjectName(device, VK_OBJECT_TYPE_IMAGE_VIEW, fmt::format("{} Image View", m_Specification.DebugName), m_ImageView);
-
-        Ref<VulkanPhysicalDevice> physicalDevice = RendererContext::GetCurrentDevice()->GetPhysicalDevice();
-        bool enableAnisotropy = physicalDevice->GetPhysicalDeviceFeatures().samplerAnisotropy;
-        float samplerAnisotorpy = enableAnisotropy ? physicalDevice->GetPhysicalDeviceProperties().limits.maxSamplerAnisotropy : 1.0f;
-
-        VkSamplerCreateInfo samplerCI = {
-            .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
-            .magFilter = Utils::GetVulkanSamplerFilter(m_Specification.FilterMode),
-            .minFilter = Utils::GetVulkanSamplerFilter(m_Specification.FilterMode),
-            .mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR,
-            .addressModeU = Utils::GetVulkanSamplerWrap(m_Specification.WrapMode),
-            .addressModeV = Utils::GetVulkanSamplerWrap(m_Specification.WrapMode),
-            .addressModeW = Utils::GetVulkanSamplerWrap(m_Specification.WrapMode),
-            .mipLodBias = 0.0f,
-            .anisotropyEnable = enableAnisotropy,
-            .maxAnisotropy = samplerAnisotorpy,
-            .compareEnable = VK_FALSE,
-            .compareOp = VK_COMPARE_OP_NEVER,
-            .minLod = 0.0f,
-            .maxLod = 1.0f,
-            .borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE,
-            // Use coordinate system [0, 1) in order to access texels in the texture instead of [0, textureWidth)
-            .unnormalizedCoordinates = VK_FALSE
-        };
-
-        VK_CHECK_RESULT(vkCreateSampler(device, &samplerCI, nullptr, &m_Sampler));
-
-        m_DescriptorInfo = VkDescriptorImageInfo{
-            .sampler = m_Sampler,
-            .imageView = m_ImageView,
-            .imageLayout = VK_IMAGE_LAYOUT_GENERAL // NOTE: Will be transfered to SHADER_READ_ONLY_OPTIMAL after filling with data
-        };
     }
 
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

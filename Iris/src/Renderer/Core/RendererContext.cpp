@@ -205,7 +205,7 @@ namespace Iris {
         }
 
         // https://registry.khronos.org/vulkan/specs/1.3-extensions/man/html/VkValidationFeatureEnableEXT.html
-        VkValidationFeatureEnableEXT enables[] = { VK_VALIDATION_FEATURE_ENABLE_BEST_PRACTICES_EXT, VK_VALIDATION_FEATURE_ENABLE_SYNCHRONIZATION_VALIDATION_EXT /*, VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_EXT */ };
+        VkValidationFeatureEnableEXT enables[] = { VK_VALIDATION_FEATURE_ENABLE_BEST_PRACTICES_EXT  , VK_VALIDATION_FEATURE_ENABLE_SYNCHRONIZATION_VALIDATION_EXT  /*, VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_EXT */};
         // this feature enables the output of warnings related to common misuse of the API, but which are not explicitly prohibited by the specification
         VkValidationFeaturesEXT features = {
             .sType = VK_STRUCTURE_TYPE_VALIDATION_FEATURES_EXT,

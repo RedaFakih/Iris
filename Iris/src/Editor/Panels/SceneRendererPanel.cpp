@@ -27,6 +27,49 @@ namespace Iris {
 
 			UI::EndPropertyGrid();
 
+			if (UI::PropertyGridHeader("Lighting"))
+			{
+				UI::BeginPropertyGrid(2, 200.0f);
+
+				UI::Property("Show Light Complexity", m_Context->m_RendererDataUB.ShowLightComplexity, "Enable/Disable Light complexity visualization");
+
+				UI::EndPropertyGrid();
+
+				ImGui::TreePop();
+			}
+
+			if (UI::PropertyGridHeader("Bloom"))
+			{
+				UI::BeginPropertyGrid(2, 150.0f);
+
+				SceneRendererOptions& options = m_Context->m_Options;
+
+				UI::Property("Enabled", options.BloomEnabled, "Enable/Disable Bloom");
+				UI::Property("Threshold", options.BloomFilterThreshold, 0.1f, 0.01f, 100.0f, "Sets the filtering threshold of the pixel value.\nPixel > Threshold -> Passes filter and undergoes bloom");
+				UI::Property("Knee", options.BloomKnee, 0.01f, 0.0f, 1.0f, "Control which pixels contribute to bloom:\n - 0.0f: means only pixels > threshold contribute\n - 1.0f: means pixels with (threshold + 1.0f) contibute to bloom");
+				UI::Property("Upsample Scale", options.BloomUpsampleScale, 0.1f, 0.1f, 20.0f, "- Larger radius -> samples are farther apart -> broader blur filter\n- Smaller radius -> samples are closer together -> tighter, more localized filter");
+				UI::Property("Intensity", options.BloomIntensity, 0.05f, 0.0f, 20.0f, "Controls the intensity of the bloom effect");
+				UI::Property("Dirt Intensity", options.BloomDirtIntensity, 0.05f, 0.0f, 20.0f, "Controls the intensity of the dirt texture and how much it contributes over bloom");
+
+				UI::PropertyImageReference("Dirt Texture", m_Context->m_BloomDirtTexture, [=](AssetHandle assetHandle)
+				{
+					AsyncAssetResult<Texture2D> result = AssetManager::GetAssetAsync<Texture2D>(assetHandle);
+
+					if (result.IsReady)
+					{
+						m_Context->m_BloomDirtTexture = result.Asset;
+
+						return true;
+					}
+
+					return false;
+				});
+
+				UI::EndPropertyGrid();
+
+				ImGui::TreePop();
+			}
+
 			if (UI::PropertyGridHeader("Shadows"))
 			{
 				SceneRenderer::UBRendererData& rendererData = m_Context->m_RendererDataUB;
@@ -34,7 +77,6 @@ namespace Iris {
 				UI::BeginPropertyGrid();
 
 				UI::Property("Soft Shadows", rendererData.SoftShadows, "Set between soft or hard shadow edges");
-				UI::Property("Light Size", rendererData.LightSize, 0.01f, 0.0f, 10.0f, "Changes the softness of the shadows");
 				UI::Property("Max Distance", rendererData.MaxShadowDistance, 1.0f, 0.0f, FLT_MAX, "Max distance that shadows will appear within");
 				UI::Property("Shadow Fade", rendererData.ShadowFade, 1.0f, 0.0f, 100.0f, "Fade of shadows near the max distance");
 

@@ -61,7 +61,7 @@ namespace Iris {
 		if (IsMemoryAsset(handle))
 			return { m_MemoryAssets.at(handle), true };
 
-		auto& metaData = GetMetaDataInternal(handle);
+		AssetMetaData& metaData = GetMetaDataInternal(handle);
 		if (!metaData.IsValid())
 			return { nullptr, false }; // TODO: Return special error asset?
 
@@ -122,7 +122,7 @@ namespace Iris {
 			// If the asset is something that refers to a MeshSource then we should reload the mesh source... (ex. StaticMesh)
 			if (metaData.Type == AssetType::StaticMesh)
 			{
-				auto staticMesh = asset.As<StaticMesh>();
+				Ref<StaticMesh> staticMesh = asset.As<StaticMesh>();
 				result |= ReloadData(staticMesh->GetMeshSource());
 			}
 			// If the asset is a MeshSource then we should recreate all the assets that refer to the mesh source since they have data that depends on the source mesh
@@ -133,14 +133,14 @@ namespace Iris {
 					bool reloadAsset = false;
 					if (loadedAsset->GetAssetType() == AssetType::StaticMesh)
 					{
-						auto mesh = loadedAsset.As<StaticMesh>();
+						Ref<StaticMesh> mesh = loadedAsset.As<StaticMesh>();
 						if (mesh->GetMeshSource() == handle)
 							reloadAsset = true;
 					}
 
 					if (reloadAsset)
 					{
-						auto& metaData2 = GetMetaDataInternal(loadedHandle);
+						AssetMetaData& metaData2 = GetMetaDataInternal(loadedHandle);
 						Ref<Asset> asset2;
 						metaData2.IsDataLoaded = AssetImporter::TryLoadData(metaData2, asset2);
 						if (metaData2.IsDataLoaded)
@@ -318,6 +318,18 @@ namespace Iris {
 		return AssetType::None;
 	}
 
+	std::string EditorAssetManager::GetDefaultExtensionForAssetType(AssetType type) const
+	{
+		for (const auto& [ext, assetType] : s_AssetExtensionMap)
+		{
+			if (type == assetType)
+				return ext;
+		}
+
+		IR_CORE_ERROR_TAG("AssetManager", "Could not find an asset with type: {}", type);
+		return "UNKNOWN ASSET_TYPE";
+	}
+
 	std::filesystem::path EditorAssetManager::GetFileSystemPath(const AssetMetaData& metaData) const
 	{
 		return Project::GetAssetDirectory() / metaData.FilePath;
@@ -351,7 +363,7 @@ namespace Iris {
 			asset = m_MemoryAssets.at(handle);
 		else
 		{
-			auto& metaData = GetMetaDataInternal(handle);
+			AssetMetaData& metaData = GetMetaDataInternal(handle);
 			if (metaData.IsValid())
 			{
 				if (!metaData.IsDataLoaded)
@@ -372,7 +384,7 @@ namespace Iris {
 	{
 		IR_CORE_INFO_TAG("AssetManager", "Loading Asset Registry");
 
-		const auto& assetRegistryPath = Project::GetAssetRegistryPath();
+		const std::filesystem::path& assetRegistryPath = Project::GetAssetRegistryPath();
 		if (!FileSystem::Exists(assetRegistryPath))
 			return;
 
@@ -382,7 +394,7 @@ namespace Iris {
 		strStream << stream.rdbuf();
 
 		YAML::Node data = YAML::Load(strStream.str());
-		auto handles = data["Assets"];
+		YAML::Node handles = data["Assets"];
 		if (!handles)
 		{
 			IR_CORE_ERROR_TAG("AssetManager", "Asset Registry appears to be corrupted!");
@@ -396,7 +408,7 @@ namespace Iris {
 
 			metaData.Handle = entry["Handle"].as<uint64_t>(0);
 			metaData.FilePath = entry["FilePath"].as<std::string>("");
-			metaData.Type = Utils::AssetTypeFromString(entry["Type"].as<std::string>(""));
+			metaData.Type = Utils::AssetTypeFromString(entry["Type"].as<std::string>("None"));
 
 			if (metaData.Type == AssetType::None)
 				continue;
@@ -414,7 +426,7 @@ namespace Iris {
 				std::string mostLikelyCandidate;
 				uint32_t bestScore = 0;
 
-				for (auto& pathEntry : std::filesystem::recursive_directory_iterator(Project::GetAssetDirectory()))
+				for (const auto& pathEntry : std::filesystem::recursive_directory_iterator(Project::GetAssetDirectory()))
 				{
 					const std::filesystem::path& path = pathEntry.path();
 
@@ -427,7 +439,7 @@ namespace Iris {
 					std::vector<std::string> candiateParts = Utils::SplitString(path.string(), "/\\");
 
 					uint32_t score = 0;
-					for (const auto& part : candiateParts)
+					for (const std::string& part : candiateParts)
 					{
 						if (metaData.FilePath.string().find(part) != std::string::npos)
 							score++;

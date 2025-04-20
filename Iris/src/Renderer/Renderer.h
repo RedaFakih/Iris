@@ -16,7 +16,6 @@ namespace Iris {
 	// Forward declares
 	class Shader;
 	class ShadersLibrary;
-	class StorageImage;
 	class Texture2D;
 	class TextureCube;
 	class RenderPass;
@@ -120,6 +119,7 @@ namespace Iris {
 		static void RenderStaticMeshWithMaterial(Ref<RenderCommandBuffer> renderCommandBuffer, Ref<Pipeline> pipeline, Ref<StaticMesh> staticMesh, Ref<MeshSource> meshSource, uint32_t subMeshIndex, Ref<Material> material, Ref<VertexBuffer> transformBuffer, uint32_t transformOffset, uint32_t instanceCount);
 		static void RenderStaticMeshWithMaterial(Ref<RenderCommandBuffer> renderCommandBuffer, Ref<Pipeline> pipeline, Ref<StaticMesh> staticMesh, Ref<MeshSource> meshSource, uint32_t subMeshIndex, Ref<Material> material, Ref<VertexBuffer> transformBuffer, uint32_t transformOffset, uint32_t instanceCount, Buffer vertexShaderOverrides);
 		static void RenderGeometry(Ref<RenderCommandBuffer> renderCommandBuffer, Ref<Pipeline> pipeline, Ref<Material> material, Ref<VertexBuffer> vertexBuffer, Ref<IndexBuffer> indexBuffer, const glm::mat4& transform, uint32_t indexCount = 0);
+		static void BlitImage(Ref<RenderCommandBuffer> renderCommandBuffer, Ref<Texture2D> sourceImage, Ref<Texture2D> destinationImage, VkPipelineStageFlagBits2 finalDestImageStage);
 
 		// Compute passes
 		static void BeginComputePass(Ref<RenderCommandBuffer> renderCommandBuffer, Ref<ComputePass> computePass);
@@ -135,6 +135,7 @@ namespace Iris {
 		static Ref<Texture2D> GetBlackTexture();
 		static Ref<Texture2D> GetErrorTexture();
 		static Ref<Texture2D> GetBRDFLutTexture();
+		static Ref<Texture2D> GetStorageImage();
 		static Ref<TextureCube> GetBlackCubeTexture();
 		static Ref<Environment> GetEmptyEnvironment();
 		static uint32_t GetTotalDrawCallCount();
@@ -146,6 +147,9 @@ namespace Iris {
 		static void RegisterShaderDependency(Ref<Shader> shader, Ref<ComputePipeline> computePipeline);
 		static void RegisterShaderDependency(Ref<Shader> shader, Ref<Material> material);
 		static void OnShaderReloaded(std::size_t hash);
+
+		static void AddGlobalShaderMacro(const std::string& name, const std::string& value = "");
+		static const std::unordered_map<std::string, std::string>& GetGlobalShaderMacros();
 
 		static void InsertMemoryBarrier(VkCommandBuffer commandBuffer,
 			VkAccessFlags2 srcAccessMask,

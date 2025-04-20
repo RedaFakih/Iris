@@ -5,7 +5,7 @@
 
 namespace Iris {
 
-	StorageBuffer::StorageBuffer(size_t size, bool deviceLocal)
+	StorageBuffer::StorageBuffer(std::size_t size, bool deviceLocal)
 		: m_Size(size)
 	{
 		m_LocalData.Allocate(size);
@@ -45,33 +45,23 @@ namespace Iris {
 
 	StorageBuffer::~StorageBuffer()
 	{
-		Renderer::SubmitReseourceFree([memoryAllocation = m_StorageBufferAllocation, storageBuffer = m_StorageBuffer, stagingBufferAlloc = m_StagingBufferAllocation, stagingBuffer = m_StagingBuffer]()
-		{
-			VulkanAllocator allocator("StorageBuffer");
-			allocator.DestroyBuffer(memoryAllocation, storageBuffer);
-
-			if (stagingBufferAlloc && stagingBuffer)
-			{
-				allocator.DestroyBuffer(stagingBufferAlloc, stagingBuffer);
-			}
-		});
-
-		m_LocalData.Release();
+		Release();
 	}
 
-	Ref<StorageBuffer> StorageBuffer::Create(size_t size, bool deviceLocal)
+	Ref<StorageBuffer> StorageBuffer::Create(std::size_t size, bool deviceLocal)
 	{
 		return CreateRef<StorageBuffer>(size, deviceLocal);
 	}
 
 	void StorageBuffer::Resize(uint32_t newSize)
-	{	
-		m_Size = newSize;
-
+	{
 		// Only create the staging buffer and the storage buffer without doing any data uploads since storage buffers most probs dont have preallocated data
 		Ref<StorageBuffer> instance = this;
-		Renderer::Submit([instance]() mutable
+		Renderer::Submit([instance, newSize]() mutable
 		{
+			instance->m_Size = newSize;
+			instance->Release();
+
 			VulkanAllocator allocator("StorageBuffer");
 
 			// If we do not have already a stagingbuffer means that we are not in device local memory
@@ -103,7 +93,7 @@ namespace Iris {
 		});
 	}
 
-	void StorageBuffer::SetData(const void* data, size_t size, size_t offset)
+	void StorageBuffer::SetData(const void* data, std::size_t size, std::size_t offset)
 	{
 		IR_ASSERT(size <= m_Size);
 		std::memcpy(m_LocalData.Data, reinterpret_cast<const uint8_t*>(data) + offset, size);
@@ -114,7 +104,7 @@ namespace Iris {
 		});
 	}
 
-	void StorageBuffer::RT_SetData(const void* data, size_t size, size_t offset)
+	void StorageBuffer::RT_SetData(const void* data, std::size_t size, std::size_t offset)
 	{
 		Ref<VulkanDevice> device = RendererContext::GetCurrentDevice();
 		VulkanAllocator allocator("StorageBuffer");
@@ -147,6 +137,25 @@ namespace Iris {
 			std::memcpy(dstData, reinterpret_cast<const uint8_t*>(data) + offset, size);
 			allocator.UnmapMemory(m_StorageBufferAllocation);
 		}
+	}
+
+	void StorageBuffer::Release()
+	{
+		if (!m_StorageBuffer || !m_StorageBufferAllocation)
+			return;
+
+		Renderer::SubmitReseourceFree([memoryAllocation = m_StorageBufferAllocation, storageBuffer = m_StorageBuffer, stagingBufferAlloc = m_StagingBufferAllocation, stagingBuffer = m_StagingBuffer]()
+		{
+			VulkanAllocator allocator("StorageBuffer");
+			allocator.DestroyBuffer(memoryAllocation, storageBuffer);
+
+			if (stagingBufferAlloc && stagingBuffer)
+			{
+				allocator.DestroyBuffer(stagingBufferAlloc, stagingBuffer);
+			}
+		});
+
+		m_LocalData.Release();
 	}
 
 }

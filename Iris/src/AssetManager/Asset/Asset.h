@@ -37,6 +37,7 @@ namespace Iris {
 		friend class RuntimeAssetManager;
 		friend class AssimpMeshImporter;
 		friend struct MeshSourceSerializer;
+		friend struct MeshColliderSerializer;
 		friend struct StaticMeshSerializer;
 		friend struct TextureSerializer;
 		friend struct MaterialAssetSerializer;

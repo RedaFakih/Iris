@@ -1,6 +1,8 @@
 #include "IrisPCH.h"
 #include "Physics.h"
 
+#include "AssetManager/AssetManager.h"
+
 namespace Iris {
 
 	struct PhysicsSystemData
@@ -59,20 +61,24 @@ namespace Iris {
 
 		// We need a temp allocator for temporary allocations during the physics update. We're
 		// pre-allocating 10 MB to avoid having to do allocations during the physics update.
-		// TODO: What is this 300 here we should change it or lower the numbers that we create the JPH::PhysicsSystem with
 		s_Data->TemporariesAllocator = new JPH::TempAllocatorImpl(300 * 1024 * 1024);
 
 		// We need a job system that will execute physics jobs on multiple threads.
 		s_Data->JobSystemThreadPool = CreateScope<JPH::JobSystemThreadPool>(2048, 8, 6);
 
-		// TODO: Mesh Cooking Factory
+		// NOTE: MeshCookingFactory has no state to initialize
+
+		s_MeshColliderCache = MeshColliderCache::Create();
+		s_MeshColliderCache->Init();
 	}
 
 	void PhysicsSystem::Shutdown()
 	{
 		IR_CORE_INFO_TAG("Physics", "Shutting down physics engine...");
 		
-		// TODO: Clean up Mesh Cooking Factory
+		s_MeshColliderCache->Shutdown();
+
+		// NOTE: MeshCookingFactory has no state to shutdown
 		
 		delete s_Data->TemporariesAllocator;
 
@@ -80,6 +86,28 @@ namespace Iris {
 		s_Data = nullptr;
 
 		delete JPH::Factory::sInstance;
+	}
+
+	Ref<MeshColliderAsset> PhysicsSystem::GetOrCreateMeshColliderAsset(Entity entity, MeshColliderComponent& meshColliderComponent)
+	{
+		Ref<MeshColliderAsset> meshColliderAsset = AssetManager::GetAsset<MeshColliderAsset>(meshColliderComponent.ColliderAsset);
+
+		if (meshColliderAsset)
+			return meshColliderAsset;
+
+		if (entity.HasComponent<StaticMeshComponent>())
+		{
+			meshColliderComponent.ColliderAsset = AssetManager::CreateMemoryOnlyAsset<MeshColliderAsset>(entity.GetComponent<StaticMeshComponent>().StaticMesh);
+		}
+
+		meshColliderAsset = AssetManager::GetAsset<MeshColliderAsset>(meshColliderComponent.ColliderAsset);
+
+		if (meshColliderAsset && !PhysicsSystem::GetMesheColliderCache()->Exists(meshColliderAsset))
+		{
+			MeshCookingFactory::CookMesh(meshColliderComponent.ColliderAsset);
+		}
+
+		return meshColliderAsset;
 	}
 
 	JPH::TempAllocator* PhysicsSystem::GetTemporariesAllocator()

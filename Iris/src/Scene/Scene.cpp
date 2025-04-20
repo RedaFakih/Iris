@@ -7,6 +7,7 @@
 #include "Physics/PhysicsScene.h"
 #include "Renderer/Renderer.h"
 #include "Renderer/SceneRenderer.h"
+#include "Renderer/SceneRendererLite.h"
 #include "Renderer/Shaders/Shader.h"
 
 namespace Iris {
@@ -51,6 +52,8 @@ namespace Iris {
 	{
 		m_SceneEntity = m_Registry.create();
 		s_ActiveScenes[m_SceneID] = this;
+
+		m_Registry.on_construct<MeshColliderComponent>().connect<&Scene::OnMeshColliderComponentConstruct>(this);
 	}
 
 	Scene::~Scene()
@@ -106,6 +109,8 @@ namespace Iris {
 		CopyComponent<StaticMeshComponent>(targetScene->m_Registry, m_Registry, enttMap);
 		CopyComponent<SkyLightComponent>(targetScene->m_Registry, m_Registry, enttMap);
 		CopyComponent<DirectionalLightComponent>(targetScene->m_Registry, m_Registry, enttMap);
+		CopyComponent<PointLightComponent>(targetScene->m_Registry, m_Registry, enttMap);
+		CopyComponent<SpotLightComponent>(targetScene->m_Registry, m_Registry, enttMap);
 		CopyComponent<TextComponent>(targetScene->m_Registry, m_Registry, enttMap);
 		CopyComponent<RigidBodyComponent>(targetScene->m_Registry, m_Registry, enttMap);
 		CopyComponent<BoxColliderComponent>(targetScene->m_Registry, m_Registry, enttMap);
@@ -113,11 +118,13 @@ namespace Iris {
 		CopyComponent<CylinderColliderComponent>(targetScene->m_Registry, m_Registry, enttMap);
 		CopyComponent<CapsuleColliderComponent>(targetScene->m_Registry, m_Registry, enttMap);
 		CopyComponent<CompoundColliderComponent>(targetScene->m_Registry, m_Registry, enttMap);
+		CopyComponent<MeshColliderComponent>(targetScene->m_Registry, m_Registry, enttMap);
 		CopyComponent<RigidBody2DComponent>(targetScene->m_Registry, m_Registry, enttMap);
 		CopyComponent<BoxCollider2DComponent>(targetScene->m_Registry, m_Registry, enttMap);
 		CopyComponent<CircleCollider2DComponent>(targetScene->m_Registry, m_Registry, enttMap);
 
 		targetScene->SetPhysics2DGravity(m_Box2DGravity);
+
 
 		targetScene->m_ViewportWidth = m_ViewportWidth;
 		targetScene->m_ViewportHeight = m_ViewportHeight;
@@ -171,7 +178,7 @@ namespace Iris {
 		}
 	}
 
-	void Scene::OnRenderRuntime(Ref<SceneRenderer> renderer, TimeStep ts)
+	void Scene::OnRenderRuntime(Ref<SceneRenderer> renderer)
 	{
 		Entity cameraEntity = GetMainCameraEntity();
 		if (!cameraEntity)
@@ -230,6 +237,7 @@ namespace Iris {
 									.Radiance = skyLightComponent.LinkDirectionalLightRadiance ? glm::mix(horizonColor, zenithColor, glm::cos(skyLightComponent.TurbidityAzimuthInclinationSunSize.z)) : dirLightComp->Radiance,
 									.Intensity = dirLightComp->Intensity,
 									.ShadowOpacity = dirLightComp->ShadowOpacity,
+									.LightSize = dirLightComp->LightSize,
 									.CastShadows = dirLightComp->CastShadows
 								};
 
@@ -271,9 +279,58 @@ namespace Iris {
 							.Radiance = dirLightComp.Radiance,
 							.Intensity = dirLightComp.Intensity,
 							.ShadowOpacity = dirLightComp.ShadowOpacity,
+							.LightSize = dirLightComp.LightSize,
 							.CastShadows = dirLightComp.CastShadows
 						};
 					}
+				}
+			}
+
+			// Point Lights
+			{
+				auto view = GetAllEntitiesWith<TransformComponent, PointLightComponent, VisibleComponent>();
+
+				m_LightEnvironment.PointLights.resize(view.size());
+
+				uint32_t pointLightIndex = 0;
+				for (auto entity : view)
+				{
+					const auto& [transformComp, pointLightComp] = view.get<TransformComponent, PointLightComponent>(entity);
+					TransformComponent transform = GetWorldSpaceTransform({ entity, this });
+					m_LightEnvironment.PointLights[pointLightIndex++] = ScenePointLight{
+						.Position = transform.Translation,
+						.Intensity = pointLightComp.Intensity,
+						.Radiance = pointLightComp.Radiance,
+						.Radius = pointLightComp.Radius,
+						.Falloff = pointLightComp.FallOff
+					};
+				}
+			}
+
+			// Spot Lights
+			{
+				auto view = GetAllEntitiesWith<TransformComponent, SpotLightComponent, VisibleComponent>();
+
+				m_LightEnvironment.SpotLights.resize(view.size());
+
+				uint32_t spotLightIndex = 0;
+				for (auto entity : view)
+				{
+					Entity iEntity = { entity, this };
+
+					const auto& [transformComp, spotLightComp] = view.get<TransformComponent, SpotLightComponent>(entity);
+					TransformComponent transform = iEntity.HasComponent<RigidBodyComponent>() ? iEntity.Transform() : GetWorldSpaceTransform(iEntity);
+
+					m_LightEnvironment.SpotLights[spotLightIndex++] = SceneSpotLight{
+						.Position = transform.Translation,
+						.Intensity = spotLightComp.Intensity,
+						.Direction = glm::normalize(glm::rotate(transform.GetRotation(), { 1.0f, 0.0f, 0.0f })),
+						.AngleAttenuation = spotLightComp.AngleAttenuation,
+						.Radiance = spotLightComp.Radiance,
+						.Range = spotLightComp.Range,
+						.Angle = spotLightComp.Angle,
+						.Falloff = spotLightComp.FallOff
+					};
 				}
 			}
 		}
@@ -384,12 +441,158 @@ namespace Iris {
 		}
 	}
 
+	void Scene::OnRenderRuntime(Ref<SceneRendererLite> renderer)
+	{
+		Entity cameraEntity = GetMainCameraEntity();
+		if (!cameraEntity)
+		{
+			IR_CORE_ERROR("*******NO CAMERA FOUND**********");
+			return;
+		}
+
+		// Process all lighting data in the scene
+		{
+			m_LightEnvironment = LightEnvironment();
+			bool foundLinkedDirLight = false;
+			bool usingDynamicSky = false;
+
+			// Skylights (NOTE: Should only really have one in the scene and no more!)
+			{
+				auto view = GetAllEntitiesWith<SkyLightComponent>();
+
+				for (auto entity : view)
+				{
+					SkyLightComponent& skyLightComponent = view.get<SkyLightComponent>(entity);
+
+					if (!AssetManager::IsAssetHandleValid(skyLightComponent.SceneEnvironment) && skyLightComponent.DynamicSky)
+					{
+						Ref<TextureCube> preethamEnv = Renderer::CreatePreethamSky(skyLightComponent.TurbidityAzimuthInclinationSunSize.x, skyLightComponent.TurbidityAzimuthInclinationSunSize.y, skyLightComponent.TurbidityAzimuthInclinationSunSize.z, skyLightComponent.TurbidityAzimuthInclinationSunSize.w);
+						skyLightComponent.SceneEnvironment = AssetManager::CreateMemoryOnlyAsset<Environment>(preethamEnv, preethamEnv);
+					}
+
+					m_Environment = AssetManager::GetAssetAsync<Environment>(skyLightComponent.SceneEnvironment);
+					m_EnvironmentIntensity = skyLightComponent.Intensity;
+					m_SkyboxLod = skyLightComponent.Lod;
+
+					usingDynamicSky = skyLightComponent.DynamicSky;
+					if (usingDynamicSky)
+					{
+						// Check if we have a linked directional light
+						Entity dirLightEntity = TryGetEntityWithUUID(skyLightComponent.DirectionalLightEntityID);
+						if (dirLightEntity)
+						{
+							DirectionalLightComponent* dirLightComp = dirLightEntity.TryGetComponent<DirectionalLightComponent>();
+							if (dirLightComp)
+							{
+								foundLinkedDirLight = true;
+
+								glm::vec3 direction = glm::normalize(glm::vec3(
+									glm::sin(skyLightComponent.TurbidityAzimuthInclinationSunSize.z) * glm::cos(skyLightComponent.TurbidityAzimuthInclinationSunSize.y),
+									glm::cos(skyLightComponent.TurbidityAzimuthInclinationSunSize.z),
+									glm::sin(skyLightComponent.TurbidityAzimuthInclinationSunSize.z) * glm::sin(skyLightComponent.TurbidityAzimuthInclinationSunSize.y)
+								));
+
+								constexpr glm::vec3 horizonColor = { 1.0f, 0.5f, 0.0f }; // Reddish color at the horizon
+								constexpr glm::vec3 zenithColor = { 1.0f, 1.0f, 0.9f }; // Whitish color at the zenith
+
+								m_LightEnvironment.DirectionalLight = SceneDirectionalLight{
+									.Direction = direction,
+									.Radiance = skyLightComponent.LinkDirectionalLightRadiance ? glm::mix(horizonColor, zenithColor, glm::cos(skyLightComponent.TurbidityAzimuthInclinationSunSize.z)) : dirLightComp->Radiance,
+									.Intensity = dirLightComp->Intensity,
+									.ShadowOpacity = dirLightComp->ShadowOpacity,
+									.LightSize = dirLightComp->LightSize,
+									.CastShadows = dirLightComp->CastShadows
+								};
+
+								if (skyLightComponent.LinkDirectionalLightRadiance)
+									dirLightComp->Radiance = m_LightEnvironment.DirectionalLight.Radiance;
+							}
+						}
+					}
+
+					if ((!usingDynamicSky || !foundLinkedDirLight) && skyLightComponent.LinkDirectionalLightRadiance == true)
+						skyLightComponent.LinkDirectionalLightRadiance = false;
+				}
+
+				if (!m_Environment || view.empty()) // Invalid skylight (We dont have one or the handle was invalid)
+				{
+					m_Environment = Environment::Create(Renderer::GetBlackCubeTexture(), Renderer::GetBlackCubeTexture());
+					m_EnvironmentIntensity = 1.0f;
+					m_SkyboxLod = 0.0f;
+				}
+			}
+
+			// Directional Light
+			{
+				if (!usingDynamicSky || (usingDynamicSky && !foundLinkedDirLight))
+				{
+					auto view = GetAllEntitiesWith<TransformComponent, DirectionalLightComponent>();
+
+					uint32_t dirLightCountIndex = 0;
+					for (auto entity : view)
+					{
+						if (dirLightCountIndex >= 1)
+							break;
+						IR_VERIFY(dirLightCountIndex++ < LightEnvironment::MaxDirectionalLights, "We can't have more than {} directional lights in one scene!", LightEnvironment::MaxDirectionalLights);
+
+						const auto& [transformComp, dirLightComp] = view.get<TransformComponent, DirectionalLightComponent>(entity);
+						glm::vec3 direction = -glm::normalize(glm::mat3(transformComp.GetTransform()) * glm::vec3(1.0f));
+						m_LightEnvironment.DirectionalLight = SceneDirectionalLight{
+							.Direction = direction,
+							.Radiance = dirLightComp.Radiance,
+							.Intensity = dirLightComp.Intensity,
+							.ShadowOpacity = dirLightComp.ShadowOpacity,
+							.LightSize = dirLightComp.LightSize,
+							.CastShadows = dirLightComp.CastShadows
+						};
+					}
+				}
+			}
+		}
+
+		glm::mat4 cameraViewMatrix = glm::inverse(GetWorldSpaceTransformMatrix(cameraEntity));
+		SceneCamera& camera = cameraEntity.GetComponent<CameraComponent>().Camera;
+		camera.SetViewportSize(m_ViewportWidth, m_ViewportHeight);
+
+		{
+			renderer->SetScene(this);
+			renderer->BeginScene({ camera, cameraViewMatrix, camera.GetPerspectiveNearClip(), camera.GetPerspectiveFarClip(), camera.GetRadPerspectiveVerticalFOV() });
+
+			// Render static meshes
+			auto entities = GetAllEntitiesWith<StaticMeshComponent, VisibleComponent>();
+			for (auto entity : entities)
+			{
+				const StaticMeshComponent& staticMeshComponenet = entities.get<StaticMeshComponent>(entity);
+
+				AsyncAssetResult<StaticMesh> staticMeshResult = AssetManager::GetAssetAsync<StaticMesh>(staticMeshComponenet.StaticMesh);
+				if (staticMeshResult.IsReady)
+				{
+					Ref<StaticMesh> staticMesh = staticMeshResult;
+					AsyncAssetResult<MeshSource> meshSourceResult = AssetManager::GetAssetAsync<MeshSource>(staticMesh->GetMeshSource());
+					if (meshSourceResult.IsReady)
+					{
+						Ref<MeshSource> meshSource = meshSourceResult;
+
+						Entity e = { entity, this };
+						glm::mat4 transform = GetWorldSpaceTransformMatrix(e);
+
+						renderer->SubmitStaticMesh(staticMesh, meshSource, staticMeshComponenet.MaterialTable, transform);
+					}
+				}
+			}
+
+			RenderPhysicsDebug(renderer);
+
+			renderer->EndScene();
+		}
+	}
+
 	void Scene::OnUpdateEditor(TimeStep ts)
 	{
 		// NOTE: Should update some state for physics/scripting/animations but for now nothing...
 	}
 
-	void Scene::OnRenderEditor(Ref<SceneRenderer> renderer, TimeStep ts, const EditorCamera& camera)
+	void Scene::OnRenderEditor(Ref<SceneRenderer> renderer, const EditorCamera& camera)
 	{
 		// Render the scene
 
@@ -443,6 +646,7 @@ namespace Iris {
 									.Radiance = skyLightComponent.LinkDirectionalLightRadiance ? glm::mix(horizonColor, zenithColor, glm::cos(skyLightComponent.TurbidityAzimuthInclinationSunSize.z)) : dirLightComp->Radiance,
 									.Intensity = dirLightComp->Intensity,
 									.ShadowOpacity = dirLightComp->ShadowOpacity,
+									.LightSize = dirLightComp->LightSize,
 									.CastShadows = dirLightComp->CastShadows
 								};
 
@@ -478,15 +682,77 @@ namespace Iris {
 							break;
 
 						const auto& [transformComp, dirLightComp] = view.get<TransformComponent, DirectionalLightComponent>(entity);
-						glm::vec3 direction = -glm::normalize(glm::mat3(transformComp.GetTransform()) * glm::vec3(1.0f));
+						glm::vec3 direction = glm::normalize(glm::mat3(transformComp.GetTransform()) * glm::vec3(1.0f));
 						m_LightEnvironment.DirectionalLight = SceneDirectionalLight{
 							.Direction = direction,
 							.Radiance = dirLightComp.Radiance,
 							.Intensity = dirLightComp.Intensity,
 							.ShadowOpacity = dirLightComp.ShadowOpacity,
+							.LightSize = dirLightComp.LightSize,
 							.CastShadows = dirLightComp.CastShadows
 						};
 					}
+				}
+			}
+
+			// Point Lights
+			{
+				auto view = GetAllEntitiesWith<TransformComponent, PointLightComponent, VisibleComponent>();
+
+				if (view.size() > Renderer::GetConfig().MaxNumberOfPointLights)
+					m_LightEnvironment.PointLights.resize(Renderer::GetConfig().MaxNumberOfPointLights);
+				else
+					m_LightEnvironment.PointLights.resize(view.size());
+
+				uint32_t pointLightIndex = 0;
+				for (auto entity : view)
+				{
+					const auto& [transformComp, pointLightComp] = view.get<TransformComponent, PointLightComponent>(entity);
+					TransformComponent transform = GetWorldSpaceTransform({ entity, this });
+					m_LightEnvironment.PointLights[pointLightIndex++] = ScenePointLight{
+						.Position = transform.Translation,
+						.Intensity = pointLightComp.Intensity,
+						.Radiance = pointLightComp.Radiance,
+						.Radius = pointLightComp.Radius,
+						.Falloff = pointLightComp.FallOff
+					};
+
+					if (pointLightIndex >= Renderer::GetConfig().MaxNumberOfPointLights)
+						break;
+				}
+			}
+
+			// Spot Lights
+			{
+				auto view = GetAllEntitiesWith<TransformComponent, SpotLightComponent, VisibleComponent>();
+
+				if (view.size() > Renderer::GetConfig().MaxNumberOfSpotLights)
+					m_LightEnvironment.SpotLights.resize(Renderer::GetConfig().MaxNumberOfSpotLights);
+				else
+					m_LightEnvironment.SpotLights.resize(view.size());
+
+
+				uint32_t spotLightIndex = 0;
+				for (auto entity : view)
+				{
+					Entity iEntity = { entity, this };
+
+					const auto& [transformComp, spotLightComp] = view.get<TransformComponent, SpotLightComponent>(entity);
+					TransformComponent transform = iEntity.HasComponent<RigidBodyComponent>() ? iEntity.Transform() : GetWorldSpaceTransform(iEntity);
+
+					m_LightEnvironment.SpotLights[spotLightIndex++] = SceneSpotLight{
+						.Position = transform.Translation,
+						.Intensity = spotLightComp.Intensity,
+						.Direction = glm::normalize(glm::rotate(transform.GetRotation(), { 1.0f, 0.0f, 0.0f })),
+						.AngleAttenuation = spotLightComp.AngleAttenuation,
+						.Radiance = spotLightComp.Radiance,
+						.Range = spotLightComp.Range,
+						.Angle = spotLightComp.Angle,
+						.Falloff = spotLightComp.FallOff
+					};
+
+					if (spotLightIndex >= Renderer::GetConfig().MaxNumberOfSpotLights)
+						break;
 				}
 			}
 		}
@@ -531,7 +797,7 @@ namespace Iris {
 			
 				renderer2D->ResetStats();
 				renderer2D->BeginScene(camera.GetViewProjection(), camera.GetViewMatrix());
-			
+
 				// Render 2D sprites
 				{
 					auto view = GetAllEntitiesWith<SpriteRendererComponent, VisibleComponent>();
@@ -590,6 +856,143 @@ namespace Iris {
 				// Restore the line width
 				renderer2D->SetLineWidth(lineWidth);
 			}
+		}
+	}
+
+	void Scene::OnRenderEditor(Ref<SceneRendererLite> renderer, const EditorCamera& camera)
+	{
+		// Render the scene
+
+		// Process all lighting data in the scene
+		{
+			m_LightEnvironment = LightEnvironment();
+			bool foundLinkedDirLight = false;
+			bool usingDynamicSky = false;
+
+			// Skylights (NOTE: Should only really have one in the scene and no more!)
+			{
+				auto view = GetAllEntitiesWith<SkyLightComponent>();
+
+				for (auto entity : view)
+				{
+					SkyLightComponent& skyLightComponent = view.get<SkyLightComponent>(entity);
+
+					if (!AssetManager::IsAssetHandleValid(skyLightComponent.SceneEnvironment) && skyLightComponent.DynamicSky)
+					{
+						Ref<TextureCube> preethamEnv = Renderer::CreatePreethamSky(skyLightComponent.TurbidityAzimuthInclinationSunSize.x, skyLightComponent.TurbidityAzimuthInclinationSunSize.y, skyLightComponent.TurbidityAzimuthInclinationSunSize.z, skyLightComponent.TurbidityAzimuthInclinationSunSize.w);
+						skyLightComponent.SceneEnvironment = AssetManager::CreateMemoryOnlyAsset<Environment>(preethamEnv, preethamEnv);
+					}
+
+					m_Environment = AssetManager::GetAssetAsync<Environment>(skyLightComponent.SceneEnvironment);
+					m_EnvironmentIntensity = skyLightComponent.Intensity;
+					m_SkyboxLod = skyLightComponent.Lod;
+
+					usingDynamicSky = skyLightComponent.DynamicSky;
+					if (usingDynamicSky)
+					{
+						// Check if we have a linked directional light
+						Entity dirLightEntity = TryGetEntityWithUUID(skyLightComponent.DirectionalLightEntityID);
+						if (dirLightEntity)
+						{
+							DirectionalLightComponent* dirLightComp = dirLightEntity.TryGetComponent<DirectionalLightComponent>();
+							if (dirLightComp)
+							{
+								foundLinkedDirLight = true;
+
+								glm::vec3 direction = glm::normalize(glm::vec3(
+									glm::sin(skyLightComponent.TurbidityAzimuthInclinationSunSize.z) * glm::cos(skyLightComponent.TurbidityAzimuthInclinationSunSize.y),
+									glm::cos(skyLightComponent.TurbidityAzimuthInclinationSunSize.z),
+									glm::sin(skyLightComponent.TurbidityAzimuthInclinationSunSize.z) * glm::sin(skyLightComponent.TurbidityAzimuthInclinationSunSize.y)
+								));
+
+								constexpr glm::vec3 horizonColor = { 1.0f, 0.5f, 0.0f }; // Reddish color at the horizon
+								constexpr glm::vec3 zenithColor = { 1.0f, 1.0f, 0.9f }; // Whitish color at the zenith
+
+								m_LightEnvironment.DirectionalLight = SceneDirectionalLight{
+									.Direction = direction,
+									.Radiance = skyLightComponent.LinkDirectionalLightRadiance ? glm::mix(horizonColor, zenithColor, glm::cos(skyLightComponent.TurbidityAzimuthInclinationSunSize.z)) : dirLightComp->Radiance,
+									.Intensity = dirLightComp->Intensity,
+									.ShadowOpacity = dirLightComp->ShadowOpacity,
+									.LightSize = dirLightComp->LightSize,
+									.CastShadows = dirLightComp->CastShadows
+								};
+
+								if (skyLightComponent.LinkDirectionalLightRadiance)
+									dirLightComp->Radiance = m_LightEnvironment.DirectionalLight.Radiance;
+							}
+						}
+					}
+
+					if ((!usingDynamicSky || !foundLinkedDirLight) && skyLightComponent.LinkDirectionalLightRadiance == true)
+						skyLightComponent.LinkDirectionalLightRadiance = false;
+				}
+
+				if (!m_Environment || view.empty()) // Invalid skylight (We dont have one or the handle was invalid)
+				{
+					m_Environment = Environment::Create(Renderer::GetBlackCubeTexture(), Renderer::GetBlackCubeTexture());
+					m_EnvironmentIntensity = 1.0f;
+					m_SkyboxLod = 0.0f;
+				}
+			}
+
+			// Directional Light
+			{
+				if (!usingDynamicSky || (usingDynamicSky && !foundLinkedDirLight))
+				{
+					auto view = GetAllEntitiesWith<TransformComponent, DirectionalLightComponent>();
+
+					uint32_t dirLightCountIndex = 0;
+					for (auto entity : view)
+					{
+						IR_VERIFY(dirLightCountIndex < LightEnvironment::MaxDirectionalLights, "We can't have more than {} directional lights in one scene!", LightEnvironment::MaxDirectionalLights);
+						if (dirLightCountIndex++ >= 1)
+							break;
+
+						const auto& [transformComp, dirLightComp] = view.get<TransformComponent, DirectionalLightComponent>(entity);
+						glm::vec3 direction = glm::normalize(glm::mat3(transformComp.GetTransform()) * glm::vec3(1.0f));
+						m_LightEnvironment.DirectionalLight = SceneDirectionalLight{
+							.Direction = direction,
+							.Radiance = dirLightComp.Radiance,
+							.Intensity = dirLightComp.Intensity,
+							.ShadowOpacity = dirLightComp.ShadowOpacity,
+							.LightSize = dirLightComp.LightSize,
+							.CastShadows = dirLightComp.CastShadows
+						};
+					}
+				}
+			}
+		}
+
+		{
+			renderer->SetScene(this);
+			renderer->BeginScene({ camera, camera.GetViewMatrix(), camera.GetNearClip(), camera.GetFarClip(), camera.GetFOV() });
+
+			// Render static meshes
+			auto entities = GetAllEntitiesWith<StaticMeshComponent, VisibleComponent>();
+			for (auto entity : entities)
+			{
+				const StaticMeshComponent& staticMeshComponenet = entities.get<StaticMeshComponent>(entity);
+
+				AsyncAssetResult<StaticMesh> staticMeshResult = AssetManager::GetAssetAsync<StaticMesh>(staticMeshComponenet.StaticMesh);
+				if (staticMeshResult.IsReady)
+				{
+					Ref<StaticMesh> staticMesh = staticMeshResult;
+					AsyncAssetResult<MeshSource> meshSourceResult = AssetManager::GetAssetAsync<MeshSource>(staticMesh->GetMeshSource());
+					if (meshSourceResult.IsReady)
+					{
+						Ref<MeshSource> meshSource = meshSourceResult;
+
+						Entity e = { entity, this };
+						glm::mat4 transform = GetWorldSpaceTransformMatrix(e);
+
+						renderer->SubmitStaticMesh(staticMesh, meshSource, staticMeshComponenet.MaterialTable, transform);
+					}
+				}
+			}
+
+			RenderPhysicsDebug(renderer);
+
+			renderer->EndScene();
 		}
 	}
 
@@ -892,6 +1295,8 @@ namespace Iris {
 		CopyComponentIfExists<SpriteRendererComponent>(newEntity.m_EntityHandle, m_Registry, entity);
 		// CopyComponentIfExists<SkyLightComponent>(newEntity.m_EntityHandle, m_Registry, entity); // NOTE: You can not duplicate sky lights since you should only have one
 		CopyComponentIfExists<DirectionalLightComponent>(newEntity.m_EntityHandle, m_Registry, entity);
+		CopyComponentIfExists<PointLightComponent>(newEntity.m_EntityHandle, m_Registry, entity);
+		CopyComponentIfExists<SpotLightComponent>(newEntity.m_EntityHandle, m_Registry, entity);
 		CopyComponentIfExists<TextComponent>(newEntity.m_EntityHandle, m_Registry, entity);
 		CopyComponentIfExists<RigidBodyComponent>(newEntity.m_EntityHandle, m_Registry, entity);
 		CopyComponentIfExists<BoxColliderComponent>(newEntity.m_EntityHandle, m_Registry, entity);
@@ -899,6 +1304,7 @@ namespace Iris {
 		CopyComponentIfExists<CylinderColliderComponent>(newEntity.m_EntityHandle, m_Registry, entity);
 		CopyComponentIfExists<CapsuleColliderComponent>(newEntity.m_EntityHandle, m_Registry, entity);
 		CopyComponentIfExists<CompoundColliderComponent>(newEntity.m_EntityHandle, m_Registry, entity);
+		CopyComponentIfExists<MeshColliderComponent>(newEntity.m_EntityHandle, m_Registry, entity);
 		CopyComponentIfExists<RigidBody2DComponent>(newEntity.m_EntityHandle, m_Registry, entity);
 		CopyComponentIfExists<BoxCollider2DComponent>(newEntity.m_EntityHandle, m_Registry, entity);
 		CopyComponentIfExists<CircleCollider2DComponent>(newEntity.m_EntityHandle, m_Registry, entity);
@@ -925,9 +1331,19 @@ namespace Iris {
 	{
 		AssetMetaData& assetMetaData = Project::GetEditorAssetManager()->GetMetaData(staticMesh->Handle);
 		Entity rootEntity = CreateEntity(assetMetaData.FilePath.stem().string());
-		Ref<MeshSource> meshSource = AssetManager::GetAssetAsync<MeshSource>(staticMesh->GetMeshSource());
-		if (meshSource)
-			BuildMeshEntityHierarchy(rootEntity, staticMesh, meshSource->GetRootNode());
+		rootEntity.AddComponent<StaticMeshComponent>(staticMesh->Handle);
+
+		if (staticMesh->ShouldGenerateColliders())
+		{
+			MeshColliderComponent& colliderComponent = rootEntity.AddComponent<MeshColliderComponent>();
+			Ref<MeshColliderAsset> colliderAsset = PhysicsSystem::GetOrCreateMeshColliderAsset(rootEntity, colliderComponent);
+
+			colliderComponent.ColliderAsset = colliderAsset->Handle;
+			colliderComponent.SubMeshIndex = 0;
+			colliderComponent.UseSharedShape = colliderAsset->AlwaysShareShape;
+			
+			rootEntity.AddComponent<RigidBodyComponent>();
+		}
 
 		return rootEntity;
 	}
@@ -1081,6 +1497,7 @@ namespace Iris {
 		});
 	}
 
+	// TODO: This will only be used when we have normal meshes that have skeletal animation
 	void Scene::BuildMeshEntityHierarchy(Entity parent, Ref<StaticMesh> staticMesh, const MeshUtils::MeshNode& node)
 	{
 		Ref<MeshSource> meshSource = AssetManager::GetAsset<MeshSource>(staticMesh->GetMeshSource());
@@ -1102,7 +1519,19 @@ namespace Iris {
 		{
 			// Node = StaticMesh in this case
 			uint32_t subMeshIndex = node.SubMeshes[0];
-			auto& mc = nodeEntity.AddComponent<StaticMeshComponent>(staticMesh->Handle, subMeshIndex);
+			StaticMeshComponent& mc = nodeEntity.AddComponent<StaticMeshComponent>(staticMesh->Handle, subMeshIndex);
+
+			if (staticMesh->ShouldGenerateColliders())
+			{
+				MeshColliderComponent& colliderComponent = nodeEntity.AddComponent<MeshColliderComponent>();
+				Ref<MeshColliderAsset> colliderAsset = PhysicsSystem::GetOrCreateMeshColliderAsset(nodeEntity, colliderComponent);
+
+				colliderComponent.ColliderAsset = colliderAsset->Handle;
+				colliderComponent.SubMeshIndex = subMeshIndex;
+				colliderComponent.UseSharedShape = colliderAsset->AlwaysShareShape;
+				
+				nodeEntity.AddComponent<RigidBodyComponent>();
+			}
 		}
 		else if (node.SubMeshes.size() > 1)
 		{
@@ -1113,6 +1542,18 @@ namespace Iris {
 
 				Entity childEntity = CreateChildEntity(nodeEntity, node.Name, true);
 				childEntity.AddComponent<StaticMeshComponent>(staticMesh->Handle, subMeshIndex);
+
+				if (staticMesh->ShouldGenerateColliders())
+				{
+					MeshColliderComponent& colliderComponent = childEntity.AddComponent<MeshColliderComponent>();
+					Ref<MeshColliderAsset> colliderAsset = PhysicsSystem::GetOrCreateMeshColliderAsset(childEntity, colliderComponent);
+
+					colliderComponent.ColliderAsset = colliderAsset->Handle;
+					colliderComponent.SubMeshIndex = subMeshIndex;
+					colliderComponent.UseSharedShape = colliderAsset->AlwaysShareShape;
+					
+					childEntity.AddComponent<RigidBodyComponent>();
+				}
 			}
 		}
 
@@ -1125,7 +1566,165 @@ namespace Iris {
 		if (!renderer->GetOptions().ShowPhysicsColliders)
 			return;
 
-		// TODO:
+		auto submitBoxCollider = [this, &renderer](Entity entity, Ref<StaticMesh> staticMesh, Ref<MeshSource> meshSource)
+		{
+			glm::mat4 transform = GetWorldSpaceTransformMatrix(entity);
+			const BoxColliderComponent& colliderComp = entity.GetComponent<BoxColliderComponent>();
+			glm::mat4 colliderTransform = glm::translate(glm::mat4(1.0f), colliderComp.Offset) * glm::scale(glm::mat4(1.0f), colliderComp.HalfSize * 2.0f);
+			renderer->SubmitPhysicsStaticDebugMesh(staticMesh, meshSource, transform * colliderTransform);
+		};
+
+		auto submitSphereCollider = [this, &renderer](Entity entity, Ref<StaticMesh> staticMesh, Ref<MeshSource> meshSource)
+		{
+			glm::mat4 transform = GetWorldSpaceTransformMatrix(entity);
+			const SphereColliderComponent& colliderComp = entity.GetComponent<SphereColliderComponent>();
+			glm::mat4 colliderTransform = glm::translate(glm::mat4(1.0f), colliderComp.Offset) * glm::scale(glm::mat4(1.0f), glm::vec3(colliderComp.Radius * 2.0f));
+			renderer->SubmitPhysicsStaticDebugMesh(staticMesh, meshSource, transform * colliderTransform);
+		};
+
+		auto submitCapsuleCollider = [this, &renderer](Entity entity, Ref<StaticMesh> staticMesh, Ref<MeshSource> meshSource)
+		{
+			glm::mat4 transform = GetWorldSpaceTransformMatrix(entity);
+			const CapsuleColliderComponent& colliderComp = entity.GetComponent<CapsuleColliderComponent>();
+			glm::mat4 colliderTransform = glm::translate(glm::mat4(1.0f), colliderComp.Offset) * glm::scale(glm::mat4(1.0f), glm::vec3(colliderComp.Radius * 2.0f, colliderComp.HalfHeight * 2.0f, colliderComp.Radius * 2.0f));
+			renderer->SubmitPhysicsStaticDebugMesh(staticMesh, meshSource, transform * colliderTransform);
+		};
+
+		auto submitCylinderCollider = [this, &renderer](Entity entity, Ref<StaticMesh> staticMesh, Ref<MeshSource> meshSource)
+		{
+			glm::mat4 transform = GetWorldSpaceTransformMatrix(entity);
+			const CylinderColliderComponent& colliderComp = entity.GetComponent<CylinderColliderComponent>();
+			glm::mat4 colliderTransform = glm::translate(glm::mat4(1.0f), colliderComp.Offset) * glm::scale(glm::mat4(1.0f), glm::vec3(colliderComp.Radius * 2.0f, colliderComp.HalfHeight * 2.0f, colliderComp.Radius * 2.0f));
+			renderer->SubmitPhysicsStaticDebugMesh(staticMesh, meshSource, transform * colliderTransform);
+		};
+
+		auto submitMeshCollider = [this, &renderer](Entity entity)
+		{
+			glm::mat4 transform = GetWorldSpaceTransformMatrix(entity);
+			const MeshColliderComponent& colliderComp = entity.GetComponent<MeshColliderComponent>();
+
+			Ref<MeshColliderAsset> colliderAsset = AssetManager::GetAsset<MeshColliderAsset>(colliderComp.ColliderAsset);
+			if (colliderAsset)
+			{
+				bool isSimpleCollider = colliderAsset->CollisionComplexity == PhysicsCollisionComplexity::UseComplexAsSimple ? false : true;
+
+				Ref<StaticMesh> staticMesh = PhysicsSystem::GetMesheColliderCache()->GetDebugStaticMesh(colliderAsset); // TODO: Here we do not get back the static mesh that we need to render
+				if (staticMesh)
+				{
+					if (Ref<MeshSource> meshSource = AssetManager::GetAsset<MeshSource>(staticMesh->GetMeshSource()); meshSource)
+					{
+						renderer->SubmitPhysicsStaticDebugMesh(staticMesh, meshSource, transform, isSimpleCollider);
+					}
+				}
+			}
+		};
+
+		if (renderer->GetOptions().PhysicsColliderViewMode == SceneRendererOptions::PhysicsColliderViewOptions::SelectedEntity)
+		{
+			if (SelectionManager::GetSelectionCount(SelectionContext::Scene) == 0)
+				return;
+
+			for (UUID entityId : SelectionManager::GetSelections(SelectionContext::Scene))
+			{
+				Entity entity = GetEntityWithUUID(entityId);
+
+				if (entity.HasComponent<BoxColliderComponent>())
+				{
+					Ref<StaticMesh> staticMesh = AssetManager::GetAsset<StaticMesh>(PhysicsSystem::GetMesheColliderCache()->GetBoxDebugMesh());
+					if (staticMesh)
+					{
+						Ref<MeshSource> meshSource = AssetManager::GetAsset<MeshSource>(staticMesh->GetMeshSource());
+						if (meshSource)
+							submitBoxCollider(entity, staticMesh, meshSource);
+					}
+				}
+
+				if (entity.HasComponent<SphereColliderComponent>())
+				{
+					Ref<StaticMesh> staticMesh = AssetManager::GetAsset<StaticMesh>(PhysicsSystem::GetMesheColliderCache()->GetSphereDebugMesh());
+					if (staticMesh)
+					{
+						Ref<MeshSource> meshSource = AssetManager::GetAsset<MeshSource>(staticMesh->GetMeshSource());
+						if (meshSource)
+							submitSphereCollider(entity, staticMesh, meshSource);
+					}
+				}
+
+				if (entity.HasComponent<CapsuleColliderComponent>())
+				{
+					Ref<StaticMesh> staticMesh = AssetManager::GetAsset<StaticMesh>(PhysicsSystem::GetMesheColliderCache()->GetCapsuleDebugMesh());
+					if (staticMesh)
+					{
+						Ref<MeshSource> meshSource = AssetManager::GetAsset<MeshSource>(staticMesh->GetMeshSource());
+						if (meshSource)
+							submitCapsuleCollider(entity, staticMesh, meshSource);
+					}
+				}
+
+				if (entity.HasComponent<CylinderColliderComponent>())
+				{
+					Ref<StaticMesh> staticMesh = AssetManager::GetAsset<StaticMesh>(PhysicsSystem::GetMesheColliderCache()->GetCylinderDebugMesh());
+					if (staticMesh)
+					{
+						Ref<MeshSource> meshSource = AssetManager::GetAsset<MeshSource>(staticMesh->GetMeshSource());
+						if (meshSource)
+							submitCylinderCollider(entity, staticMesh, meshSource);
+					}
+				}
+
+				if (entity.HasComponent<MeshColliderComponent>())
+					submitMeshCollider(entity);
+			}
+		}
+		else
+		{
+			Ref<StaticMesh> boxStaticMesh = AssetManager::GetAsset<StaticMesh>(PhysicsSystem::GetMesheColliderCache()->GetBoxDebugMesh());
+			if (boxStaticMesh)
+			{
+				Ref<MeshSource> boxMeshSource = AssetManager::GetAsset<MeshSource>(boxStaticMesh->GetMeshSource());
+				if (boxMeshSource)
+				{
+					for (auto entity : GetAllEntitiesWith<BoxColliderComponent>())
+						submitBoxCollider({ entity, this }, boxStaticMesh, boxMeshSource);
+				}
+			}
+
+			Ref<StaticMesh> sphereStaticMesh = AssetManager::GetAsset<StaticMesh>(PhysicsSystem::GetMesheColliderCache()->GetSphereDebugMesh());
+			if (sphereStaticMesh)
+			{
+				Ref<MeshSource> sphereMeshSource = AssetManager::GetAsset<MeshSource>(sphereStaticMesh->GetMeshSource());
+				if (sphereMeshSource)
+				{
+					for (auto entity : GetAllEntitiesWith<SphereColliderComponent>())
+						submitSphereCollider({ entity, this }, sphereStaticMesh, sphereMeshSource);
+				}
+			}
+
+			Ref<StaticMesh> capsuleStaticMesh = AssetManager::GetAsset<StaticMesh>(PhysicsSystem::GetMesheColliderCache()->GetCapsuleDebugMesh());
+			if (capsuleStaticMesh)
+			{
+				Ref<MeshSource> capsuleMeshSource = AssetManager::GetAsset<MeshSource>(capsuleStaticMesh->GetMeshSource());
+				if (capsuleMeshSource)
+				{
+					for (auto entity : GetAllEntitiesWith<CapsuleColliderComponent>())
+						submitCapsuleCollider({ entity, this }, capsuleStaticMesh, capsuleMeshSource);
+				}
+			}
+
+			Ref<StaticMesh> cylinderStaticMesh = AssetManager::GetAsset<StaticMesh>(PhysicsSystem::GetMesheColliderCache()->GetCylinderDebugMesh());
+			if (cylinderStaticMesh)
+			{
+				Ref<MeshSource> cylinderMeshSource = AssetManager::GetAsset<MeshSource>(cylinderStaticMesh->GetMeshSource());
+				if (cylinderMeshSource)
+				{
+					for (auto entity : GetAllEntitiesWith<CylinderColliderComponent>())
+						submitCylinderCollider({ entity, this }, cylinderStaticMesh, cylinderMeshSource);
+				}
+			}
+
+			for (auto entity : GetAllEntitiesWith<MeshColliderComponent>())
+				submitMeshCollider({ entity, this });
+		}
 	}
 
 	void Scene::Render2DPhysicsDebug(Ref<SceneRenderer> renderer, Ref<Renderer2D> renderer2D)
@@ -1201,6 +1800,14 @@ namespace Iris {
 				}
 			}
 		}
+	}
+
+	void Scene::OnMeshColliderComponentConstruct(entt::registry& registry, entt::entity entity)
+	{
+		Entity e = { entity, this };
+		auto& component = e.GetComponent<MeshColliderComponent>();
+		if (AssetManager::IsAssetHandleValid(component.ColliderAsset))
+			PhysicsSystem::GetOrCreateMeshColliderAsset(e, component);
 	}
 
 }

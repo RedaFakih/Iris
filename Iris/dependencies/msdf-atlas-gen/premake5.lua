@@ -43,6 +43,7 @@ project "msdf-atlas-gen"
     filter "configurations:Release"
         runtime "Release"
         optimize "Full"
+		-- symbols "off"
         vectorextensions "AVX2"
         isaextensions {
             "BMI", "POPCNT", "LZCNT", "F16C"

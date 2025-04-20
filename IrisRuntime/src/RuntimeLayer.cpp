@@ -101,7 +101,7 @@ namespace Iris {
 		m_EditorCamera.OnUpdate(ts);
 
 		m_RuntimeScene->OnUpdateRuntime(ts);
-		m_RuntimeScene->OnRenderEditor(m_ViewportRenderer, ts, m_EditorCamera);
+		m_RuntimeScene->OnRenderEditor(m_ViewportRenderer, m_EditorCamera);
 
 		OnRender2D();
 

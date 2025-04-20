@@ -13,16 +13,6 @@
 
 namespace Iris {
 
-	Ref<Shader> Shader::Create()
-	{
-		return CreateRef<Shader>();
-	}
-
-	Ref<Shader> Shader::Create(std::string_view path, bool forceCompile, bool disableOptimization)
-	{
-		return CreateRef<Shader>(path, forceCompile, disableOptimization);
-	}
-
 	Shader::Shader(std::string_view path, bool forceCompile, bool disableOptimization)
 		: m_FilePath(path), m_DisableOptimizations(disableOptimization)
 	{
@@ -130,6 +120,36 @@ namespace Iris {
 			pipelineShaderStageCI.module = nullptr;
 
 		m_PipelineShaderStageCreateInfos.clear();
+	}
+
+	void Shader::SetMacro(const std::string_view name, const std::string_view value)
+	{
+		const std::string nameString = std::string(name);
+
+		if (m_Macros.contains(nameString))
+		{
+			if (m_Macros.at(nameString) == value)
+			{
+				IR_CORE_WARN_TAG("Shader", "Macro: {} with value: {} is already defined!", name, value);
+				
+				return;
+			}
+
+			if (m_Macros.at(nameString) == "" && value == "")
+			{
+				IR_CORE_WARN_TAG("Shader", "Macro: {} with no value is already defined!", name);
+				
+				return;
+			}
+			
+			if (m_Macros.at(nameString) == "" && value != "")
+			{
+				IR_CORE_WARN_TAG("Shader", "Macro: {} with no value is being set to have a value (value: {})", name, value);
+			}
+		}
+
+		m_Macros[std::string(name)] = value;
+		Reload();
 	}
 
 	std::size_t Shader::GetHash() const

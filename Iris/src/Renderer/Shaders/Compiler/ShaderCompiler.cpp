@@ -97,14 +97,9 @@ namespace Iris {
 	static std::unordered_map<uint32_t, std::unordered_map<uint32_t, ShaderResources::UniformBuffer>> s_UniformBuffers;
 	static std::unordered_map<uint32_t, std::unordered_map<uint32_t, ShaderResources::StorageBuffer>> s_StorageBuffers;
 
-	ShaderCompiler::ShaderCompiler(const std::string& filePath, bool disableOptimization)
-		: m_FilePath(filePath), m_DisableOptimizations(disableOptimization)
+	ShaderCompiler::ShaderCompiler(const std::string& filePath, bool disableOptimization, const std::unordered_map<std::string, std::string>& macros)
+		: m_FilePath(filePath), m_DisableOptimizations(disableOptimization), m_ShaderMacros(macros)
 	{
-	}
-
-	Ref<ShaderCompiler> ShaderCompiler::Create(const std::string& filePath, bool disableOptimization)
-	{
-		return CreateRef<ShaderCompiler>(filePath, disableOptimization);
 	}
 
 	bool ShaderCompiler::Reload(bool forceCompile)
@@ -174,7 +169,7 @@ namespace Iris {
 
 	bool ShaderCompiler::TryRecompile(Ref<Shader> shader)
 	{
-		Ref<ShaderCompiler> compiler = ShaderCompiler::Create(shader->m_FilePath, shader->m_DisableOptimizations);
+		Ref<ShaderCompiler> compiler = ShaderCompiler::Create(shader->m_FilePath, shader->m_DisableOptimizations, shader->m_Macros);
 		bool compileSucceeded = compiler->Reload(true); // force compile to reload
 		if (!compileSucceeded)
 			return false;
@@ -196,10 +191,19 @@ namespace Iris {
 		std::map<VkShaderStageFlagBits, std::string> shaderSources = preprocessor.PreprocessShader(source);
 
 		static shaderc::Compiler compiler;
+
 		for (auto& [stage, shaderSource] : shaderSources)
 		{
 			shaderc::CompileOptions options;
 			options.AddMacroDefinition(ShaderUtils::VkShaderStageToMacroString(stage));
+
+			for (auto& [macroName, macroValue] : m_ShaderMacros)
+			{
+				options.AddMacroDefinition(macroName, macroValue);
+			}
+
+			for (const auto& [name, value] : Renderer::GetGlobalShaderMacros())
+				options.AddMacroDefinition(name, value);
 
 			const shaderc::PreprocessedSourceCompilationResult res = compiler.PreprocessGlsl(shaderSource, ShaderUtils::VkShaderStageToShaderc(stage), m_FilePath.c_str(), options);
 			if (res.GetCompilationStatus() != shaderc_compilation_status_success)
@@ -220,6 +224,7 @@ namespace Iris {
 		const std::string& source = m_ShaderSource.at(stage);
 
 		static shaderc::Compiler compiler;
+
 		shaderc::CompileOptions shadercOptions;
 		shadercOptions.SetTargetEnvironment(shaderc_target_env_vulkan, shaderc_env_version_vulkan_1_3);
 		shadercOptions.SetWarningsAsErrors();
@@ -278,9 +283,7 @@ namespace Iris {
 			else
 			{
 				options.GenerateDebugInfo = false;
-				// NOTE: Shaderc internal error with optimizing compute shaders...
-				// options.Optimize = !m_DisableOptimizations && stage != VK_SHADER_STAGE_COMPUTE_BIT;
-				options.Optimize = true;
+				options.Optimize = !m_DisableOptimizations;
 			}
 
 			std::string error = Compile(outputBin, stage, options);

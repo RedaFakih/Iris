@@ -128,7 +128,7 @@ namespace Iris {
 		if (!rootNode["Name"])
 			return false;
 
-		auto& config = project->m_Config;
+		ProjectConfig& config = project->m_Config;
 		config.Name = rootNode["Name"].as<std::string>();
 
 		config.AssetDirectory = rootNode["AssetDirectory"].as<std::string>();

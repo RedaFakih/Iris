@@ -7,6 +7,7 @@
 #include "Renderer/Text/Font.h"
 #include "Scene/Scene.h"
 #include "Scene/SceneEnvironment.h"
+#include "Scene/SceneSerializer.h"
 #include "Utils/YAMLSerializationHelpers.h"
 
 #include <yaml-cpp/yaml.h>
@@ -260,18 +261,17 @@ namespace Iris {
 	/// SceneAssetSerializer
 	//////////////////////////////////////////////
 
-	// TODO:
-	// void SceneAssetSerializer::Serialize(const AssetMetaData& metaData, const Ref<Asset>& asset) const
-	// {
-	// 	SceneSerializer serializer(asset.As<Scene>());
-	// 	serializer.Serialize(Project::GetEditorAssetManager()->GetFileSystemPath(metaData).string());
-	// }
-	// 
-	// bool SceneAssetSerializer::TryLoadData(const AssetMetaData& metaData, Ref<Asset>& asset) const
-	// {
-	// 	asset = Scene::Create("SceneAsset", false);
-	// 	asset->Handle = metaData.Handle;
-	// 	return true;
-	// }
+	void SceneAssetSerializer::Serialize(const AssetMetaData& metaData, const Ref<Asset>& asset) const
+	{
+		SceneSerializer::Serialize(asset.As<Scene>(), Project::GetEditorAssetManager()->GetFileSystemPath(metaData));
+	}
+	
+	bool SceneAssetSerializer::TryLoadData(const AssetMetaData& metaData, Ref<Asset>& asset) const
+	{
+		// NOTE: We do not need to deserialize the scene here since the scene data should be lazily loaded otherwise we would be wasting memory
+		asset = Scene::Create("SceneAsset", false);
+		asset->Handle = metaData.Handle;
+		return true;
+	}
 
 }

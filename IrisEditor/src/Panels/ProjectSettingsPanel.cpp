@@ -67,8 +67,6 @@ namespace Iris {
 					UI::EndPropertyGrid();
 					ImGui::TreePop(); // For the property grid header
 				}
-				else
-					UI::ShiftCursorY(-(ImGui::GetStyle().ItemSpacing.y + 1.0f));
 
 				ImGui::PopID();
 			}
@@ -81,20 +79,51 @@ namespace Iris {
 
 				if (UI::PropertyGridHeader("Renderer", false))
 				{
+					bool serializeRendererConfig = false;
+
 					UI::BeginPropertyGrid(2, 250.0f);
 
 					RendererConfiguration& rendererConfig = Renderer::GetConfig();
 
-					UI::Property("Create HDR Environment Maps", rendererConfig.ComputeEnvironmentMaps, "Uncheck this to disable compute HDR environment maps in your scenes");
+					if (UI::Property("Create HDR Environment Maps", rendererConfig.ComputeEnvironmentMaps, "Uncheck this to disable compute HDR environment maps in your scenes"))
+						serializeRendererConfig = true;
+
+					ImGui::BeginDisabled(!rendererConfig.ComputeEnvironmentMaps);
 
 					static const char* mapSize[6] = { "128", "256", "512", "1024", "2048", "4096" };
 					int currentEnvMapSize = static_cast<int>(glm::log2(static_cast<float>(rendererConfig.EnvironmentMapResolution))) - 7;
 					if (UI::PropertyDropdown("Environment Map Size", mapSize, 6, &currentEnvMapSize, "Size of the generated environment map texture"))
+					{
 						rendererConfig.EnvironmentMapResolution = static_cast<uint32_t>(glm::pow(2, currentEnvMapSize + 7));
+
+						serializeRendererConfig = true;
+					}
 
 					int currentIrradianceMapSamples = static_cast<int>(glm::log2(static_cast<float>(rendererConfig.IrradianceMapComputeSamples))) - 7;
 					if (UI::PropertyDropdown("Irradiance Map Compute Samples", mapSize, 6, &currentIrradianceMapSamples))
+					{
 						rendererConfig.IrradianceMapComputeSamples = static_cast<uint32_t>(glm::pow(2, currentEnvMapSize + 7));
+
+						serializeRendererConfig = true;
+					}
+
+					ImGui::EndDisabled();
+
+					UI::PropertySlider("Max Point Lights Limit", rendererConfig.MaxNumberOfPointLights, 1, 500, "Sets the maximum number of Point Lights allowed in the scene.");
+					if (ImGui::IsItemDeactivatedAfterEdit())
+					{
+						Renderer::AddGlobalShaderMacro("IR_MAX_POINT_LIGHT_COUNT", fmt::format("{}", rendererConfig.MaxNumberOfPointLights));
+
+						serializeRendererConfig = true;
+					}
+
+					UI::PropertySlider("Max Spot Lights Limit", rendererConfig.MaxNumberOfSpotLights, 1, 500, "Sets the maximum number of Spot Lights allowed in the scene.");
+					if (ImGui::IsItemDeactivatedAfterEdit())
+					{
+						Renderer::AddGlobalShaderMacro("IR_MAX_SPOT_LIGHT_COUNT", fmt::format("{}", rendererConfig.MaxNumberOfSpotLights));
+						
+						serializeRendererConfig = true;
+					}
 
 					if (UI::PropertyColor4("Viewport Outline Color", m_Context->m_Config.ViewportSelectionOutlineColor))
 						serializeProject = true;
@@ -108,11 +137,12 @@ namespace Iris {
 					if (UI::PropertyColor4("Complex 3D Collider Debug Color", m_Context->m_Config.ViewportComplex3DColliderOutlineColor))
 						serializeProject = true;
 
+					if (serializeRendererConfig)
+						RendererConfigurationSerialzier::Serialize(rendererConfig);
+
 					UI::EndPropertyGrid();
 					ImGui::TreePop();
 				}
-				else
-					UI::ShiftCursorY(-(ImGui::GetStyle().ItemSpacing.y + 1.0f));
 
 				ImGui::PopID();
 			}

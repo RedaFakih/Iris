@@ -7,9 +7,11 @@
 #include <Jolt/Jolt.h>
 #include <Jolt/Physics/Collision/Shape/BoxShape.h>
 #include <Jolt/Physics/Collision/Shape/CapsuleShape.h>
+#include <Jolt/Physics/Collision/Shape/ConvexHullShape.h>
 #include <Jolt/Physics/Collision/Shape/CylinderShape.h>
 #include <Jolt/Physics/Collision/Shape/MutableCompoundShape.h>
 #include <Jolt/Physics/Collision/Shape/RotatedTranslatedShape.h>
+#include <Jolt/Physics/Collision/Shape/ScaledShape.h>
 #include <Jolt/Physics/Collision/Shape/SphereShape.h>
 #include <Jolt/Physics/Collision/Shape/StaticCompoundShape.h>
 
@@ -239,6 +241,58 @@ namespace Iris {
 
 	private:
 		JPH::StaticCompoundShapeSettings m_Settings;
+		JPH::Ref<JPH::StaticCompoundShape> m_Shape;
+
+	};
+
+	class ConvexMeshShape : public PhysicsShape
+	{
+	public:
+		ConvexMeshShape(Entity entity, float totalBodyMass);
+		~ConvexMeshShape()
+		{
+			Destroy();
+		}
+
+		[[nodiscard]] inline static Ref<ConvexMeshShape> Create(Entity entity, float totalBodyMass)
+		{
+			return CreateRef<ConvexMeshShape>(entity, totalBodyMass);
+		}
+
+		virtual uint32_t GetNumShapes() const override { return 1; }
+		virtual void* GetNativeShape(uint32_t index = 0) const override { return m_Shape.GetPtr(); }
+
+		virtual void SetMaterial(const ColliderMaterial& material) override;
+
+		virtual void Destroy() override {}
+
+	private:
+		JPH::Ref<JPH::ScaledShape> m_Shape;
+
+	};
+
+	class TriangleMeshShape : public PhysicsShape
+	{
+	public:
+		TriangleMeshShape(Entity entity);
+		~TriangleMeshShape()
+		{
+			Destroy();
+		}
+
+		[[nodiscard]] inline static Ref<TriangleMeshShape> Create(Entity entity)
+		{
+			return CreateRef<TriangleMeshShape>(entity);
+		}
+
+		virtual uint32_t GetNumShapes() const override { return 1; }
+		virtual void* GetNativeShape(uint32_t index = 0) const override { return m_Shape.GetPtr(); }
+
+		virtual void SetMaterial(const ColliderMaterial& material) override;
+
+		virtual void Destroy() override {}
+
+	private:
 		JPH::Ref<JPH::StaticCompoundShape> m_Shape;
 
 	};

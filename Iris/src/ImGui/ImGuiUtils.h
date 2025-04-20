@@ -29,6 +29,33 @@ namespace ImGui {
 
 namespace Iris::UI {
 
+	// TODO:
+	struct MessageBoxData
+	{
+		enum class MessageBoxFlags : uint32_t
+		{
+			OkButton		= BIT(0),
+			CancelButton	= BIT(1),
+			UserFunction	= BIT(2),
+			AutoResize		= BIT(3)
+		};
+
+		std::string Title = "";
+		std::string Body = "";
+		uint32_t Flags = 0;
+		uint32_t Width = 0;
+		uint32_t Height = 0;
+		uint32_t MinWidth = 0;
+		uint32_t MinHeight = 0;
+		uint32_t MaxWidth = -1;
+		uint32_t MaxHeight = -1;
+		std::function<void()> UserRenderFunction;
+		bool ShouldOpen = true;
+		bool IsOpen = false;
+	};
+
+	static std::unordered_map<std::string, MessageBoxData> s_MessageBoxes;
+
 	enum class VectorAxis
 	{
 		None = 0,
@@ -69,6 +96,14 @@ namespace Iris::UI {
 		ImGuiScopedID& operator=(const ImGuiScopedID&) = delete;
 	};
 
+	struct ImGuiScopedDisable
+	{
+		ImGuiScopedDisable(bool disable = true) { ImGui::BeginDisabled(disable); }
+		~ImGuiScopedDisable() { ImGui::EndDisabled(); }
+		ImGuiScopedDisable(const ImGuiScopedDisable&) = delete;
+		ImGuiScopedDisable& operator=(const ImGuiScopedDisable&) = delete;
+	};
+
 	struct PropertyAssetReferenceSettings
 	{
 		bool AdvanceToNextColumn = true;
@@ -84,6 +119,102 @@ namespace Iris::UI {
 	// This is for knowing what the currently referenced asset is so that if we want to modify/know what it is in other functions...
 	static AssetHandle s_PropertyAssetReferenceAssetHandle;
 
+	inline void ShowMessageBox(
+		const char* title,
+		const std::function<void()>& renderFunc,
+		uint32_t width = 600,
+		uint32_t height = 0,
+		uint32_t minWidth = 0,
+		uint32_t minHeight = 0,
+		uint32_t maxWidth = -1,
+		uint32_t maxHeight = -1,
+		uint32_t flags = static_cast<uint32_t>(MessageBoxData::MessageBoxFlags::AutoResize)
+	)
+	{
+		MessageBoxData& data = s_MessageBoxes[title];
+		data.Title = fmt::format("{}##MessageBox{}", title, s_MessageBoxes.size() + 1);
+		data.UserRenderFunction = renderFunc;
+		data.Flags = static_cast<uint32_t>(MessageBoxData::MessageBoxFlags::UserFunction) | flags;
+		data.Width = width;
+		data.Height = height;
+		data.MinWidth = minWidth;
+		data.MinHeight = minHeight;
+		data.MaxWidth = maxWidth;
+		data.MaxHeight = maxHeight;
+		data.ShouldOpen = true;
+	}
+
+	inline void RenderMessageBoxes()
+	{
+		for (auto& [key, messageBoxData] : s_MessageBoxes)
+		{
+			if (messageBoxData.ShouldOpen && !ImGui::IsPopupOpen(nullptr, ImGuiPopupFlags_AnyPopupId))
+			{
+				ImGui::OpenPopup(messageBoxData.Title.c_str());
+				messageBoxData.ShouldOpen = false;
+				messageBoxData.IsOpen = true;
+			}
+
+			if (!messageBoxData.IsOpen)
+				continue;
+
+			if (!ImGui::IsPopupOpen(messageBoxData.Title.c_str()))
+			{
+				messageBoxData.IsOpen = false;
+				continue;
+			}
+
+			if (messageBoxData.Width != 0 || messageBoxData.Height != 0)
+			{
+				ImVec2 center = ImGui::GetMainViewport()->GetCenter();
+				ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, { 0.5f, 0.5f });
+				ImGui::SetNextWindowSize({ static_cast<float>(messageBoxData.Width), static_cast<float>(messageBoxData.Height) }, ImGuiCond_Appearing);
+			}
+
+			ImGuiWindowFlags windowFlags = ImGuiWindowFlags_NoResize;
+			if (messageBoxData.Flags & static_cast<uint32_t>(MessageBoxData::MessageBoxFlags::AutoResize))
+			{
+				windowFlags |= ImGuiWindowFlags_AlwaysAutoResize;
+			}
+			else
+			{
+				ImGui::SetNextWindowSizeConstraints(
+					{ static_cast<float>(messageBoxData.MinWidth), static_cast<float>(messageBoxData.MinHeight) },
+					{ static_cast<float>(messageBoxData.MaxWidth), static_cast<float>(messageBoxData.MaxHeight) }
+				);
+			}
+
+			if (ImGui::BeginPopupModal(messageBoxData.Title.c_str(), &messageBoxData.IsOpen, windowFlags | ImGuiWindowFlags_NoMove))
+			{
+				if (messageBoxData.Flags & static_cast<uint32_t>(MessageBoxData::MessageBoxFlags::UserFunction))
+				{
+					IR_VERIFY(messageBoxData.UserRenderFunction, "No render function provided for message box!");
+					messageBoxData.UserRenderFunction();
+				}
+				else
+				{
+					ImGui::TextWrapped(messageBoxData.Body.c_str());
+
+					if (messageBoxData.Flags & static_cast<uint32_t>(MessageBoxData::MessageBoxFlags::OkButton))
+					{
+						if (ImGui::Button("Ok"))
+							ImGui::CloseCurrentPopup();
+
+						if (messageBoxData.Flags & static_cast<uint32_t>(MessageBoxData::MessageBoxFlags::CancelButton))
+							ImGui::SameLine();
+					}
+
+					if (messageBoxData.Flags & static_cast<uint32_t>(MessageBoxData::MessageBoxFlags::CancelButton) && ImGui::Button("Cancel"))
+					{
+						ImGui::CloseCurrentPopup();
+					}
+				}
+
+				ImGui::EndPopup();
+			}
+		}
+	}
+
 	// Generates an ID using a simple incrementing counter
 	const char* GenerateID();
 
@@ -95,7 +226,7 @@ namespace Iris::UI {
 
 	void PopID();
 
-	void SetToolTip(std::string_view text, float delayInSeconds = 0.1f, bool allowWhenDisabled = true, ImVec2 padding = ImVec2(5, 5));
+	void SetToolTip(std::string_view text, bool useCurrentColorStack = false, float delayInSeconds = 0.1f, bool allowWhenDisabled = true, ImVec2 padding = ImVec2(5, 5));
 
 	void ShowHelpMarker(const char* description);
 
@@ -270,12 +401,13 @@ namespace Iris::UI {
 
 	void TextWrapped(const char* value, bool isError = false);
 	bool PropertyString(const char* label, const char* value, bool isError = false);
+	bool PropertyInputString(const char* label, std::string* value, const char* helpText = "", ImGuiInputTextFlags flags = 0, ImGuiInputTextCallback callback = NULL, void* user_data = NULL);
 	bool PropertyStringMultiline(const char* label, std::string& value, const char* helpText = "");
 	bool PropertyStringReadOnly(const char* label, const char* value, bool isErorr = false, const char* helpText = "");
 	bool Property(const char* label, float& value, float delta = 0.1f, float min = 0.0f, float max = 0.0f, const char* helpText = "");
 	bool Property(const char* label, uint32_t& value, uint32_t delta = 1, uint32_t min = 0, uint32_t max = 0, const char* helpText = "");
 	bool Property(const char* label, bool& value, const char* helpText = "", bool underLineProperty = false);
-	bool PropertySlider(const char* label, uint32_t& value, uint32_t min = 0, uint32_t max = 0, const char* format = "%.3f", const char* helpText = "");
+	bool PropertySlider(const char* label, uint32_t& value, uint32_t min = 0, uint32_t max = 0, const char* helpText = "");
 	bool PropertySlider(const char* label, float& value, float min = 0.0f, float max = 0.0f, const char* format = "%.3f", const char* helpText = "");
 	bool PropertySlider(const char* label, ImVec2& value, float min = 0.0f, float max = 0.0f, const char* format = "%.3f", const char* helpText = "");
 
@@ -350,49 +482,49 @@ namespace Iris::UI {
 
 	inline void DrawButtonImage(const Ref<Texture2D>& imageNormal, const Ref<Texture2D>& imageHovered, const Ref<Texture2D>& imagePressed,
 		ImU32 tintNormal, ImU32 tintHovered, ImU32 tintPressed,
-		ImVec2 rectMin, ImVec2 rectMax)
+		ImVec2 rectMin, ImVec2 rectMax, ImVec2 uv0 = { 0.0f, 0.0f }, ImVec2 uv1 = { 1.0f, 1.0f })
 	{
 		auto* drawList = ImGui::GetWindowDrawList();
 		if (ImGui::IsItemActive())
-			drawList->AddImage(GetTextureID(imagePressed), rectMin, rectMax, ImVec2(0, 0), ImVec2(1, 1), tintPressed);
+			drawList->AddImage(GetTextureID(imagePressed), rectMin, rectMax, uv0, uv1, tintPressed);
 		else if (ImGui::IsItemHovered())
-			drawList->AddImage(GetTextureID(imageHovered), rectMin, rectMax, ImVec2(0, 0), ImVec2(1, 1), tintHovered);
+			drawList->AddImage(GetTextureID(imageHovered), rectMin, rectMax, uv0, uv1, tintHovered);
 		else
-			drawList->AddImage(GetTextureID(imageNormal), rectMin, rectMax, ImVec2(0, 0), ImVec2(1, 1), tintNormal);
+			drawList->AddImage(GetTextureID(imageNormal), rectMin, rectMax, uv0, uv1, tintNormal);
 	};
 
 	inline void DrawButtonImage(const Ref<Texture2D>& imageNormal, const Ref<Texture2D>& imageHovered, const Ref<Texture2D>& imagePressed,
 		ImU32 tintNormal, ImU32 tintHovered, ImU32 tintPressed,
-		ImRect rectangle)
+		ImRect rectangle, ImVec2 uv0 = { 0.0f, 0.0f }, ImVec2 uv1 = { 1.0f, 1.0f })
 	{
-		DrawButtonImage(imageNormal, imageHovered, imagePressed, tintNormal, tintHovered, tintPressed, rectangle.Min, rectangle.Max);
+		DrawButtonImage(imageNormal, imageHovered, imagePressed, tintNormal, tintHovered, tintPressed, rectangle.Min, rectangle.Max, uv0, uv1);
 	};
 
 	inline void DrawButtonImage(const Ref<Texture2D>& image,
 		ImU32 tintNormal, ImU32 tintHovered, ImU32 tintPressed,
-		ImVec2 rectMin, ImVec2 rectMax)
+		ImVec2 rectMin, ImVec2 rectMax, ImVec2 uv0 = { 0.0f, 0.0f }, ImVec2 uv1 = { 1.0f, 1.0f })
 	{
-		DrawButtonImage(image, image, image, tintNormal, tintHovered, tintPressed, rectMin, rectMax);
+		DrawButtonImage(image, image, image, tintNormal, tintHovered, tintPressed, rectMin, rectMax, uv0, uv1);
 	};
 
 	inline void DrawButtonImage(const Ref<Texture2D>& image,
 		ImU32 tintNormal, ImU32 tintHovered, ImU32 tintPressed,
-		ImRect rectangle)
+		ImRect rectangle, ImVec2 uv0 = { 0.0f, 0.0f }, ImVec2 uv1 = { 1.0f, 1.0f })
 	{
-		DrawButtonImage(image, image, image, tintNormal, tintHovered, tintPressed, rectangle.Min, rectangle.Max);
+		DrawButtonImage(image, image, image, tintNormal, tintHovered, tintPressed, rectangle.Min, rectangle.Max, uv0, uv1);
 	};
 
 
 	inline void DrawButtonImage(const Ref<Texture2D>& imageNormal, const Ref<Texture2D>& imageHovered, const Ref<Texture2D>& imagePressed,
-		ImU32 tintNormal, ImU32 tintHovered, ImU32 tintPressed)
+		ImU32 tintNormal, ImU32 tintHovered, ImU32 tintPressed, ImVec2 uv0 = { 0.0f, 0.0f }, ImVec2 uv1 = { 1.0f, 1.0f })
 	{
-		DrawButtonImage(imageNormal, imageHovered, imagePressed, tintNormal, tintHovered, tintPressed, ImGui::GetItemRectMin(), ImGui::GetItemRectMax());
+		DrawButtonImage(imageNormal, imageHovered, imagePressed, tintNormal, tintHovered, tintPressed, ImGui::GetItemRectMin(), ImGui::GetItemRectMax(), uv0, uv1);
 	};
 
 	inline void DrawButtonImage(const Ref<Texture2D>& image,
-		ImU32 tintNormal, ImU32 tintHovered, ImU32 tintPressed)
+		ImU32 tintNormal, ImU32 tintHovered, ImU32 tintPressed, ImVec2 uv0 = { 0.0f, 0.0f }, ImVec2 uv1 = { 1.0f, 1.0f })
 	{
-		DrawButtonImage(image, image, image, tintNormal, tintHovered, tintPressed, ImGui::GetItemRectMin(), ImGui::GetItemRectMax());
+		DrawButtonImage(image, image, image, tintNormal, tintHovered, tintPressed, ImGui::GetItemRectMin(), ImGui::GetItemRectMax(), uv0, uv1);
 	};
 
 	// Normal image
@@ -690,7 +822,7 @@ namespace Iris::UI {
 		return changed;
 	}
 
-	inline static bool PropertyInputU64(const char* label, uint64_t& value, uint64_t step = 0, uint64_t stepFast = 0, ImGuiInputTextFlags flags = 0, const char* helpText = "")
+	inline bool PropertyInputU64(const char* label, uint64_t& value, uint64_t step = 0, uint64_t stepFast = 0, ImGuiInputTextFlags flags = 0, const char* helpText = "")
 	{
 		ShiftCursor(10.0f, 9.0f);
 		ImGui::Text(label);
@@ -982,7 +1114,7 @@ namespace Iris::UI {
 	std::pair<bool, std::string> AssetValidityAndName(AssetHandle handle, const PropertyAssetReferenceSettings& settings);
 
 	template<typename T>
-	inline static bool PropertyAssetReference(const char* label, AssetHandle& outHandle, const char* helpText = "", const PropertyAssetReferenceSettings& settings = {})
+	inline bool PropertyAssetReference(const char* label, AssetHandle& outHandle, const char* helpText = "", const PropertyAssetReferenceSettings& settings = {})
 	{
 		bool modified = false;
 
@@ -1083,7 +1215,7 @@ namespace Iris::UI {
 	}
 
 	template<typename T, typename Fn>
-	inline static bool PropertyAssetReferenceTarget(const char* label, const char* assetName, AssetHandle& outHandle, Fn&& targetFn, const char* helpText = "", const PropertyAssetReferenceSettings& settings = {})
+	inline bool PropertyAssetReferenceTarget(const char* label, const char* assetName, AssetHandle& outHandle, Fn&& targetFn, const char* helpText = "", const PropertyAssetReferenceSettings& settings = {})
 	{
 		bool modified = false;
 
@@ -1212,8 +1344,99 @@ namespace Iris::UI {
 		return modified;
 	}
 
+	template<typename Fn>
+	inline bool PropertyImageReference(const char* label, Ref<Texture2D>& image, Fn&& postSyncFunc, const char* helpText = "", const PropertyAssetReferenceSettings& settings = {})
+	{
+		bool modified = false;
+
+		ShiftCursor(10.0f, 9.0f + 22.0f);
+		ImGui::Text(label);
+
+		if (std::strlen(helpText) != 0)
+		{
+			ImGui::SameLine();
+			ShowHelpMarker(helpText);
+		}
+
+		ImGui::NextColumn();
+		ShiftCursorY(4.0f);
+
+		auto checkAndSetTexture = []() -> AssetHandle
+		{
+			const ImGuiPayload* data = ImGui::AcceptDragDropPayload("asset_payload");
+			if (data && data->DataSize / sizeof(AssetHandle) == 1)
+			{
+				AssetHandle assetHandle = *reinterpret_cast<AssetHandle*>(data->Data);
+				AssetType type = AssetManager::GetAssetType(assetHandle);
+				if (type == AssetType::Texture)
+					return assetHandle;
+			}
+
+			return static_cast<AssetHandle>(0);
+		};
+
+		ImVec2 textureCursorPos = ImGui::GetCursorPos();
+		bool hasImage = image ? !image.EqualsObject(Renderer::GetBlackTexture()) && image->Loaded() : false;
+		UI::Image(hasImage ? image : EditorResources::CheckerboardTexture, { 64.0f, 64.0f });
+		if (ImGui::BeginDragDropTarget())
+		{
+			const ImGuiPayload* data = ImGui::AcceptDragDropPayload("asset_payload");
+			if (data && data->DataSize / sizeof(AssetHandle) == 1)
+			{
+				AssetHandle assetHandle = *reinterpret_cast<AssetHandle*>(data->Data);
+				AssetType type = AssetManager::GetAssetType(assetHandle);
+				if (type == AssetType::Texture)
+				{
+					Project::GetEditorAssetManager()->AddPostSyncTask([=, &modified]() mutable -> bool
+					{
+						modified = postSyncFunc(assetHandle);
+						return modified;
+					}, true);
+				}
+			}
+
+			ImGui::EndDragDropTarget();
+		}
+
+		if (ImGui::IsItemHovered())
+		{
+			if (hasImage)
+			{
+				ImGui::BeginTooltip();
+				ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+				std::string filepath = image->GetAssetPath();
+				ImGui::TextUnformatted(filepath.c_str());
+				ImGui::PopTextWrapPos();
+				UI::Image(image, { 384.0f, 384.0f });
+				ImGui::EndTooltip();
+			}
+		}
+
+		ImVec2 nextRowCursorPos = ImGui::GetCursorPos();
+		ImGui::SameLine();
+
+		ImGui::SetCursorPos(textureCursorPos);
+		ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, { 0.0f, 0.0f });
+		if (hasImage && ImGui::Button("X##AlbedoMap", { 16.0f, 16.0f }))
+		{
+			image = Renderer::GetBlackTexture();
+			modified = true;
+		}
+		ImGui::PopStyleVar();
+
+		ImGui::SetCursorPos(nextRowCursorPos);
+
+		if (settings.AdvanceToNextColumn)
+		{
+			ImGui::NextColumn();
+			UI::UnderLine();
+		}
+
+		return modified;
+	}
+
 	template<typename TComponent>
-	inline static bool PropertyEntityReference(const char* label, UUID& outID, const Scene* scene, const char* helpText = "", const PropertyAssetReferenceSettings& settings = {})
+	inline bool PropertyEntityReference(const char* label, UUID& outID, const Scene* scene, const char* helpText = "", const PropertyAssetReferenceSettings& settings = {})
 	{
 		bool modified = false;
 
@@ -1333,6 +1556,7 @@ namespace Iris::UI {
 	void SectionText(const char* label, const char* text);
 	bool SectionCheckbox(const char* label, bool& value, const char* hint = "");
 	bool SectionSlider(const char* label, float& value, float min = 0.0f, float max = 0.0f, const char* hint = "");
+	bool SectionSlider(const char* label, int& value, int min = 0.0f, int max = 0.0f, const char* hint = "");
 	bool SectionDrag(const char* label, float& value, float delta = 1.0f, float min = 0.0f, float max = 0.0f, const char* hint = "");
 	bool SectionDropdown(const char* label, const char** options, int32_t optionCount, int32_t* selected, const char* hint = "");
 

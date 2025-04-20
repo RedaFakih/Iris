@@ -36,7 +36,6 @@ namespace Iris {
 		void SetInput(std::string_view name, Ref<Texture2D> texture);		
 		void SetInput(std::string_view name, Ref<TextureCube> textureCube);
 		void SetInput(std::string_view name, Ref<ImageView> imageView);
-		void SetInput(std::string_view name, Ref<StorageImage> storageImage);
 
 		uint32_t GetFirstSetIndex() const;
 

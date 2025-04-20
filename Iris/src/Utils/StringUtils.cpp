@@ -1,6 +1,8 @@
 #include "IrisPCH.h"
 #include "StringUtils.h"
 
+#include <choc/text/choc_StringUtilities.h>
+
 namespace Iris::Utils {
 
 	std::string ToLower(const std::string_view string)
@@ -46,6 +48,29 @@ namespace Iris::Utils {
 		return retVal;
 	}
 
+	std::vector<uint32_t> SplitStringToUint(const std::string_view string, const std::string_view delimiter)
+	{
+		std::size_t first = 0;
+		std::vector<uint32_t> retVal;
+
+		std::string_view stringToOperate = choc::text::trimEnd(string);
+
+		while (first <= stringToOperate.size())
+		{
+			std::size_t second = stringToOperate.find_first_of(delimiter, first);
+
+			if (first != second)
+				retVal.emplace_back(std::stoi(std::string(stringToOperate.substr(first, second - first))));
+
+			if (second == std::string::npos)
+				break;
+
+			first = second + 1;
+		}
+
+		return retVal;
+	}
+
 	std::string RemoveExtension(const std::string& filename)
 	{
 		return filename.substr(0, filename.find_last_of('.'));
@@ -71,6 +96,15 @@ namespace Iris::Utils {
 		return buffer;
 	}
 
+	std::string TrimWhitespace(const std::string& str)
+	{
+		constexpr const char* WHITESPACE = "\r\n\t\f\v";
 
+		size_t start = str.find_first_not_of(WHITESPACE);
+		std::string trimmed = (start == std::string::npos) ? "" : str.substr(start);
+
+		size_t end = trimmed.find_last_not_of(WHITESPACE);
+		return (end == std::string::npos) ? "" : trimmed.substr(0, end + 1);
+	}
 
 }

@@ -8,16 +8,19 @@ namespace Iris {
 	class StorageBuffer : public RefCountedObject
 	{
 	public:
-		StorageBuffer(size_t size, bool deviceLocal = true);
+		StorageBuffer(std::size_t size, bool deviceLocal = true);
 		~StorageBuffer();
 
-		[[nodiscard]] static Ref<StorageBuffer> Create(size_t size, bool deviceLocal = true);
+		[[nodiscard]] static Ref<StorageBuffer> Create(std::size_t size, bool deviceLocal = true);
 
 		void Resize(uint32_t newSize);
-		void SetData(const void* data, size_t size, size_t offset = 0);
-		void RT_SetData(const void* data, size_t size, size_t offset = 0);
+		void SetData(const void* data, std::size_t size, std::size_t offset = 0);
+		void RT_SetData(const void* data, std::size_t size, std::size_t offset = 0);
+
+		void Release();
 
 		VkDescriptorBufferInfo& GetDescriptorBufferInfo() { return m_DescriptorInfo; }
+		VkBuffer GetVulkanBuffer() const { return m_StorageBuffer; }
 
 		bool IsDeviceLocal() const { return m_StagingBuffer != nullptr; }
 

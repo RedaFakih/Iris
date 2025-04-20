@@ -15,12 +15,12 @@ namespace Iris::Utils {
 
 	glm::vec3 FromJoltVec3(const JPH::Vec3& vec)
 	{
-		return *reinterpret_cast<const glm::vec3*>(&vec);
+		return { vec.GetX(), vec.GetY(), vec.GetZ() };
 	}
 
 	glm::quat FromJoltQuat(const JPH::Quat& quat)
 	{
-		return *reinterpret_cast<const glm::quat*>(&quat);
+		return glm::quat(quat.GetW(), quat.GetX(), quat.GetY(), quat.GetZ());
 	}
 
 	JPH::EMotionType ToJoltMotionType(PhysicsBodyType type)

@@ -50,6 +50,7 @@ namespace Iris {
 		AssetHandle GetAssetHandleFromFilePath(const std::filesystem::path& filePath) const { return GetMetaData(filePath).Handle; }
 
 		AssetType GetAssetTypeFromExtension(const std::string& extension) const;
+		std::string GetDefaultExtensionForAssetType(AssetType type) const;
 		AssetType GetAssetTypeFromPath(const std::filesystem::path& path) const { return GetAssetTypeFromExtension(path.extension().string()); }
 
 		std::filesystem::path GetFileSystemPath(AssetHandle handle) const { return GetFileSystemPath(GetMetaData(handle)); }
@@ -84,7 +85,7 @@ namespace Iris {
 			asset->Handle = metaData.Handle;
 			m_LoadedAssets[asset->Handle] = asset;
 			AssetImporter::Serialize(metaData, asset);
-
+				
 			return asset;
 		}
 
@@ -143,6 +144,9 @@ namespace Iris {
 		std::vector<std::function<bool()>> m_PostSyncTasks;
 
 		friend class EditorAssetThread;
+		friend class ContentBrowserPanel;
+		friend class ContentBrowserDirectory;
+		friend class ContentBrowserAsset;
 
 	};
 

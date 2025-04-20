@@ -1,6 +1,8 @@
 #include "IrisPCH.h"
 #include "PhysicsShapes.h"
 
+#include "AssetManager/AssetManager.h"
+#include "BinaryStream.h"
 #include "Physics.h"
 #include "PhysicsUtils.h"
 #include "Scene/Scene.h"
@@ -241,6 +243,97 @@ namespace Iris {
 	{
 		IR_CORE_ERROR_TAG("Physics", "Can not remove a shape from an ImmutableCompoundShape!");
 		IR_VERIFY(false, "Cannot remove a shape from an ImmutableCompoundShape");
+	}
+
+	ConvexMeshShape::ConvexMeshShape(Entity entity, float totalBodyMass)
+		: PhysicsShape(PhysicsShapeType::ConvexMesh, entity)
+	{
+		MeshColliderComponent& component = entity.GetComponent<MeshColliderComponent>();
+
+		Ref<MeshColliderAsset> colliderAsset = AssetManager::GetAsset<MeshColliderAsset>(component.ColliderAsset);
+		IR_VERIFY(colliderAsset);
+
+		auto scene = Scene::GetScene(entity.GetSceneUUID());
+		TransformComponent worldTransform = scene->GetWorldSpaceTransform(entity);
+
+		const CachedColliderData& colliderData = PhysicsSystem::GetMesheColliderCache()->GetMeshData(colliderAsset);
+		const auto& meshData = colliderData.SimpleColliderData;
+		IR_ASSERT(meshData.SubMeshes.size() > component.SubMeshIndex);
+
+		const SubMeshColliderData& submesh = meshData.SubMeshes[component.SubMeshIndex];
+		glm::vec3 submeshTranslation, submeshScale;
+		glm::quat submeshRotation;
+		Math::DecomposeTransform(submesh.Transform, submeshTranslation, submeshRotation, submeshScale);
+
+		JoltBinaryStreamReader binaryReader(submesh.ColliderData);
+		JPH::Shape::ShapeResult result = JPH::Shape::sRestoreFromBinaryState(binaryReader);
+
+		if (result.HasError())
+		{
+			IR_CORE_ERROR_TAG("Physics", "Failed to construct ConvexMesh: {}", result.GetError());
+			return;
+		}
+
+		JPH::Ref<JPH::ConvexHullShape> convexShape = Utils::CastJoltRef<JPH::ConvexHullShape>(result.Get());
+		convexShape->SetDensity(totalBodyMass / convexShape->GetVolume());
+		convexShape->SetMaterial(JoltMaterial::CreateFromColliderMaterial(component.Material));
+
+		m_Shape = new JPH::ScaledShape(convexShape, Utils::ToJoltVec3(submeshScale * worldTransform.Scale));
+		m_Shape->SetUserData(reinterpret_cast<JPH::uint64>(this));
+	}
+
+	void ConvexMeshShape::SetMaterial(const ColliderMaterial& material)
+	{
+	}
+
+	// NOTE: Having materials for triangle shapes is a bit tricky in Jolt...
+	TriangleMeshShape::TriangleMeshShape(Entity entity)
+		: PhysicsShape(PhysicsShapeType::TriangleMesh, entity)
+	{
+		MeshColliderComponent& component = entity.GetComponent<MeshColliderComponent>();
+
+		Ref<MeshColliderAsset> colliderAsset = AssetManager::GetAsset<MeshColliderAsset>(component.ColliderAsset);
+		IR_VERIFY(colliderAsset);
+
+		auto scene = Scene::GetScene(entity.GetSceneUUID());
+		TransformComponent worldTransform = scene->GetWorldSpaceTransform(entity);
+
+		const CachedColliderData& colliderData = PhysicsSystem::GetMesheColliderCache()->GetMeshData(colliderAsset);
+		const auto& meshData = colliderData.ComplexColliderData;
+
+		JPH::StaticCompoundShapeSettings compoundShapeSettings;
+		for (const SubMeshColliderData& submeshData : meshData.SubMeshes)
+		{
+			glm::vec3 submeshTranslation, submeshScale;
+			glm::quat submeshRotation;
+			Math::DecomposeTransform(submeshData.Transform, submeshTranslation, submeshRotation, submeshScale);
+
+			JoltBinaryStreamReader binaryReader(submeshData.ColliderData);
+			JPH::Shape::ShapeResult result = JPH::Shape::sRestoreFromBinaryState(binaryReader);
+
+			if (result.HasError())
+			{
+				IR_CORE_ERROR_TAG("Physics", "Failed to construct ConvexMesh!");
+				return;
+			}
+
+			compoundShapeSettings.AddShape(Utils::ToJoltVec3(submeshTranslation), Utils::ToJoltQuat(submeshRotation), new JPH::ScaledShape(result.Get(), Utils::ToJoltVec3(submeshScale * worldTransform.Scale)));
+		}
+
+		JPH::Shape::ShapeResult result = compoundShapeSettings.Create();
+
+		if (result.HasError())
+		{
+			IR_CORE_ERROR_TAG("Physics", "Failed to construct ConvexMesh: {}", result.GetError());
+			return;
+		}
+
+		m_Shape = Utils::CastJoltRef<JPH::StaticCompoundShape>(result.Get());
+		m_Shape->SetUserData(reinterpret_cast<JPH::uint64>(this));
+	}
+
+	void TriangleMeshShape::SetMaterial(const ColliderMaterial& material)
+	{
 	}
 
 }

@@ -11,6 +11,7 @@
 namespace Iris {
 
 	class SceneRenderer;
+	class SceneRendererLite;
 	class Renderer2D;
 	class PhysicsScene;
 
@@ -21,9 +22,33 @@ namespace Iris {
 		glm::vec3 Radiance = { 1.0f, 1.0f, 1.0f };
 		float Intensity = 1.0f;
 		float ShadowOpacity = 1.0f;
+		float LightSize = 1.0f;
 
 		// C++ Only
 		bool CastShadows = true;
+	};
+
+	struct ScenePointLight
+	{
+		glm::vec3 Position = { 0.0f, 0.0f, 0.0f };
+		float Intensity = 0.0f;
+		glm::vec3 Radiance = { 0.0f, 0.0f, 0.0f };
+		float Radius = 1.0f;
+		glm::vec3 Padding0 = { 0.0f, 0.0f, 0.0f };
+		float Falloff = 1.0f;
+	};
+
+	struct SceneSpotLight
+	{
+		glm::vec3 Position = { 0.0f, 0.0f, 0.0f };
+		float Intensity = 0.0f;
+		glm::vec3 Direction = { 0.0f, 0.0f, 0.0f };
+		float AngleAttenuation = 0.0f;
+		glm::vec3 Radiance = { 0.0f, 0.0f, 0.0f };
+		float Range = 0.1f;
+		glm::vec2 Padding0 = { 0.0f, 0.0f };
+		float Angle = 0.0f;
+		float Falloff = 1.0f;
 	};
 
 	// Hold the data related to all lighting in the scene: Directional/Point/Spot Lights...
@@ -31,8 +56,12 @@ namespace Iris {
 	{
 		constexpr static uint32_t MaxDirectionalLights = 1; // We can only have one directional light in the scene
 
-		SceneDirectionalLight DirectionalLight;
 		// NOTE: Other type of lights data will be stored here also...
+		SceneDirectionalLight DirectionalLight;
+		std::vector<ScenePointLight> PointLights;
+		std::vector<SceneSpotLight> SpotLights;
+		[[nodiscard]] uint32_t GetPointLightsSize() const { return static_cast<uint32_t>(PointLights.size() * sizeof(ScenePointLight)); }
+		[[nodiscard]] uint32_t GetSpotLightsSize() const { return static_cast<uint32_t>(SpotLights.size() * sizeof(SceneSpotLight)); }
 	};
 
 	using EntityMap = std::unordered_map<UUID, Entity>;
@@ -51,10 +80,12 @@ namespace Iris {
 		void CopyTo(Ref<Scene>& targetScene);
 
 		void OnUpdateRuntime(TimeStep ts);
-		void OnRenderRuntime(Ref<SceneRenderer> renderer, TimeStep ts);
+		void OnRenderRuntime(Ref<SceneRenderer> renderer);
+		void OnRenderRuntime(Ref<SceneRendererLite> renderer);
 
 		void OnUpdateEditor(TimeStep ts);
-		void OnRenderEditor(Ref<SceneRenderer> renderer, TimeStep ts, const EditorCamera& camera);
+		void OnRenderEditor(Ref<SceneRenderer> renderer, const EditorCamera& camera);
+		void OnRenderEditor(Ref<SceneRendererLite> renderer, const EditorCamera& camera);
 
 		void SetViewportSize(uint32_t width, uint32_t height);
 
@@ -167,6 +198,8 @@ namespace Iris {
 		void RenderPhysicsDebug(Ref<SceneRenderer> renderer);
 		void Render2DPhysicsDebug(Ref<SceneRenderer> renderer, Ref<Renderer2D> renderer2D);
 
+		void OnMeshColliderComponentConstruct(entt::registry& registry, entt::entity entity);
+
 	private:
 		// Scene Entity to create some stuff that is owned by the scene and store it in the ECS registry
 		entt::entity m_SceneEntity{ entt::null };
@@ -176,6 +209,7 @@ namespace Iris {
 		std::string m_Name;
 		
 		bool m_IsEditorScene = false;
+
 		uint32_t m_ViewportWidth = 0;
 		uint32_t m_ViewportHeight = 0;
 
@@ -201,6 +235,7 @@ namespace Iris {
 		friend class ECSDebugPanel;
 		friend class SceneSerializer;
 		friend class SceneRenderer;
+		friend class SceneRendererLite;
 
 	};
 

@@ -14,7 +14,7 @@ namespace Iris::Events {
 	enum class EventType
 	{
 		None = 0,
-		/* TODO: AppTick,  AppUpdate, AppRender, */ TitleBarColorChange, RenderViewportOnly,
+		/* TODO: AppTick,  AppUpdate, AppRender, */ TitleBarColorChange, RenderViewportOnly, AssetCreatedNotification,
 		WindowResize, WindowMinimize, WindowClose, /* TODO: WindowPathDrop, */ WindowTitleBarHitTest,
 		KeyPressed, KeyReleased, KeyTyped,
 		MouseButtonPressed, MouseButtonReleased, MouseMoved, MouseScrolled

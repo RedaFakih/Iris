@@ -20,6 +20,9 @@ Assets:
   - Handle: 1004083127057183663
     FilePath: Meshes/LowPolySponza/3455394979645218238.jpg
     Type: Texture
+  - Handle: 1049043152922236468
+    FilePath: Meshes/scene.Ismesh
+    Type: StaticMesh
   - Handle: 1125107410041696214
     FilePath: Meshes/LowPolySponza/332936164838540657.jpg
     Type: Texture
@@ -37,6 +40,9 @@ Assets:
     Type: MeshSource
   - Handle: 1664901113170334642
     FilePath: Meshes/Galio/textures/Galio_Mat_baseColor.png
+    Type: Texture
+  - Handle: 1711798544224721208
+    FilePath: Textures/Lens Dirt/lensDirt7.png
     Type: Texture
   - Handle: 1717806874258157729
     FilePath: Meshes/LowPolySponza/16275776544635328252.png
@@ -65,6 +71,9 @@ Assets:
   - Handle: 2732277024539045285
     FilePath: Meshes/Default/Plane.Ismesh
     Type: StaticMesh
+  - Handle: 2815947910054064020
+    FilePath: Meshes/Sara/Sara.gltf
+    Type: MeshSource
   - Handle: 2996722834544417821
     FilePath: Meshes/LowPolySponza/4675343432951571524.jpg
     Type: Texture
@@ -74,9 +83,6 @@ Assets:
   - Handle: 3157465373486071481
     FilePath: Meshes/Jhin/textures/base_mat_baseColor.png
     Type: Texture
-  - Handle: 3430661612443157064
-    FilePath: Meshes/Plate.Ismesh
-    Type: StaticMesh
   - Handle: 3448222499160019637
     FilePath: Meshes/Evenlynn.Ismesh
     Type: StaticMesh
@@ -98,12 +104,24 @@ Assets:
   - Handle: 3940274146037626887
     FilePath: Meshes/LowPolySponza/13196865903111448057.jpg
     Type: Texture
+  - Handle: 4011361737580101854
+    FilePath: Meshes/BloomText.Ismesh
+    Type: StaticMesh
   - Handle: 4083877476958322575
     FilePath: Meshes/Donut/DonutTexturePaint.png
+    Type: Texture
+  - Handle: 4100737868768557582
+    FilePath: Textures/Lens Dirt/lensDirt11.png
     Type: Texture
   - Handle: 4166739070440988600
     FilePath: Meshes/LowPolySponza/14267839433702832875.jpg
     Type: Texture
+  - Handle: 4359140326116298143
+    FilePath: Meshes/Sponza.Ismesh
+    Type: StaticMesh
+  - Handle: 4663714567957955262
+    FilePath: Materials/BloomMaterial.Imaterial
+    Type: Material
   - Handle: 4680852554536855250
     FilePath: Meshes/LowPolySponza/3827035219084910048.jpg
     Type: Texture
@@ -163,6 +181,9 @@ Assets:
     Type: Texture
   - Handle: 7088163104103516360
     FilePath: Meshes/LowPolySponza/2299742237651021498.jpg
+    Type: Texture
+  - Handle: 7205176549020197301
+    FilePath: Textures/Lens Dirt/lensDirt8.png
     Type: Texture
   - Handle: 7318631997764497785
     FilePath: Scenes/SponzaDemo.Iscene
@@ -233,11 +254,17 @@ Assets:
   - Handle: 9521122861929777337
     FilePath: Meshes/Illaio/scene.gltf
     Type: MeshSource
+  - Handle: 9566771638748652882
+    FilePath: Textures/Screenshot 2025-01-22 010746.png
+    Type: Texture
   - Handle: 9685325371244041466
     FilePath: Meshes/Galio.Ismesh
     Type: StaticMesh
   - Handle: 9891509226969151992
     FilePath: Meshes/LowPolySponza/2374361008830720677.jpg
+    Type: Texture
+  - Handle: 10138868834157399222
+    FilePath: Textures/Lens Dirt/lensDirt5.png
     Type: Texture
   - Handle: 10248026832697820046
     FilePath: Textures/elegant-stone-tiles-bl/elegant-stone-tiles_roughness.png
@@ -248,9 +275,6 @@ Assets:
   - Handle: 10523551605547087683
     FilePath: Meshes/LowPolySponza/8503262930880235456.jpg
     Type: Texture
-  - Handle: 10857770903284289049
-    FilePath: Meshes/AbandonedHouse/AbandondedHouse.gltf
-    Type: MeshSource
   - Handle: 10871116200707608900
     FilePath: Meshes/LowPolySponza/3371964815757888145.jpg
     Type: Texture
@@ -284,6 +308,9 @@ Assets:
   - Handle: 12062500036675514477
     FilePath: Meshes/LowPolySponza/7441062115984513793.jpg
     Type: Texture
+  - Handle: 12106996295316359063
+    FilePath: Meshes/Sara.Ismesh
+    Type: StaticMesh
   - Handle: 12237675157703731561
     FilePath: Meshes/LowPolySponza/16885566240357350108.jpg
     Type: Texture
@@ -353,6 +380,9 @@ Assets:
   - Handle: 15276110865157649238
     FilePath: Meshes/Heart/Heart.gltf
     Type: MeshSource
+  - Handle: 15328025122067169912
+    FilePath: Textures/Lens Dirt/lensDirt3.png
+    Type: Texture
   - Handle: 15418210643110079839
     FilePath: Meshes/Donut/Donut.gltf
     Type: MeshSource
@@ -389,6 +419,9 @@ Assets:
   - Handle: 16718102206980168666
     FilePath: Meshes/LowPolySponza/16299174074766089871.jpg
     Type: Texture
+  - Handle: 16827686950922278717
+    FilePath: Textures/Lens Dirt/lensDirt15.png
+    Type: Texture
   - Handle: 16894688211854888310
     FilePath: Meshes/LowPolySponza/13982482287905699490.jpg
     Type: Texture
@@ -410,14 +443,11 @@ Assets:
   - Handle: 17762338661310433355
     FilePath: Meshes/LowPolySponza/2411100444841994089.jpg
     Type: Texture
-  - Handle: 17954510954727223608
-    FilePath: Meshes/AbandonedHouse.Ismesh
-    Type: StaticMesh
   - Handle: 17992829813532184049
     FilePath: Meshes/LowPolySponza/11490520546946913238.jpg
     Type: Texture
   - Handle: 18007974031415154891
-    FilePath: Meshes/BloomText.glb
+    FilePath: Meshes/Bloom/BloomText.glb
     Type: MeshSource
   - Handle: 18066664370371676248
     FilePath: Meshes/LowPolySponza/8051790464816141987.jpg

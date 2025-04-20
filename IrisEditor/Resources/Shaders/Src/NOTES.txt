@@ -1,12 +1,28 @@
-Descriptor sets are ascending to their frequency of being bound (meaning higher sets are boudn the most {every frame})
+- Descriptor sets are ascending to their frequency of being bound (meaning higher sets are boudn the most {every frame})
 
  *	- Set 0 - 2: Global renderer stuff -> Least updated set (Global as in global for the current frame)
  *		- Set 0: Least updated set, should have the BRDF Texture
  *		- Set 1: UniformBuffers for general renderer data (Camera, Screen, Renderer and others...)
  *		- Set 2: Shadow data and lighting data (Point lights, spotlights, skylights, environment maps, shawdow maps, and others...)
  *  - Set 3: Per draw stuff -> Most updated set (materials...)
+ *		- Everything in this set is set by the Material class
+ *
 
- The following are the buffers and images that will be bound to those sets...
+- All the macros in the shaders that are prefixed with IR_ are macros that are added through C++ code. Any other macros are shader specific / unique to that shader
+
+- We also have the ability to add macros to all the shaders. Those are called global shader macros
+ 
+ * To add a global macro: Renderer::AddGlobalShaderMacro(macro, value)
+
+- All shaders have macros that are automatically added to them by the compiler on compilation
+
+ * Each shader stage has an extra macro added to it that is the name of that stage in the following format __[STAGE]__
+ * For example for a vertex stage the define would be: #define __VERTEX__
+ * For the fragment: #define __FRAGMENT__
+ * For the compute: #define __COMPUTE__
+
+
+- The following are the buffers and images that will be bound to those sets...
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////
 /// Set 0
@@ -42,12 +58,13 @@ struct DirectionalLight
 {
 	vec4 Direction; // The alpha channel is the ShadowOpacity
 	vec4 Radiance; // The alpha channel is the multiplier of the directional light
+	float LightSize;
 };
 
 layout(std140, set = 1, binding = 2) uniform SceneData
 {
 	DirectionalLight DirLight;
-	vec3 CameraPosition; // Offset 32
+	vec3 CameraPosition; // Offset 48
 	float EnvironmentMapIntensity; // This is used in the PBR shader and it mirrors the intensity that is used in the Skybox shader
 } u_Scene;
 
@@ -56,16 +73,63 @@ layout(std140, set = 1, binding = 3) uniform DirectionalShadowData
 	mat4 DirectionalLightMatrices[4];
 } u_DirShadow;
 
-layout(std140, set = 1, binding = 4) uniform RendererData
+struct PointLight
+{
+	vec3 Position;
+	float Intensity;
+	vec3 Radiance;
+	float Radius;
+	vec3 Padding0;
+	float Falloff;
+};
+
+layout(std140, set = 1, binding = 4) uniform PointLightsData
+{
+	uint LightCount;
+	PointLight Lights[1024];
+} u_PointLights;
+
+layout(std430, set = 1, binding = 5) buffer VisiblePointLightIndicesBuffer
+{
+	int Indices[];
+} s_VisiblePointLightIndicesBuffer;
+
+struct SpotLight
+{
+	vec3 Position;
+	float Intensity;
+	vec3 Direction;
+	float AngleAttenuation;
+	vec3 Radiance;
+	float Range;
+	vec2 Padding0;
+	float Angle;
+	float Falloff;
+};
+
+layout(std140, set = 1, binding = 6) uniform SpotLightsData
+{
+	uint LightCount;
+	SpotLight Lights[1024];
+} u_SpotLights;
+
+layout(std430, set = 1, binding = 7) writeonly buffer VisibleSpotLightIndicesBuffer
+{
+	int Indices[];
+} s_VisibleSpotLightIndicesBuffer;
+
+layout(std140, set = 1, binding = 8) uniform RendererData
 {
     vec4 CascadeSplits;
-	float LightSize;
+	float Padding0; // Pad here so that we dont get a 12 byte padding in the end
 	float MaxShadowDistance;
 	float ShadowFade;
 	float CascadeTransitionFade;
+	uint TilesCountX;
 	bool CascadeFading;
 	bool SoftShadows;
 	bool ShowCascades;
+	bool ShowLightComplexity;
 	bool Unlit;
 } u_RendererData;
 

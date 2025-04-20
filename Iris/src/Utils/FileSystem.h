@@ -38,7 +38,7 @@ namespace Iris {
 		static bool WriteBytes(const std::filesystem::path& filepath, const Buffer& buffer);
 		static Buffer ReadBytes(const std::filesystem::path& filepath);
 
-		static std::filesystem::path GetUniqueFilename(const std::filesystem::path& path);
+		static std::filesystem::path GetUniqueFileName(const std::filesystem::path& path);
 		static std::filesystem::path Absolute(const std::filesystem::path& path);
 
 		struct FileDialogFilterItem
@@ -47,9 +47,9 @@ namespace Iris {
 			const char* Spec;
 		};
 
-		static std::filesystem::path OpenFileDialog(const std::initializer_list<FileDialogFilterItem> inFilters = {});
-		static std::filesystem::path OpenFolderDialog(const char* initialFolder = "");
-		static std::filesystem::path SaveFileDialog(const std::initializer_list<FileDialogFilterItem> inFilters = {});
+		static std::filesystem::path OpenFileDialog(const std::initializer_list<FileDialogFilterItem> inFilters = {}) noexcept;
+		static std::filesystem::path OpenFolderDialog(const char* initialFolder = "") noexcept;
+		static std::filesystem::path SaveFileDialog(const std::initializer_list<FileDialogFilterItem> inFilters = {}) noexcept;
 
 		// Returns a path in a persistant storage folder, e.g. Users/User/AppData/Roaming...
 		static std::filesystem::path GetPersistantStoragePath();

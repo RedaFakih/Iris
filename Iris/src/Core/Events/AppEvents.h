@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Events.h"
+#include "AssetManager/Asset/Asset.h"
 
 namespace Iris::Events {
 
@@ -133,6 +134,30 @@ namespace Iris::Events {
 
 	private:
 		bool m_ViewportOnly = false;
+
+	};
+
+	// Used for ContentBrowser Refresh when a new item is created
+	class AssetCreatedNotificationEvent : public Event
+	{
+	public:
+		AssetCreatedNotificationEvent(AssetHandle handle)
+			: m_Handle(handle) {
+		}
+
+		inline AssetHandle GetAssetHandle() const { return m_Handle; }
+
+		std::string toString() const override
+		{
+			std::stringstream ss;
+			ss << "Asset Created Notification Event! Flag: " << m_Handle;
+			return ss.str();
+		}
+
+		IR_EVENT_CLASS_TYPE(AssetCreatedNotification)
+
+	private:
+		AssetHandle m_Handle;
 
 	};
 

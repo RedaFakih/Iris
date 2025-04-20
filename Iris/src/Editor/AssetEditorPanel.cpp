@@ -80,6 +80,9 @@ namespace Iris {
 
 	void AssetEditorPanel::UnregisterAllEditors()
 	{
+		for (auto& [assetType, editor] : s_Editors)
+			editor->SetOpen(false);
+
 		s_Editors.clear();
 	}
 

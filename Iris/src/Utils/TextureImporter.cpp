@@ -12,13 +12,13 @@ namespace Iris::Utils {
         if (stbi_is_hdr(filename.c_str()))
         {
             result.Data = reinterpret_cast<uint8_t*>(stbi_loadf(filename.c_str(), &width, &height, &channels, STBI_rgb_alpha));
-            result.Size = (uint64_t)width * (uint64_t)height * 4u * sizeof(float);
+            result.Size = static_cast<uint64_t>(width) * static_cast<uint64_t>(height) * 4u * sizeof(float);
             outFormat = ImageFormat::RGBA32F;
         }
         else
         {
             result.Data = static_cast<uint8_t*>(stbi_load(filename.c_str(), &width, &height, &channels, STBI_rgb_alpha));
-            result.Size = (uint64_t)width * (uint64_t)height * 4u * sizeof(stbi_uc);
+            result.Size = static_cast<uint64_t>(width) * static_cast<uint64_t>(height) * 4u * sizeof(stbi_uc);
             outFormat = ImageFormat::RGBA;
         }
 
@@ -36,16 +36,16 @@ namespace Iris::Utils {
         Buffer result;
         int width = 0, height = 0, channels = 0;
 
-        if (stbi_is_hdr_from_memory(static_cast<const stbi_uc*>(buffer.Data), (int)buffer.Size))
+        if (stbi_is_hdr_from_memory(static_cast<const stbi_uc*>(buffer.Data), static_cast<int>(buffer.Size)))
         {
-            result.Data = reinterpret_cast<uint8_t*>(stbi_loadf_from_memory(static_cast<const stbi_uc*>(buffer.Data), (int)buffer.Size, &width, &height, &channels, STBI_rgb_alpha));
-            result.Size = (uint64_t)width * (uint64_t)height * 4u * sizeof(float);
+            result.Data = reinterpret_cast<uint8_t*>(stbi_loadf_from_memory(static_cast<const stbi_uc*>(buffer.Data), static_cast<int>(buffer.Size), &width, &height, &channels, STBI_rgb_alpha));
+            result.Size = static_cast<uint64_t>(width) * static_cast<uint64_t>(height) * 4u * sizeof(float);
             outFormat = ImageFormat::RGBA32F;
         }
         else
         {
-            result.Data = static_cast<uint8_t*>(stbi_load_from_memory(static_cast<const stbi_uc*>(buffer.Data), (int)buffer.Size, &width, &height, &channels, STBI_rgb_alpha));
-            result.Size = (uint64_t)width * (uint64_t)height * 4u * sizeof(stbi_uc);
+            result.Data = static_cast<uint8_t*>(stbi_load_from_memory(static_cast<const stbi_uc*>(buffer.Data), static_cast<int>(buffer.Size), &width, &height, &channels, STBI_rgb_alpha));
+            result.Size = static_cast<uint64_t>(width) * static_cast<uint64_t>(height) * 4u * sizeof(stbi_uc);
             outFormat = ImageFormat::RGBA;
         }
 

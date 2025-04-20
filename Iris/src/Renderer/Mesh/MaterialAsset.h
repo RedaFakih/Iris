@@ -19,8 +19,15 @@ namespace Iris {
 		MaterialAsset(Ref<Material> material);
 		virtual ~MaterialAsset();
 
-		[[nodiscard]] static Ref<MaterialAsset> Create(bool isTransparent = false);
-		[[nodiscard]] static Ref<MaterialAsset> Create(Ref<Material> material);
+		[[nodiscard]] inline static Ref<MaterialAsset> Create(bool isTransparent = false)
+		{
+			return CreateRef<MaterialAsset>(isTransparent);
+		}
+
+		[[nodiscard]] inline static Ref<MaterialAsset> Create(Ref<Material> material)
+		{
+			return CreateRef<MaterialAsset>(material);
+		}
 
 		virtual void OnDependencyUpdated(AssetHandle handle) override;
 
@@ -102,8 +109,15 @@ namespace Iris {
 		MaterialTable(Ref<MaterialTable> other);
 		virtual ~MaterialTable() = default;
 
-		[[nodiscard]] static Ref<MaterialTable> Create(uint32_t materialCount = 1);
-		[[nodiscard]] static Ref<MaterialTable> Create(Ref<MaterialTable> other);
+		[[nodiscard]] inline static Ref<MaterialTable> Create(uint32_t materialCount = 1)
+		{
+			return CreateRef<MaterialTable>(materialCount);
+		}
+
+		[[nodiscard]] inline static Ref<MaterialTable> Create(Ref<MaterialTable> other)
+		{
+			return CreateRef<MaterialTable>(other);
+		}
 
 		inline bool HasMaterial(uint32_t materialIndex) const { return m_Materials.contains(materialIndex); }
 		void SetMaterial(uint32_t index, AssetHandle material);

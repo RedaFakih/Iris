@@ -6,16 +6,6 @@
 
 namespace Iris {
 
-	Ref<Material> Material::Create(Ref<Shader> shader, const std::string& name)
-	{
-		return CreateRef<Material>(shader, name);
-	}
-
-	Ref<Material> Material::Create(Ref<Material> other, const std::string& name)
-	{
-		return CreateRef<Material>(other, name);
-	}
-
 	Material::Material(Ref<Shader> shader, const std::string& name)
 		: m_Shader(shader), m_Name(name)
 	{

@@ -5,7 +5,7 @@
 
 namespace Iris {
 
-	UniformBuffer::UniformBuffer(size_t size)
+	UniformBuffer::UniformBuffer(std::size_t size)
 		: m_Size(size)
 	{
 		m_LocalData.Allocate(size);
@@ -38,12 +38,12 @@ namespace Iris {
 		m_VulkanBuffer = nullptr;
 	}
 
-	Ref<UniformBuffer> UniformBuffer::Create(size_t size)
+	Ref<UniformBuffer> UniformBuffer::Create(std::size_t size)
 	{
 		return CreateRef<UniformBuffer>(size);
 	}
 
-	void UniformBuffer::SetData(const void* data, size_t size, size_t offset)
+	void UniformBuffer::SetData(const void* data, std::size_t size, std::size_t offset)
 	{
 		std::memcpy(m_LocalData.Data, reinterpret_cast<const uint8_t*>(data) + offset, size); // Copy all the data here and then in the other function account for the offset
 		Ref<UniformBuffer> instance = this;
@@ -53,7 +53,7 @@ namespace Iris {
 		});
 	}
 
-	void UniformBuffer::RT_SetData(const void* data, size_t size, size_t offset)
+	void UniformBuffer::RT_SetData(const void* data, std::size_t size, std::size_t offset)
 	{
 		VulkanAllocator allocator("UniformBuffer");
 

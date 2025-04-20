@@ -71,6 +71,17 @@ namespace Iris {
 		Rotation = RotationX | RotationY | RotationZ
 	};
 
+	enum class PhysicsCookingResult : uint8_t
+	{
+		None,
+		Success,
+		ZeroAreaTestFailed,
+		PolygonLimitReached,
+		LargeTriangle,
+		InvalidMesh,
+		Failure
+	};
+
 	namespace Utils {
 
 		inline const char* ShapeTypeToString(PhysicsShapeType type)

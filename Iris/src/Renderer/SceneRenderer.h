@@ -18,6 +18,9 @@ namespace Iris {
 	 * NOTE: If we are planning to create multiple instances of the SceneRenderer then we CAN NOT release shader modules since the modules will be needed for the other instances' pipelines to be loaded and initialized
 	 */
 
+#define IR_BLOOM_COMPUTE_WORKGROUP_SIZE 4u
+#define IR_LIGHT_CULLING_WORKGROUP_SIZE 8u
+
 	struct SceneRendererCamera
 	{
 		Camera Camera;
@@ -43,6 +46,14 @@ namespace Iris {
 		enum class PhysicsColliderViewOptions { SelectedEntity = 0, All };
 		PhysicsColliderViewOptions PhysicsColliderViewMode = PhysicsColliderViewOptions::SelectedEntity;
 		bool ShowPhysicsColliders = false;
+
+		// Bloom
+		bool BloomEnabled = true;
+		float BloomFilterThreshold = 1.0f;
+		float BloomIntensity = 1.0f;
+		float BloomKnee = 0.1f;
+		float BloomUpsampleScale = 1.0f;
+		float BloomDirtIntensity = 1.0f;
 
 		// DOF
 		bool DOFEnabled = false;
@@ -85,7 +96,10 @@ namespace Iris {
 		SceneRenderer(Ref<Scene> scene, const SceneRendererSpecification& spec = SceneRendererSpecification());
 		~SceneRenderer();
 
-		[[nodiscard]] static Ref<SceneRenderer> Create(Ref<Scene> scene, const SceneRendererSpecification& spec = SceneRendererSpecification());
+		[[nodiscard]] inline static Ref<SceneRenderer> Create(Ref<Scene> scene, const SceneRendererSpecification& spec = SceneRendererSpecification())
+		{
+			return CreateRef<SceneRenderer>(scene, spec);
+		}
 
 		void Init();
 		void Shutdown();
@@ -120,15 +134,14 @@ namespace Iris {
 		float GetOpacity() const { return m_Opacity; }
 		float& GetOpacity() { return m_Opacity; }
 
-		float GetTranslationSnapValue() const { return m_TranslationSnapValue; }
-		void SetTranslationSnapValue(float value) { m_TranslationSnapValue = value; }
-
 		const Statistics& GetStatistics() const { return m_Statistics; }
 		SceneRendererOptions& GetOptions() { return m_Options; }
 		const SceneRendererOptions& GetOptions() const { return m_Options; }
 		SceneRendererSpecification& GetSpecification() { return m_Specification; }
 		const SceneRendererSpecification& GetSpecification() const { return m_Specification; }
 		const PipelineStatistics& GetPipelineStatistics() const;
+
+		bool IsReady() const { return m_ResourcesCreatedGPU; }
 
 	private:
 		struct MeshKey
@@ -184,11 +197,14 @@ namespace Iris {
 
 		void DirectionalShadowPass();
 		void PreDepthPass();
-		void SkyboxPass();
+		void LightCullingPass();
 		void GeometryPass();
+		void SkyboxPass();
 		void JumpFloodPass();
+		void BloomPass();
 		void CompositePass();
 
+		void CreateBloomPassMaterials();
 		void CalculateCascades(const SceneRendererCamera& sceneCamera, const glm::vec3& lightDirection, CascadeData* cascades) const;
 		void CopyFromDOFImage();
 
@@ -200,6 +216,8 @@ namespace Iris {
 		{
 			glm::vec4 Direction; // Alpha channel is the ShadowOpacity
 			glm::vec4 Radiance; // Alpha channel is the Intensity
+			float LightSize;
+			glm::vec3 Padding0{};
 		};
 
 	private:
@@ -222,7 +240,8 @@ namespace Iris {
 			LightEnvironment SceneLightEnvironment;
 		} m_SceneInfo;
 
-		struct UBCamera // (set = 1, binding = 0)
+		// (set = 1, binding = 0)
+		struct UBCamera
 		{
 			glm::mat4 ViewProjectionMatrix;
 			glm::mat4 InverseViewProjectionMatrix;
@@ -234,7 +253,8 @@ namespace Iris {
 		} m_CameraDataUB;
 		Ref<UniformBufferSet> m_UBSCamera;
 
-		struct UBScreenData // (set = 1, binding = 1)
+		// (set = 1, binding = 1)
+		struct UBScreenData
 		{
 			glm::vec2 FullResolution;
 			glm::vec2 InverseFullResolution;
@@ -243,7 +263,8 @@ namespace Iris {
 		} m_ScreenDataUB;
 		Ref<UniformBufferSet> m_UBSScreenData;
 
-		struct UBScene // (set = 1, binding = 2)
+		// (set = 1, binding = 2)
+		struct UBScene
 		{
 			DirLight Light;
 			glm::vec3 CameraPosition;
@@ -251,28 +272,57 @@ namespace Iris {
 		} m_SceneDataUB;
 		Ref<UniformBufferSet> m_UBSSceneData;
 
-		struct UBDirectionalShadowData // (set = 1, binding = 3)
+		// (set = 1, binding = 3)
+		struct UBDirectionalShadowData
 		{
 			glm::mat4 DirectionalLightMatrices[4]; // View Projection Matrices
 		} m_DirectionalShadowDataUB;
 		Ref<UniformBufferSet> m_UBSDirectionalShadowData;
 
-		struct UBRendererData // (set = 1, binding = 4)
+		// (set = 1, binding = 4)
+		struct UBPointLights
 		{
-			glm::vec4 CascadeSplits;
-			float LightSize = 0.5f;
-			float MaxShadowDistance = 300.0f;
-			float ShadowFade = 1.0f;
-			float CascadeTransitionFade = 1.0f;
-			bool CascadeFading = true;
-			char Padding0[3] = { 0, 0, 0 };
-			bool SoftShadows = true;
+			uint32_t Count = 0;
+			glm::vec3 padding{};
+			ScenePointLight PointLights[100]{};
+		} m_PointLightsUB;
+		Ref<UniformBufferSet> m_UBSPointLights;
+
+		// (set = 1, binding = 5)
+		Ref<StorageBufferSet> m_SBSVisiblePointLightIndicesBuffer;
+		
+		// (set = 1, binding = 6)
+		struct UBSpotLights
+		{
+			uint32_t Count = 0;
+			glm::vec3 Padding{};
+			SceneSpotLight SpotLights[100]{};
+		} m_SpotLightsUB;
+		Ref<UniformBufferSet> m_UBSSpotLights;
+
+		// (set = 1, binding = 7)
+		Ref<StorageBufferSet> m_SBSVisibleSpotLightIndicesBuffer;
+
+		// (set = 1, binding = 8)
+		struct UBRendererData
+		{
+			glm::vec4 CascadeSplits;			// size 16, 0ffset 0
+			char Padding0[4] = { 0, 0, 0, 0 };  
+			float MaxShadowDistance = 300.0f;	// size 4, offset 20
+			float ShadowFade = 1.0f;			// size 4, offset 24
+			float CascadeTransitionFade = 1.0f; // size 4, offset 28
+			uint32_t TilesCountX = 0;			// size 4, offset 32
+			bool CascadeFading = true;			// size 4, offset 36
 			char Padding1[3] = { 0, 0, 0 };
-			bool ShowCascades = false;
+			bool SoftShadows = true;			// size 4, offset 40
 			char Padding2[3] = { 0, 0, 0 };
-			bool Unlit = false;
+			bool ShowCascades = false;			// size 4, offset 44
 			char Padding3[3] = { 0, 0, 0 };
-		} m_RendererDataUB;
+			bool ShowLightComplexity = false;	// size 4, offset 48
+			char Padding4[3] = { 0, 0, 0 };
+			bool Unlit = false;					// size 4, offset 52
+			char Padding5[3] = { 0, 0, 0 };
+		} m_RendererDataUB;						// Total Size: 56 bytes
 		Ref<UniformBufferSet> m_UBSRendererData;
 
 		// Directional Shadow (No material required since it only runs a vertex shader)
@@ -315,11 +365,10 @@ namespace Iris {
 		// Grid
 		Ref<RenderPass> m_GridPass;
 		Ref<Material> m_GridMaterial;
-		float m_TranslationSnapValue = 1.0f; // Default one meter grid
 
 		// Composite
-		Ref<Material> m_CompositeMaterial;
 		Ref<RenderPass> m_CompositePass;
+		Ref<Material> m_CompositeMaterial;
 
 		// Jump Flood
 		Ref<RenderPass> m_JumpFloodInitPass;
@@ -330,9 +379,37 @@ namespace Iris {
 		Ref<Material> m_JumpFloodCompositeMaterial;
 		std::array<Ref<Framebuffer>, 2> m_JumpFloodFramebuffers;
 
+		// Bloom
+		Ref<ComputePass> m_BloomPreFilterPass;
+		Ref<ComputePass> m_BloomDownSamplePass;
+		Ref<ComputePass> m_BloomFirstUpSamplePass;
+		Ref<ComputePass> m_BloomUpSamplePass;
+		Ref<Texture2D> m_BloomDirtTexture;
+		
+		struct BloomTextures
+		{
+			Ref<Texture2D> Texture;
+			std::vector<Ref<ImageView>> ImageViews; // Per-mip
+		};
+		std::array<BloomTextures, 3> m_BloomTextures;
+
+		struct BloomMaterials
+		{
+			Ref<Material> PreFilterMaterial;
+			std::vector<Ref<Material>> DownSampleAMaterials;
+			std::vector<Ref<Material>> DownSampleBMaterials;
+			Ref<Material> FirstUpSampleMaterial;
+			std::vector<Ref<Material>> UpSampleMaterials;
+		} m_BloomMaterials;
+
 		// Depth Of Field
 		Ref<RenderPass> m_DOFPass;
 		Ref<Material> m_DOFMaterial;
+
+		// Light Culling
+		Ref<ComputePass> m_LightCullingPass;
+		Ref<Material> m_LightCullingMaterial;
+		glm::uvec3 m_LightCullingWorkGroups;
 
 		// For external compositing
 		Ref<Framebuffer> m_CompositingFramebuffer;

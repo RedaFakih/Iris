@@ -12,6 +12,8 @@ namespace Iris {
 		inline static Ref<Texture2D> IrisLogo = nullptr;
 
 		// Content Browser
+		inline static Ref<Texture2D> BrowseBackIcon = nullptr;
+		inline static Ref<Texture2D> BrowseForwardIcon = nullptr;
 		inline static Ref<Texture2D> DirectoryIcon = nullptr;
 		inline static Ref<Texture2D> FileIcon = nullptr;
 
@@ -32,6 +34,8 @@ namespace Iris {
 		inline static Ref<Texture2D> StaticMeshIcon = nullptr;
 		inline static Ref<Texture2D> SkyLightIcon = nullptr;
 		inline static Ref<Texture2D> DirectionalLightIcon = nullptr;
+		inline static Ref<Texture2D> PointLightIcon = nullptr;
+		inline static Ref<Texture2D> SpotLightIcon = nullptr;
 		inline static Ref<Texture2D> TextIcon = nullptr;
 		inline static Ref<Texture2D> SpriteIcon = nullptr;
 		inline static Ref<Texture2D> EyeIcon = nullptr;
@@ -78,6 +82,8 @@ namespace Iris {
 			IrisLogo = LoadTexture("IrisIcon.png", "IrisLogo", spec);
 
 			// Content Browser panel
+			BrowseBackIcon = LoadTexture("Icons/ContentBrowser/BrowseBackIcon.png", "BrowseBackIcon", spec);
+			BrowseForwardIcon = LoadTexture("Icons/ContentBrowser/BrowseForwardIcon.png", "BrowseForwardIcon", spec);
 			DirectoryIcon = LoadTexture("Icons/ContentBrowser/DirectoryIcon.png", "DirectoryIcon", spec);
 			FileIcon = LoadTexture("Icons/ContentBrowser/FileIcon.png", "FileIcon", spec);
 
@@ -98,6 +104,8 @@ namespace Iris {
 			StaticMeshIcon = LoadTexture("Icons/SceneHierarchyPanel/StaticMesh.png", "StaticMeshIcon", spec);
 			SkyLightIcon = LoadTexture("Icons/SceneHierarchyPanel/SkyLight.png", "SkyLightIcon", spec);
 			DirectionalLightIcon = LoadTexture("Icons/SceneHierarchyPanel/DirectionalLight.png", "DirectionalLightIcon", spec);
+			PointLightIcon = LoadTexture("Icons/SceneHierarchyPanel/PointLight.png", "PointLightIcon", spec);
+			SpotLightIcon = LoadTexture("Icons/SceneHierarchyPanel/SpotLight.png", "SpotLightIcon", spec);
 			TextIcon = LoadTexture("Icons/SceneHierarchyPanel/Text.png", "TextIcon", spec);
 			SpriteIcon = LoadTexture("Icons/SceneHierarchyPanel/SpriteRenderer.png", "SpriteIcon", spec);
 			EyeIcon = LoadTexture("Icons/SceneHierarchyPanel/Eye.png", "EyeIcon", spec);
@@ -143,6 +151,8 @@ namespace Iris {
 			IrisLogo.Reset();
 			
 			// Content Browser
+			BrowseBackIcon.Reset();
+			BrowseForwardIcon.Reset();
 			DirectoryIcon.Reset();
 			FileIcon.Reset();
 
@@ -163,6 +173,8 @@ namespace Iris {
 			StaticMeshIcon.Reset();
 			SkyLightIcon.Reset();
 			DirectionalLightIcon.Reset();
+			PointLightIcon.Reset();
+			SpotLightIcon.Reset();
 			TextIcon.Reset();
 			SpriteIcon.Reset();
 			EyeIcon.Reset();

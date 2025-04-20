@@ -3,6 +3,7 @@
 
 #include "AssetManager/AssetManager.h"
 #include "ComputePass.h"
+#include "Editor/EditorSettings.h"
 #include "Renderer/Renderer.h"
 #include "Scene/SceneEnvironment.h"
 #include "Shaders/Shader.h"
@@ -10,11 +11,6 @@
 #include <glm/gtx/compatibility.hpp>
 
 namespace Iris {
-
-	Ref<SceneRenderer> SceneRenderer::Create(Ref<Scene> scene, const SceneRendererSpecification& spec)
-	{
-		return CreateRef<SceneRenderer>(scene, spec);
-	}
 
 	SceneRenderer::SceneRenderer(Ref<Scene> scene, const SceneRendererSpecification& spec)
 		: m_Scene(scene), m_Specification(spec)
@@ -38,13 +34,25 @@ namespace Iris {
 
 		m_CommandBuffer = RenderCommandBuffer::Create(0, "SceneRenderer");
 
-		uint32_t framesInFlight = Renderer::GetConfig().FramesInFlight;
+		const uint32_t framesInFlight = Renderer::GetConfig().FramesInFlight;
 
-		m_UBSCamera = UniformBufferSet::Create(sizeof(UBCamera));
-		m_UBSScreenData = UniformBufferSet::Create(sizeof(UBScreenData));
-		m_UBSSceneData= UniformBufferSet::Create(sizeof(UBScene));
-		m_UBSDirectionalShadowData = UniformBufferSet::Create(sizeof(UBDirectionalShadowData));
-		m_UBSRendererData = UniformBufferSet::Create(sizeof(UBRendererData));
+		// Unifrom Buffer
+		{
+			m_UBSCamera = UniformBufferSet::Create(sizeof(UBCamera));
+			m_UBSScreenData = UniformBufferSet::Create(sizeof(UBScreenData));
+			m_UBSSceneData = UniformBufferSet::Create(sizeof(UBScene));
+			m_UBSDirectionalShadowData = UniformBufferSet::Create(sizeof(UBDirectionalShadowData));
+			m_UBSPointLights = UniformBufferSet::Create(sizeof(UBPointLights));
+			m_UBSSpotLights = UniformBufferSet::Create(sizeof(UBSpotLights));
+			m_UBSRendererData = UniformBufferSet::Create(sizeof(UBRendererData));
+		}
+
+		// Storage Buffers
+		{
+			// NOTE: Gets resized later
+			m_SBSVisiblePointLightIndicesBuffer = StorageBufferSet::Create(true, 1);
+			m_SBSVisibleSpotLightIndicesBuffer = StorageBufferSet::Create(true, 1);
+		}
 
 		m_RendererDataUB.SoftShadows = m_Specification.ShadowResolution == ShadowResolutionSetting::High;
 
@@ -140,6 +148,91 @@ namespace Iris {
 			m_DirectionalShadowMaterial = Material::Create(Renderer::GetShadersLibrary()->Get("DirectionalShadow"), "DirectionalShadowMaterial");
 		}
 
+		// Bloom
+		{
+			{
+				TextureSpecification spec;
+				spec.Format = ImageFormat::RGBA32F;
+				spec.Width = 1;
+				spec.Height = 1;
+				spec.WrapMode = TextureWrap::Clamp;
+				spec.GenerateMips = true;
+				spec.Usage = ImageUsage::Storage;
+
+				spec.DebugName = "BloomTexture-0";
+				m_BloomTextures[0].Texture = Texture2D::Create(spec);
+				spec.DebugName = "BloomTexture-1";
+				m_BloomTextures[1].Texture = Texture2D::Create(spec);
+				spec.DebugName = "BloomTexture-2";
+				m_BloomTextures[2].Texture = Texture2D::Create(spec);
+			}
+
+			//// Image Views (per-mip)
+			ImageViewSpecification imageViewSpec;
+			for (uint32_t i = 0; i < 3; i++)
+			{
+				uint32_t mipCount = m_BloomTextures[i].Texture->GetMipLevelCount();
+				m_BloomTextures[i].ImageViews.resize(mipCount);
+				for (uint32_t mip = 0; mip < mipCount; mip++)
+				{
+					imageViewSpec.DebugName = fmt::format("BloomImageView-({} - {})", i, mip);
+					imageViewSpec.Image = m_BloomTextures[i].Texture;
+					imageViewSpec.Mip = mip;
+					m_BloomTextures[i].ImageViews[mip] = ImageView::Create(imageViewSpec);
+				}
+			}
+
+			// Pre-Filter
+			Ref<Shader> preFilterShader = Renderer::GetShadersLibrary()->Get("Bloom-Prefilter");
+			ComputePassSpecification preFilterPassSpec = {
+				.DebugName = "BloomPreFilterPass",
+				.Pipeline = ComputePipeline::Create(preFilterShader, "BloomPreFilterPipeline"),
+				.MarkerColor = { 0.3f, 0.85f, 0.5f, 1.0f }
+			};
+			m_BloomPreFilterPass = ComputePass::Create(preFilterPassSpec);
+
+			// No resources to add since everything will be set by the materials
+			m_BloomPreFilterPass->Bake();
+
+			// Downsample
+			Ref<Shader> downSampleShader = Renderer::GetShadersLibrary()->Get("Bloom-Downsample");
+			ComputePassSpecification downSamplePassSpec  = {
+				.DebugName = "BloomDownsamplePass",
+				.Pipeline = ComputePipeline::Create(downSampleShader, "BloomDownSamplePipeline"),
+				.MarkerColor = { 0.3f, 0.85f, 0.5f, 1.0f }
+			};
+			m_BloomDownSamplePass = ComputePass::Create(downSamplePassSpec);
+
+			// No resources to add since everything will be set by the materials
+			m_BloomDownSamplePass->Bake();
+
+			// First-Upsample
+			Ref<Shader> firstUpsampleShader = Renderer::GetShadersLibrary()->Get("Bloom-FirstUpsample");
+			ComputePassSpecification firstUpsampleSpec = {
+				.DebugName = "BloomFirstUpsamplePass",
+				.Pipeline = ComputePipeline::Create(firstUpsampleShader, "BloomFirstUpsamplePipeline"),
+				.MarkerColor = { 0.3f, 0.85f, 0.5f, 1.0f }
+			};
+			m_BloomFirstUpSamplePass = ComputePass::Create(firstUpsampleSpec);
+
+			// No resources to add since everything will be set by the materials
+			m_BloomFirstUpSamplePass->Bake();
+
+			// Upsample
+			Ref<Shader> upsampleShader = Renderer::GetShadersLibrary()->Get("Bloom-Upsample");
+			ComputePassSpecification upsampleSpec = {
+				.DebugName = "BloomUpsamplePass",
+				.Pipeline = ComputePipeline::Create(upsampleShader, "BloomUpsamplePipeline"),
+				.MarkerColor = { 0.3f, 0.85f, 0.5f, 1.0f }
+			};
+			m_BloomUpSamplePass = ComputePass::Create(upsampleSpec);
+
+			// No resources to add since everything will be set by the materials
+			m_BloomUpSamplePass->Bake();
+
+			m_BloomDirtTexture = Renderer::GetBlackTexture();
+		}
+
 		// Pre-Depth
 		{
 			FramebufferSpecification preDepthFBSpec = {
@@ -197,7 +290,7 @@ namespace Iris {
 				preDepthPipelineSpec.TargetFramebuffer = m_PreDepthPass->GetTargetFramebuffer();
 				preDepthPipelineSpec.BackFaceCulling = false;
 				preDepthPipelineSpec.WireFrame = true;
-				preDepthPipelineSpec.ReleaseShaderModules = true; // Since this is the last predepth related pipeline we can release the shader modules
+				preDepthPipelineSpec.ReleaseShaderModules = false;
 				preDepthRenderPassSpec.DebugName = "WireframePreDepthPass";
 				preDepthRenderPassSpec.Pipeline = Pipeline::Create(preDepthPipelineSpec);
 				m_WireframeViewPreDepthPass = RenderPass::Create(preDepthRenderPassSpec);
@@ -217,7 +310,6 @@ namespace Iris {
 				// NOTE: The second attachment does not blend since we do not want to blend with luminance in the alpha channel
 				.Attachments = { ImageFormat::RGBA32F, { ImageFormat::RGBA16F, false }, ImageFormat::RGBA, ImageFormat::Depth32F }
 			};
-			geometryFBSpec.Attachments.Attachments[0].LoadOp = AttachmentLoadOp::Load; // Load since skybox pass writes to it
 
 			geometryFBSpec.ExistingImages[3] = m_PreDepthPass->GetDepthOutput();
 
@@ -244,6 +336,10 @@ namespace Iris {
 			m_GeometryPass->SetInput("Camera", m_UBSCamera);
 			m_GeometryPass->SetInput("SceneData", m_UBSSceneData);
 			m_GeometryPass->SetInput("DirectionalShadowData", m_UBSDirectionalShadowData);
+			m_GeometryPass->SetInput("PointLightsData", m_UBSPointLights);
+			m_GeometryPass->SetInput("SpotLightsData", m_UBSSpotLights);
+			m_GeometryPass->SetInput("VisiblePointLightIndicesBuffer", m_SBSVisiblePointLightIndicesBuffer);
+			m_GeometryPass->SetInput("VisibleSpotLightIndicesBuffer", m_SBSVisibleSpotLightIndicesBuffer);
 			m_GeometryPass->SetInput("RendererData", m_UBSRendererData);
 			m_GeometryPass->SetInput("u_RadianceMap", Renderer::GetBlackCubeTexture());
 			m_GeometryPass->SetInput("u_IrradianceMap", Renderer::GetBlackCubeTexture());
@@ -276,6 +372,10 @@ namespace Iris {
 				m_DoubleSidedGeometryPass->SetInput("Camera", m_UBSCamera);
 				m_DoubleSidedGeometryPass->SetInput("SceneData", m_UBSSceneData);
 				m_DoubleSidedGeometryPass->SetInput("DirectionalShadowData", m_UBSDirectionalShadowData);
+				m_DoubleSidedGeometryPass->SetInput("PointLightsData", m_UBSPointLights);
+				m_DoubleSidedGeometryPass->SetInput("SpotLightsData", m_UBSSpotLights);
+				m_DoubleSidedGeometryPass->SetInput("VisiblePointLightIndicesBuffer", m_SBSVisiblePointLightIndicesBuffer);
+				m_DoubleSidedGeometryPass->SetInput("VisibleSpotLightIndicesBuffer", m_SBSVisibleSpotLightIndicesBuffer);
 				m_DoubleSidedGeometryPass->SetInput("RendererData", m_UBSRendererData);
 				m_DoubleSidedGeometryPass->SetInput("u_RadianceMap", Renderer::GetBlackCubeTexture());
 				m_DoubleSidedGeometryPass->SetInput("u_IrradianceMap", Renderer::GetBlackCubeTexture());
@@ -292,7 +392,7 @@ namespace Iris {
 				staticGeometryPipelineSpec.BackFaceCulling = false;
 				staticGeometryPipelineSpec.DepthOperator = DepthCompareOperator::GreaterOrEqual;
 				staticGeometryPipelineSpec.WireFrame = true;
-				staticGeometryPipelineSpec.ReleaseShaderModules = true; // Since this is the last geometry related pipeline we can release the shader modules
+				staticGeometryPipelineSpec.ReleaseShaderModules = false;
 				staticGeometryPassSpec.DebugName = "WireframeViewPass";
 				staticGeometryPassSpec.Pipeline = Pipeline::Create(staticGeometryPipelineSpec);
 				m_WireframeViewGeometryPass = RenderPass::Create(staticGeometryPassSpec);
@@ -300,6 +400,10 @@ namespace Iris {
 				m_WireframeViewGeometryPass->SetInput("Camera", m_UBSCamera);
 				m_WireframeViewGeometryPass->SetInput("SceneData", m_UBSSceneData);
 				m_WireframeViewGeometryPass->SetInput("DirectionalShadowData", m_UBSDirectionalShadowData);
+				m_WireframeViewGeometryPass->SetInput("PointLightsData", m_UBSPointLights);
+				m_WireframeViewGeometryPass->SetInput("SpotLightsData", m_UBSSpotLights);
+				m_WireframeViewGeometryPass->SetInput("VisiblePointLightIndicesBuffer", m_SBSVisiblePointLightIndicesBuffer);
+				m_WireframeViewGeometryPass->SetInput("VisibleSpotLightIndicesBuffer", m_SBSVisibleSpotLightIndicesBuffer);
 				m_WireframeViewGeometryPass->SetInput("RendererData", m_UBSRendererData);
 				m_WireframeViewGeometryPass->SetInput("u_RadianceMap", Renderer::GetBlackCubeTexture());
 				m_WireframeViewGeometryPass->SetInput("u_IrradianceMap", Renderer::GetBlackCubeTexture());
@@ -352,6 +456,7 @@ namespace Iris {
 				selectedGeoPipeline.DebugName = "DoubleSidedSelectedGeoPipeline";
 				selectedGeoPipeline.TargetFramebuffer = Framebuffer::Create(doubleSidedFBSpec);
 				selectedGeoPipeline.BackFaceCulling = false;
+				// For this we let it release the modules since for now it isnt use by any other renderers
 				selectedGeoPipeline.ReleaseShaderModules = true;
 				selectedGeoPass.DebugName = "DoubleSidedSelectedGeoPass";
 				selectedGeoPass.Pipeline = Pipeline::Create(selectedGeoPipeline);
@@ -381,7 +486,7 @@ namespace Iris {
 				.BackFaceCulling = false,
 				.DepthTest = false,
 				.DepthWrite = false,
-				.ReleaseShaderModules = true
+				.ReleaseShaderModules = false
 			};
 
 			RenderPassSpecification compositePassSpec = {
@@ -395,6 +500,9 @@ namespace Iris {
 			// For if we decide we want to view the depth image
 			// m_CompositePass->SetInput("Camera", m_UBSCamera);
 			m_CompositePass->SetInput("u_Texture", m_GeometryPass->GetOutput(0));
+			m_CompositePass->SetInput("u_BloomTexture", m_BloomTextures[2].Texture);
+			m_CompositePass->SetInput("u_BloomDirtTexture", m_BloomDirtTexture);
+			// TODO: To use this we need to also transition its layout in the composite pass
 			// m_CompositePass->SetInput("u_DepthTexture", m_PreDepthPass->GetDepthOutput());
 			m_CompositePass->Bake();
 		}
@@ -425,7 +533,7 @@ namespace Iris {
 				.BackFaceCulling = false,
 				.DepthTest = true,
 				.DepthWrite = true,
-				.ReleaseShaderModules = true
+				.ReleaseShaderModules = false
 			};
 		
 			RenderPassSpecification gridPassSpec = {
@@ -435,7 +543,7 @@ namespace Iris {
 			};
 			m_GridPass = RenderPass::Create(gridPassSpec);
 			m_GridMaterial = Material::Create(gridPipelineSpec.Shader, "GridMaterial");
-			m_GridMaterial->Set("u_Uniforms.Scale", m_TranslationSnapValue);
+			m_GridMaterial->Set("u_Uniforms.Scale", EditorSettings::Get().TranslationSnapValue);
 		
 			m_GridPass->SetInput("Camera", m_UBSCamera);
 			m_GridPass->Bake();
@@ -454,7 +562,7 @@ namespace Iris {
 				.DepthWrite = true,
 				.WireFrame = true,
 				.LineWidth = 2.0f,
-				.ReleaseShaderModules = true
+				.ReleaseShaderModules = false
 			};
 		
 			RenderPassSpecification wireFramePassSpec = {
@@ -464,20 +572,46 @@ namespace Iris {
 			};
 			m_GeometryWireFramePass = RenderPass::Create(wireFramePassSpec);
 			m_WireFrameMaterial = Material::Create(wireframePipelineSpec.Shader, "WireFrameMaterial");
-			// m_WireFrameMaterial->Set("u_Uniforms.Color", glm::vec4{ 1.0f, 0.5f, 0.0f, 1.0f });
 			m_WireFrameMaterial->Set("u_Uniforms.Color", glm::vec4{ glm::vec3{ 0.14f, 0.8f, 0.52f } * 0.9f, 1.0f }); // Use this color for wireframe of ONLY current selection
 		
 			m_GeometryWireFramePass->SetInput("Camera", m_UBSCamera);
 			m_GeometryWireFramePass->Bake();
 		}
 
+		// Light Culling
+		{
+			// Ref<Shader> lightCullingShader = Renderer::GetShadersLibrary()->Get("LightCulling2_5D");
+			Ref<Shader> lightCullingShader = Renderer::GetShadersLibrary()->Get("LightCulling");
+			ComputePassSpecification mipChainFilterPassSpec = {
+				.DebugName = "LightCullingPass",
+				.Pipeline = ComputePipeline::Create(lightCullingShader, "LightCullingPipeline"),
+				.MarkerColor = { 0.3f, 0.85f, 0.3f, 1.0f }
+			};
+			m_LightCullingPass = ComputePass::Create(mipChainFilterPassSpec);
+			
+			m_LightCullingPass->SetInput("Camera", m_UBSCamera);
+			m_LightCullingPass->SetInput("ScreenData", m_UBSScreenData);
+			m_LightCullingPass->SetInput("PointLightsData", m_UBSPointLights);
+			m_LightCullingPass->SetInput("SpotLightsData", m_UBSSpotLights);
+			m_LightCullingPass->SetInput("VisiblePointLightIndicesBuffer", m_SBSVisiblePointLightIndicesBuffer);
+			m_LightCullingPass->SetInput("VisibleSpotLightIndicesBuffer", m_SBSVisibleSpotLightIndicesBuffer);
+			m_LightCullingPass->SetInput("u_DepthMap", m_PreDepthPass->GetDepthOutput());
+			m_LightCullingPass->Bake();
+			
+			m_LightCullingMaterial = Material::Create(lightCullingShader, "LightCullingMaterial");
+		}
+
 		// Skybox
 		{
 			FramebufferSpecification skyboxFBSpec = {
 				.DebugName = "SkyboxFB",
-				.Attachments = { ImageFormat::RGBA32F }
+				.ClearColorOnLoad = false,
+				.ClearColor = { 1.0f, 0.5f, 1.0f, 1.0f },
+				.ClearDepthOnLoad = false,
+				.Attachments = { ImageFormat::RGBA32F, ImageFormat::Depth32F },
 			};
 			skyboxFBSpec.ExistingImages[0] = m_GeometryPass->GetOutput(0);
+			skyboxFBSpec.ExistingImages[1] = m_PreDepthPass->GetDepthOutput();
 			
 			PipelineSpecification skyboxPipelineSpec = {
 				.DebugName = "SkyboxPipeline",
@@ -487,9 +621,10 @@ namespace Iris {
 					{ ShaderDataType::Float3, "a_Position" },
 					{ ShaderDataType::Float2, "a_TexCoord" }
 				},
-				.DepthTest = false,
+				.DepthOperator = DepthCompareOperator::GreaterOrEqual,
+				.DepthTest = true,
 				.DepthWrite = false,
-				.ReleaseShaderModules = true
+				.ReleaseShaderModules = false
 			};
 			
 			RenderPassSpecification skyboxPassSpec = {
@@ -536,7 +671,7 @@ namespace Iris {
 					{ ShaderDataType::Float2, "a_TexCoord" }
 				},
 				.DepthWrite = false,
-				.ReleaseShaderModules = true
+				.ReleaseShaderModules = false
 			};
 
 			RenderPassSpecification jumpFloodInitPass = {
@@ -564,7 +699,7 @@ namespace Iris {
 						{ ShaderDataType::Float2, "a_TexCoord" }
 					},
 					.DepthWrite = false,
-					.ReleaseShaderModules = i == 1 // On the second iteration we release shader modules
+					.ReleaseShaderModules = false
 				};
 
 				RenderPassSpecification jumpFloodPassPass = {
@@ -599,7 +734,7 @@ namespace Iris {
 						{ ShaderDataType::Float2, "a_TexCoord" }
 					},
 					.DepthTest = false,
-					.ReleaseShaderModules = true
+					.ReleaseShaderModules = false
 				};
 
 				RenderPassSpecification jumpFloodCompositePass = {
@@ -658,9 +793,7 @@ namespace Iris {
 		// Collider Materials
 		{
 			m_SimpleColliderMaterial = Material::Create(Renderer::GetShadersLibrary()->Get("WireFrame"), "SimpleColliderMaterial");
-			m_SimpleColliderMaterial->Set("u_Uniforms.Color", Project::GetActive()->GetConfig().ViewportSimple3DColliderOutlineColor);
 			m_ComplexColliderMaterial = Material::Create(Renderer::GetShadersLibrary()->Get("WireFrame"), "ComplexColliderMaterial");
-			m_ComplexColliderMaterial->Set("u_Uniforms.Color", Project::GetActive()->GetConfig().ViewportComplex3DColliderOutlineColor);
 		}
 
 		// TODO: Resizable
@@ -766,6 +899,51 @@ namespace Iris {
 
 			if (m_DOFPass)
 				m_DOFPass->GetTargetFramebuffer()->Resize(m_ViewportWidth, m_ViewportHeight);
+
+			const glm::uvec2 viewportSize = { m_ViewportWidth, m_ViewportHeight };
+
+			// Light Culling
+			{
+				glm::uvec2 size = viewportSize;
+				size += IR_LIGHT_CULLING_WORKGROUP_SIZE - viewportSize % IR_LIGHT_CULLING_WORKGROUP_SIZE;
+
+				m_LightCullingWorkGroups = { size / IR_LIGHT_CULLING_WORKGROUP_SIZE, 1 };
+				m_RendererDataUB.TilesCountX = m_LightCullingWorkGroups.x;
+				
+				// Visible Point Light Indices storage buffer (set = 1, binding = 5)
+				m_SBSVisiblePointLightIndicesBuffer->Resize(m_LightCullingWorkGroups.x * m_LightCullingWorkGroups.y * 4 * 100);
+
+				// Visible Spot Light Indices storage buffer (set = 1, binding = 7)
+				m_SBSVisibleSpotLightIndicesBuffer->Resize(m_LightCullingWorkGroups.x * m_LightCullingWorkGroups.y * 4 * 100);
+			}
+
+			// Bloom
+			{
+				glm::uvec2 bloomSize = (viewportSize + 1u) / 2u;
+				bloomSize += IR_BLOOM_COMPUTE_WORKGROUP_SIZE - bloomSize % IR_BLOOM_COMPUTE_WORKGROUP_SIZE;
+
+				m_BloomTextures[0].Texture->Resize(bloomSize.x, bloomSize.y);
+				m_BloomTextures[1].Texture->Resize(bloomSize.x, bloomSize.y);
+				m_BloomTextures[2].Texture->Resize(bloomSize.x, bloomSize.y);
+				
+				// Image Views (per-mip)
+				ImageViewSpecification imageViewSpec;
+				for (uint32_t i = 0; i < 3; i++)
+				{
+					uint32_t mipCount = m_BloomTextures[i].Texture->GetMipLevelCount();
+					m_BloomTextures[i].ImageViews.resize(mipCount);
+					for (uint32_t mip = 0; mip < mipCount; mip++)
+					{
+						imageViewSpec.DebugName = fmt::format("BloomImageView-({} - {})", i, mip);
+						imageViewSpec.Image = m_BloomTextures[i].Texture;
+						imageViewSpec.Mip = mip;
+						m_BloomTextures[i].ImageViews[mip] = ImageView::Create(imageViewSpec);
+					}
+				}
+
+				// Re-setup materials with new image views
+				CreateBloomPassMaterials();
+			}
 		}
 
 		// Update uniform buffers data for the starting frame
@@ -810,7 +988,7 @@ namespace Iris {
 			screenData.FullResolution = { m_ViewportWidth, m_ViewportHeight };
 			screenData.InverseFullResolution = { m_InverseViewportWidth, m_InverseViewportHeight };
 			screenData.HalfResolution = { m_ViewportWidth / 2, m_ViewportHeight / 2 };
-			screenData.InverseHalfResolution = { m_InverseViewportWidth / 2, m_InverseViewportHeight / 2 };
+			screenData.InverseHalfResolution = { m_InverseViewportWidth * 2.0f, m_InverseViewportHeight * 2.0f };
 
 			Ref<SceneRenderer> instance = this;
 			Renderer::Submit([instance, screenData]() mutable
@@ -826,6 +1004,7 @@ namespace Iris {
 			const auto& directionalLight = m_SceneInfo.SceneLightEnvironment.DirectionalLight;
 			sceneData.Light.Direction = { directionalLight.Direction.x, directionalLight.Direction.y, directionalLight.Direction.z, directionalLight.ShadowOpacity };
 			sceneData.Light.Radiance = { directionalLight.Radiance.r, directionalLight.Radiance.g, directionalLight.Radiance.b, directionalLight.Intensity };
+			sceneData.Light.LightSize = directionalLight.LightSize;
 			
 			sceneData.CameraPosition = m_CameraDataUB.InverseViewMatrix[3];
 			sceneData.EnvironmentMapIntensity = m_SceneInfo.SceneEnvironmentIntensity; // Mirrors the value that is sent to the Skybox shader
@@ -861,7 +1040,40 @@ namespace Iris {
 			});
 		}
 
-		// Renderer Data uniform buffer (set = 1, binding = 4)
+		// Point Light uniform buffer (set = 1, binding = 4)
+		{
+			UBPointLights& pointLightData = m_PointLightsUB;
+
+			const LightEnvironment lightEnvironment = m_SceneInfo.SceneLightEnvironment;
+			const std::vector<ScenePointLight>& pointLightsVec = lightEnvironment.PointLights;
+			pointLightData.Count = static_cast<uint32_t>(pointLightsVec.size());
+			std::memcpy(pointLightData.PointLights, pointLightsVec.data(), lightEnvironment.GetPointLightsSize());
+
+			Ref<SceneRenderer> instance = this;
+			Renderer::Submit([instance, pointLightData]() mutable
+			{
+				// NOTE: The 16 here is the size of UBPointLights::Count + 12 bytes padding
+				instance->m_UBSPointLights->RT_Get()->RT_SetData(&pointLightData, 16 + sizeof(ScenePointLight) * pointLightData.Count);
+			});
+		}
+
+		// Spot Light uniform buffer (set = 1, binding = 6)
+		{
+			UBSpotLights& spotLightData = m_SpotLightsUB;
+
+			const LightEnvironment lightEnvironment = m_SceneInfo.SceneLightEnvironment;
+			const std::vector<SceneSpotLight>& spotLightsVec = lightEnvironment.SpotLights;
+			spotLightData.Count = static_cast<int>(spotLightsVec.size());
+			std::memcpy(spotLightData.SpotLights, spotLightsVec.data(), lightEnvironment.GetSpotLightsSize());
+			
+			Ref<SceneRenderer> instance = this;
+			Renderer::Submit([instance, &spotLightData]() mutable
+			{
+				instance->m_UBSSpotLights->RT_Get()->RT_SetData(&spotLightData, 16 + sizeof(SceneSpotLight) * spotLightData.Count);
+			});
+		}
+
+		// Renderer Data uniform buffer (set = 1, binding = 8)
 		{
 			UBRendererData& rendererData = m_RendererDataUB;
 
@@ -1173,11 +1385,47 @@ namespace Iris {
 			ResetImageLayouts();
 			DirectionalShadowPass();
 			PreDepthPass();
-			SkyboxPass();
+			LightCullingPass();
 			GeometryPass();
+			SkyboxPass();
 
 			if (m_Specification.JumpFloodPass)
 				JumpFloodPass();
+
+			// From now on the main geometry attachment is read only since it is used for post processing
+			Ref<SceneRenderer> instance = this;
+			Renderer::Submit([instance]()
+			{
+				Renderer::InsertImageMemoryBarrier(
+					instance->m_CommandBuffer->GetActiveCommandBuffer(),
+					instance->m_GeometryPass->GetOutput(0)->GetVulkanImage(),
+					VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
+					VK_ACCESS_2_SHADER_SAMPLED_READ_BIT,
+					VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+					VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+					VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
+					VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+					{ .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = 1 }
+				);
+
+				if (instance->m_Options.DOFEnabled)
+				{
+					Renderer::InsertImageMemoryBarrier(
+						instance->m_CommandBuffer->GetActiveCommandBuffer(),
+						instance->m_PreDepthPass->GetDepthOutput()->GetVulkanImage(),
+						VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,  // Write access from the depth attachment
+						VK_ACCESS_2_SHADER_SAMPLED_READ_BIT,             // Read access by the fragment shader
+						VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL,        // Layout for depth attachment write
+						VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL,         // Layout for sampled read
+						VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT,    // Ensure writes during early fragment tests are done
+						VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,         // Reads will occur in the fragment shader
+						{ .aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = 1 }
+					);
+				}
+			});
+
+			if (m_Options.BloomEnabled)
+				BloomPass();
 
 			CompositePass();
 
@@ -1213,7 +1461,7 @@ namespace Iris {
 	{
 		// Fill instance vertex buffer with instance transform data...
 
-		uint32_t frameIndex = Renderer::GetCurrentFrameIndex();
+		const uint32_t frameIndex = Renderer::GetCurrentFrameIndex();
 
 		uint32_t offset = 0;
 		for (auto& [meshKey, transformData] : m_MeshTransformMap)
@@ -1273,7 +1521,7 @@ namespace Iris {
 
 	void SceneRenderer::DirectionalShadowPass()
 	{
-		uint32_t frameIndex = Renderer::GetCurrentFrameIndex();
+		const uint32_t frameIndex = Renderer::GetCurrentFrameIndex();
 
 		const SceneDirectionalLight& directionalLight = m_SceneInfo.SceneLightEnvironment.DirectionalLight;
 		if (!directionalLight.CastShadows || directionalLight.Intensity == 0.0f)
@@ -1342,43 +1590,30 @@ namespace Iris {
 	{
 		// Render all objects into a depth texture only and use that in all other passes that need depth
 
-		uint32_t frameIndex = Renderer::GetCurrentFrameIndex();
+		const uint32_t frameIndex = Renderer::GetCurrentFrameIndex();
 
 		if (m_ViewMode == ViewMode::Lit || m_ViewMode == ViewMode::Unlit)
 		{
-			Ref<RenderPass> renderPassToUse = nullptr;
-			switch (m_ViewMode)
-			{
-				case ViewMode::Lit: renderPassToUse = m_PreDepthPass; break;
-				case ViewMode::Unlit: renderPassToUse = m_PreDepthPass; break;
-			}
-
-			Renderer::BeginRenderPass(m_CommandBuffer, renderPassToUse);
+			Renderer::BeginRenderPass(m_CommandBuffer, m_PreDepthPass);
 
 			for (const auto& [mk, dc] : m_StaticMeshDrawList)
 			{
 				const auto& transformData = m_MeshTransformMap.at(mk);
 				glm::mat4 transform = dc.MeshSource->GetSubMeshes()[dc.SubMeshIndex].Transform;
-				Renderer::RenderStaticMeshWithMaterial(m_CommandBuffer, renderPassToUse->GetPipeline(), dc.StaticMesh, dc.MeshSource, dc.SubMeshIndex, m_PreDepthMaterial, m_MeshTransformBuffers[frameIndex].VertexBuffer, transformData.TransformOffset, dc.InstanceCount);
+				Renderer::RenderStaticMeshWithMaterial(m_CommandBuffer, m_PreDepthPass->GetPipeline(), dc.StaticMesh, dc.MeshSource, dc.SubMeshIndex, m_PreDepthMaterial, m_MeshTransformBuffers[frameIndex].VertexBuffer, transformData.TransformOffset, dc.InstanceCount);
 			}
 
 			Renderer::EndRenderPass(m_CommandBuffer);
-
-			switch (m_ViewMode)
-			{
-				case ViewMode::Lit: renderPassToUse = m_DoubleSidedPreDepthPass; break;
-				case ViewMode::Unlit: renderPassToUse = m_DoubleSidedPreDepthPass; break;
-			}
 			
 			if (m_DoubleSidedStaticMeshDrawList.size())
 			{
-				Renderer::BeginRenderPass(m_CommandBuffer, renderPassToUse);
+				Renderer::BeginRenderPass(m_CommandBuffer, m_DoubleSidedPreDepthPass);
 			
 				for (const auto& [mk, dc] : m_DoubleSidedStaticMeshDrawList)
 				{
 					const auto& transformData = m_MeshTransformMap.at(mk);
 					glm::mat4 transform = dc.MeshSource->GetSubMeshes()[dc.SubMeshIndex].Transform;
-					Renderer::RenderStaticMeshWithMaterial(m_CommandBuffer, renderPassToUse->GetPipeline(), dc.StaticMesh, dc.MeshSource, dc.SubMeshIndex, m_PreDepthMaterial, m_MeshTransformBuffers[frameIndex].VertexBuffer, transformData.TransformOffset, dc.InstanceCount);
+					Renderer::RenderStaticMeshWithMaterial(m_CommandBuffer, m_DoubleSidedPreDepthPass->GetPipeline(), dc.StaticMesh, dc.MeshSource, dc.SubMeshIndex, m_PreDepthMaterial, m_MeshTransformBuffers[frameIndex].VertexBuffer, transformData.TransformOffset, dc.InstanceCount);
 				}
 			
 				Renderer::EndRenderPass(m_CommandBuffer);
@@ -1406,25 +1641,64 @@ namespace Iris {
 		}
 	}
 
-	void SceneRenderer::SkyboxPass()
+	void SceneRenderer::LightCullingPass()
 	{
-		m_SkyboxMaterial->Set("u_Uniforms.TextureLod", m_SceneInfo.SkyboxLod);
-		m_SkyboxMaterial->Set("u_Uniforms.Intensity", m_SceneInfo.SceneEnvironmentIntensity);
-		
-		const Ref<TextureCube> radianceMap = m_SceneInfo.SceneEnvironment ? m_SceneInfo.SceneEnvironment->RadianceMap : Renderer::GetBlackCubeTexture();
-		m_SkyboxMaterial->Set("u_Texture", radianceMap);
-		
-		Renderer::BeginRenderPass(m_CommandBuffer, m_SkyboxPass);
-		Renderer::SubmitFullScreenQuad(m_CommandBuffer, m_SkyboxPass->GetPipeline(), m_SkyboxMaterial);
-		Renderer::EndRenderPass(m_CommandBuffer);
+		Ref<SceneRenderer> instance = this;
+		Renderer::Submit([instance]()
+		{
+			Renderer::InsertImageMemoryBarrier(
+				instance->m_CommandBuffer->GetActiveCommandBuffer(),
+				instance->m_PreDepthPass->GetDepthOutput()->GetVulkanImage(),
+				VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+				VK_ACCESS_2_SHADER_SAMPLED_READ_BIT,
+				VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL,
+				VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL,
+				VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT,
+				VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+				{ .aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = 1 }
+			);
+		});
+
+		Renderer::BeginComputePass(m_CommandBuffer, m_LightCullingPass);
+		Renderer::DispatchComputePass(m_CommandBuffer, m_LightCullingPass, m_LightCullingMaterial, m_LightCullingWorkGroups);
+		Renderer::EndComputePass(m_CommandBuffer, m_LightCullingPass);
+
+		Renderer::Submit([instance]()
+		{
+			Renderer::InsertImageMemoryBarrier(
+				instance->m_CommandBuffer->GetActiveCommandBuffer(),
+				instance->m_PreDepthPass->GetDepthOutput()->GetVulkanImage(),
+				VK_ACCESS_2_SHADER_SAMPLED_READ_BIT,
+				VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_READ_BIT,
+				VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL,
+				VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL,
+				VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+				VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT,
+				{ .aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = 1 }
+			);
+		});
 	}
 
 	void SceneRenderer::GeometryPass()
 	{
-		uint32_t frameIndex = Renderer::GetCurrentFrameIndex();
+		const uint32_t frameIndex = Renderer::GetCurrentFrameIndex();
+
+		// Memory Barriers for the StorageBarrier
+		Ref<SceneRenderer> instance = this;
+		Renderer::Submit([instance, frameIndex]() mutable
+		{
+			Renderer::InsertBufferMemoryBarrier(
+				instance->m_CommandBuffer->GetActiveCommandBuffer(),
+				instance->m_SBSVisibleSpotLightIndicesBuffer->Get(frameIndex)->GetVulkanBuffer(),
+				VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT,
+				VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT,
+				VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+				VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT
+			);
+		});
 
 		// Selected Geometry Isolation (Only happens when we have something selected, so as long we do not have anything selected we do not want to start these passes)
-		if (m_Specification.JumpFloodPass)
+		if (m_Specification.JumpFloodPass && (m_SelectedStaticMeshDrawList.size() != 0 || m_DoubleSidedSelectedStaticMeshDrawList.size() != 0))
 		{
 			Renderer::BeginRenderPass(m_CommandBuffer, m_SelectedGeometryPass);
 		
@@ -1450,37 +1724,24 @@ namespace Iris {
 		// Lit and Unlit
 		if (m_ViewMode == ViewMode::Lit || m_ViewMode == ViewMode::Unlit)
 		{
-			Ref<RenderPass> renderPassToUse = nullptr;
-			switch (m_ViewMode)
-			{
-				case ViewMode::Lit: renderPassToUse = m_GeometryPass; break;
-				case ViewMode::Unlit: renderPassToUse = m_GeometryPass; break;
-			}
-
-			Renderer::BeginRenderPass(m_CommandBuffer, renderPassToUse);
+			Renderer::BeginRenderPass(m_CommandBuffer, m_GeometryPass);
 
 			for (const auto& [mk, dc] : m_StaticMeshDrawList)
 			{
 				const auto& transformData = m_MeshTransformMap.at(mk);
-				Renderer::RenderStaticMesh(m_CommandBuffer, renderPassToUse->GetPipeline(), dc.StaticMesh, dc.MeshSource, dc.SubMeshIndex, dc.MaterialTable ? dc.MaterialTable : dc.StaticMesh->GetMaterials(), m_MeshTransformBuffers[frameIndex].VertexBuffer, transformData.TransformOffset, dc.InstanceCount);
+				Renderer::RenderStaticMesh(m_CommandBuffer, m_GeometryPass->GetPipeline(), dc.StaticMesh, dc.MeshSource, dc.SubMeshIndex, dc.MaterialTable ? dc.MaterialTable : dc.StaticMesh->GetMaterials(), m_MeshTransformBuffers[frameIndex].VertexBuffer, transformData.TransformOffset, dc.InstanceCount);
 			}
 
 			Renderer::EndRenderPass(m_CommandBuffer);
-
-			switch (m_ViewMode)
-			{
-				case ViewMode::Lit: renderPassToUse = m_DoubleSidedGeometryPass; break;
-				case ViewMode::Unlit: renderPassToUse = m_DoubleSidedGeometryPass; break;
-			}
 			
 			if (m_DoubleSidedStaticMeshDrawList.size())
 			{
-				Renderer::BeginRenderPass(m_CommandBuffer, renderPassToUse);
+				Renderer::BeginRenderPass(m_CommandBuffer, m_DoubleSidedGeometryPass);
 			
 				for (const auto& [mk, dc] : m_DoubleSidedStaticMeshDrawList)
 				{
 					const auto& transformData = m_MeshTransformMap.at(mk);
-					Renderer::RenderStaticMesh(m_CommandBuffer, renderPassToUse->GetPipeline(), dc.StaticMesh, dc.MeshSource, dc.SubMeshIndex, dc.MaterialTable ? dc.MaterialTable : dc.StaticMesh->GetMaterials(), m_MeshTransformBuffers[frameIndex].VertexBuffer, transformData.TransformOffset, dc.InstanceCount);
+					Renderer::RenderStaticMesh(m_CommandBuffer, m_DoubleSidedGeometryPass->GetPipeline(), dc.StaticMesh, dc.MeshSource, dc.SubMeshIndex, dc.MaterialTable ? dc.MaterialTable : dc.StaticMesh->GetMaterials(), m_MeshTransformBuffers[frameIndex].VertexBuffer, transformData.TransformOffset, dc.InstanceCount);
 				}
 			
 				Renderer::EndRenderPass(m_CommandBuffer);
@@ -1505,6 +1766,19 @@ namespace Iris {
 			
 			Renderer::EndRenderPass(m_CommandBuffer);
 		}
+	}
+
+	void SceneRenderer::SkyboxPass()
+	{
+		m_SkyboxMaterial->Set("u_Uniforms.TextureLod", m_SceneInfo.SkyboxLod);
+		m_SkyboxMaterial->Set("u_Uniforms.Intensity", m_SceneInfo.SceneEnvironmentIntensity);
+
+		const Ref<TextureCube> radianceMap = m_SceneInfo.SceneEnvironment ? m_SceneInfo.SceneEnvironment->RadianceMap : Renderer::GetBlackCubeTexture();
+		m_SkyboxMaterial->Set("u_Texture", radianceMap);
+
+		Renderer::BeginRenderPass(m_CommandBuffer, m_SkyboxPass);
+		Renderer::SubmitFullScreenQuad(m_CommandBuffer, m_SkyboxPass->GetPipeline(), m_SkyboxMaterial);
+		Renderer::EndRenderPass(m_CommandBuffer);
 	}
 
 	void SceneRenderer::JumpFloodPass()
@@ -1599,47 +1873,211 @@ namespace Iris {
 		vertexOverrides.Release();
 	}
 
+	void SceneRenderer::BloomPass()
+	{
+		Ref<SceneRenderer> instance = this;
+		glm::uvec3 workGroups{ 0 };
+
+		struct BloomComputePushConstants
+		{
+			glm::vec4 Params;
+			float UpsampleScale = 1.0f;
+			float LOD = 0.0f;
+		} bloomComputePushConstants;
+		bloomComputePushConstants.Params = { m_Options.BloomFilterThreshold, m_Options.BloomFilterThreshold - m_Options.BloomKnee, m_Options.BloomKnee * 2.0f, 0.25f / m_Options.BloomKnee };
+		bloomComputePushConstants.UpsampleScale = m_Options.BloomUpsampleScale;
+
+		const uint32_t mips = m_BloomTextures[0].Texture->GetMipLevelCount() - 2;
+
+		// PreFilter
+		{
+			Renderer::BeginComputePass(m_CommandBuffer, m_BloomPreFilterPass);
+
+			workGroups = { m_BloomTextures[0].Texture->GetWidth() / IR_BLOOM_COMPUTE_WORKGROUP_SIZE, m_BloomTextures[0].Texture->GetHeight() / IR_BLOOM_COMPUTE_WORKGROUP_SIZE, 1 };
+			Renderer::DispatchComputePass(m_CommandBuffer, m_BloomPreFilterPass, m_BloomMaterials.PreFilterMaterial, workGroups, Buffer(reinterpret_cast<const uint8_t*>(&bloomComputePushConstants), sizeof(bloomComputePushConstants)));
+
+			Renderer::Submit([instance]()
+			{
+				Renderer::InsertImageMemoryBarrier(
+					instance->m_CommandBuffer->GetActiveCommandBuffer(),
+					instance->m_BloomTextures[0].Texture->GetVulkanImage(),
+					VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT,
+					VK_ACCESS_2_SHADER_SAMPLED_READ_BIT,
+					VK_IMAGE_LAYOUT_GENERAL,
+					VK_IMAGE_LAYOUT_GENERAL,
+					VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+					VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+					{ .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .baseMipLevel = 0, .levelCount = instance->m_BloomTextures[0].Texture->GetMipLevelCount(), .baseArrayLayer = 0, .layerCount = 1}
+				);
+			});
+
+			Renderer::EndComputePass(m_CommandBuffer, m_BloomPreFilterPass);
+		}
+
+		// DownSample
+		{
+			Renderer::BeginComputePass(m_CommandBuffer, m_BloomDownSamplePass);
+
+			for (uint32_t i = 1; i < mips; i++)
+			{
+				const glm::ivec2 mipSize = m_BloomTextures[0].Texture->GetMipSize(i);
+				workGroups = { static_cast<uint32_t>(glm::ceil(static_cast<float>(mipSize.x) / static_cast<float>(IR_BLOOM_COMPUTE_WORKGROUP_SIZE))) ,static_cast<uint32_t>(glm::ceil(static_cast<float>(mipSize.y) / static_cast<float>(IR_BLOOM_COMPUTE_WORKGROUP_SIZE))), 1 };
+
+				// DownsampleA reads from m_BloomTextures[0] and Writes into m_BloomTextures[1];
+				bloomComputePushConstants.LOD = i - 1.0f;
+				Renderer::DispatchComputePass(m_CommandBuffer, m_BloomDownSamplePass, m_BloomMaterials.DownSampleAMaterials[i], workGroups, Buffer(reinterpret_cast<const uint8_t*>(&bloomComputePushConstants), sizeof(bloomComputePushConstants)));
+
+				Renderer::Submit([instance]()
+				{
+					// To Write
+					Renderer::InsertImageMemoryBarrier(
+						instance->m_CommandBuffer->GetActiveCommandBuffer(),
+						instance->m_BloomTextures[0].Texture->GetVulkanImage(),
+						VK_ACCESS_2_SHADER_SAMPLED_READ_BIT,
+						VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT,
+						VK_IMAGE_LAYOUT_GENERAL,
+						VK_IMAGE_LAYOUT_GENERAL,
+						VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+						VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+						{ .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .baseMipLevel = 0, .levelCount = instance->m_BloomTextures[0].Texture->GetMipLevelCount(), .baseArrayLayer = 0, .layerCount = 1 }
+					);
+
+					// To Read
+					Renderer::InsertImageMemoryBarrier(
+						instance->m_CommandBuffer->GetActiveCommandBuffer(),
+						instance->m_BloomTextures[1].Texture->GetVulkanImage(),
+						VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT,
+						VK_ACCESS_2_SHADER_SAMPLED_READ_BIT,
+						VK_IMAGE_LAYOUT_GENERAL,
+						VK_IMAGE_LAYOUT_GENERAL,
+						VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+						VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+						{ .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .baseMipLevel = 0, .levelCount = instance->m_BloomTextures[1].Texture->GetMipLevelCount(), .baseArrayLayer = 0, .layerCount = 1 }
+					);
+				});
+
+				// DownsampleB reads from m_BloomTextures[1] and Writes into m_BloomTextures[0];
+				bloomComputePushConstants.LOD = static_cast<float>(i);
+				Renderer::DispatchComputePass(m_CommandBuffer, m_BloomDownSamplePass, m_BloomMaterials.DownSampleBMaterials[i], workGroups, Buffer(reinterpret_cast<const uint8_t*>(&bloomComputePushConstants), sizeof(bloomComputePushConstants)));
+
+				Renderer::Submit([instance]()
+				{
+					Renderer::InsertImageMemoryBarrier(
+						instance->m_CommandBuffer->GetActiveCommandBuffer(),
+						instance->m_BloomTextures[0].Texture->GetVulkanImage(),
+						VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT,
+						VK_ACCESS_2_SHADER_SAMPLED_READ_BIT,
+						VK_IMAGE_LAYOUT_GENERAL,
+						VK_IMAGE_LAYOUT_GENERAL,
+						VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+						VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+						{ .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .baseMipLevel = 0, .levelCount = instance->m_BloomTextures[0].Texture->GetMipLevelCount(), .baseArrayLayer = 0, .layerCount = 1 }
+					);
+
+					Renderer::InsertImageMemoryBarrier(
+						instance->m_CommandBuffer->GetActiveCommandBuffer(),
+						instance->m_BloomTextures[1].Texture->GetVulkanImage(),
+						VK_ACCESS_2_SHADER_SAMPLED_READ_BIT,
+						VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT,
+						VK_IMAGE_LAYOUT_GENERAL,
+						VK_IMAGE_LAYOUT_GENERAL,
+						VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+						VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+						{ .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .baseMipLevel = 0, .levelCount = instance->m_BloomTextures[1].Texture->GetMipLevelCount(), .baseArrayLayer = 0, .layerCount = 1 }
+					);
+				});
+			}
+
+			Renderer::EndComputePass(m_CommandBuffer, m_BloomDownSamplePass);
+		}
+
+		// FirstUpSample
+		{
+			Renderer::BeginComputePass(m_CommandBuffer, m_BloomFirstUpSamplePass);
+
+			bloomComputePushConstants.LOD--;
+			const glm::ivec2 mipSize = m_BloomTextures[2].Texture->GetMipSize(mips - 2);
+			workGroups.x = static_cast<uint32_t>(glm::ceil(static_cast<float>(mipSize.x) / static_cast<float>(IR_BLOOM_COMPUTE_WORKGROUP_SIZE)));
+			workGroups.y = static_cast<uint32_t>(glm::ceil(static_cast<float>(mipSize.y) / static_cast<float>(IR_BLOOM_COMPUTE_WORKGROUP_SIZE)));
+
+			Renderer::DispatchComputePass(m_CommandBuffer, m_BloomFirstUpSamplePass, m_BloomMaterials.FirstUpSampleMaterial, workGroups, Buffer(reinterpret_cast<const uint8_t*>(&bloomComputePushConstants), sizeof(bloomComputePushConstants)));
+			
+			Renderer::Submit([instance]()
+			{
+				Renderer::InsertImageMemoryBarrier(
+					instance->m_CommandBuffer->GetActiveCommandBuffer(),
+					instance->m_BloomTextures[2].Texture->GetVulkanImage(),
+					VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT,
+					VK_ACCESS_2_SHADER_SAMPLED_READ_BIT,
+					VK_IMAGE_LAYOUT_GENERAL,
+					VK_IMAGE_LAYOUT_GENERAL,
+					VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+					VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+					{ .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .baseMipLevel = 0, .levelCount = instance->m_BloomTextures[2].Texture->GetMipLevelCount(), .baseArrayLayer = 0, .layerCount = 1 }
+				);
+			});
+
+			Renderer::EndComputePass(m_CommandBuffer, m_BloomFirstUpSamplePass);
+		}
+
+		// UpSample
+		{
+			Renderer::BeginComputePass(m_CommandBuffer, m_BloomUpSamplePass);
+
+			for (int32_t mip = mips - 3; mip >= 0; mip--)
+			{
+				const glm::ivec2 mipSize = m_BloomTextures[2].Texture->GetMipSize(mip);
+				workGroups.x = static_cast<uint32_t>(glm::ceil(static_cast<float>(mipSize.x) / static_cast<float>(IR_BLOOM_COMPUTE_WORKGROUP_SIZE)));
+				workGroups.y = static_cast<uint32_t>(glm::ceil(static_cast<float>(mipSize.y) / static_cast<float>(IR_BLOOM_COMPUTE_WORKGROUP_SIZE)));
+
+				bloomComputePushConstants.LOD = static_cast<float>(mip);
+				Renderer::DispatchComputePass(m_CommandBuffer, m_BloomUpSamplePass, m_BloomMaterials.UpSampleMaterials[mip], workGroups, Buffer(reinterpret_cast<const uint8_t*>(&bloomComputePushConstants), sizeof(bloomComputePushConstants)));
+
+				Renderer::Submit([instance, mip]()
+				{
+					Renderer::InsertImageMemoryBarrier(
+						instance->m_CommandBuffer->GetActiveCommandBuffer(),
+						instance->m_BloomTextures[2].Texture->GetVulkanImage(),
+						VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT,
+						VK_ACCESS_2_SHADER_SAMPLED_READ_BIT,
+						VK_IMAGE_LAYOUT_GENERAL,
+						VK_IMAGE_LAYOUT_GENERAL,
+						VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+						VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,
+						{ .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .baseMipLevel = 0, .levelCount = instance->m_BloomTextures[2].Texture->GetMipLevelCount(), .baseArrayLayer = 0, .layerCount = 1 }
+					);
+				});
+			}
+			
+			Renderer::EndComputePass(m_CommandBuffer, m_BloomUpSamplePass);
+		}
+	}
+
 	void SceneRenderer::CompositePass()
 	{
 		// Composite the final scene image and apply gamma correction and tone mapping
 
-		// Transition Geometry Pass image to shader read only format
 		Ref<SceneRenderer> instance = this;
-		Renderer::Submit([instance]()
-		{
-			Renderer::InsertImageMemoryBarrier(
-				instance->m_CommandBuffer->GetActiveCommandBuffer(),
-				instance->m_GeometryPass->GetOutput(0)->GetVulkanImage(),
-				VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
-				VK_ACCESS_2_SHADER_READ_BIT,
-				VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-				VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-				VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
-				VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,
-				{ .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = 1 }
-			);
-
-			if (instance->m_Options.DOFEnabled)
-			{
-				Renderer::InsertImageMemoryBarrier(
-					instance->m_CommandBuffer->GetActiveCommandBuffer(),
-					instance->m_PreDepthPass->GetDepthOutput()->GetVulkanImage(),
-					VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,  // Write access from the depth attachment
-					VK_ACCESS_2_SHADER_SAMPLED_READ_BIT,             // Read access by the fragment shader
-					VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL,        // Layout for depth attachment write
-					VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL,         // Layout for sampled read
-					VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT,    // Ensure writes during early fragment tests are done
-					VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,         // Reads will occur in the fragment shader
-					{ .aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = 1 }
-				);
-			}
-		});
-
-		uint32_t frameIndex = Renderer::GetCurrentFrameIndex();
+		const uint32_t frameIndex = Renderer::GetCurrentFrameIndex();
 
 		const float exposure = m_SceneInfo.Camera.Camera.GetExposure();
 
+		// We set this every frame so that we can always set the proper dirt texture in case it was changed
+		m_CompositePass->SetInput("u_BloomDirtTexture", m_BloomDirtTexture);
+
 		m_CompositeMaterial->Set("u_Uniforms.Exposure", exposure);
+		if (m_Options.BloomEnabled)
+		{
+			m_CompositeMaterial->Set("u_Uniforms.BloomIntensity", m_Options.BloomIntensity);
+			m_CompositeMaterial->Set("u_Uniforms.BloomDirtIntensity", m_Options.BloomDirtIntensity);
+			m_CompositeMaterial->Set("u_Uniforms.BloomUpsampleScale", m_Options.BloomUpsampleScale);
+		}
+		else
+		{
+			m_CompositeMaterial->Set("u_Uniforms.BloomIntensity", 0.0f);
+			m_CompositeMaterial->Set("u_Uniforms.BloomDirtIntensity", 0.0f);
+			m_CompositeMaterial->Set("u_Uniforms.BloomUpsampleScale", 0.5f);
+		}
 		m_CompositeMaterial->Set("u_Uniforms.Opacity", m_Opacity);
 		m_CompositeMaterial->Set("u_Uniforms.Time", Application::Get().GetTime());
 
@@ -1675,35 +2113,23 @@ namespace Iris {
 
 			Renderer::Submit([instance]()
 			{
-				// TODO: Here we have a read after write hazard
 				Renderer::InsertImageMemoryBarrier(
 					instance->m_CommandBuffer->GetActiveCommandBuffer(),
 					instance->m_PreDepthPass->GetDepthOutput()->GetVulkanImage(),
+					VK_ACCESS_2_SHADER_SAMPLED_READ_BIT,
 					VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_READ_BIT,
-					VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
 					VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL,
 					VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL,
-					VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT,
+					VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,
 					VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT,
 					{ .aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = 1 }
 				);
-				// Renderer::InsertImageMemoryBarrier(
-				// 	instance->m_CommandBuffer->GetActiveCommandBuffer(),
-				// 	instance->m_PreDepthPass->GetDepthOutput()->GetVulkanImage(),
-				// 	VK_ACCESS_2_MEMORY_READ_BIT | VK_ACCESS_2_MEMORY_WRITE_BIT,
-				// 	VK_ACCESS_2_MEMORY_READ_BIT | VK_ACCESS_2_MEMORY_WRITE_BIT,
-				// 	VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL,
-				// 	VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL,
-				// 	VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
-				// 	VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
-				// 	{ .aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = 1 }
-				// );
 			});
 		}
 
 		if (m_Options.ShowGrid)
 		{
-			m_GridMaterial->Set("u_Uniforms.Scale", m_TranslationSnapValue);
+			m_GridMaterial->Set("u_Uniforms.Scale", EditorSettings::Get().TranslationSnapValue);
 			Renderer::BeginRenderPass(m_CommandBuffer, m_GridPass);
 			Renderer::SubmitFullScreenQuad(m_CommandBuffer, m_GridPass->GetPipeline(), m_GridMaterial);
 			Renderer::EndRenderPass(m_CommandBuffer);
@@ -1757,7 +2183,7 @@ namespace Iris {
 		if (m_Options.ShowPhysicsColliders)
 		{
 			m_SimpleColliderMaterial->Set("u_Uniforms.Color", Project::GetActive()->GetConfig().ViewportSimple3DColliderOutlineColor);
-			m_ComplexColliderMaterial->Set("u_Uniforms.Color", Project::GetActive()->GetConfig().ViewportSimple3DColliderOutlineColor);
+			m_ComplexColliderMaterial->Set("u_Uniforms.Color", Project::GetActive()->GetConfig().ViewportComplex3DColliderOutlineColor);
 
 			Renderer::BeginRenderPass(m_CommandBuffer, m_GeometryWireFramePass);
 
@@ -1768,6 +2194,46 @@ namespace Iris {
 			}
 
 			Renderer::EndRenderPass(m_CommandBuffer);
+		}
+	}
+
+	void SceneRenderer::CreateBloomPassMaterials()
+	{
+		Ref<Texture2D> inputImage = m_GeometryPass->GetOutput(0);
+
+		// Prefilter
+		m_BloomMaterials.PreFilterMaterial = Material::Create(Renderer::GetShadersLibrary()->Get("Bloom-Prefilter"), "Bloom-Prefilter");
+		m_BloomMaterials.PreFilterMaterial->Set("o_Image", m_BloomTextures[0].ImageViews[0]);
+		m_BloomMaterials.PreFilterMaterial->Set("u_Texture", inputImage);
+
+		// Downsample
+		const uint32_t mips = m_BloomTextures[0].Texture->GetMipLevelCount() - 2;
+		m_BloomMaterials.DownSampleAMaterials.resize(mips);
+		m_BloomMaterials.DownSampleBMaterials.resize(mips);
+		for (uint32_t i = 0; i < mips; i++)
+		{
+			m_BloomMaterials.DownSampleAMaterials[i] = Material::Create(Renderer::GetShadersLibrary()->Get("Bloom-Downsample"), "Bloom-DownsampleA");
+			m_BloomMaterials.DownSampleAMaterials[i]->Set("o_Image", m_BloomTextures[1].ImageViews[i]);
+			m_BloomMaterials.DownSampleAMaterials[i]->Set("u_Texture", m_BloomTextures[0].Texture);
+
+			m_BloomMaterials.DownSampleBMaterials[i] = Material::Create(Renderer::GetShadersLibrary()->Get("Bloom-Downsample"), "Bloom-DownsampleB");
+			m_BloomMaterials.DownSampleBMaterials[i]->Set("o_Image", m_BloomTextures[0].ImageViews[i]);
+			m_BloomMaterials.DownSampleBMaterials[i]->Set("u_Texture", m_BloomTextures[1].Texture);
+		}
+
+		// First Upsample
+		m_BloomMaterials.FirstUpSampleMaterial = Material::Create(Renderer::GetShadersLibrary()->Get("Bloom-FirstUpsample"), "Bloom-FirstUpsample");
+		m_BloomMaterials.FirstUpSampleMaterial->Set("o_Image", m_BloomTextures[2].ImageViews[mips - 2]);
+		m_BloomMaterials.FirstUpSampleMaterial->Set("u_Texture", m_BloomTextures[0].Texture);
+
+		// Upsample
+		m_BloomMaterials.UpSampleMaterials.resize(mips - 3 + 1);
+		for (int32_t mip = mips - 3; mip >= 0; mip--)
+		{
+			m_BloomMaterials.UpSampleMaterials[mip] = Material::Create(Renderer::GetShadersLibrary()->Get("Bloom-Upsample"), "Bloom-Upsample");
+			m_BloomMaterials.UpSampleMaterials[mip]->Set("o_Image", m_BloomTextures[2].ImageViews[mip]);
+			m_BloomMaterials.UpSampleMaterials[mip]->Set("u_Texture", m_BloomTextures[0].Texture);
+			m_BloomMaterials.UpSampleMaterials[mip]->Set("u_BloomTexture", m_BloomTextures[2].Texture);
 		}
 	}
 

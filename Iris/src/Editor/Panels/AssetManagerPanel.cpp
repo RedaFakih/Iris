@@ -24,9 +24,9 @@ namespace Iris {
 				
 				UI::BeginPropertyGrid();
 
-				static const char* filterOptions[8] = { "None", "Texture", "StaticMesh", "MeshSource", "Material", "Scene", "Font", "EnvironmentMap" };
+				static const char* filterOptions[9] = { "None", "Texture", "StaticMesh", "MeshSource", "MeshCollider", "Material", "Scene", "Font", "EnvironmentMap" };
 				static int selectedIndex = 0;
-				UI::PropertyDropdown("Type Filter", filterOptions, 8, &selectedIndex, "Set a filter for the asset types to display");
+				UI::PropertyDropdown("Type Filter", filterOptions, 9, &selectedIndex, "Set a filter for the asset types to display");
 				AssetType assetTypeFilter = Utils::AssetTypeFromString(filterOptions[selectedIndex]);
 
 				static bool s_AllowEditing = false;

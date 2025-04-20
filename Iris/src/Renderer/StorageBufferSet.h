@@ -6,6 +6,7 @@
 
 namespace Iris {
 
+	// TODO: Resize
 	class StorageBufferSet : public RefCountedObject
 	{
 	public:
@@ -19,6 +20,7 @@ namespace Iris {
 
 		Ref<StorageBuffer> Get();
 		Ref<StorageBuffer> RT_Get();
+		void Resize(uint32_t newSize);
 
 		inline Ref<StorageBuffer> Get(uint32_t frameInFlight)
 		{

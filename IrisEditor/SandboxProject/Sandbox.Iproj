@@ -28,6 +28,9 @@ Project:
     Core:
       Enabled: true
       LevelFilter: Trace
+    Editor:
+      Enabled: true
+      LevelFilter: Trace
     Mesh:
       Enabled: true
       LevelFilter: Trace

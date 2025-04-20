@@ -21,9 +21,9 @@ void main()
 {
 	vec4 position = vec4(a_Position.xy, 0.0f, 1.0f);
 
-	v_Position = (u_Camera.InverseViewProjectionMatrix * position).xyz;
-	// Silence unused attribute warning...
-	gl_Position = vec4(a_TexCoord, 0.0f, 1.0f);	
+	v_Position = mat3(u_Camera.InverseViewMatrix) * vec3(u_Camera.InverseProjectionMatrix * position);
+	// Silence unused warnings...
+	gl_Position = vec4(a_TexCoord, 0.0f, 1.0f);
 	gl_Position = position;
 }
 

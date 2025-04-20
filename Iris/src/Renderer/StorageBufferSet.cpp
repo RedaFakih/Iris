@@ -26,4 +26,10 @@ namespace Iris {
 		return Get(frame);
 	}
 
+	void StorageBufferSet::Resize(uint32_t newSize)
+	{
+		for (uint32_t frame = 0; frame < Renderer::GetConfig().FramesInFlight; frame++)
+			m_StorageBuffers.at(frame)->Resize(newSize);
+	}
+
 }

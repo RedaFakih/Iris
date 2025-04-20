@@ -139,12 +139,13 @@ namespace Iris::UI {
 		s_UIContextID--;
 	}
 
-	void SetToolTip(std::string_view text, float delayInSeconds, bool allowWhenDisabled, ImVec2 padding)
+	void SetToolTip(std::string_view text, bool useCurrentColorStack, float delayInSeconds, bool allowWhenDisabled, ImVec2 padding)
 	{
 		if (IsItemHovered(delayInSeconds, allowWhenDisabled ? ImGuiHoveredFlags_AllowWhenDisabled : 0))
 		{
 			UI::ImGuiScopedStyle tooltipPadding(ImGuiStyleVar_WindowPadding, padding);
-			UI::ImGuiScopedColor textCol(ImGuiCol_Text, Colors::Theme::TextBrighter);
+			if (!useCurrentColorStack)
+				UI::ImGuiScopedColor textCol(ImGuiCol_Text, Colors::Theme::TextBrighter);
 			ImGui::SetTooltip(text.data());
 		}
 	}
@@ -623,6 +624,7 @@ namespace Iris::UI {
 		sprintf_s(s_IDBuffer + 2, 14, "%o", s_Counter++); // %o converts to octal (base 8)
 
 		ImGui::PushItemWidth(-1);
+
 		if (isError)
 			ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(204, 51, 76.5, 255));
 		if (ImGui::InputText(s_IDBuffer, (char*)value, strlen(value)))
@@ -632,6 +634,42 @@ namespace Iris::UI {
 		}
 		if (isError)
 			ImGui::PopStyleColor();
+
+		ImGui::PopItemWidth();
+
+		ImGui::NextColumn();
+		UnderLine();
+
+		return modified;
+	}
+
+	bool PropertyInputString(const char* label, std::string* value, const char* helpText, ImGuiInputTextFlags flags, ImGuiInputTextCallback callback, void* user_data)
+	{
+		ShiftCursor(10.0f, 9.0f);
+		ImGui::Text(label);
+
+		if (std::strlen(helpText) != 0)
+		{
+			ImGui::SameLine();
+			ShowHelpMarker(helpText);
+		}
+
+		ImGui::NextColumn();
+		ShiftCursorY(4.0f);
+
+		bool modified = false;
+
+		s_IDBuffer[0] = '#';
+		s_IDBuffer[1] = '#';
+		memset(s_IDBuffer + 2, 0, 14);
+		sprintf_s(s_IDBuffer + 2, 14, "%o", s_Counter++); // %o converts to octal (base 8)
+
+		ImGui::PushItemWidth(-1);
+
+		modified = ImGui::InputText(s_IDBuffer, value, flags, callback, user_data);
+
+		if (!IsItemDisabled())
+			DrawItemActivityOutline();
 
 		ImGui::PopItemWidth();
 
@@ -715,10 +753,12 @@ namespace Iris::UI {
 		ShiftCursorY(4.0f);
 
 		ImGui::PushItemWidth(-1);
+
 		bool modified = ImGui::DragFloat(fmt::format("##{0}", label).c_str(), &value, delta, min, max);
 
 		if (!IsItemDisabled())
 			DrawItemActivityOutline();
+
 		ImGui::PopItemWidth();
 
 		ImGui::NextColumn();
@@ -742,10 +782,12 @@ namespace Iris::UI {
 		ShiftCursorY(4.0f);
 
 		ImGui::PushItemWidth(-1);
+
 		bool modified = ImGui::DragInt(fmt::format("##{0}", label).c_str(), reinterpret_cast<int*>(&value), static_cast<float>(delta), min, max);
 
 		if (!IsItemDisabled())
 			DrawItemActivityOutline();
+
 		ImGui::PopItemWidth();
 
 		ImGui::NextColumn();
@@ -782,7 +824,7 @@ namespace Iris::UI {
 		return modified;
 	}
 
-	bool PropertySlider(const char* label, uint32_t& value, uint32_t min, uint32_t max, const char* format, const char* helpText)
+	bool PropertySlider(const char* label, uint32_t& value, uint32_t min, uint32_t max, const char* helpText)
 	{
 		ShiftCursor(10.0f, 9.0f);
 		ImGui::Text(label);
@@ -797,10 +839,12 @@ namespace Iris::UI {
 		ShiftCursorY(4.0f);
 
 		ImGui::PushItemWidth(-1);
-		bool modified = ImGui::SliderInt(fmt::format("##{0}", label).c_str(), reinterpret_cast<int*>(&value), min, max, format);
+
+		bool modified = ImGui::SliderInt(fmt::format("##{0}", label).c_str(), reinterpret_cast<int*>(&value), min, max);
 
 		if (!IsItemDisabled())
 			DrawItemActivityOutline();
+
 		ImGui::PopItemWidth();
 
 		ImGui::NextColumn();
@@ -824,10 +868,12 @@ namespace Iris::UI {
 		ShiftCursorY(4.0f);
 
 		ImGui::PushItemWidth(-1);
+
 		bool modified = ImGui::SliderFloat(fmt::format("##{0}", label).c_str(), &value, min, max, format);
 
 		if (!IsItemDisabled())
 			DrawItemActivityOutline();
+
 		ImGui::PopItemWidth();
 
 		ImGui::NextColumn();
@@ -851,10 +897,12 @@ namespace Iris::UI {
 		ShiftCursorY(4.0f);
 
 		ImGui::PushItemWidth(-1);
+
 		bool modified = ImGui::SliderFloat2(fmt::format("##{0}", label).c_str(), (float*)&value, min, max, format);
 
 		if (!IsItemDisabled())
 			DrawItemActivityOutline();
+		
 		ImGui::PopItemWidth();
 
 		ImGui::NextColumn();
@@ -1798,7 +1846,7 @@ namespace Iris::UI {
 					UI::ImGuiScopedColor buttonColor(ImGuiCol_Button, colorN);
 					UI::ImGuiScopedColor buttonColorHovered(ImGuiCol_ButtonHovered, colorH);
 					UI::ImGuiScopedColor buttonColorActive(ImGuiCol_ButtonActive, colorP);
-					UI::ImGuiScopedFont font(fontsLibrary.GetFont("RobotoBold"));
+					UI::ImGuiScopedFont font(fontsLibrary.GetFont(DefaultFonts::Bold));
 
 					if (ImGui::Button(label.c_str(), buttonSize))
 					{
@@ -2139,9 +2187,11 @@ namespace Iris::UI {
 		if (sectionIndex > 0)
 			UI::ShiftCursorY(5.5f);
 
-		fontsLib.PushFont("RobotoBold");
+		fontsLib.PushFont(DefaultFonts::Bold);
 
-		float halfHeight = ImGui::CalcTextSize(name).y / 2.0f;
+		ImVec2 textSize = ImGui::CalcTextSize(name);
+
+		float halfHeight = textSize.y / 2.0f;
 		ImVec2 p1 = { 0.0f, halfHeight };
 		ImVec2 p2 = { 14.0f, halfHeight };
 		UI::UnderLine(Colors::Theme::TextDarker, false, p1, p2, 3.0f);
@@ -2152,9 +2202,13 @@ namespace Iris::UI {
 		fontsLib.PopFont();
 
 		ImVec2 cursorPos = ImGui::GetCursorPos();
-		ImGui::SameLine();
+		// 14.0f for first line
+		// textSize.x for text width
+		// 17.0f for CursorShift
+		// -1.0f adjustment for looks
+		ImGui::SameLine((14.0f + textSize.x + 17.0f) - 1.0f);
 
-		UI::UnderLine(false, 3.0f, halfHeight, 3.0f, Colors::Theme::TextDarker);
+		UI::UnderLine(false, 1.0f, halfHeight, 3.0f, Colors::Theme::TextDarker);
 		ImGui::SetCursorPos(cursorPos);
 
 		bool result = ImGui::BeginTable("##section_table", columns2 ? 2 : 1, ImGuiTableFlags_SizingStretchSame);
@@ -2163,6 +2217,12 @@ namespace Iris::UI {
 			ImGui::TableSetupColumn("Labels", ImGuiTableColumnFlags_WidthFixed, column1Width == 0.0f ? popupWidth * 0.5f : column1Width);
 			if (columns2)
 				ImGui::TableSetupColumn("Widgets", ImGuiTableColumnFlags_WidthFixed, column2Width == 0.0f ? popupWidth * 0.5f : column2Width);
+		}
+
+		if (!columns2)
+		{
+			ImGui::TableNextRow();
+			ImGui::TableSetColumnIndex(0);
 		}
 
 		sectionIndex++;
@@ -2222,6 +2282,23 @@ namespace Iris::UI {
 		return UI::SliderFloat(UI::GenerateID(), &value, min, max);
 	}
 
+	bool SectionSlider(const char* label, int& value, int min, int max, const char* hint)
+	{
+		ImGui::TableNextRow();
+		ImGui::TableSetColumnIndex(0);
+		ImVec2 cursorPos = ImGui::GetCursorPos();
+		ImGui::TextUnformatted(label);
+		ImVec2 size = ImGui::CalcTextSize(label);
+		ImVec2 cursorPosToReset = ImGui::GetCursorPos();
+		ImGui::SetCursorPos(cursorPos);
+		ImGui::InvisibleButton(UI::GenerateID(), size);
+		UI::SetToolTip(hint);
+		ImGui::TableSetColumnIndex(1);
+		ImGui::SetNextItemWidth(-1);
+		UI::ShiftCursor(GImGui->Style.FramePadding.x, -GImGui->Style.FramePadding.y);
+		return UI::SliderInt32(UI::GenerateID(), &value, min, max);
+	}
+
 	bool SectionDrag(const char* label, float& value, float delta, float min, float max, const char* hint)
 	{
 		ImGui::TableNextRow();
@@ -2273,6 +2350,7 @@ namespace Iris::UI {
 			}
 			UI::EndCombo();
 		}
+
 		ImGui::PopItemWidth();
 
 		return result;

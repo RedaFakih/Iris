@@ -5,6 +5,7 @@
 #include "Core/Ray.h"
 #include "Editor/AssetEditorPanel.h"
 #include "Editor/EditorResources.h"
+#include "Editor/EditorSettings.h"
 #include "Editor/Panels/AssetManagerPanel.h"
 #include "Editor/Panels/ECSDebugPanel.h"
 #include "Editor/Panels/SceneHierarchyPanel.h"
@@ -100,15 +101,15 @@ namespace Iris {
 		sceneHierarchyPanel->SetEntityDeletedCallback([this](Entity entity) { OnEntityDeleted(entity); });
 		sceneHierarchyPanel->AddEntityContextMenuPlugin([this](Entity entity) { SceneHierarchySetEditorCameraTransform(entity); });
 
+		Ref<ContentBrowserPanel> contentBrowser = m_PanelsManager->AddPanel<ContentBrowserPanel>(PanelCategory::View, "ContentBrowserPanel", "Content Browser", true);
+		contentBrowser->RegisterItemActivateCallback(AssetType::Scene, [this](const AssetMetaData& metadata)
+		{
+			OpenScene(metadata);
+		});
+
 		m_PanelsManager->AddPanel<ShadersPanel>(PanelCategory::View, "ShadersPanel", "Shaders", false);
 		m_PanelsManager->AddPanel<AssetManagerPanel>(PanelCategory::View, "AssetManagerPanel", "Asset Manager", false);
 		Ref<SceneRendererPanel> sceneRendererPanel = m_PanelsManager->AddPanel<SceneRendererPanel>(PanelCategory::View, "SceneRendererPanel", "Scene Renderer", true);
-
-		Ref<ContentBrowserPanel> contentBrowser = m_PanelsManager->AddPanel<ContentBrowserPanel>(PanelCategory::View, "ContentBrowserPanel", "Content Browser", true);
-		//contentBrowser->RegisterItemActivateCallbackForType(AssetType::Scene, [this](const AssetMetadata& metadata)
-		//{
-		//	OpenScene(metadata);
-		//});
 
 #ifdef IR_CONFIG_DEBUG
 		m_PanelsManager->AddPanel<ECSDebugPanel>(PanelCategory::View, "ECSDebugPanel", "ECS", false, m_CurrentScene);
@@ -117,13 +118,10 @@ namespace Iris {
 		if (!m_UserPreferences->StartupProject.empty())
 			OpenProject(m_UserPreferences->StartupProject);
 		else
-			IR_VERIFY(false, "No Project provided");
+			IR_VERIFY(false, "No Startup Project provided");
 
 		if (!Project::GetActive())
 			EmptyProject();
-
-		// TODO: This is here so that we can set the asset directory after the asset manager has been initialized, should be removed after we rework the content browser panel
-		contentBrowser->SetBaseDirectory(Project::GetAssetDirectory());
 
 		m_ViewportRenderer = SceneRenderer::Create(m_CurrentScene, { .RendererScale = 1.0f });
 		m_ViewportRenderer->SetLineWidth(m_LineWidth);
@@ -138,8 +136,8 @@ namespace Iris {
 	void EditorLayer::OnDetach()
 	{
 		EditorResources::Shutdown();
-		CloseProject(true);
 		AssetEditorPanel::UnregisterAllEditors();
+		CloseProject(true);
 	}
 
 	void EditorLayer::OnUpdate(TimeStep ts)
@@ -206,11 +204,14 @@ namespace Iris {
 		// Set jump flood pass on or off based on if we have selected something in the past frame...
 		m_ViewportRenderer->GetSpecification().JumpFloodPass = SelectionManager::GetSelectionCount(SelectionContext::Scene) > 0;
 
+		if (!m_MainWindowPanelTabOpened)
+			return;
+
 		switch (m_SceneState)
 		{
 			case SceneState::Edit:
 			{
-				m_CurrentScene->OnRenderEditor(m_ViewportRenderer, ts, m_EditorCamera);
+				m_CurrentScene->OnRenderEditor(m_ViewportRenderer, m_EditorCamera);
 
 				OnRender2D();
 
@@ -220,20 +221,24 @@ namespace Iris {
 			{
 				if (m_AllowEditorCameraInRuntime)
 				{
-					m_RuntimeScene->OnRenderEditor(m_ViewportRenderer, ts, m_EditorCamera);
+					m_RuntimeScene->OnRenderEditor(m_ViewportRenderer, m_EditorCamera);
 
 					OnRender2D();
 				}
 				else
 				{
-					m_RuntimeScene->OnRenderRuntime(m_ViewportRenderer, ts);
+					m_RuntimeScene->OnRenderRuntime(m_ViewportRenderer);
+
+					OnRender2D(true);
 				}
 
 				break;
 			}
 			case SceneState::Pause:
 			{
-				m_RuntimeScene->OnRenderRuntime(m_ViewportRenderer, ts);
+				m_RuntimeScene->OnRenderRuntime(m_ViewportRenderer);
+
+				OnRender2D(true);
 
 				break;
 			}
@@ -245,7 +250,7 @@ namespace Iris {
 		SelectionManager::Deselect(SelectionContext::Scene, e.GetUUID());
 	}
 
-	void EditorLayer::OnRender2D()
+	void EditorLayer::OnRender2D(bool onlyTransitionImages)
 	{
 		if (!m_ViewportRenderer->GetFinalPassImage())
 			return;
@@ -253,81 +258,120 @@ namespace Iris {
 		m_Renderer2D->ResetStats();
 		m_Renderer2D->BeginScene(m_EditorCamera.GetViewProjection(), m_EditorCamera.GetViewMatrix());
 
-		if (m_ShowBoundingBoxes)
+		if (onlyTransitionImages == false)
 		{
-			if (m_ShowBoundingBoxSelectedMeshOnly)
+			if (m_ShowBoundingBoxes)
 			{
-				const std::vector<UUID>& selectedEntites = SelectionManager::GetSelections(SelectionContext::Scene);
-				for (const UUID entityID : selectedEntites)
+				if (m_ShowBoundingBoxSelectedMeshOnly)
 				{
-					Entity entity = m_CurrentScene->GetEntityWithUUID(entityID);
-
-					if (!entity.HasComponent<VisibleComponent>())
-						continue;
-
-					const StaticMeshComponent* staticMeshComponent = entity.TryGetComponent<StaticMeshComponent>();
-					if (staticMeshComponent)
+					const std::vector<UUID>& selectedEntites = SelectionManager::GetSelections(SelectionContext::Scene);
+					for (const UUID entityID : selectedEntites)
 					{
-						Ref<StaticMesh> staticMesh = AssetManager::GetAssetAsync<StaticMesh>(staticMeshComponent->StaticMesh);
-						if (staticMesh)
-						{
-							Ref<MeshSource> meshSource = AssetManager::GetAssetAsync<MeshSource>(staticMesh->GetMeshSource());
-							if (meshSource)
-							{
-								if (m_ShowBoundingBoxSubMeshes)
-								{
-									const std::vector<uint32_t>& subMeshIndices = staticMesh->GetSubMeshes();
-									const std::vector<MeshUtils::SubMesh>& subMeshes = meshSource->GetSubMeshes();
+						Entity entity = m_CurrentScene->GetEntityWithUUID(entityID);
 
-									for (uint32_t subMeshIndex : subMeshIndices)
+						if (!entity.HasComponent<VisibleComponent>())
+							continue;
+
+						const StaticMeshComponent* staticMeshComponent = entity.TryGetComponent<StaticMeshComponent>();
+						if (staticMeshComponent)
+						{
+							Ref<StaticMesh> staticMesh = AssetManager::GetAssetAsync<StaticMesh>(staticMeshComponent->StaticMesh);
+							if (staticMesh)
+							{
+								Ref<MeshSource> meshSource = AssetManager::GetAssetAsync<MeshSource>(staticMesh->GetMeshSource());
+								if (meshSource)
+								{
+									if (m_ShowBoundingBoxSubMeshes)
+									{
+										const std::vector<uint32_t>& subMeshIndices = staticMesh->GetSubMeshes();
+										const std::vector<MeshUtils::SubMesh>& subMeshes = meshSource->GetSubMeshes();
+
+										for (uint32_t subMeshIndex : subMeshIndices)
+										{
+											glm::mat4 transform = m_CurrentScene->GetWorldSpaceTransformMatrix(entity);
+											const AABB& aabb = subMeshes[subMeshIndex].BoundingBox;
+											m_Renderer2D->DrawAABB(aabb, transform * subMeshes[subMeshIndex].Transform, { 1.0f, 1.0f, 1.0f, 1.0f });
+										}
+									}
+									else
 									{
 										glm::mat4 transform = m_CurrentScene->GetWorldSpaceTransformMatrix(entity);
-										const AABB& aabb = subMeshes[subMeshIndex].BoundingBox;
-										m_Renderer2D->DrawAABB(aabb, transform * subMeshes[subMeshIndex].Transform, { 1.0f, 1.0f, 1.0f, 1.0f });
+										const AABB& aabb = meshSource->GetBoundingBox();
+										m_Renderer2D->DrawAABB(aabb, transform, { 1.0f, 1.0f, 1.0f, 1.0f });
 									}
-								}
-								else
-								{
-									glm::mat4 transform = m_CurrentScene->GetWorldSpaceTransformMatrix(entity);
-									const AABB& aabb = meshSource->GetBoundingBox();
-									m_Renderer2D->DrawAABB(aabb, transform, { 1.0f, 1.0f, 1.0f, 1.0f });
 								}
 							}
 						}
 					}
 				}
-			}
-			else
-			{
-				auto staticMeshEntities = m_CurrentScene->GetAllEntitiesWith<StaticMeshComponent, VisibleComponent>();
-				for (auto e : staticMeshEntities)
+				else
 				{
-					Entity entity = { e, m_CurrentScene.Raw() };
-
-					glm::mat4 transform = m_CurrentScene->GetWorldSpaceTransformMatrix(entity);
-					Ref<StaticMesh> staticMesh = AssetManager::GetAssetAsync<StaticMesh>(entity.GetComponent<StaticMeshComponent>().StaticMesh);
-					if (staticMesh)
+					auto staticMeshEntities = m_CurrentScene->GetAllEntitiesWith<StaticMeshComponent, VisibleComponent>();
+					for (auto e : staticMeshEntities)
 					{
-						Ref<MeshSource> meshSource = AssetManager::GetAssetAsync<MeshSource>(staticMesh->GetMeshSource());
-						if (meshSource)
+						Entity entity = { e, m_CurrentScene.Raw() };
+
+						glm::mat4 transform = m_CurrentScene->GetWorldSpaceTransformMatrix(entity);
+						Ref<StaticMesh> staticMesh = AssetManager::GetAssetAsync<StaticMesh>(entity.GetComponent<StaticMeshComponent>().StaticMesh);
+						if (staticMesh)
 						{
-							const AABB& aabb = meshSource->GetBoundingBox();
-							m_Renderer2D->DrawAABB(aabb, transform, { 1.0f, 1.0f, 1.0f, 1.0f });
+							Ref<MeshSource> meshSource = AssetManager::GetAssetAsync<MeshSource>(staticMesh->GetMeshSource());
+							if (meshSource)
+							{
+								const AABB& aabb = meshSource->GetBoundingBox();
+								m_Renderer2D->DrawAABB(aabb, transform, { 1.0f, 1.0f, 1.0f, 1.0f });
+							}
 						}
 					}
 				}
 			}
-		}
 
-		if (m_ShowIcons)
-		{
+			if (m_ShowIcons)
 			{
-				auto entities = m_CurrentScene->GetAllEntitiesWith<CameraComponent>();
-				for (auto e : entities)
+				// Point Lights
 				{
-					Entity entity = { e, m_CurrentScene.Raw() };
-					m_Renderer2D->DrawQuadBillboard(m_CurrentScene->GetWorldSpaceTransform(entity).Translation, { 1.0f, 1.0f }, EditorResources::CameraIcon);
+					auto entities = m_CurrentScene->GetAllEntitiesWith<PointLightComponent, VisibleComponent>();
+					for (auto e : entities)
+					{
+						Entity entity = { e, m_CurrentScene.Raw() };
+						m_Renderer2D->DrawQuadBillboard(m_CurrentScene->GetWorldSpaceTransform(entity).Translation, { 1.0f, 1.0f }, EditorResources::PointLightIcon);
+					}
 				}
+
+				// Spot Lights
+				{
+					auto entities = m_CurrentScene->GetAllEntitiesWith<SpotLightComponent, VisibleComponent>();
+					for (auto e : entities)
+					{
+						Entity entity = { e, m_CurrentScene.Raw() };
+						m_Renderer2D->DrawQuadBillboard(m_CurrentScene->GetWorldSpaceTransform(entity).Translation, { 1.0f, 1.0f }, EditorResources::SpotLightIcon);
+					}
+				}
+
+				// Cameras
+				{
+					auto entities = m_CurrentScene->GetAllEntitiesWith<CameraComponent, VisibleComponent>();
+					for (auto e : entities)
+					{
+						Entity entity = { e, m_CurrentScene.Raw() };
+						m_Renderer2D->DrawQuadBillboard(m_CurrentScene->GetWorldSpaceTransform(entity).Translation, { 1.0f, 1.0f }, EditorResources::CameraIcon);
+					}
+				}
+			}
+
+			const std::vector<UUID>& selectedEntities = SelectionManager::GetSelections(SelectionContext::Scene);
+			for (const UUID entityID : selectedEntities)
+			{
+				Entity entity = m_CurrentScene->GetEntityWithUUID(entityID);
+
+				if (!entity.HasComponent<PointLightComponent>())
+					continue;
+
+				const PointLightComponent& plc = entity.GetComponent<PointLightComponent>();
+				glm::vec3 translation = m_CurrentScene->GetWorldSpaceTransform(entity).Translation;
+				m_Renderer2D->DrawCircle(translation, { 0.0f, 0.0f, 0.0f }, plc.Radius, { plc.Radiance, 1.0f });
+				m_Renderer2D->DrawCircle(translation, { glm::radians(90.0f), 0.0f, 0.0f }, plc.Radius, { plc.Radiance, 1.0f });
+				m_Renderer2D->DrawCircle(translation, { 0.0f, glm::radians(90.0f), 0.0f }, plc.Radius, { plc.Radiance, 1.0f });
 			}
 		}
 
@@ -368,11 +412,7 @@ namespace Iris {
 		if (!m_ShowOnlyViewport)
 			AssetEditorPanel::OnImGuiRender();
 
-		if (m_ShowNewSceneModal && !m_ShowOnlyViewport)
-			UI_ShowNewSceneModal();
-
-		if (m_ShowNewProjectModal && !m_ShowOnlyViewport)
-			UI_ShowNewProjectModal();
+		UI::RenderMessageBoxes();
 
 		UI_EndDocking();
 
@@ -445,9 +485,8 @@ namespace Iris {
 		window_flags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
 		window_flags |= ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
 
-		GLFWwindow* window = Application::Get().GetWindow().GetNativeWindow();
-		bool isMaximized = (bool)glfwGetWindowAttrib(window, GLFW_MAXIMIZED);
-		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, isMaximized ? ImVec2(6.0f, 6.0f) : ImVec2(1.0f, 1.0f));
+		bool isMaximized = Application::Get().GetWindow().IsMaximized();
+		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, isMaximized ? ImVec2{ 6.0f, 6.0f } : ImVec2{ 1.0f, 1.0f });
 		ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 3.0f);
 	
 		ImGui::PushStyleColor(ImGuiCol_MenuBarBg, ImVec4{ 0.0f, 0.0f, 0.0f, 0.0f });
@@ -578,7 +617,7 @@ namespace Iris {
 			UI::ShiftCursorY(1.0f + windowPadding.y);
 
 			{
-				UI::ImGuiScopedFont boldFont(fontsLib.GetFont("RobotoBold"));
+				UI::ImGuiScopedFont boldFont(fontsLib.GetFont(DefaultFonts::Bold));
 				ImGui::TextUnformatted(title.c_str());
 			}
 			UI::SetToolTip(fmt::format("Current Project ({})", Project::GetActive()->GetConfig().ProjectFileName).c_str());
@@ -592,7 +631,7 @@ namespace Iris {
 			const char* title = "Iris - Version 0.1";
 			ImVec2 textSize = ImGui::CalcTextSize(title);
 			ImGui::SetCursorPos({ ImGui::GetWindowWidth() * 0.5f - textSize.x * 0.5f, 2.0f + windowPadding.y + 6.0f });
-			UI::ImGuiScopedFont titleBoldFont(fontsLib.GetFont("RobotoBold"));
+			UI::ImGuiScopedFont titleBoldFont(fontsLib.GetFont(DefaultFonts::Bold));
 			ImGui::Text("%s [%s]", title, Application::GetConfigurationName());
 			ImGui::SetCursorPos(currCursorPos);
 		}
@@ -607,7 +646,7 @@ namespace Iris {
 			ImGui::SetCursorPosX(menuBarRight);
 			UI::ShiftCursorX(13.0f);
 
-			fontsLib.PushFont("RobotoBold");
+			fontsLib.PushFont(DefaultFonts::Bold);
 			ImGui::TextUnformatted(sceneName.c_str());
 			fontsLib.PopFont();
 
@@ -767,7 +806,7 @@ namespace Iris {
 
 					if (ImGui::MenuItem("Create Project..."))
 					{
-						m_ShowNewProjectModal = true;
+						UI_ShowNewProjectModal();
 					}
 
 					if (ImGui::MenuItem("Open Project...", "Ctrl + O"))
@@ -818,7 +857,7 @@ namespace Iris {
 
 					if (ImGui::MenuItem("New Scene...", "Ctrl + N"))
 					{
-						m_ShowNewSceneModal = true;
+						UI_ShowNewSceneModal();
 					}
 
 					if (ImGui::MenuItem("Open Scene...", "Ctrl + Shift + O"))
@@ -958,11 +997,13 @@ namespace Iris {
 
 	float EditorLayer::GetSnapValue()
 	{
+		const EditorSettings& editorSettings = EditorSettings::Get();
+
 		switch (m_GizmoType)
 		{
-			case ImGuizmo::OPERATION::TRANSLATE: return m_GizmoSnapValues.x;
-			case ImGuizmo::OPERATION::ROTATE: return m_GizmoSnapValues.y;
-			case ImGuizmo::OPERATION::SCALE: return m_GizmoSnapValues.z;
+			case ImGuizmo::OPERATION::TRANSLATE: return editorSettings.TranslationSnapValue;
+			case ImGuizmo::OPERATION::ROTATE: return editorSettings.RotationSnapValue;
+			case ImGuizmo::OPERATION::SCALE: return editorSettings.ScaleSnapValue;
 		}
 
 		return 0.0f;
@@ -970,11 +1011,13 @@ namespace Iris {
 
 	void EditorLayer::SetSnapValue(float value)
 	{
+		EditorSettings& editorSettings = EditorSettings::Get();
+
 		switch (m_GizmoType)
 		{
-			case ImGuizmo::OPERATION::TRANSLATE: m_GizmoSnapValues.x = value; break;
-			case ImGuizmo::OPERATION::ROTATE: m_GizmoSnapValues.y = value; break;
-			case ImGuizmo::OPERATION::SCALE: m_GizmoSnapValues.z = value; break;
+			case ImGuizmo::OPERATION::TRANSLATE: editorSettings.TranslationSnapValue = value; break;
+			case ImGuizmo::OPERATION::ROTATE: editorSettings.RotationSnapValue = value; break;
+			case ImGuizmo::OPERATION::SCALE: editorSettings.ScaleSnapValue = value; break;
 		}
 	}
 
@@ -1031,7 +1074,7 @@ namespace Iris {
 			window->DC.CursorPos = { iconRect.Max.x + textOffset, iconRect.Min.y };
 
 			ImGuiFontsLibrary& fontsLib = Application::Get().GetImGuiLayer()->GetFontsLibrary();
-			fontsLib.PushFont("RobotoBold");
+			fontsLib.PushFont(DefaultFonts::Bold);
 			ImGui::TextUnformatted(label);
 			fontsLib.PopFont();
 
@@ -1088,15 +1131,18 @@ namespace Iris {
 			return std::pair{ clicked, dropdownClicked };
 		};
 
-		auto selection = [](const char* label, Ref<Texture2D> icon, const char* hint = "")
+		auto selection = [](const char* label, Ref<Texture2D> icon, const char* hint = "", bool setRowAndColumn = true)
 		{
 			float height = std::min(static_cast<float>(icon->GetHeight()), buttonSize);
 			float width = static_cast<float>(icon->GetWidth()) / static_cast<float>(icon->GetHeight()) * height;
 
 			bool haveHint = strlen(hint) != 0;
 
-			ImGui::TableNextRow();
-			ImGui::TableSetColumnIndex(0);
+			if (setRowAndColumn)
+			{
+				ImGui::TableNextRow();
+				ImGui::TableSetColumnIndex(0);
+			}
 			ImVec2 cursorPos = ImGui::GetCursorPos();
 			UI::ShiftCursor(4.0f, 3.0f);
 			UI::Image(icon, { width, height });
@@ -1120,14 +1166,11 @@ namespace Iris {
 			return clicked;
 		};
 
-		auto snappingTable = [&](const char* tableID, float tableColumnWidth, const char** displaySnapValues, const float* snapValues, ImGuizmo::OPERATION oper, bool setSceneRendererSnapValue = false)
+		auto snappingTable = [&](const char* tableID, float tableColumnWidth, const char** displaySnapValues, const float* snapValues, ImGuizmo::OPERATION operation)
 		{
 			int sectionIndex = 0;
 			if (UI::BeginSection("Snapping", sectionIndex, false))
 			{
-				ImGui::TableNextRow();
-				ImGui::TableSetColumnIndex(0);
-
 				// Alternating row colors...
 				const ImU32 colRowAlternating = UI::ColorWithMultipliedValue(Colors::Theme::BackgroundDarkBlend, 1.3f);
 				UI::ImGuiScopedColor tableBGAlternating(ImGuiCol_TableRowBgAlt, colRowAlternating);
@@ -1142,11 +1185,13 @@ namespace Iris {
 					
 					float* currentSnappingValue = nullptr;
 
-					switch (oper)
+					EditorSettings& editorSettings = EditorSettings::Get();
+
+					switch (operation)
 					{
-						case ImGuizmo::OPERATION::TRANSLATE:	currentSnappingValue = &GetSnapValues().x; break;
-						case ImGuizmo::OPERATION::ROTATE:		currentSnappingValue = &GetSnapValues().y; break;
-						case ImGuizmo::OPERATION::SCALE:		currentSnappingValue = &GetSnapValues().z; break;
+						case ImGuizmo::OPERATION::TRANSLATE:	currentSnappingValue = &editorSettings.TranslationSnapValue; break;
+						case ImGuizmo::OPERATION::ROTATE:		currentSnappingValue = &editorSettings.RotationSnapValue; break;
+						case ImGuizmo::OPERATION::SCALE:		currentSnappingValue = &editorSettings.ScaleSnapValue; break;
 					}
 
 					for (int i = 0; i < 6; i++)
@@ -1169,8 +1214,6 @@ namespace Iris {
 								case 5: value = snapValues[5]; break;
 							}
 							*currentSnappingValue = value;
-							if (setSceneRendererSnapValue)
-								m_ViewportRenderer->SetTranslationSnapValue(value);
 
 							ImGui::CloseCurrentPopup();
 						}
@@ -1236,11 +1279,12 @@ namespace Iris {
 					int sectionIndex = 0;
 					if (UI::BeginSection("Perspective", sectionIndex, false))
 					{
-						if (selection("Perspective", EditorResources::PerspectiveIcon))
+						if (selection("Perspective", EditorResources::PerspectiveIcon, "", false))
 						{
 							m_CurrentlySelectedViewIcon = EditorResources::PerspectiveIcon;
 							currentlySelectedViewOption = "Perspective";
-							m_EditorCamera.SetPerspectiveProjection();
+							// TODO:
+							//m_EditorCamera.SetPerspectiveProjection();
 
 							ImGui::CloseCurrentPopup();
 						}
@@ -1250,11 +1294,11 @@ namespace Iris {
 
 					if (UI::BeginSection("Orthographic", sectionIndex, false))
 					{
-						if (selection("Top", EditorResources::TopSquareIcon))
+						if (selection("Top", EditorResources::TopSquareIcon, "", false))
 						{
 							m_CurrentlySelectedViewIcon = EditorResources::TopSquareIcon;
 							currentlySelectedViewOption = "Top";
-							m_EditorCamera.SetTopView();
+							//m_EditorCamera.SetTopView();
 
 							ImGui::CloseCurrentPopup();
 						}
@@ -1263,7 +1307,7 @@ namespace Iris {
 						{
 							m_CurrentlySelectedViewIcon = EditorResources::BottomSquareIcon;
 							currentlySelectedViewOption = "Bottom";
-							m_EditorCamera.SetBottomView();
+							//m_EditorCamera.SetBottomView();
 
 							ImGui::CloseCurrentPopup();
 						}
@@ -1272,7 +1316,7 @@ namespace Iris {
 						{
 							m_CurrentlySelectedViewIcon = EditorResources::LeftSquareIcon;
 							currentlySelectedViewOption = "Left";
-							m_EditorCamera.SetLeftView();
+							//m_EditorCamera.SetLeftView();
 
 							ImGui::CloseCurrentPopup();
 						}
@@ -1281,7 +1325,7 @@ namespace Iris {
 						{
 							m_CurrentlySelectedViewIcon = EditorResources::RightSquareIcon;
 							currentlySelectedViewOption = "Right";
-							m_EditorCamera.SetRightView();
+							//m_EditorCamera.SetRightView();
 
 							ImGui::CloseCurrentPopup();
 						}
@@ -1290,7 +1334,7 @@ namespace Iris {
 						{
 							m_CurrentlySelectedViewIcon = EditorResources::BackSquareIcon;
 							currentlySelectedViewOption = "Back";
-							m_EditorCamera.SetBackView();
+							//m_EditorCamera.SetBackView();
 
 							ImGui::CloseCurrentPopup();
 						}
@@ -1299,7 +1343,7 @@ namespace Iris {
 						{
 							m_CurrentlySelectedViewIcon = EditorResources::FrontSquareIcon;
 							currentlySelectedViewOption = "Front";
-							m_EditorCamera.SetFrontView();
+							//m_EditorCamera.SetFrontView();
 
 							ImGui::CloseCurrentPopup();
 						}
@@ -1357,6 +1401,7 @@ namespace Iris {
 			ImGui::End();
 		}
 
+		// Middle tools and icons
 		{
 			constexpr float numberOfButtons = 2.0f;
 			constexpr float backgroundWidth = edgeOffset * 6.0f + buttonSize * numberOfButtons + edgeOffset * (numberOfButtons - 1.0f) * 2.0f;
@@ -1510,7 +1555,7 @@ namespace Iris {
 				{
 					static const char* displayTranslationSnapValues[6] = { "  10cm", "  50cm", "  1m", "  2m", "  5m", "  10m" };
 					static const float translationSnapValues[6] = { 0.1f, 0.5f, 1.0f, 2.0f, 5.0f, 10.0f };
-					snappingTable("##translate_snap_table", SnappingTableColumnWidth, displayTranslationSnapValues, translationSnapValues, ImGuizmo::OPERATION::TRANSLATE, true);
+					snappingTable("##translate_snap_table", SnappingTableColumnWidth, displayTranslationSnapValues, translationSnapValues, ImGuizmo::OPERATION::TRANSLATE);
 
 					ImGui::EndPopup();
 				}
@@ -1697,7 +1742,7 @@ namespace Iris {
 			{
 				ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, { 8.0f, 8.0f });
 				ImGuiFontsLibrary& fontsLib = Application::Get().GetImGuiLayer()->GetFontsLibrary();
-				fontsLib.PushFont("RobotoBold");
+				fontsLib.PushFont(DefaultFonts::Bold);
 
 				ImGui::TextUnformatted(fmt::format("Input Vertices: {}", m_ViewportRenderer->GetPipelineStatistics().InputAssemblyVertices).c_str());
 				ImGui::TextUnformatted(fmt::format("Vertex Shader Invocations: {}", m_ViewportRenderer->GetPipelineStatistics().VertexShaderInvocations).c_str());
@@ -1813,6 +1858,12 @@ namespace Iris {
 					case ImGuizmo::SCALE:
 					{
 						entityTransform.Scale = scale;
+						
+						if (entity.HasComponent<PointLightComponent>())
+						{
+							entity.GetComponent<PointLightComponent>().Radius = scale.x;
+						}
+
 						break;
 					}
 				}
@@ -1829,23 +1880,23 @@ namespace Iris {
 
 			glm::vec3 medianLocation = glm::vec3(0.0f);
 			glm::vec3 medianScale = glm::vec3(1.0f);
-			glm::quat medianQuat = glm::quat(0.0f, 0.0f, 0.0f, 0.0f);
+			glm::vec3 medianRotation = glm::vec3(0.0f);
 
 			// Compuet median point
-			for (auto entityID : selections)
+			for (UUID entityID : selections)
 			{
 				Entity entity = m_CurrentScene->GetEntityWithUUID(entityID);
 				const TransformComponent& tc = entity.Transform();
 				medianLocation += tc.Translation;
 				medianScale += tc.Scale;
-				medianQuat += glm::quat(tc.GetRotationEuler());
+				medianRotation += tc.GetRotationEuler();
 			}
 			medianLocation /= static_cast<float>(selections.size());
 			medianScale /= static_cast<float>(selections.size());
-			medianQuat = glm::normalize(medianQuat / static_cast<float>(selections.size()));
+			medianRotation /= static_cast<float>(selections.size());
 
 			glm::mat4 medianPointMatrix = glm::translate(glm::mat4(1.0f), medianLocation)
-				* glm::toMat4(medianQuat)
+				* glm::toMat4(glm::quat(medianRotation))
 				* glm::scale(glm::mat4(1.0f), medianScale);
 
 			glm::mat4 deltaMatrix = glm::mat4(1.0f);
@@ -1864,7 +1915,7 @@ namespace Iris {
 				{
 					case TransformationTarget::MedianPoint:
 					{
-						for (auto entityID : selections)
+						for (UUID entityID : selections)
 						{
 							Entity entity = m_CurrentScene->GetEntityWithUUID(entityID);
 							TransformComponent& transform = entity.Transform();
@@ -1879,7 +1930,7 @@ namespace Iris {
 						glm::quat deltaRotation;
 						Math::DecomposeTransform(deltaMatrix, deltaTranslation, deltaRotation, deltaScale);
 
-						for (auto entityID : selections)
+						for (UUID entityID : selections)
 						{
 							Entity entity = m_CurrentScene->GetEntityWithUUID(entityID);
 							TransformComponent& transform = entity.Transform();
@@ -1911,61 +1962,111 @@ namespace Iris {
 		}
 	}
 
+	void EditorLayer::UI_HandleAssetDrop()
+	{
+		if (ImGui::BeginDragDropTarget())
+		{
+			const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("asset_payload");
+
+			if (payload)
+			{
+				uint32_t count = payload->DataSize / sizeof(AssetHandle);
+
+				for (uint32_t i = 0; i < count; i++)
+				{
+					AssetHandle assetHandle = *((reinterpret_cast<AssetHandle*>(payload->Data)) + i);
+					const AssetMetaData& assetMetaData = Project::GetEditorAssetManager()->GetMetaData(assetHandle);
+
+					if (count == 1 && assetMetaData.Type == AssetType::Scene)
+					{
+						OpenScene(assetMetaData);
+						
+						break;
+					}
+
+					Project::GetEditorAssetManager()->AddPostSyncTask([assetHandle, &assetMetaData, this]() mutable -> bool
+					{
+						AsyncAssetResult<Asset> result = AssetManager::GetAssetAsync<Asset>(assetHandle);
+						if (result.IsReady)
+						{
+							if (result.Asset->GetAssetType() == AssetType::MeshSource)
+							{
+								OnCreateMeshFromMeshSource({}, result.Asset.As<MeshSource>());
+
+								return true;
+							}
+							else if (result.Asset->GetAssetType() == AssetType::StaticMesh)
+							{
+								Ref<StaticMesh> staticMesh = result.Asset.As<StaticMesh>();
+								Entity rootEntity = m_EditorScene->InstantiateStaticMesh(staticMesh);
+
+								SelectionManager::DeselectAll();
+								SelectionManager::Select(SelectionContext::Scene, rootEntity.GetUUID());
+
+								return true;
+							}
+							else if (!result.Asset)
+							{
+								m_InvalidAssetMetadataPopupData = assetMetaData;
+								UI_ShowInvalidAssetModal();
+							}
+						}
+
+						return false;
+					});
+				}
+			}
+
+			ImGui::EndDragDropTarget();
+		}
+	}
+
 	void EditorLayer::UI_ShowNewSceneModal()
 	{
-		ImGui::OpenPopup("Set Scene Name");
-
-		// Always center this window when appearing
-		ImVec2 center = ImGui::GetMainViewport()->GetCenter();
-		ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
-
-		if (ImGui::BeginPopupModal("Set Scene Name", 0, ImGuiWindowFlags_AlwaysAutoResize))
+		UI::ShowMessageBox("Set Scene Name", [this]()
 		{
 			static std::string sceneName;
+
+			ImGui::BeginVertical("NewSceneVerticalText");
 			ImGui::SetKeyboardFocusHere();
-			ImGui::InputTextWithHint("##scene_name_label", "Name...", &sceneName);
+			ImGui::InputTextWithHint("##scene_name_input", "Name...", &sceneName, 128);
+			ImGui::EndVertical();
 
 			ImGui::Separator();
+
+			ImGui::BeginVertical("NewSceneVerticalButtons");
+			ImGui::BeginHorizontal("NewSceneHorizontal");
 
 			if (ImGui::Button("Create") || Input::IsKeyDown(KeyCode::Enter))
 			{
 				if (!sceneName.empty())
 				{
 					NewScene(sceneName);
-					m_ShowNewSceneModal = false;
 					sceneName.clear();
 					ImGui::CloseCurrentPopup();
 				}
 			}
 
-			ImGui::SameLine();
-
 			if (ImGui::Button("Cancel") || Input::IsKeyDown(KeyCode::Escape))
 			{
-				m_ShowNewSceneModal = false;
 				sceneName.clear();
 				ImGui::CloseCurrentPopup();
 			}
 
-			ImGui::EndPopup();
-		}
+			ImGui::EndHorizontal();
+			ImGui::EndVertical();
+		});
 	}
 
 	void EditorLayer::UI_ShowNewProjectModal()
 	{
-		ImGui::OpenPopup("Create New Project");
-
-		// Always center this window when appearing
-		ImVec2 center = ImGui::GetMainViewport()->GetCenter();
-		ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
-
-		if (ImGui::BeginPopupModal("Create New Project", 0, ImGuiWindowFlags_AlwaysAutoResize))
+		UI::ShowMessageBox("Create New Project", [this]()
 		{
 			ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, { 10.0f, 7.0f });
 
 			ImGuiFontsLibrary& fontsLib = Application::Get().GetImGuiLayer()->GetFontsLibrary();
 
-			fontsLib.PushFont("RobotoBold");
+			fontsLib.PushFont(DefaultFonts::Bold);
 			std::string fullProjectPath = strlen(s_NewProjectFilePathBuffer) > 0 ? std::string(s_NewProjectFilePathBuffer) + "/" + std::string(s_ProjectNameBuffer) : "";
 			ImGui::Text("Full Project Path: %s", fullProjectPath.c_str());
 			fontsLib.PopFont();
@@ -1993,12 +2094,14 @@ namespace Iris {
 
 			ImGui::Separator();
 
-			fontsLib.PushFont("RobotoBold");
+			fontsLib.PushFont(DefaultFonts::Bold);
 			if (ImGui::Button("Create") || Input::IsKeyDown(KeyCode::Enter))
 			{
-				CreateProject(fullProjectPath);
-				m_ShowNewProjectModal = false;
-				ImGui::CloseCurrentPopup();
+				if (!fullProjectPath.empty())
+				{
+					CreateProject(fullProjectPath);
+					ImGui::CloseCurrentPopup();
+				}
 			}
 
 			ImGui::SameLine();
@@ -2006,16 +2109,855 @@ namespace Iris {
 			if (ImGui::Button("Cancel") || Input::IsKeyDown(KeyCode::Escape))
 			{
 				memset(s_NewProjectFilePathBuffer, 0, c_MAX_PROJECT_FILEPATH_LENGTH);
-				m_ShowNewProjectModal = false;
 				ImGui::CloseCurrentPopup();
 			}
 
 			fontsLib.PopFont();
 
 			ImGui::PopStyleVar();
+		});
+	}
 
-			ImGui::EndPopup();
-		}
+	void EditorLayer::UI_ShowInvalidAssetModal()
+	{
+		UI::ShowMessageBox("Invalid Asset", [this]()
+		{
+			ImGui::TextUnformatted("The asset you tried to use has invalid metadata. This can happen when an asset\n has a reference to non-existent asset, or when an asset is empty.");
+
+			ImGui::Separator();
+
+			UI::BeginPropertyGrid();
+
+			const std::string& filepath = m_InvalidAssetMetadataPopupData.FilePath.string();
+			UI::PropertyStringReadOnly("Asset Filepath", filepath.c_str());
+			UI::PropertyStringReadOnly("Asset ID", std::format("{}", static_cast<uint64_t>(m_InvalidAssetMetadataPopupData.Handle)).c_str());
+
+			UI::EndPropertyGrid();
+
+			ImGuiFontsLibrary& fontsLib = Application::Get().GetImGuiLayer()->GetFontsLibrary();
+			fontsLib.PushFont(DefaultFonts::Bold);
+
+			constexpr float buttonWidth = 60.0f;
+			UI::ShiftCursorX(((ImGui::GetContentRegionAvail().x - buttonWidth) / 2.0f));
+			if (ImGui::Button("Okay") || Input::IsKeyDown(KeyCode::Enter) || Input::IsKeyDown(KeyCode::Escape))
+			{
+				ImGui::CloseCurrentPopup();
+			}
+
+			fontsLib.PopFont();
+		});
+	}
+
+	void EditorLayer::UI_ShowCreateAssetsFromMeshSourcePopup()
+	{
+		IR_ASSERT(m_CreateNewMeshPopupData.MeshToCreate);
+
+		UI::ShowMessageBox("Create Assets From Mesh Source", [this]()
+		{
+			static bool includeAssetTypeInPaths = true;
+			static bool includeSceneNameInPaths = false;
+			static bool overwriteExistingFiles = false;
+			static bool createInCurretCBDirectory = false;
+			static AssetHandle dccHandle = 0;
+			static bool doImportStaticMesh = false;
+			static bool isStaticMeshPathOK = true;
+			static bool doGenerateStaticMeshColliders = true;
+			static std::vector<uint32_t> subMeshIndices = {};
+
+			static int32_t firstSelectedRowLeft = -1;
+			static int32_t lastSelectedRowLeft = -1;
+			static bool shiftSelectionRunningLeft = false;
+			static ImVector<int> selectedIDsLeft;
+			static std::string searchedStringLeft;
+
+			static int32_t firstSelectedRowRight = -1;
+			static int32_t lastSelectedRowRight = -1;
+			static bool shiftSelectionRunningRight = false;
+			static ImVector<int> selectedIDsRight;
+			static std::string searchedStringRight;
+
+			constexpr float edgeOffset = 4.0f;
+			constexpr float rowHeight = 21.0f;
+			constexpr float iconSize = 16.0f;
+
+			const AssetMetaData& assetMetaData = Project::GetEditorAssetManager()->GetMetaData(m_CreateNewMeshPopupData.MeshToCreate->Handle);
+			const ImGuiFontsLibrary& fontsLib = Application::Get().GetImGuiLayer()->GetFontsLibrary();
+
+			// NOTE: This is inadequate to 100% guarantee a valid filename.
+			//       However doing so (and in a way portable between Windows/Linux) is a bit of a rabbit hole.
+			//       This will do for now.
+			auto SanitiseFileName = [](std::string filename)
+			{
+				const std::string invalidChars = "/:?\"<>|\\";
+				filename = Utils::TrimWhitespace(filename);
+				for (char& c : filename)
+				{
+					if (invalidChars.find(c) != std::string::npos)
+					{
+						c = '_';
+					}
+				}
+
+				return filename;
+			};
+
+			auto MakeAssetFileName = [&](int itemID, std::string_view name)
+			{
+				std::string filename;
+				switch (itemID)
+				{
+					case -1:
+					case -2:
+					case -3:
+					case -4: filename = assetMetaData.FilePath.stem().string(); break;
+					default:
+					{
+						if (name.empty())
+						{
+							filename = std::format("{} - {}", assetMetaData.FilePath.stem().string(), itemID);
+						}
+						else
+						{
+							filename = name;
+						}
+						filename = SanitiseFileName(name.empty() ? std::format("{} - {}", assetMetaData.FilePath.stem().string(), itemID) : name.data());
+					}
+				}
+
+				AssetType assetType = AssetType::None;
+				switch (itemID)
+				{
+					case -1: assetType = AssetType::StaticMesh; break;
+				}
+
+				std::string extension = Project::GetEditorAssetManager()->GetDefaultExtensionForAssetType(assetType);
+				extension[1] = static_cast<char>(std::toupper(extension[1])); // Capitalize the first letter of the extension
+				filename = fmt::format("{}{}", filename, extension);
+
+				return filename;
+			};
+
+			// reset everything for import of new DCC
+			if (assetMetaData.Handle != dccHandle)
+			{
+				dccHandle = assetMetaData.Handle;
+				doImportStaticMesh = false;
+				isStaticMeshPathOK = true;
+				doGenerateStaticMeshColliders = true;
+				subMeshIndices.clear();
+
+				m_CreateNewMeshPopupData.CreateStaticMeshFilenameBuffer = MakeAssetFileName(-1, "");
+				
+				selectedIDsLeft.clear();
+				selectedIDsRight.clear();
+				shiftSelectionRunningLeft = false;
+				shiftSelectionRunningRight = false;
+				firstSelectedRowLeft = -1;
+				lastSelectedRowLeft = -1;
+				firstSelectedRowRight = -1;
+				lastSelectedRowRight = -1;
+			}
+
+			ImGui::PushStyleColor(ImGuiCol_Text, Colors::Theme::TextWarning);
+			ImGui::TextWrapped(
+				"This file must be converted into an Iris asset before it can be added to the scene. "
+				"Items that can be converted into an Iris asset are listed on the left. Select the items you want, then click the 'Add' "
+				"button to move them into the list on the right.  "
+				"The list on the right shows the Hazel assets that will be created. You can select items in that list to further edit "
+				"settings (or 'Remove' them from the list). If there are any problems, they will be highlighted in red. "
+				"When you are ready, click 'Create' to create the assets."
+			);
+			ImGui::PopStyleColor();
+
+			ImGui::AlignTextToFramePadding();
+
+			ImGui::Spacing();
+
+			bool checkFilePaths = false;
+			if (UI::Checkbox("Include asset type in asset paths", &includeAssetTypeInPaths))
+			{
+				createInCurretCBDirectory = false;
+
+				checkFilePaths = true;
+			}
+
+			if (UI::Checkbox("Create in current open directory in Content Browser", &createInCurretCBDirectory))
+			{
+				includeAssetTypeInPaths = false;
+
+				checkFilePaths = true;
+			}
+
+			if (UI::Checkbox("Include scene name in asset paths", &includeSceneNameInPaths))
+			{
+				checkFilePaths = true;
+			}
+
+			if (UI::Checkbox("Overwrite existing files", &overwriteExistingFiles))
+			{
+				checkFilePaths = true;
+			}
+
+			auto MakeAssetPath = [&](int itemID)
+			{
+				std::string assetTypePath;
+				std::string sceneNamePath;
+
+				if (includeAssetTypeInPaths)
+				{
+					switch (itemID)
+					{
+						case -1:
+						case -2:
+						{
+							assetTypePath = Project::GetActive()->GetMeshPath().lexically_relative(Project::GetActive()->GetAssetDirectory()).string();
+							// Remove the Default directory from the filepath since that is for the built in engine-defaults
+							assetTypePath = std::filesystem::path(assetTypePath).parent_path().string();
+
+							break;
+						}
+					}
+				}
+
+				if (includeSceneNameInPaths)
+				{
+					sceneNamePath = m_CurrentScene->GetName();
+				}
+
+				if (createInCurretCBDirectory)
+				{
+					assetTypePath = ContentBrowserPanel::Get().GetCurrentOpenDirectory()->FilePath.string();
+				}
+
+				std::replace(assetTypePath.begin(), assetTypePath.end(), '\\', '/');
+
+				return std::format("{0}{1}{2}", assetTypePath, assetTypePath.empty() || sceneNamePath.empty() ? "" : "/", sceneNamePath);
+			};
+
+			std::unordered_set<std::string> paths;
+			auto CheckPath = [&](bool doImport, int itemID, const std::string& filename, bool& isPathOK) 
+			{
+				if (doImport)
+				{
+					std::string assetDir = MakeAssetPath(itemID);
+					std::string assetPath = fmt::format("{}/{}", assetDir, filename);
+					isPathOK = !FileSystem::Exists(Project::GetActive()->GetAssetDirectory() / assetPath);
+
+					// asset path must be unique over all assets that are going to be created
+					if (paths.contains(assetPath))
+					{
+						isPathOK = false;
+					}
+					else
+					{
+						paths.insert(assetPath);
+					}
+				}
+			};
+
+			if (checkFilePaths)
+			{
+				paths.clear();
+				CheckPath(doImportStaticMesh, -1, m_CreateNewMeshPopupData.CreateStaticMeshFilenameBuffer, isStaticMeshPathOK);
+			}
+
+			ImGuiTableFlags tableFlags = ImGuiTableFlags_Resizable
+				| ImGuiTableFlags_SizingFixedFit
+				| ImGuiTableFlags_PadOuterX
+				| ImGuiTableFlags_NoHostExtendY
+				| ImGuiTableFlags_NoBordersInBodyUntilResize;
+
+			UI::ImGuiScopedColor tableBg(ImGuiCol_ChildBg, Colors::Theme::BackgroundDark);
+			auto tableSizeOuter = ImVec2{ ImGui::GetContentRegionAvail().x, ImGui::GetContentRegionAvail().y - 50.0f };
+			if (ImGui::BeginTable("##CreateNewAssets-Layout", 3, tableFlags, tableSizeOuter))
+			{
+				ImGui::TableSetupColumn("Items", ImGuiTableColumnFlags_NoHeaderLabel, 300.0f);
+				ImGui::TableSetupColumn("Buttons", ImGuiTableColumnFlags_NoHeaderLabel | ImGuiTableColumnFlags_NoResize, 50.0f);
+				ImGui::TableSetupColumn("Create", ImGuiTableColumnFlags_NoHeaderLabel | ImGuiTableColumnFlags_WidthStretch);
+
+				ImGui::TableNextRow();
+
+				auto itemTable = [&](std::string_view tableName, ImRect& tableRect, ImVec2 tableSize, bool isAssetList, std::string& searchedString, ImVector<int>& selectedIDs, int32_t& firstSelectedRow, int32_t& lastSelectedRow, bool& shiftSelectionRunning) 
+				{
+
+					UI::ImGuiScopedID id(tableName.data());
+
+					auto addItem = [&](int itemID, std::string_view name, const std::string& searchedString, bool isAsset, ImVector<int>& selectedIDs, int32_t& firstSelectedRow, int32_t& lastSelectedRow, bool& shiftSelectionRunning, std::string_view errorMessage)
+					{
+						bool checkPaths = false;
+
+						if (!UI::IsMatchingSearch(name.data(), searchedString))
+						{
+							return checkPaths;
+						}
+
+						UI::ImGuiScopedID id(itemID);
+
+						// ImGui item height tweaks
+						ImGuiWindow* window = ImGui::GetCurrentWindow();
+						window->DC.CurrLineSize.y = rowHeight;
+
+						ImGui::TableNextRow(0, rowHeight);
+						ImGui::TableNextColumn();
+
+						window->DC.CurrLineTextBaseOffset = 3.0f;
+
+						const ImVec2 rowAreaMin = ImGui::TableGetCellBgRect(ImGui::GetCurrentTable(), 0).Min;
+						const ImVec2 rowAreaMax = { ImGui::TableGetCellBgRect(ImGui::GetCurrentTable(), ImGui::TableGetColumnCount() - 1).Max.x, rowAreaMin.y + rowHeight };
+
+						const bool isSelected = selectedIDs.contains(itemID);
+
+						ImGuiTreeNodeFlags flags = (isSelected ? ImGuiTreeNodeFlags_Selected : 0) | (isAsset ? 0 : ImGuiTreeNodeFlags_SpanAvailWidth) | ImGuiTreeNodeFlags_Leaf;
+
+						std::string assetPath = MakeAssetPath(itemID);
+						std::string toAssetText = std::format("--> {}/", assetPath);
+						ImVec2 textSize = ImGui::CalcTextSize((std::string(name) + toAssetText).data());
+
+						ImVec2 buttonMin = rowAreaMin;
+						ImVec2 buttonMax = isAsset ? ImVec2{ buttonMin.x + textSize.x + iconSize + 8.0f, buttonMin.y + rowHeight } : rowAreaMax;
+
+						ImVec2 currentCursorPos = ImGui::GetCursorPos();
+
+						bool isRowClicked = ImGui::InvisibleButton("##button", { textSize.x + iconSize + 8.0f, rowHeight }, ImGuiButtonFlags_AllowItemOverlap | ImGuiButtonFlags_PressedOnClick | ImGuiButtonFlags_MouseButtonLeft);
+						bool isRowHovered = ImGui::IsItemHovered();
+
+						ImGui::SetCursorPos(currentCursorPos);
+
+						// Row colouring
+						if (isSelected)
+						{
+							ImGui::RenderFrame(rowAreaMin, rowAreaMax, Colors::Theme::Selection, false, 0.0f);
+						}
+						else if (isRowHovered)
+						{
+							ImGui::RenderFrame(rowAreaMin, rowAreaMax, Colors::Theme::GroupHeader, false, 0.0f);
+						}
+
+						// Drag/Drop
+						if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceAllowNullID))
+						{
+							for (int selectedID : selectedIDs)
+							{
+								ImGui::TextUnformatted(selectedID == -1 ? "Static Mesh" : "Unknown");
+							}
+
+							ImGui::SetDragDropPayload("mesh_importer_panel_assets", reinterpret_cast<const void*>(selectedIDs.Data), selectedIDs.Size * sizeof(int));
+
+							ImGui::EndDragDropSource();
+						}
+
+						// Row content
+						// NOTE: Since for now we only have static meshes
+						Ref<Texture2D> icon = (itemID == -1) ? EditorResources::StaticMeshIcon : EditorResources::StaticMeshIcon;
+
+						ImGui::TableGetCellBgRect(ImGui::GetCurrentTable(), 0);
+						UI::ShiftCursorX(edgeOffset);
+						UI::Image(icon, { 16, 16 });
+						ImGui::SameLine();
+
+						if (!errorMessage.empty())
+						{
+							ImGui::PushStyleColor(ImGuiCol_Text, Colors::Theme::TextError);
+						}
+						else if (isSelected)
+						{
+							ImGui::PushStyleColor(ImGuiCol_Text, Colors::Theme::BackgroundDark);
+						}
+
+						ImGui::TextUnformatted(name.data());
+
+						if (!errorMessage.empty() && ImGui::IsItemHovered()) {
+							ImGui::SetTooltip(errorMessage.data());
+						}
+
+						if (!errorMessage.empty() || isSelected)
+						{
+							ImGui::PopStyleColor();
+						}
+
+						if (isAsset)
+						{
+							ImGui::SameLine();
+							if (isSelected)
+							{
+								ImGui::PushStyleColor(ImGuiCol_Text, Colors::Theme::TextDisabledDark);
+								ImGui::TextUnformatted(toAssetText.c_str());
+								ImGui::PopStyleColor();
+							}
+							else
+							{
+								ImGui::TextDisabled(toAssetText.c_str());
+							}
+
+							std::string fileName;
+							bool isPathOK = true;
+							switch (itemID)
+							{
+								case -1:
+								{
+									fileName = m_CreateNewMeshPopupData.CreateStaticMeshFilenameBuffer;
+									isPathOK = isStaticMeshPathOK;
+									break;
+								}
+							}
+
+							if (!isPathOK)
+							{
+								ImGui::PushStyleColor(ImGuiCol_Text, Colors::Theme::TextError);
+							}
+
+							ImGui::SameLine();
+							UI::ShiftCursorY(-2.0f);
+							ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - edgeOffset);
+							if (UI::InputText("##AssetFileName", &fileName))
+							{
+								fileName = SanitiseFileName(fileName);
+								switch (itemID)
+								{
+									case -1:
+									{
+										m_CreateNewMeshPopupData.CreateStaticMeshFilenameBuffer = fileName;
+										checkPaths = true;
+										break;
+									}
+								}
+							}
+
+							if (!isPathOK)
+							{
+								if (errorMessage.empty())
+								{
+									if (ImGui::IsItemHovered())
+									{
+										ImGui::SetTooltip("Already existing file will be overwritten.");
+									}
+								}
+
+								ImGui::PopStyleColor();
+							}
+						}
+
+						// Row selection
+						const int rowIndex = ImGui::TableGetRowIndex();
+						if (rowIndex >= firstSelectedRow && rowIndex <= lastSelectedRow && !isSelected && shiftSelectionRunning)
+						{
+							selectedIDs.push_back(itemID);
+
+							if (selectedIDs.size() == (lastSelectedRow - firstSelectedRow) + 1)
+							{
+								shiftSelectionRunning = false;
+							}
+						}
+
+						if (isRowClicked)
+						{
+							bool ctrlDown = Input::IsKeyDown(KeyCode::LeftControl) || Input::IsKeyDown(KeyCode::RightControl);
+							bool shiftDown = Input::IsKeyDown(KeyCode::LeftShift) || Input::IsKeyDown(KeyCode::RightShift);
+							if (shiftDown && selectedIDs.size() > 0)
+							{
+								selectedIDs.clear();
+
+								if (rowIndex < firstSelectedRow)
+								{
+									lastSelectedRow = firstSelectedRow;
+									firstSelectedRow = rowIndex;
+								}
+								else
+								{
+									lastSelectedRow = rowIndex;
+								}
+
+								shiftSelectionRunning = true;
+							}
+							else if (!ctrlDown || shiftDown)
+							{
+								selectedIDs.clear();
+								selectedIDs.push_back(itemID);
+								firstSelectedRow = rowIndex;
+								lastSelectedRow = -1;
+							}
+							else
+							{
+								if (isSelected)
+								{
+									selectedIDs.find_erase_unsorted(itemID);
+								}
+								else
+								{
+									selectedIDs.push_back(itemID);
+								}
+							}
+
+							ImGui::FocusWindow(ImGui::GetCurrentWindow());
+						}
+
+						if (itemID == -1)
+						{
+							ImGui::SameLine();
+							UI::ShowHelpMarker("Import the entire asset as a single static mesh. This is good for things like scene background entities where you do not need be able to manipulate parts of the source asset independently.");
+						}
+
+						return checkPaths;
+					};
+
+					UI::ShiftCursorX(edgeOffset * 3.0f);
+					UI::ShiftCursorY(edgeOffset * 2.0f);
+
+					tableSize = ImVec2{ tableSize.x - edgeOffset * 3.0f, tableSize.y - edgeOffset * 2.0f };
+
+					if (ImGui::BeginTable("##Items", 1, ImGuiTableFlags_NoPadInnerX | ImGuiTableFlags_ScrollY, tableSize))
+					{
+						ImGui::TableSetupScrollFreeze(0, 2);
+						ImGui::TableSetupColumn(tableName.data());
+
+						tableRect = ImGui::GetCurrentTable()->InnerRect;
+
+						// Header
+						ImGui::TableSetupScrollFreeze(ImGui::TableGetColumnCount(), 1);
+
+						ImGui::TableNextRow(ImGuiTableRowFlags_Headers, 22.0f);
+						{
+							const ImU32 colActive = UI::ColorWithMultipliedValue(Colors::Theme::Selection, 1.2f);
+							UI::ImGuiScopedColor headerHovered(ImGuiCol_HeaderHovered, colActive);
+							UI::ImGuiScopedColor headerActive(ImGuiCol_HeaderActive, colActive);
+
+							ImGui::TableSetColumnIndex(0);
+							{
+								const char* columnName = ImGui::TableGetColumnName(0);
+								UI::ImGuiScopedID columnID(columnName);
+
+								UI::ShiftCursor(edgeOffset, edgeOffset * 2.0f);
+								ImVec2 cursorPos = ImGui::GetCursorPos();
+
+								UI::ShiftCursorY(-edgeOffset);
+								ImGui::BeginHorizontal(columnName, ImVec2{ ImGui::GetContentRegionAvail().x - edgeOffset * 3.0f, 0.0f });
+								ImGui::Spring();
+								ImVec2 cursorPos2 = ImGui::GetCursorPos();
+								if (ImGui::Button("All"))
+								{
+									// Could consider only adding one of static/dynamic mesh here.
+									// But for now "All" means all!
+									selectedIDs.clear();
+									if (UI::IsMatchingSearch("Static Mesh", searchedString))
+									{
+										selectedIDs.push_back(-1);
+									}
+								}
+								ImGui::Spacing();
+								if (ImGui::Button("None"))
+								{
+									selectedIDs.clear();
+								}
+								ImGui::EndHorizontal();
+
+								ImGui::SetCursorPos(cursorPos);
+								const ImRect bb = ImGui::TableGetCellBgRect(ImGui::GetCurrentTable(), 0);
+								ImGui::PushClipRect(bb.Min, ImVec2{ bb.Min.x + cursorPos2.x, bb.Max.y + edgeOffset * 2 }, false);
+								ImGui::TableHeader(columnName, 0, Colors::Theme::Background);
+								ImGui::PopClipRect();
+								UI::ShiftCursor(-edgeOffset, -edgeOffset * 2.0f);
+							}
+							ImGui::SetCursorPosX(ImGui::GetCurrentTable()->OuterRect.Min.x);
+							UI::UnderLine(true, 0.0f, 5.0f);
+						}
+
+						// Search Widget
+						ImGui::TableNextRow();
+						ImGui::TableNextColumn();
+						UI::ShiftCursorX(edgeOffset);
+						ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - edgeOffset);
+
+						UI::SearchWidget(searchedString);
+
+						// List
+						{
+							UI::ImGuiScopedColor header(ImGuiCol_Header, IM_COL32_DISABLE);
+							UI::ImGuiScopedColor headerHovered(ImGuiCol_HeaderHovered, IM_COL32_DISABLE);
+							UI::ImGuiScopedColor headerActive(ImGuiCol_HeaderActive, IM_COL32_DISABLE);
+
+							bool checkPaths = false;
+							auto alreadyExistsMessage = "This file either already exists, or the filename is a duplicate of one of the other assets to be created.";
+
+							if (!m_CreateNewMeshPopupData.MeshToCreate->GetSubMeshes().empty())
+							{
+								if (doImportStaticMesh == isAssetList)
+								{
+									auto errorMessage = isAssetList && (!overwriteExistingFiles && !isStaticMeshPathOK) ? alreadyExistsMessage : "";
+									checkPaths = addItem(-1, "Static Mesh", searchedString, isAssetList, selectedIDs, firstSelectedRow, lastSelectedRow, shiftSelectionRunning, errorMessage);
+								}
+							}
+
+							if (checkPaths) {
+								paths.clear();
+								CheckPath(doImportStaticMesh, -1, m_CreateNewMeshPopupData.CreateStaticMeshFilenameBuffer, isStaticMeshPathOK);
+							}
+						}
+
+						if (ImGui::IsMouseHoveringRect(tableRect.Min, tableRect.Max) && ImGui::IsMouseClicked(ImGuiMouseButton_Left) && !ImGui::IsAnyItemHovered())
+						{
+							selectedIDs.clear();
+							firstSelectedRow = -1;
+							lastSelectedRow = -1;
+							shiftSelectionRunning = false;
+						}
+
+						ImGui::EndTable();
+					}
+				};
+
+				// Items in file
+				ImGui::TableSetColumnIndex(0);
+				ImRect tableRect;
+				itemTable(std::format("ITEMS IN: {}", assetMetaData.FilePath.filename().string()), tableRect, { ImGui::GetContentRegionAvail().x, tableSizeOuter.y }, false, searchedStringLeft, selectedIDsLeft, firstSelectedRowLeft, lastSelectedRowLeft, shiftSelectionRunningLeft);
+
+				// Drag/Drop
+				if (ImGui::BeginDragDropTargetCustom(tableRect, ImGui::GetCurrentWindow()->ID))
+				{
+					const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("mesh_importer_panel_assets", ImGuiDragDropFlags_AcceptNoDrawDefaultRect);
+
+					if (payload)
+					{
+						std::size_t count = payload->DataSize / sizeof(int);
+
+						for (std::size_t i = 0; i < count; i++)
+						{
+							int selectedID = *((reinterpret_cast<int*>(payload->Data)) + i);
+
+							if (selectedID == -1)
+							{
+								doImportStaticMesh = false;
+							}
+						}
+
+						selectedIDsRight.clear();
+					}
+
+					ImGui::EndDragDropTarget();
+				}
+
+				// Add/Remove Buttons
+				ImGui::TableSetColumnIndex(1);
+
+				ImGui::BeginVertical("##Buttons", { 50.0f, ImGui::GetContentRegionAvail().y });
+				UI::ShiftCursor((ImGui::GetContentRegionAvail().x - 20.0f) / 2.0f, 50.0f);
+
+				fontsLib.PushFont(DefaultFonts::Large);
+				bool addButtonResult = ImGui::Button("-->");
+				fontsLib.PopFont();
+				ImGui::NextColumn();
+				if (addButtonResult)
+				{
+					for (int i = 0; i < selectedIDsLeft.size(); ++i)
+					{
+						int id = selectedIDsLeft[i];
+						if (id == -1)
+						{
+							doImportStaticMesh = true;
+						}
+					}
+
+					selectedIDsLeft.clear();
+
+					// Check that paths of all assets we are going to create are unique
+					paths.clear();
+					CheckPath(doImportStaticMesh, -1, m_CreateNewMeshPopupData.CreateStaticMeshFilenameBuffer, isStaticMeshPathOK);
+				}
+				if (ImGui::IsItemHovered())
+				{
+					UI::ImGuiScopedStyle padding(ImGuiStyleVar_WindowPadding, { 8.0f, 8.0f });
+					ImGui::BeginTooltip();
+					ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+					ImGui::TextUnformatted("Add selected items to \"Assets To Create\" table");
+					ImGui::PopTextWrapPos();
+					ImGui::EndTooltip();
+				}
+
+				ImGui::Spacing();
+				ImGui::Spacing();
+
+				UI::ShiftCursorX((ImGui::GetContentRegionAvail().x - 20.0f) / 2.0f);
+
+				fontsLib.PushFont(DefaultFonts::Large);
+				bool removeButtonResult = ImGui::Button("<--");
+				fontsLib.PopFont();
+				ImGui::NextColumn();
+				if (removeButtonResult)
+				{
+					for (int i = 0; i < selectedIDsRight.size(); ++i)
+					{
+						int id = selectedIDsRight[i];
+						if (id == -1)
+						{
+							doImportStaticMesh = false;
+						}
+					}
+					selectedIDsRight.clear();
+				}
+				if (ImGui::IsItemHovered())
+				{
+					UI::ImGuiScopedStyle padding(ImGuiStyleVar_WindowPadding, { 8.0f, 8.0f });
+					ImGui::BeginTooltip();
+					ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+					ImGui::TextUnformatted("Remove selected items from \"Assets To Create\" table");
+					ImGui::PopTextWrapPos();
+					ImGui::EndTooltip();
+				}
+
+				ImGui::Spring(1.0f);
+				ImGui::EndVertical();
+
+				// Assets to create
+				ImGui::TableSetColumnIndex(2);
+				itemTable("ASSETS TO CREATE:", tableRect, { ImGui::GetContentRegionAvail().x, tableSizeOuter.y / 2.0f }, true, searchedStringRight, selectedIDsRight, firstSelectedRowRight, lastSelectedRowRight, shiftSelectionRunningRight);
+
+				// Drag/Drop
+				if (ImGui::BeginDragDropTargetCustom(tableRect, ImGui::GetCurrentWindow()->ID))
+				{
+					const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("mesh_importer_panel_assets", ImGuiDragDropFlags_AcceptNoDrawDefaultRect);
+
+					if (payload)
+					{
+						std::size_t count = payload->DataSize / sizeof(int);
+
+						for (std::size_t i = 0; i < count; i++)
+						{
+							int selectedID = *((reinterpret_cast<int*>(payload->Data)) + i);
+
+							if (selectedID == -1)
+							{
+								doImportStaticMesh = true;
+							}
+						}
+
+						selectedIDsLeft.clear();
+
+						// Check that paths of all assets we are going to create are unique
+						paths.clear();
+						CheckPath(doImportStaticMesh, -1, m_CreateNewMeshPopupData.CreateStaticMeshFilenameBuffer, isStaticMeshPathOK);
+					}
+
+					ImGui::EndDragDropTarget();
+				}
+
+				// Settings section
+				ImGui::Spacing();
+				ImGui::Indent();
+
+				if (ImGui::BeginChild("Settings", { ImGui::GetContentRegionAvail().x, (tableSizeOuter.y / 2.0f) - ImGui::GetStyle().ItemSpacing.y * 2.0f }))
+				{
+					if (selectedIDsRight.contains(-1))
+					{
+						if (UI::PropertyGridHeader("Static Mesh Settings:"))
+						{
+							UI::BeginPropertyGrid(2, 150.0f);
+
+							UI::Property("Generate Colliders", doGenerateStaticMeshColliders);
+
+							// TODO: This is only for Dynamic meshes and not static meshes
+							//static std::string subMeshIndicesToLoad;
+							//if (UI::PropertyInputString("Submesh Indices\nto load", &subMeshIndicesToLoad, "Enter the submesh indices you would like to load form the\nMesh file according to the following format: 1 3 5 7..."))
+							//{
+							//	auto ValidateString = [](const std::string& string) -> bool
+							//	{
+							//		for (char c : string)
+							//		{
+							//			if (!std::isdigit(c) && (c != ' '))
+							//				return false;
+							//		}
+
+							//		return true;
+							//	};
+
+							//	if (ValidateString(subMeshIndicesToLoad))
+							//	{
+							//		subMeshIndices = Utils::SplitStringToUint(subMeshIndicesToLoad, " ");
+							//	}
+							//}
+
+							UI::EndPropertyGrid();
+
+							ImGui::TreePop();
+						}
+					}
+
+					ImGui::EndChild();
+				}
+
+				ImGui::EndTable();
+			}
+			ImGui::Spacing();
+
+			// Create / Cancel buttons
+			ImGui::BeginHorizontal("##actions", { ImGui::GetContentRegionAvail().x, 0 });
+			ImGui::Spring();
+			{
+				UI::ImGuiScopedFont largeFont(fontsLib.GetFont(DefaultFonts::Large));
+
+				bool isError = !overwriteExistingFiles && (!isStaticMeshPathOK);
+
+				bool isSomethingToImport = doImportStaticMesh;
+				
+				{
+					UI::ImGuiScopedDisable disable(!isSomethingToImport || isError);
+
+					if (ImGui::Button("Create") && isSomethingToImport && !isError)
+					{
+						SelectionManager::DeselectAll(SelectionContext::Scene);
+						Entity entity;
+
+						if (doImportStaticMesh)
+						{
+							// should not be possible to have doImportStaticMesh = true if there are no submeshes in the mesh source
+							IR_VERIFY(!m_CreateNewMeshPopupData.MeshToCreate->GetSubMeshes().empty());
+
+							std::string serializePath = m_CreateNewMeshPopupData.CreateStaticMeshFilenameBuffer.data();
+							std::filesystem::path path = Project::GetActive()->GetAssetDirectory() / MakeAssetPath(-1) / serializePath;
+							if (!FileSystem::Exists(path.parent_path()))
+							{
+								FileSystem::CreateDirectory(path.parent_path());
+							}
+
+							Ref<StaticMesh> mesh = Project::GetEditorAssetManager()->CreateNewAsset<StaticMesh>(path.filename().string(), path.parent_path().string(), m_CreateNewMeshPopupData.MeshToCreate->Handle, subMeshIndices, doGenerateStaticMeshColliders);
+
+							entity = m_CreateNewMeshPopupData.TargetEntity;
+							if (entity)
+							{
+								if (!entity.HasComponent<StaticMeshComponent>())
+									entity.AddComponent<StaticMeshComponent>();
+
+								StaticMeshComponent& mc = entity.GetComponent<StaticMeshComponent>();
+								mc.StaticMesh = mesh->Handle;
+							}
+							else
+							{
+								entity = m_EditorScene->InstantiateStaticMesh(mesh);
+								SelectionManager::Select(SelectionContext::Scene, entity.GetUUID());
+							}
+
+							// Dispatch the event so that the ContentBrowserPanel could `Refresh`
+							Application::Get().DispatchEvent<Events::AssetCreatedNotificationEvent>(mesh->Handle);
+						}
+
+						m_CreateNewMeshPopupData = {};
+						dccHandle = 0;
+						ImGui::CloseCurrentPopup();
+					}
+				}
+
+				ImGui::Spacing();
+
+				if (ImGui::Button("Cancel"))
+				{
+					m_CreateNewMeshPopupData = {};
+					dccHandle = 0;
+					ImGui::CloseCurrentPopup();
+				}
+			}
+
+			ImGui::Spacing();
+			ImGui::EndHorizontal();
+
+		}, 1200, 900, 400, 400, -1, -1, 0);
 	}
 
 	void EditorLayer::DeleteEntity(Entity entity)
@@ -2028,33 +2970,48 @@ namespace Iris {
 
 	void EditorLayer::UI_ShowViewport()
 	{
-		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
-		ImGui::Begin("Viewport", 0, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
+		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 0.0f, 0.0f });
+		ImGui::Begin(m_EditorScene->GetName().c_str(), nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
+
+		m_MainWindowPanelTabOpened = ImGui::GetCurrentWindow()->DockTabIsVisible;
+
+		const ImGuiID viewportDockID = ImGui::DockSpace(ImGui::GetID("ViewportWindowDockSpace"));
+
+		ImGui::SetNextWindowSize(ImGui::GetContentRegionAvail());
+		ImGui::Begin("##ViewportImage", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
 
 		m_ViewportPanelMouseOver = ImGui::IsWindowHovered();
-		m_ViewportPanelFocused = ImGui::IsWindowFocused();	
+		m_ViewportPanelFocused = ImGui::IsWindowFocused();
 
 		// Set to true so that we we activate the EditorCamera in the SceneState::Pause
 		if (m_AllowEditorCameraInRuntime)
 			m_ViewportPanelMouseOver = true;
 
-		ImVec2 viewportOffset = ImGui::GetCursorPos(); // Includes tab bar
-		ImVec2 viewportSize = ImGui::GetContentRegionAvail();
-		m_ViewportRenderer->SetViewportSize(static_cast<uint32_t>(viewportSize.x), static_cast<uint32_t>(viewportSize.y), m_ViewportRenderer->GetSpecification().RendererScale);
-		m_CurrentScene->SetViewportSize(static_cast<uint32_t>(viewportSize.x), static_cast<uint32_t>(viewportSize.y));
-		m_EditorCamera.SetViewportSize(static_cast<uint32_t>(viewportSize.x), static_cast<uint32_t>(viewportSize.y));
-
-		UI::Image(m_ViewportRenderer->GetFinalPassImage(), viewportSize, { 0, 1 }, { 1, 0 });
-
 		m_ViewportRect = UI::GetWindowRect();
 
-		m_AllowViewportCameraEvents = (ImGui::IsMouseHoveringRect(m_ViewportRect.Min, m_ViewportRect.Max) && m_ViewportPanelFocused) || m_StartedCameraClickInViewport;
+		//ImVec2 viewportOffset = ImGui::GetCursorPos(); // Includes tab bar
+		ImVec2 viewportSize = ImGui::GetContentRegionAvail();
 
-		UI_DrawViewportIcons();
+		if ((viewportSize.x > 0.0f) && (viewportSize.y > 0.0f))
+		{
+			m_ViewportRenderer->SetViewportSize(static_cast<uint32_t>(viewportSize.x), static_cast<uint32_t>(viewportSize.y), m_ViewportRenderer->GetSpecification().RendererScale);
+			m_CurrentScene->SetViewportSize(static_cast<uint32_t>(viewportSize.x), static_cast<uint32_t>(viewportSize.y));
+			m_EditorCamera.SetViewportSize(static_cast<uint32_t>(viewportSize.x), static_cast<uint32_t>(viewportSize.y));
 
-		if (m_ShowGizmos)
-			UI_DrawGizmos();
+			UI::Image(m_ViewportRenderer->GetFinalPassImage(), viewportSize, { 0, 1 }, { 1, 0 });
+		
+			m_AllowViewportCameraEvents = (ImGui::IsMouseHoveringRect(m_ViewportRect.Min, m_ViewportRect.Max) && m_ViewportPanelFocused) || m_StartedCameraClickInViewport;
 
+			if (m_MainWindowPanelTabOpened)
+				UI_DrawViewportIcons();
+
+			if (m_ShowGizmos)
+				UI_DrawGizmos();
+
+			UI_HandleAssetDrop();
+		}
+
+		ImGui::End();
 		ImGui::End();
 		ImGui::PopStyleVar();
 	}
@@ -2065,16 +3022,16 @@ namespace Iris {
 
 		ImGuiFontsLibrary& fontsLib = Application::Get().GetImGuiLayer()->GetFontsLibrary();
 
-		for (auto& [name, font] : fontsLib.GetFonts())
+		for (auto& [fontName, font] : fontsLib.GetFonts())
 		{
 			ImGui::Columns(2);
 
-			ImGui::TextUnformatted(name.c_str());
+			ImGui::TextUnformatted(Utils::DefaultFontsNameToString(fontName));
 
 			ImGui::NextColumn();
 
-			if (ImGui::Button(fmt::format("Set Default##{0}", name).c_str()))
-				fontsLib.SetDefaultFont(name);
+			if (ImGui::Button(fmt::format("Set Default##{0}", Utils::DefaultFontsNameToString(fontName)).c_str()))
+				fontsLib.SetDefaultFont(fontName);
 
 			ImGui::Columns(1);
 		}
@@ -2283,6 +3240,9 @@ namespace Iris {
 
 	bool EditorLayer::OnKeyPressed(Events::KeyPressedEvent& e)
 	{
+		if (!m_MainWindowPanelTabOpened)
+			return false;
+
 		if (Input::IsKeyDown(KeyCode::LeftShift))
 		{
 			int n = 0;
@@ -2300,7 +3260,7 @@ namespace Iris {
 			}
 		}
 
-		if (UI::IsWindowFocused("Viewport") || UI::IsWindowFocused("Scene Hierarchy"))
+		if (UI::IsWindowFocused("##ViewportImage") || UI::IsWindowFocused("Scene Hierarchy"))
 		{
 			if (Input::IsKeyDown(KeyCode::LeftShift))
 			{
@@ -2409,7 +3369,7 @@ namespace Iris {
 				}
 				case KeyCode::N:
 				{
-					m_ShowNewSceneModal = true;
+					UI_ShowNewSceneModal();
 					break;
 				}
 				case KeyCode::O:
@@ -2575,17 +3535,26 @@ namespace Iris {
 
 		glm::vec3 rayPos = m_EditorCamera.GetPosition();
 		glm::vec4 ray = inverseProj * mouseClipPos;
-		if (!m_EditorCamera.IsPerspectiveProjection())
-			ray.z = -1.0f;
+		// TODO:
+		//if (!m_EditorCamera.IsPerspectiveProjection())
+		//	ray.z = -1.0f;
 		glm::vec3 direction = inverseView * ray;
 
-		return { rayPos, m_EditorCamera.IsPerspectiveProjection() ? direction : glm::normalize(direction) };
+		// TODO: return { rayPos, m_EditorCamera.IsPerspectiveProjection() ? direction : glm::normalize(direction) };
+		return { rayPos, direction };
 	}
 
 	void EditorLayer::SceneHierarchySetEditorCameraTransform(Entity entity)
 	{
 		TransformComponent& tc = entity.Transform();
 		tc.SetTransform(glm::inverse(m_EditorCamera.GetViewMatrix()));
+	}
+
+	void EditorLayer::OnCreateMeshFromMeshSource(Entity entity, Ref<MeshSource> meshSource)
+	{
+		m_CreateNewMeshPopupData.MeshToCreate = meshSource;
+		m_CreateNewMeshPopupData.TargetEntity = entity;
+		UI_ShowCreateAssetsFromMeshSourcePopup();
 	}
 
 	bool EditorLayer::OnTitleBarColorChange(Events::TitleBarColorChangeEvent& e)

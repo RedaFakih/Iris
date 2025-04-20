@@ -28,15 +28,23 @@ namespace Iris {
 		Shader(std::string_view path, bool forceCompile = false, bool disableOptimization = false);
 		~Shader();
 
-		[[nodiscard]] static Ref<Shader> Create();
-		[[nodiscard]] static Ref<Shader> Create(std::string_view path, bool forceCompile = false, bool disableOptimization = false);
+		[[nodiscard]] static Ref<Shader> Create()
+		{
+			return CreateRef<Shader>();
+		}
 
-		// Returns whether reloading failed or not
+		[[nodiscard]] static Ref<Shader> Create(std::string_view path, bool forceCompile = false, bool disableOptimization = false)
+		{
+			return CreateRef<Shader>(path, forceCompile, disableOptimization);
+		}
+
 		void Reload();
 		void RT_Reload();
 
 		void Release();
 		void ReleaseShaderModules();
+
+		void SetMacro(const std::string_view name, const std::string_view value = "");
 
 		std::size_t GetHash() const;
 		const std::string_view GetName() const { return m_Name; }
@@ -87,6 +95,8 @@ namespace Iris {
 
 		// Global pool sizes that are needed for the global descriptor pool instead of creating per-set descriptor pools since that is inefficient
 		std::unordered_map<VkDescriptorType, uint32_t> m_DescriptorPoolTypeCounts;
+
+		std::unordered_map<std::string, std::string> m_Macros;
 
 		friend class ShaderCompiler;
 	};

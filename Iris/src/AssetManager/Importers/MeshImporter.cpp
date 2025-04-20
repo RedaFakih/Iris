@@ -75,18 +75,9 @@ namespace Iris {
 			meshSource->m_BoundingBox.Min = { FLT_MAX, FLT_MAX, FLT_MAX };
 			meshSource->m_BoundingBox.Max = { -FLT_MAX, -FLT_MAX, -FLT_MAX };
 
-			// TODO:
-			// const std::vector<uint32_t>& subMeshIndices = StaticMesh::GetCurrentlyLoadingMeshSourceIndices();
-			// bool loadAllSubMeshes = subMeshIndices.empty();
-			// IR_VERIFY(subMeshIndices.size() <= scene->mNumMeshes); // TODO: Or equal?
-
-			//meshSource->m_SubMeshes.reserve(scene->mNumMeshes);
+			meshSource->m_SubMeshes.reserve(scene->mNumMeshes);
 			for (uint32_t m = 0; m < scene->mNumMeshes; m++)
 			{
-				// TODO: Skip if we do not want to load it... TODO: Optimize?
-				// if (!loadAllSubMeshes && std::find(subMeshIndices.begin(), subMeshIndices.end(), m) == subMeshIndices.end())
-				// 	continue;
-
 				aiMesh* mesh = scene->mMeshes[m];
 
 				if (!mesh->HasPositions())
@@ -121,6 +112,7 @@ namespace Iris {
 				AABB& aabb = subMesh.BoundingBox;
 				aabb.Min = { FLT_MAX, FLT_MAX, FLT_MAX };
 				aabb.Max = { -FLT_MAX, -FLT_MAX, -FLT_MAX };
+				meshSource->m_Vertices.reserve(mesh->mNumVertices);
 				for (std::size_t i = 0; i < mesh->mNumVertices; i++)
 				{
 					MeshUtils::Vertex vertex;
@@ -149,6 +141,8 @@ namespace Iris {
 				}
 
 				// Indices...
+				meshSource->m_Indices.reserve(mesh->mNumFaces);
+				meshSource->m_TriangleCache[m].reserve(mesh->mNumFaces);
 				for (std::size_t i = 0; i < mesh->mNumFaces; i++)
 				{
 					IR_ASSERT(mesh->mFaces[i].mNumIndices == 3, "Must have 3 indices since we are using aiProcess_Triangulate");
@@ -206,7 +200,16 @@ namespace Iris {
 				float emission = 0.0f;
 				aiColor3D aiColor, aiEmission;
 				if (aiMaterial->Get(AI_MATKEY_COLOR_DIFFUSE, aiColor) == AI_SUCCESS)
-					albedoColor = { aiColor.r, aiColor.g, aiColor.b };
+				{
+					auto sRGBFromLinear = [](float theLinearValue)
+					{
+						return theLinearValue <= 0.0031308f
+							? theLinearValue * 12.92f
+							: std::powf(theLinearValue, 1.0f / 2.2f) * 1.055f - 0.055f;
+					};
+
+					albedoColor = { sRGBFromLinear(aiColor.r), sRGBFromLinear(aiColor.g), sRGBFromLinear(aiColor.b) };
+				}
 
 				if (aiMaterial->Get(AI_MATKEY_COLOR_EMISSIVE, aiColor) == AI_SUCCESS)
 					emission = static_cast<float>(aiEmission.r);
@@ -216,11 +219,11 @@ namespace Iris {
 
 				float roughness, metalness;
 				if (aiMaterial->Get(AI_MATKEY_ROUGHNESS_FACTOR, roughness) != AI_SUCCESS)
-					roughness = 0.5f; // Default value
+					roughness = 0.4f; // Default value
 
 				ma->SetRoughness(roughness);
 
-				//if (aiMaterial->Get(AI_MATKEY_REFLECTIVITY, metalness) != AI_SUCCESS)
+				// if (aiMaterial->Get(AI_MATKEY_REFLECTIVITY, metalness) != AI_SUCCESS)
 				if (aiMaterial->Get(AI_MATKEY_METALLIC_FACTOR, metalness) != AI_SUCCESS)
 					metalness = 0.0f; // Default value
 
@@ -249,17 +252,17 @@ namespace Iris {
 						.Format = ImageFormat::SRGBA
 					};
 
-					if (auto aiTexEmbedded = scene->GetEmbeddedTexture(aiTexPath.C_Str()))
+					if (const aiTexture* aiTexEmbedded = scene->GetEmbeddedTexture(aiTexPath.C_Str()))
 					{
 						spec.Width = aiTexEmbedded->mWidth;
 						spec.Height = aiTexEmbedded->mHeight;
 
-						textureHandle = AssetManager::CreateMemoryOnlyRendererAsset<Texture2D>(spec, Buffer(reinterpret_cast<uint8_t*>(aiTexEmbedded->pcData), 1));
+						textureHandle = AssetManager::CreateMemoryOnlyAsset<Texture2D>(spec, Buffer(reinterpret_cast<uint8_t*>(aiTexEmbedded->pcData), 1));
 					}
 					else
 					{
-						auto parentPath = m_AssetPath.parent_path();
-						auto texturePath = parentPath / aiTexPath.C_Str();
+						std::filesystem::path parentPath = m_AssetPath.parent_path();
+						std::filesystem::path texturePath = parentPath / aiTexPath.C_Str();
 						if (!FileSystem::Exists(texturePath))
 						{
 							IR_CORE_WARN_TAG("Mesh", "\t   Albedo map path: {0} --> NOT FOUND!", texturePath);
@@ -267,7 +270,7 @@ namespace Iris {
 						}
 						IR_CORE_TRACE_TAG("Mesh", "\t   Albedo map path: {0}{1}", texturePath, FileSystem::Exists(texturePath) ? "" : "--> NOT FOUND!");
 						
-						textureHandle = AssetManager::CreateMemoryOnlyRendererAsset<Texture2D>(spec, texturePath);
+						textureHandle = AssetManager::CreateMemoryOnlyAsset<Texture2D>(spec, texturePath);
 					}
 
 					ma->SetAlbedoMap(textureHandle);
@@ -284,17 +287,17 @@ namespace Iris {
 						.Format = ImageFormat::RGBA
 					};
 
-					if (auto aiTexEmbedded = scene->GetEmbeddedTexture(aiTexPath.C_Str()))
+					if (const aiTexture* aiTexEmbedded = scene->GetEmbeddedTexture(aiTexPath.C_Str()))
 					{
 						spec.Width = aiTexEmbedded->mWidth;
 						spec.Height = aiTexEmbedded->mHeight;
 
-						textureHandle = AssetManager::CreateMemoryOnlyRendererAsset<Texture2D>(spec, Buffer(reinterpret_cast<uint8_t*>(aiTexEmbedded->pcData), 1));
+						textureHandle = AssetManager::CreateMemoryOnlyAsset<Texture2D>(spec, Buffer(reinterpret_cast<uint8_t*>(aiTexEmbedded->pcData), 1));
 					}
 					else
 					{
-						auto parentPath = m_AssetPath.parent_path();
-						auto texturePath = parentPath / aiTexPath.C_Str();
+						std::filesystem::path parentPath = m_AssetPath.parent_path();
+						std::filesystem::path texturePath = parentPath / aiTexPath.C_Str();
 						if (!FileSystem::Exists(texturePath))
 						{
 							IR_CORE_WARN_TAG("Mesh", "\t   Normal map path: {0} --> NOT FOUND!", texturePath);
@@ -302,7 +305,7 @@ namespace Iris {
 						}
 						IR_CORE_TRACE_TAG("Mesh", "\t   Normal map path: {0}{1}", texturePath, FileSystem::Exists(texturePath) ? "" : "--> NOT FOUND!");
 
-						textureHandle = AssetManager::CreateMemoryOnlyRendererAsset<Texture2D>(spec, texturePath);
+						textureHandle = AssetManager::CreateMemoryOnlyAsset<Texture2D>(spec, texturePath);
 					}
 
 					ma->SetNormalMap(textureHandle);
@@ -328,17 +331,17 @@ namespace Iris {
 						.Format = ImageFormat::RGBA
 					};
 
-					if (auto aiTexEmbedded = scene->GetEmbeddedTexture(aiTexPath.C_Str()))
+					if (const aiTexture* aiTexEmbedded = scene->GetEmbeddedTexture(aiTexPath.C_Str()))
 					{
 						spec.Width = aiTexEmbedded->mWidth;
 						spec.Height = aiTexEmbedded->mHeight;
 
 						aiTexel* texels = aiTexEmbedded->pcData;
-						if (invertRoughness)
+						if (invertRoughness && texels)
 						{
 							if (spec.Height == 0)
 							{
-								auto buffer = Utils::TextureImporter::LoadImageFromMemory(Buffer(reinterpret_cast<uint8_t*>(aiTexEmbedded->pcData), spec.Width), spec.Format, spec.Width, spec.Height);
+								Buffer buffer = Utils::TextureImporter::LoadImageFromMemory(Buffer(reinterpret_cast<uint8_t*>(aiTexEmbedded->pcData), spec.Width), spec.Format, spec.Width, spec.Height);
 								texels = reinterpret_cast<aiTexel*>(buffer.Data);
 							}
 
@@ -351,12 +354,12 @@ namespace Iris {
 							}
 						}
 
-						textureHandle = AssetManager::CreateMemoryOnlyRendererAsset<Texture2D>(spec, Buffer(reinterpret_cast<uint8_t*>(texels), 1));
+						textureHandle = AssetManager::CreateMemoryOnlyAsset<Texture2D>(spec, Buffer(reinterpret_cast<uint8_t*>(texels), 1));
 					}
 					else
 					{
-						auto parentPath = m_AssetPath.parent_path();
-						auto texturePath = parentPath / aiTexPath.C_Str();
+						std::filesystem::path parentPath = m_AssetPath.parent_path();
+						std::filesystem::path texturePath = parentPath / aiTexPath.C_Str();
 						if (!FileSystem::Exists(texturePath))
 						{
 							IR_CORE_WARN_TAG("Mesh", "\t   Roughness map path: {0} --> NOT FOUND!", texturePath);
@@ -367,7 +370,7 @@ namespace Iris {
 						Buffer buffer = Utils::TextureImporter::LoadImageFromFile(texturePath.string(), spec.Format, spec.Width, spec.Height);
 
 						aiTexel* texels = reinterpret_cast<aiTexel*>(buffer.Data);
-						if (invertRoughness)
+						if (invertRoughness && texels)
 						{
 							for (uint32_t o = 0; i < spec.Width * spec.Height; o++)
 							{
@@ -378,7 +381,7 @@ namespace Iris {
 							}
 						}
 
-						textureHandle = AssetManager::CreateMemoryOnlyRendererAsset<Texture2D>(spec, buffer);
+						textureHandle = AssetManager::CreateMemoryOnlyAsset<Texture2D>(spec, buffer);
 					}
 
 					ma->SetRoughnessMap(textureHandle);
@@ -395,17 +398,17 @@ namespace Iris {
 						.Format = ImageFormat::RGBA
 					};
 
-					if (auto aiTexEmbedded = scene->GetEmbeddedTexture(aiTexPath.C_Str()))
+					if (const aiTexture* aiTexEmbedded = scene->GetEmbeddedTexture(aiTexPath.C_Str()))
 					{
 						spec.Width = aiTexEmbedded->mWidth;
 						spec.Height = aiTexEmbedded->mHeight;
 
-						textureHandle = AssetManager::CreateMemoryOnlyRendererAsset<Texture2D>(spec, Buffer(reinterpret_cast<uint8_t*>(aiTexEmbedded->pcData), 1));
+						textureHandle = AssetManager::CreateMemoryOnlyAsset<Texture2D>(spec, Buffer(reinterpret_cast<uint8_t*>(aiTexEmbedded->pcData), 1));
 					}
 					else
 					{
-						auto parentPath = m_AssetPath.parent_path();
-						auto texturePath = parentPath / aiTexPath.C_Str();
+						std::filesystem::path parentPath = m_AssetPath.parent_path();
+						std::filesystem::path texturePath = parentPath / aiTexPath.C_Str();
 						if (!FileSystem::Exists(texturePath))
 						{
 							IR_CORE_WARN_TAG("Mesh", "\t   Metalness map path: {0} --> NOT FOUND!", texturePath);
@@ -413,7 +416,7 @@ namespace Iris {
 						}
 						IR_CORE_TRACE_TAG("Mesh", "\t   Metalness map path: {0}{1}", texturePath, FileSystem::Exists(texturePath) ? "" : "--> NOT FOUND!");
 
-						textureHandle = AssetManager::CreateMemoryOnlyRendererAsset<Texture2D>(spec, texturePath);
+						textureHandle = AssetManager::CreateMemoryOnlyAsset<Texture2D>(spec, texturePath);
 					}
 
 					ma->SetMetalnessMap(textureHandle);
@@ -457,7 +460,7 @@ namespace Iris {
 		for (uint32_t i = 0; i < aNode->mNumMeshes; i++)
 		{
 			uint32_t submeshIndex = aNode->mMeshes[i];
-			auto& submesh = meshSource->m_SubMeshes[submeshIndex];
+			MeshUtils::SubMesh& submesh = meshSource->m_SubMeshes[submeshIndex];
 			submesh.NodeName = aNode->mName.C_Str();
 			submesh.Transform = transform;
 			submesh.LocalTransform = node.LocalTransform;

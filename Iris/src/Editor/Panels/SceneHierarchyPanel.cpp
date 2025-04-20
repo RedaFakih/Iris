@@ -5,9 +5,11 @@
 #include "Core/Application.h"
 #include "Core/Events/KeyEvents.h"
 #include "Core/Input/Input.h"
+#include "Editor/EditorSettings.h"
 #include "ImGui/CustomTreeNode.h"
 #include "ImGui/FontAwesome.h"
 #include "ImGui/ImGuiUtils.h"
+#include "Physics/Physics.h"
 #include "Physics/PhysicsLayer.h"
 #include "Physics/PhysicsScene.h"
 #include "Project/Project.h"
@@ -26,7 +28,9 @@ namespace Iris {
 			for (UUID& uuid : entity.Children())
 			{
 				Entity entity = scene->GetEntityWithUUID(uuid);
-				entity.RemoveComponent<VisibleComponent>();
+				if (entity.HasComponent<VisibleComponent>())
+					entity.RemoveComponent<VisibleComponent>();
+
 				if (entity.Children().size())
 					RemoveVisibilityComponentRecursive(entity, scene);
 			}
@@ -37,7 +41,9 @@ namespace Iris {
 			for (UUID& uuid : entity.Children())
 			{
 				Entity entity = scene->GetEntityWithUUID(uuid);
-				entity.AddComponent<VisibleComponent>();
+				if (!entity.HasComponent<VisibleComponent>())
+					entity.AddComponent<VisibleComponent>();
+
 				if (entity.Children().size())
 					AddVisibilityComponentRecursive(entity, scene);
 			}
@@ -74,6 +80,9 @@ namespace Iris {
 		if (m_Context)
 			m_Context->SetEntityDestroyedCallback([this](Entity entity) { OnExternalEntityDestroyed(entity); });
 	}
+
+	static std::size_t s_PointLightIndex = 0;
+	static std::size_t s_SpotLightIndex = 0;
 
 	void SceneHierarchyPanel::OnImGuiRender(bool& isOpen)
 	{
@@ -166,6 +175,8 @@ namespace Iris {
 						UI::ImGuiScopedColor entitySelection2(ImGuiCol_HeaderHovered, IM_COL32_DISABLE);
 						UI::ImGuiScopedColor entitySelection3(ImGuiCol_HeaderActive, IM_COL32_DISABLE);
 
+						s_PointLightIndex = 0;
+						s_SpotLightIndex = 0;
 						for (auto entity : m_Context->GetAllEntitiesWith<IDComponent, RelationshipComponent>())
 						{
 							Entity e{ entity, m_Context.Raw() };
@@ -212,7 +223,7 @@ namespace Iris {
 
 				for (std::size_t i = 0; i < count; i++)
 				{
-					UUID entityID = *(((UUID*)payload->Data) + i);
+					UUID entityID = *((reinterpret_cast<UUID*>(payload->Data)) + i);
 					Entity entity = m_Context->GetEntityWithUUID(entityID);
 					m_Context->UnparentEntity(entity);
 				}
@@ -244,28 +255,6 @@ namespace Iris {
 	void SceneHierarchyPanel::OnEvent(Events::Event& e)
 	{
 		Events::EventDispatcher dispatcher(e);
-
-		dispatcher.Dispatch<Events::MouseButtonReleasedEvent>([&](Events::MouseButtonReleasedEvent& e)
-		{
-			switch (e.GetMouseButton())
-			{
-				case MouseButton::Right:
-				{
-					if (m_CurrentlyRenderingOnlyViewport)
-						break;
-
-					if (m_IsWindowHovered)
-						break;
-
-					if (Input::IsKeyDown(KeyCode::LeftShift))
-						m_OpenEntityCreateMenuPopup = true;
-
-					return true;
-				}
-			}
-
-			return false;
-		});
 
 		dispatcher.Dispatch<Events::RenderViewportOnlyEvent>([&](Events::RenderViewportOnlyEvent& e)
 		{
@@ -334,7 +323,8 @@ namespace Iris {
 				{
 					m_FirstSelectedRow = -1;
 					m_LastSelectedRow = -1;
-					break;
+					
+					return true;
 				}
 			}
 
@@ -348,9 +338,6 @@ namespace Iris {
 
 		if (UI::BeginSection(parent ? "Add Child Entity" : "Add Entity", labelIndex, false, parent ? 270.0f : 0.0f))
 		{
-			ImGui::TableNextRow();
-			ImGui::TableSetColumnIndex(0);
-
 			if (ImGui::MenuItem("Empty Entity"))
 			{
 				newEntity = m_Context->CreateEntity("Empty Entity");
@@ -421,7 +408,7 @@ namespace Iris {
 							// Load the primitive 3D objects synchronously since they are not large and we need to create the .Ismesh files out of them after they are loaded
 							if (AssetManager::GetAsset<StaticMesh>(handle))
 							{
-								Ref<StaticMesh> staticMesh = Project::GetEditorAssetManager()->CreateNewAsset<StaticMesh>(targetAssetName, (Project::GetAssetDirectory() / targetPath).string(), handle);
+								Ref<StaticMesh> staticMesh = Project::GetEditorAssetManager()->CreateNewAsset<StaticMesh>(targetAssetName, (Project::GetAssetDirectory() / targetPath).string(), handle, false);
 								entity.AddComponent<StaticMeshComponent>(staticMesh->Handle);
 							}
 						}
@@ -448,6 +435,8 @@ namespace Iris {
 				if (ImGui::MenuItem("Cone"))
 				{
 					newEntity = create3DEntity("Cone", "Cone.Ismesh", "Cone.gltf");
+					newEntity.AddComponent<MeshColliderComponent>();
+					PhysicsSystem::GetOrCreateMeshColliderAsset(newEntity, newEntity.GetComponent<MeshColliderComponent>());
 				}
 
 				if (ImGui::MenuItem("Cylinder"))
@@ -458,6 +447,8 @@ namespace Iris {
 				if (ImGui::MenuItem("Torus"))
 				{
 					newEntity = create3DEntity("Torus", "Torus.Ismesh", "Torus.gltf");
+					newEntity.AddComponent<MeshColliderComponent>();
+					PhysicsSystem::GetOrCreateMeshColliderAsset(newEntity, newEntity.GetComponent<MeshColliderComponent>());
 				}
 
 				if (ImGui::MenuItem("Capsule"))
@@ -473,9 +464,6 @@ namespace Iris {
 
 		if (UI::BeginSection("Lighting", labelIndex, false, parent ? 270.0f : 0.0f))
 		{
-			ImGui::TableNextRow();
-			ImGui::TableSetColumnIndex(0);
-
 			if (ImGui::MenuItem("Sky Light"))
 			{
 				newEntity = m_Context->CreateEntity("Sky Light");
@@ -486,6 +474,20 @@ namespace Iris {
 			{
 				newEntity = m_Context->CreateEntity("Directional Light");
 				newEntity.AddComponent<DirectionalLightComponent>();
+			}
+
+			if (ImGui::MenuItem("Point Light"))
+			{
+				newEntity = m_Context->CreateEntity("Point Light");
+				newEntity.AddComponent<PointLightComponent>();
+			}
+
+			if (ImGui::MenuItem("Spot Light"))
+			{
+				newEntity = m_Context->CreateEntity("Spot Light");
+				newEntity.AddComponent<SpotLightComponent>();
+				newEntity.GetComponent<TransformComponent>().Translation = glm::vec3{ 0.0f };
+				newEntity.GetComponent<TransformComponent>().SetRotationEuler(glm::radians(glm::vec3{ 90.0f, 0.0f, 0.0f }));
 			}
 
 			UI::EndSection();
@@ -565,7 +567,7 @@ namespace Iris {
 		if (entity.Children().empty())
 			flags |= ImGuiTreeNodeFlags_Leaf;
 
-		const std::string strID = fmt::format("{0}{1}", name, (uint64_t)entity.GetUUID());
+		const std::string strID = fmt::format("{0}{1}", name, static_cast<uint64_t>(entity.GetUUID()));
 
 		ImGui::PushClipRect(rowAreaMin, rowAreaMax, false);
 		bool isRowHovered, held;
@@ -630,18 +632,45 @@ namespace Iris {
 			fillRowWithColor(Colors::Theme::SelectionMuted);
 		}
 
+		const EditorSettings& editorSettings = EditorSettings::Get();
+
 		// Text coloring...
 		bool isMeshValid = true;
+		bool isLightLimitExceeded = false;
 		{
 			if (isSelected)
 				ImGui::PushStyleColor(ImGuiCol_Text, Colors::Theme::BackgroundDark);
 
-			// NOTE: We always highlight unset meshes
-			if (entity.HasComponent<StaticMeshComponent>())
-				isMeshValid = AssetManager::IsAssetValid(entity.GetComponent<StaticMeshComponent>().StaticMesh, true);
+			if (editorSettings.HighlighUnsetMeshes)
+			{
+				if (entity.HasComponent<StaticMeshComponent>())
+					isMeshValid = AssetManager::IsAssetValid(entity.GetComponent<StaticMeshComponent>().StaticMesh, true);
 
-			if (!isMeshValid)
-				ImGui::PushStyleColor(ImGuiCol_Text, Colors::Theme::MeshNotSet);
+				if (!isMeshValid)
+					ImGui::PushStyleColor(ImGuiCol_Text, Colors::Theme::MeshNotSet);
+			}
+
+			if (editorSettings.HighlightExtraDynamicLights)
+			{
+				if (entity.HasComponent<PointLightComponent, VisibleComponent>())
+				{
+					if (s_PointLightIndex >= Renderer::GetConfig().MaxNumberOfPointLights)
+						isLightLimitExceeded = true;
+
+					s_PointLightIndex++;
+				}
+
+				if (entity.HasComponent<SpotLightComponent, VisibleComponent>())
+				{
+					if (s_SpotLightIndex >= Renderer::GetConfig().MaxNumberOfSpotLights)
+						isLightLimitExceeded = true;
+
+					s_SpotLightIndex++;
+				}
+
+				if (isLightLimitExceeded)
+					ImGui::PushStyleColor(ImGuiCol_Text, Colors::Theme::ExceededDynamicLights);
+			}
 		}
 
 		// Tree Node...
@@ -651,7 +680,6 @@ namespace Iris {
 		const ImVec2 padding = ((flags & ImGuiTreeNodeFlags_FramePadding)) ? style.FramePadding : ImVec2(style.FramePadding.x, ImMin(window->DC.CurrLineTextBaseOffset, style.FramePadding.y));
 		const float text_offset_x = g.FontSize + padding.x * 2;           // Collapser arrow width + Spacing
 		const float text_offset_y = ImMax(padding.y, window->DC.CurrLineTextBaseOffset);                    // Latch before ItemSize changes it
-		//const float text_width = g.FontSize + (label_size.x > 0.0f ? label_size.x + padding.x * 2 : 0.0f);  // Include collapser
 		ImVec2 text_pos(window->DC.CursorPos.x + text_offset_x, window->DC.CursorPos.y + text_offset_y);
 		const float arrow_hit_x1 = (text_pos.x - text_offset_x) - style.TouchExtraPadding.x;
 		const float arrow_hit_x2 = (text_pos.x - text_offset_x) + (g.FontSize + padding.x * 2.0f) + style.TouchExtraPadding.x;
@@ -666,6 +694,10 @@ namespace Iris {
 			ImGui::SetNextItemOpen(true);
 
 		const bool opened = ImGui::TreeNodeWithIcon(nullptr, ImGui::GetID(strID.c_str()), flags, name, nullptr);
+		if (!isMeshValid)
+			UI::SetToolTip("Entity has a MeshComponent but no mesh assigned to it!", true);
+		if (isLightLimitExceeded)
+			UI::SetToolTip("Light limit for this light type has been exceeded! You can change the limit\nin Edit -> Project Settings -> Renderer -> Light limit.", true);
 
 		int32_t rowIndex = ImGui::TableGetRowIndex();
 		if (rowIndex >= m_FirstSelectedRow && rowIndex <= m_LastSelectedRow && !SelectionManager::IsSelected(entity.GetUUID()) && m_ShiftSelectionRunning)
@@ -703,9 +735,6 @@ namespace Iris {
 
 				if (UI::BeginSection("Utils", index, false, entity ? 270.0f : 0.0f))
 				{
-					ImGui::TableNextRow();
-					ImGui::TableSetColumnIndex(0);
-
 					if (!m_EntityContextMenuPlugins.empty())
 					{
 						if (ImGui::MenuItem("Set Transform to Editor Camera Transform"))
@@ -781,9 +810,12 @@ namespace Iris {
 			ImGui::FocusWindow(ImGui::GetCurrentWindow());
 		}
 
+		// Text coloring...
 		if (isSelected)
 			ImGui::PopStyleColor();
-		if (!isMeshValid)
+		if (editorSettings.HighlighUnsetMeshes && !isMeshValid)
+			ImGui::PopStyleColor();
+		if (editorSettings.HighlightExtraDynamicLights && isLightLimitExceeded)
 			ImGui::PopStyleColor();
 
 		// Drag Drop
@@ -819,13 +851,27 @@ namespace Iris {
 
 			if (payload)
 			{
-				size_t count = payload->DataSize / sizeof(UUID);
+				std::size_t count = payload->DataSize / sizeof(UUID);
 
-				for (size_t i = 0; i < count; i++)
+				std::vector<UUID> droppedEntities;
+				droppedEntities.reserve(count);
+				for (std::size_t i = 0; i < count; i++)
 				{
-					UUID droppedEntityID = *(((UUID*)payload->Data) + i);
-					Entity droppedEntity = m_Context->GetEntityWithUUID(droppedEntityID);
-					m_Context->ParentEntity(droppedEntity, entity);
+					droppedEntities.push_back(*((reinterpret_cast<UUID*>(payload->Data)) + i));
+				}
+
+				if (std::find(droppedEntities.begin(), droppedEntities.end(), entity.GetUUID()) != droppedEntities.end())
+				{
+					IR_CORE_ERROR_TAG("Editor", "We can not drop the selected entities onto one of the already selected entity itself!");
+				}
+				else
+				{
+					for (std::size_t i = 0; i < count; i++)
+					{
+						UUID droppedEntityID = droppedEntities[i];;
+						Entity droppedEntity = m_Context->GetEntityWithUUID(droppedEntityID);
+						m_Context->ParentEntity(droppedEntity, entity);
+					}
 				}
 			}
 
@@ -1204,7 +1250,6 @@ namespace Iris {
 				ImGui::TreePop();
 			}
 		}
-
 	}
 
 	void SceneHierarchyPanel::DrawComponents(const std::vector<UUID>& entities)
@@ -1241,7 +1286,7 @@ namespace Iris {
 			ImGui::PushItemWidth(contentRegionAvailable.x - 92.0f);
 			UI::ImGuiScopedStyle frameBorder(ImGuiStyleVar_FrameBorderSize, 0.0f);
 			UI::ImGuiScopedColor frameColour(ImGuiCol_FrameBg, IM_COL32(0, 0, 0, 0));
-			UI::ImGuiScopedFont boldFont(Application::Get().GetImGuiLayer()->GetFontsLibrary().GetFont("RobotoBold"));
+			UI::ImGuiScopedFont boldFont(Application::Get().GetImGuiLayer()->GetFontsLibrary().GetFont(DefaultFonts::Bold));
 
 			if (Input::IsKeyDown(KeyCode::F2) && (m_IsHierarchyOrPropertiesFocused || UI::IsWindowFocused("Viewport")) && !ImGui::IsAnyItemActive())
 				ImGui::SetKeyboardFocusHere();
@@ -1301,7 +1346,7 @@ namespace Iris {
 		ImGui::Spacing();
 
 		{
-			UI::ImGuiScopedFont boldFont(Application::Get().GetImGuiLayer()->GetFontsLibrary().GetFont("RobotoBold"));
+			UI::ImGuiScopedFont boldFont(Application::Get().GetImGuiLayer()->GetFontsLibrary().GetFont(DefaultFonts::Bold));
 			UI::ImGuiScopedStyle itemSpacing(ImGuiStyleVar_ItemSpacing, { 0.0f, 0.0f });
 			UI::ImGuiScopedStyle windowPadding(ImGuiStyleVar_WindowPadding, { 5.0f, 10.0f });
 			UI::ImGuiScopedStyle windowRounding(ImGuiStyleVar_WindowRounding, 4.0f);
@@ -1327,6 +1372,8 @@ namespace Iris {
 					Utils::DrawSimpleAddComponentButton<StaticMeshComponent>(this, "Static Mesh", EditorResources::StaticMeshIcon);
 					Utils::DrawSimpleAddComponentButton<SkyLightComponent>(this, "Sky Light", EditorResources::SkyLightIcon);
 					Utils::DrawSimpleAddComponentButton<DirectionalLightComponent>(this, "Directional Light", EditorResources::DirectionalLightIcon);
+					Utils::DrawSimpleAddComponentButton<PointLightComponent>(this, "Point Light", EditorResources::PointLightIcon);
+					Utils::DrawSimpleAddComponentButton<SpotLightComponent>(this, "Spot Light", EditorResources::SpotLightIcon);
 					Utils::DrawAddComponentButton<TextComponent>(this, "Text", [](Entity entity, TextComponent& tc)
 					{
 						static_cast<void>(entity);
@@ -1345,6 +1392,10 @@ namespace Iris {
 						// Then we also add the entity that has the CompoundColliderComponent itself
 						compoundCollComp.CompoundedColliderEntities.push_back(entity.GetUUID());
 					}, EditorResources::CompoundColliderIcon);
+					Utils::DrawAddComponentButton<MeshColliderComponent>(this, "Mesh Collider", [this](Entity entity, MeshColliderComponent& meshColliderComp)
+					{
+						PhysicsSystem::GetOrCreateMeshColliderAsset(entity, meshColliderComp);
+					}, EditorResources::MeshColliderIcon);
 					Utils::DrawSimpleAddComponentButton<RigidBody2DComponent>(this, "Rigid Body 2D", EditorResources::RigidBody2DIcon);
 					Utils::DrawSimpleAddComponentButton<BoxCollider2DComponent>(this, "Box Collider 2D", EditorResources::BoxCollider2DIcon);
 					Utils::DrawSimpleAddComponentButton<CircleCollider2DComponent>(this, "Circle Collider 2D", EditorResources::CircleCollider2DIcon);
@@ -2036,6 +2087,17 @@ namespace Iris {
 		{
 			UI::BeginPropertyGrid();
 
+			ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<bool, DirectionalLightComponent>([](const DirectionalLightComponent& other) { return other.CastShadows; }));
+			if (UI::Property("Cast Shadows", dirLightComp.CastShadows))
+			{
+				for (UUID entityID : entities)
+				{
+					Entity entity = m_Context->GetEntityWithUUID(entityID);
+					entity.GetComponent<DirectionalLightComponent>().CastShadows = dirLightComp.CastShadows;
+				}
+			}
+			ImGui::PopItemFlag();
+
 			ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<glm::vec3, DirectionalLightComponent>([](const DirectionalLightComponent& other) { return other.Radiance; }));
 			if (UI::PropertyColor3("Radiance", dirLightComp.Radiance))
 			{
@@ -2058,18 +2120,18 @@ namespace Iris {
 			}
 			ImGui::PopItemFlag();
 
-			ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<bool, DirectionalLightComponent>([](const DirectionalLightComponent& other) { return other.CastShadows; }));
-			if (UI::Property("Cast Shadows", dirLightComp.CastShadows))
+			ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<float, DirectionalLightComponent>([](const DirectionalLightComponent& other) { return other.LightSize; }));
+			if (UI::Property("Light Size", dirLightComp.LightSize, 0.1f, 0.0f, 10.0f, "Changes the softness of the shadows"))
 			{
 				for (UUID entityID : entities)
 				{
 					Entity entity = m_Context->GetEntityWithUUID(entityID);
-					entity.GetComponent<DirectionalLightComponent>().CastShadows = dirLightComp.CastShadows;
+					entity.GetComponent<DirectionalLightComponent>().LightSize = dirLightComp.LightSize;
 				}
 			}
 			ImGui::PopItemFlag();
 
-			ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect&& IsInconsistentPrimitive<float, DirectionalLightComponent>([](const DirectionalLightComponent& other) { return other.ShadowOpacity; }));
+			ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<float, DirectionalLightComponent>([](const DirectionalLightComponent& other) { return other.ShadowOpacity; }));
 			if (UI::Property("Shadow Opacity", dirLightComp.ShadowOpacity, 0.1f, 0.0f, 1.0f, "Set the opacity of shadows between 0 and 1"))
 			{
 				for (UUID entityID : entities)
@@ -2082,6 +2144,131 @@ namespace Iris {
 
 			UI::EndPropertyGrid();
 		}, EditorResources::DirectionalLightIcon);
+
+		DrawComponent<PointLightComponent>("Point Light", [&](PointLightComponent& pointLightComp, const std::vector<UUID>& entities, const bool isMultiSelect)
+		{
+			UI::BeginPropertyGrid();
+
+			ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<glm::vec3, PointLightComponent>([](const PointLightComponent& other) { return other.Radiance; }));
+			if (UI::PropertyColor3("Radiance", pointLightComp.Radiance))
+			{
+				for (UUID entityID : entities)
+				{
+					Entity entity = m_Context->GetEntityWithUUID(entityID);
+					entity.GetComponent<PointLightComponent>().Radiance = pointLightComp.Radiance;
+				}
+			}
+			ImGui::PopItemFlag();
+
+			ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<float, PointLightComponent>([](const PointLightComponent& other) { return other.Intensity; }));
+			if (UI::Property("Intensity", pointLightComp.Intensity, 0.05f, 0.0f, 500.0f))
+			{
+				for (UUID entityID : entities)
+				{
+					Entity entity = m_Context->GetEntityWithUUID(entityID);
+					entity.GetComponent<PointLightComponent>().Intensity = pointLightComp.Intensity;
+				}
+			}
+			ImGui::PopItemFlag();
+
+			ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<float, PointLightComponent>([](const PointLightComponent& other) { return other.Radius; }));
+			if (UI::Property("Radius", pointLightComp.Radius, 0.01f, 0.0f, std::numeric_limits<float>::max()))
+			{
+				for (UUID entityID : entities)
+				{
+					Entity entity = m_Context->GetEntityWithUUID(entityID);
+					entity.GetComponent<PointLightComponent>().Radius = pointLightComp.Radius;
+					entity.GetComponent<TransformComponent>().Scale = glm::vec3(pointLightComp.Radius);
+				}
+			}
+			ImGui::PopItemFlag();
+
+			ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<float, PointLightComponent>([](const PointLightComponent& other) { return other.FallOff; }));
+			if (UI::Property("FallOff", pointLightComp.FallOff, 0.005f, 0.0f, 1.0f))
+			{
+				for (UUID entityID : entities)
+				{
+					Entity entity = m_Context->GetEntityWithUUID(entityID);
+					entity.GetComponent<PointLightComponent>().FallOff = pointLightComp.FallOff;
+				}
+			}
+			ImGui::PopItemFlag();
+
+			UI::EndPropertyGrid();
+		}, EditorResources::PointLightIcon);
+
+		DrawComponent<SpotLightComponent>("Spot Light", [&](SpotLightComponent& spotLightComp, const std::vector<UUID>& entities, const bool isMultiSelect)
+		{
+			UI::BeginPropertyGrid();
+
+			ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<glm::vec3, SpotLightComponent>([](const SpotLightComponent& other) { return other.Radiance; }));
+			if (UI::PropertyColor3("Radiance", spotLightComp.Radiance))
+			{
+				for (UUID entityID : entities)
+				{
+					Entity entity = m_Context->GetEntityWithUUID(entityID);
+					entity.GetComponent<SpotLightComponent>().Radiance = spotLightComp.Radiance;
+				}
+			}
+			ImGui::PopItemFlag();
+
+			ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<float, SpotLightComponent>([](const SpotLightComponent& other) { return other.Intensity; }));
+			if (UI::Property("Intensity", spotLightComp.Intensity, 0.05f, 0.0f, 500.0f))
+			{
+				for (UUID entityID : entities)
+				{
+					Entity entity = m_Context->GetEntityWithUUID(entityID);
+					entity.GetComponent<SpotLightComponent>().Intensity = spotLightComp.Intensity;
+				}
+			}
+			ImGui::PopItemFlag();
+
+			ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect&& IsInconsistentPrimitive<float, SpotLightComponent>([](const SpotLightComponent& other) { return other.Range; }));
+			if (UI::Property("Range", spotLightComp.Range, 0.1f, 0.0f, std::numeric_limits<float>::max()))
+			{
+				for (UUID entityID : entities)
+				{
+					Entity entity = m_Context->GetEntityWithUUID(entityID);
+					entity.GetComponent<SpotLightComponent>().Range = spotLightComp.Range;
+				}
+			}
+			ImGui::PopItemFlag();
+
+			ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<float, SpotLightComponent>([](const SpotLightComponent& other) { return other.Angle; }));
+			if (UI::Property("Angle", spotLightComp.Angle, 0.1f, 0.1f, 180.0f))
+			{
+				for (UUID entityID : entities)
+				{
+					Entity entity = m_Context->GetEntityWithUUID(entityID);
+					entity.GetComponent<SpotLightComponent>().Angle = glm::clamp(spotLightComp.Angle, 0.1f, 180.0f);
+				}
+			}
+			ImGui::PopItemFlag();
+
+			ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<float, SpotLightComponent>([](const SpotLightComponent& other) { return other.AngleAttenuation; }));
+			if (UI::Property("Angle Attenuation", spotLightComp.AngleAttenuation, 0.01f, 0.0f, std::numeric_limits<float>::max()))
+			{
+				for (UUID entityID : entities)
+				{
+					Entity entity = m_Context->GetEntityWithUUID(entityID);
+					entity.GetComponent<SpotLightComponent>().AngleAttenuation = glm::max(spotLightComp.AngleAttenuation, 0.0f);
+				}
+			}
+			ImGui::PopItemFlag();
+
+			ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<float, SpotLightComponent>([](const SpotLightComponent& other) { return other.FallOff; }));
+			if (UI::Property("FallOff", spotLightComp.FallOff, 0.005f, 0.0f, 1.0f))
+			{
+				for (UUID entityID : entities)
+				{
+					Entity entity = m_Context->GetEntityWithUUID(entityID);
+					entity.GetComponent<SpotLightComponent>().FallOff = spotLightComp.FallOff;
+				}
+			}
+			ImGui::PopItemFlag();
+
+			UI::EndPropertyGrid();
+		}, EditorResources::SpotLightIcon);
 
 		DrawComponent<RigidBodyComponent>("Rigid Body", [&](RigidBodyComponent& rigidBodyComp, const std::vector<UUID>& entities, const bool isMultiSelect)
 		{
@@ -2233,7 +2420,7 @@ namespace Iris {
 				int currentCollisionDetection = static_cast<int>(rigidBodyComp.CollisionDetection);
 
 				ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<int, RigidBodyComponent>([](const RigidBodyComponent& other) { return static_cast<int>(other.CollisionDetection); }));
-				if (UI::PropertyDropdown("Collision\nDetection", s_CollisionDetectionNames, 2, &currentCollisionDetection, "Collision Detection method to use."))
+				if (UI::PropertyDropdown("Collision\nDetection", s_CollisionDetectionNames, 2, &currentCollisionDetection, "Collision Detection method to use.\nOr how well the system detects collisions when the body has a high velocity."))
 				{
 					for (UUID entityID : entities)
 					{
@@ -2706,6 +2893,105 @@ namespace Iris {
 
 			UI::EndPropertyGrid();
 		}, EditorResources::CompoundColliderIcon);
+
+		DrawComponent<MeshColliderComponent>("Mesh Collider", [&](MeshColliderComponent& meshColliderComp, const std::vector<UUID>& entities, const bool isMultiSelect)
+		{
+			UI::BeginPropertyGrid();
+
+			ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<AssetHandle, MeshColliderComponent>([](const MeshColliderComponent& other) { return other.ColliderAsset; }));
+			if (UI::PropertyAssetReference<MeshColliderAsset>("Collider", meshColliderComp.ColliderAsset, "Select the MeshColliderAsset to use with the current mesh"))
+			{
+				const Ref<MeshColliderAsset>& colliderAsset = AssetManager::GetAsset<MeshColliderAsset>(meshColliderComp.ColliderAsset);
+
+				for (UUID entityID : entities)
+				{
+					Entity entity = m_Context->GetEntityWithUUID(entityID);
+					MeshColliderComponent& component = entity.GetComponent<MeshColliderComponent>();
+					component.ColliderAsset = meshColliderComp.ColliderAsset;
+
+					if (colliderAsset)
+					{
+						component.UseSharedShape = colliderAsset->AlwaysShareShape;
+						component.CollisionComplexity = colliderAsset->CollisionComplexity;
+					}
+
+					if (component.ColliderAsset == 0)
+						PhysicsSystem::GetOrCreateMeshColliderAsset(entity, component);
+
+					if (entity.HasComponent<StaticMeshComponent>())
+						component.SubMeshIndex = entity.GetComponent<StaticMeshComponent>().SubMeshIndex;
+				}
+			}
+			ImGui::PopItemFlag();
+
+			Ref<MeshColliderAsset> colliderAsset = AssetManager::GetAsset<MeshColliderAsset>(meshColliderComp.ColliderAsset);
+			const bool isPhysicalAsset = !AssetManager::IsMemoryAsset(meshColliderComp.ColliderAsset);
+
+			ImGui::BeginDisabled(colliderAsset && isPhysicalAsset);
+			ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<bool, MeshColliderComponent>([](const MeshColliderComponent& other) { return other.UseSharedShape; }));
+			if (UI::Property("Use Shared\nShape", meshColliderComp.UseSharedShape, "Allows this collider to share its collider data. (Default: False)"))
+			{
+				for (UUID entityID : entities)
+				{
+					Entity entity = m_Context->GetEntityWithUUID(entityID);
+					entity.GetComponent<MeshColliderComponent>().UseSharedShape = meshColliderComp.UseSharedShape;
+				}
+			}
+			ImGui::PopItemFlag();
+			ImGui::EndDisabled();
+
+			ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<float, MeshColliderComponent>([](const MeshColliderComponent& other) { return other.Material.Friction; }));
+			if (UI::Property("Friction", meshColliderComp.Material.Friction, 0.1f, 0.0f, 1.0f, "Set the Friction of the mesh collider asset"))
+			{
+				for (UUID entityID : entities)
+				{
+					Entity entity = m_Context->GetEntityWithUUID(entityID);
+					entity.GetComponent<MeshColliderComponent>().Material.Friction = meshColliderComp.Material.Friction;
+				}
+			}
+			ImGui::PopItemFlag();
+
+			ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<float, MeshColliderComponent>([](const MeshColliderComponent& other) { return other.Material.Restitution; }));
+			if (UI::Property("Restitution", meshColliderComp.Material.Restitution, 0.1f, 0.0f, 1.0f, "Set the Restitution of the mesh collider asset"))
+			{
+				for (UUID entityID : entities)
+				{
+					Entity entity = m_Context->GetEntityWithUUID(entityID);
+					entity.GetComponent<MeshColliderComponent>().Material.Restitution = meshColliderComp.Material.Restitution;
+				}
+			}
+			ImGui::PopItemFlag();
+
+			static const char* s_ColliderUsageOptions[] = { "Default", "Use Complex as Simple", "Use Simple as Complex" };
+			int currentColliderUsageType = static_cast<int>(meshColliderComp.CollisionComplexity);
+
+			ImGui::BeginDisabled(colliderAsset && isPhysicalAsset);
+			ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<uint8_t, MeshColliderComponent>([](const MeshColliderComponent& other) { return static_cast<uint8_t>(other.CollisionComplexity); }));
+			if (UI::PropertyDropdown("Collision\nComplexity", s_ColliderUsageOptions, 3, &currentColliderUsageType))
+			{
+				for (UUID entityID : entities)
+				{
+					Entity entity = m_Context->GetEntityWithUUID(entityID);
+					MeshColliderComponent& mcc = entity.GetComponent<MeshColliderComponent>();
+					mcc.CollisionComplexity = static_cast<PhysicsCollisionComplexity>(currentColliderUsageType);
+
+					Ref<MeshColliderAsset> collider = AssetManager::GetAsset<MeshColliderAsset>(mcc.ColliderAsset);
+					if (collider)
+						collider->CollisionComplexity = mcc.CollisionComplexity;
+				}
+			}
+			ImGui::PopItemFlag();
+			ImGui::EndDisabled();
+
+			UI::EndPropertyGrid();
+
+			if (ImGui::Button("Force cook mesh", { ImGui::GetContentRegionAvail().x, 30.0f }))
+				MeshCookingFactory::CookMesh(meshColliderComp.ColliderAsset, true);
+			
+			UI::ShiftCursorY(2.0f);
+			UI::UnderLine();
+			UI::ShiftCursorY(6.0f);
+		}, EditorResources::MeshColliderIcon);
 
 		DrawComponent<RigidBody2DComponent>("Rigid Body 2D", [&](RigidBody2DComponent& rigidBodyComp, const std::vector<UUID>& entities, const bool isMultiSelect)
 		{

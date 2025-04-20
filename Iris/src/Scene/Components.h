@@ -40,7 +40,7 @@ namespace Iris {
 		glm::vec3 Scale = { 1.0f, 1.0f, 1.0f };
 	private: // Stored as private since we would want both representation to ensure precision and usability
 		glm::vec3 RotationEuler = { 0.0f, 0.0f, 0.0f };
-		glm::quat Rotation = { 1.0f, 0.0f, 0.0f, 0.0f };
+		glm::quat Rotation = { 1.0f, 0.0f, 0.0f, 0.0f };	
 	public:
 		glm::mat4 GetTransform() const
 		{
@@ -61,7 +61,7 @@ namespace Iris {
 		void SetRotationEuler(const glm::vec3& euler)
 		{
 			RotationEuler = euler;
-			Rotation = glm::quat(euler);
+			Rotation = glm::quat(RotationEuler);
 		}
 
 		glm::quat GetRotation() const
@@ -69,16 +69,16 @@ namespace Iris {
 			return Rotation;
 		}
 
-		void SetRotation(const glm::quat& rotation)
+		void SetRotation(const glm::quat& quat)
 		{	
-			// wrap given euler angles to range [-pi, pi]
-			auto wrapToPi = [](glm::vec3 v) constexpr
+		// wrap given euler angles to range [-pi, pi]
+		auto wrapToPi = [](glm::vec3 v)
 			{
 				return glm::mod(v + glm::pi<float>(), 2.0f * glm::pi<float>()) - glm::pi<float>();
 			};
 
-			glm::vec3 originalEuler = RotationEuler;
-			Rotation = rotation;
+			auto originalEuler = RotationEuler;
+			Rotation = quat;
 			RotationEuler = glm::eulerAngles(Rotation);
 
 			// A given quat can be represented by many Euler angles (technically infinitely many),
@@ -170,6 +170,10 @@ namespace Iris {
 		float MaxWidth = 20.0f;
 	};
 
+	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	/// Lighting
+	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 	struct SkyLightComponent
 	{
 		AssetHandle SceneEnvironment = 0;
@@ -188,6 +192,27 @@ namespace Iris {
 		float Intensity = 1.0f;
 		bool CastShadows = true;
 		float ShadowOpacity = 1.0f;
+		float LightSize = 1.0f;
+	};
+
+	struct PointLightComponent
+	{
+		glm::vec3 Radiance = { 1.0f, 1.0f, 1.0f };
+		float Intensity = 1.0f;
+		float Radius = 1.0f;
+		float FallOff = 1.0f;
+		// TODO: Shadows?
+	};
+
+	struct SpotLightComponent
+	{
+		glm::vec3 Radiance = { 1.0f, 1.0f, 1.0f };
+		float Intensity = 1.0f;
+		float Range = 10.0f;
+		float Angle = 60.0f;
+		float AngleAttenuation = 5.0f;
+		float FallOff = 1.0f;
+		// TODO: Shadows?
 	};
 
 	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////

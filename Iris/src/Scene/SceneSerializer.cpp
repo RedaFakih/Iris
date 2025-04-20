@@ -1,7 +1,9 @@
 #include "IrisPCH.h"
 #include "SceneSerializer.h"
 
+#include "AssetManager/Asset/MeshColliderAsset.h"
 #include "AssetManager/AssetManager.h"
+#include "Physics/Physics.h"
 #include "Project/Project.h"
 #include "Renderer/Text/Font.h"
 #include "Utils/YAMLSerializationHelpers.h"
@@ -173,6 +175,37 @@ namespace Iris {
 			out << YAML::Key << "Intensity" << YAML::Value << dirLightComp.Intensity;
 			out << YAML::Key << "CastShadows" << YAML::Value << dirLightComp.CastShadows;
 			out << YAML::Key << "ShadowOpacity" << YAML::Value << dirLightComp.ShadowOpacity;
+			out << YAML::Key << "LightSize" << YAML::Value << dirLightComp.LightSize;
+
+			out << YAML::EndMap;
+		}
+
+		if (entity.HasComponent<PointLightComponent>())
+		{
+			out << YAML::Key << "PointLightComponent";
+			out << YAML::BeginMap;
+
+			const PointLightComponent& pointLightComp = entity.GetComponent<PointLightComponent>();
+			out << YAML::Key << "Radiance" << YAML::Value << pointLightComp.Radiance;
+			out << YAML::Key << "Intensity" << YAML::Value << pointLightComp.Intensity;
+			out << YAML::Key << "Radius" << YAML::Value << pointLightComp.Radius;
+			out << YAML::Key << "FallOff" << YAML::Value << pointLightComp.FallOff;
+
+			out << YAML::EndMap;
+		}
+
+		if (entity.HasComponent<SpotLightComponent>())
+		{
+			out << YAML::Key << "SpotLightComponent";
+			out << YAML::BeginMap;
+
+			const SpotLightComponent& spotLightComp = entity.GetComponent<SpotLightComponent>();
+			out << YAML::Key << "Radiance" << YAML::Value << spotLightComp.Radiance;
+			out << YAML::Key << "Intensity" << YAML::Value << spotLightComp.Intensity;
+			out << YAML::Key << "Range" << YAML::Value << spotLightComp.Range;
+			out << YAML::Key << "Angle" << YAML::Value << spotLightComp.Angle;
+			out << YAML::Key << "AngleAttenuation" << YAML::Value << spotLightComp.AngleAttenuation;
+			out << YAML::Key << "FallOff" << YAML::Value << spotLightComp.FallOff;
 
 			out << YAML::EndMap;
 		}
@@ -274,6 +307,23 @@ namespace Iris {
 				out << static_cast<uint64_t>(uuid);
 
 			out << YAML::EndSeq;
+
+			out << YAML::EndMap;
+		}
+
+		if (entity.HasComponent<MeshColliderComponent>())
+		{
+			out << YAML::Key << "MeshColliderComponent";
+			out << YAML::BeginMap;
+
+			const MeshColliderComponent& meshColliderComponent = entity.GetComponent<MeshColliderComponent>();
+			if (!AssetManager::IsMemoryAsset(meshColliderComponent.ColliderAsset))
+				out << YAML::Key << "ColliderAsset" << YAML::Value << meshColliderComponent.ColliderAsset;
+
+			out << YAML::Key << "UseSharedShape" << YAML::Value << meshColliderComponent.UseSharedShape;
+			out << YAML::Key << "Friction" << YAML::Value << meshColliderComponent.Material.Friction;
+			out << YAML::Key << "Restitution" << YAML::Value << meshColliderComponent.Material.Restitution;
+			out << YAML::Key << "CollisionComplexity" << YAML::Value << static_cast<uint8_t>(meshColliderComponent.CollisionComplexity);
 
 			out << YAML::EndMap;
 		}
@@ -487,6 +537,29 @@ namespace Iris {
 				component.Intensity = dirLightComp["Intensity"].as<float>(1.0f);
 				component.CastShadows = dirLightComp["CastShadows"].as<bool>(true);
 				component.ShadowOpacity = dirLightComp["ShadowOpacity"].as<float>(1.0f);
+				component.LightSize = dirLightComp["LightSize"].as<float>(1.0f);
+			}
+
+			YAML::Node pointLightComp = entity["PointLightComponent"];
+			if (pointLightComp)
+			{
+				PointLightComponent& component = deserializedEntity.AddComponent<PointLightComponent>();
+				component.Radiance = pointLightComp["Radiance"].as<glm::vec3>(glm::vec3(1.0f));
+				component.Intensity = pointLightComp["Intensity"].as<float>(1.0f);
+				component.Radius = pointLightComp["Radius"].as<float>(1.0f);
+				component.FallOff = pointLightComp["FallOff"].as<float>(1.0f);
+			}
+
+			YAML::Node spotLightComp = entity["SpotLightComponent"];
+			if (spotLightComp)
+			{
+				SpotLightComponent& component = deserializedEntity.AddComponent<SpotLightComponent>();
+				component.Radiance = spotLightComp["Radiance"].as<glm::vec3>(glm::vec3(1.0f));
+				component.Intensity = spotLightComp["Intensity"].as<float>(1.0f);
+				component.Range = spotLightComp["Range"].as<float>(10.0f);
+				component.Angle = spotLightComp["Angle"].as<float>(60.0f);
+				component.AngleAttenuation = spotLightComp["AngleAttenuation"].as<float>(5.0f);
+				component.FallOff = spotLightComp["FallOff"].as<float>(1.0f);
 			}
 
 			YAML::Node rigidBodyComponent = entity["RigidBodyComponent"];
@@ -565,6 +638,34 @@ namespace Iris {
 					for (auto uuid : compoundedChildEntitiesNode)
 						component.CompoundedColliderEntities.push_back(uuid.as<uint64_t>());
 				}
+			}
+
+			YAML::Node meshColliderComponent = entity["MeshColliderComponent"];
+			if (meshColliderComponent)
+			{
+				MeshColliderComponent& component = deserializedEntity.AddComponent<MeshColliderComponent>();
+
+				component.ColliderAsset = meshColliderComponent["ColliderAsset"].as<AssetHandle>(0);
+				Ref<MeshColliderAsset> colliderAsset = AssetManager::GetAsset<MeshColliderAsset>(component.ColliderAsset);
+				if (!colliderAsset)
+				{
+					AssetHandle colliderMesh = 0;
+					if (deserializedEntity.HasComponent<StaticMeshComponent>())
+						colliderMesh = deserializedEntity.GetComponent<StaticMeshComponent>().StaticMesh;
+
+					component.ColliderAsset = AssetManager::CreateMemoryOnlyAsset<MeshColliderAsset>(colliderMesh);
+					colliderAsset = AssetManager::GetAsset<MeshColliderAsset>(component.ColliderAsset);
+					if (!colliderAsset)
+						IR_CORE_ERROR_TAG("AssetManager", "MeshColliderComponent is in use without a valid mesh");
+				}
+
+				component.UseSharedShape = meshColliderComponent["UseSharedShape"].as<bool>(false);
+				component.Material.Friction = meshColliderComponent["Friction"].as<float>(0.5f);
+				component.Material.Restitution = meshColliderComponent["Restitution"].as<float>(0.0f);
+				component.CollisionComplexity = static_cast<PhysicsCollisionComplexity>(meshColliderComponent["CollisionComplexity"].as<uint8_t>(0));
+			
+				if (colliderAsset && !PhysicsSystem::GetMesheColliderCache()->Exists(colliderAsset))
+					MeshCookingFactory::CookMesh(component.ColliderAsset);
 			}
 
 			YAML::Node rigidBody2DComponent = entity["RigidBody2DComponent"];

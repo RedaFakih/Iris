@@ -19,35 +19,61 @@ layout(location = 0) out vec4 o_Color;
 
 layout(location = 0) in vec2 v_TexCoord;
 
-// layout(std140, set = 1, binding = 0) uniform Camera
-// {
-// 	mat4 ViewProjectionMatrix;
-// 	mat4 InverseViewProjectionMatrix;
-// 	mat4 ProjectionMatrix;
-// 	mat4 InverseProjectionMatrix;
-// 	mat4 ViewMatrix;
-// 	mat4 InverseViewMatrix;
-// 	vec2 DepthUnpackConsts;
-// } u_Camera;
+layout(std140, set = 1, binding = 0) uniform Camera
+{
+	mat4 ViewProjectionMatrix;
+	mat4 InverseViewProjectionMatrix;
+	mat4 ProjectionMatrix;
+	mat4 InverseProjectionMatrix;
+	mat4 ViewMatrix;
+	mat4 InverseViewMatrix;
+	vec2 DepthUnpackConsts;
+} u_Camera;
 
 layout(set = 2, binding = 0) uniform sampler2D u_Texture;
-// layout(set = 2, binding = 1) uniform sampler2D u_DepthTexture;
+layout(set = 2, binding = 1) uniform sampler2D u_BloomTexture;
+layout(set = 2, binding = 2) uniform sampler2D u_BloomDirtTexture;
+//layout(set = 2, binding = 3) uniform sampler2D u_DepthTexture;
 
 layout(push_constant) uniform Uniforms
 {
     float Exposure;
+	float BloomIntensity;
+	float BloomDirtIntensity;
+	float BloomUpsampleScale;
     float Opacity;
     float Time;
 } u_Uniforms;
 
 // From XeGTAO
-// float LinearizeDepth(const float screenDepth)
-// {
-// 	float depthLinearizeMul = u_Camera.DepthUnpackConsts.x;
-// 	float depthLinearizeAdd = u_Camera.DepthUnpackConsts.y;
-// 	// Optimised version of "-cameraClipNear / (cameraClipFar - projDepth * (cameraClipFar - cameraClipNear)) * cameraClipFar"
-// 	return depthLinearizeMul / (depthLinearizeAdd - screenDepth);
-// }
+float LinearizeDepth(const float screenDepth)
+{
+	float depthLinearizeMul = u_Camera.DepthUnpackConsts.x;
+	float depthLinearizeAdd = u_Camera.DepthUnpackConsts.y;
+	// Optimised version of "-cameraClipNear / (cameraClipFar - projDepth * (cameraClipFar - cameraClipNear)) * cameraClipFar"
+	return depthLinearizeMul / (depthLinearizeAdd - screenDepth);
+}
+
+vec3 UpsampleTent9(sampler2D tex, float lod, vec2 uv, vec2 texelSize, float radius)
+{
+	vec4 offset = texelSize.xyxy * vec4(1.0f, 1.0f, -1.0f, 0.0f) * radius;
+
+	// Center
+	vec3 result = textureLod(tex, uv, lod).rgb * 4.0f;
+
+	result += textureLod(tex, uv - offset.xy, lod).rgb;
+	result += textureLod(tex, uv - offset.wy, lod).rgb * 2.0f;
+	result += textureLod(tex, uv - offset.zy, lod).rgb;
+
+	result += textureLod(tex, uv + offset.zw, lod).rgb * 2.0f;
+	result += textureLod(tex, uv + offset.xw, lod).rgb * 2.0f;
+
+	result += textureLod(tex, uv + offset.zy, lod).rgb;
+	result += textureLod(tex, uv + offset.wy, lod).rgb * 2.0f;
+	result += textureLod(tex, uv + offset.xy, lod).rgb;
+
+	return result * (1.0f / 16.0f);
+}
 
 // Based on http://www.oscars.org/science-technology/sci-tech-projects/aces
 vec3 ACESTonemap(vec3 color)
@@ -79,6 +105,13 @@ void main()
 
 	vec3 color = texture(u_Texture, v_TexCoord).rgb;
 
+	ivec2 texSize = textureSize(u_BloomTexture, 0);
+	vec2 fTexSize = vec2(float(texSize.x), float(texSize.y));
+	vec3 bloom = UpsampleTent9(u_BloomTexture, 0, v_TexCoord, 1.0f / fTexSize, u_Uniforms.BloomUpsampleScale) * u_Uniforms.BloomIntensity;
+	vec3 bloomDirt = texture(u_BloomDirtTexture, v_TexCoord).rgb * u_Uniforms.BloomDirtIntensity;
+
+	color += bloom;
+	color += bloom * bloomDirt;
 	color *= u_Uniforms.Exposure;
 
 	// Grain

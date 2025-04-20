@@ -1,0 +1,9 @@
+EditorSettings:
+  EditorGeneral:
+    HighlighUnsetMeshes: true
+    HighlightExtraDynamicLights: true
+    TranslationSnapValue: 1
+    RotationSnapValue: 45
+    ScaleSnapValue: 1
+  ContentBrowser:
+    ContentBrowserThumbnailSize: 128

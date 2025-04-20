@@ -307,22 +307,29 @@ namespace Iris {
 
 	void ImGuiLayer::LoadFonts()
 	{
+		FontSpecification robotoSmall = {
+			.FontName = DefaultFonts::Small,
+			.Filepath = "Resources/Editor/Fonts/Roboto/Roboto-SemiMedium.ttf",
+			.Size = 12.0f
+		};
+		m_FontsLibrary.Load(robotoSmall);
+
 		FontSpecification robotoLarge = {
-			.FontName = "RobotoLarge",
+			.FontName = DefaultFonts::Large,
 			.Filepath = "Resources/Editor/Fonts/Roboto/Roboto-Regular.ttf",
 			.Size = 24.0f
 		};
 		m_FontsLibrary.Load(robotoLarge);
 
 		FontSpecification robotoBold = {
-			.FontName = "RobotoBold",
+			.FontName = DefaultFonts::Bold,
 			.Filepath = "Resources/Editor/Fonts/Roboto/Roboto-Bold.ttf",
 			.Size = 18.0f
 		};
 		m_FontsLibrary.Load(robotoBold);
 
 		FontSpecification robotoDefault = {
-			.FontName = "RobotoDefault",
+			.FontName = DefaultFonts::Default,
 			.Filepath = "Resources/Editor/Fonts/Roboto/Roboto-SemiMedium.ttf",
 			.Size = 15.0f
 		};
@@ -330,7 +337,7 @@ namespace Iris {
 
 		static constexpr ImWchar s_FontAwesomeGlyphRanges[] = { IR_ICON_MIN_FA, IR_ICON_MAX_FA, 0 };
 		FontSpecification fontAwesome = {
-			.FontName = "FontAwesome",
+			.FontName = DefaultFonts::FontAwesome,
 			.Filepath = "Resources/Editor/Fonts/FontAwesome/fontawesome-webfont.ttf",
 			.Size = 16.0f,
 			.GlyphRanges = s_FontAwesomeGlyphRanges,

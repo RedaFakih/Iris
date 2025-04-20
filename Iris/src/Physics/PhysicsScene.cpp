@@ -85,6 +85,8 @@ namespace Iris {
 
 	void PhysicsScene::Destroy()
 	{
+		m_RigidBodies.clear();
+
 		m_JoltContactListener.reset();
 		m_JoltLayerInterface.reset();
 		m_JoltSystem.reset();
@@ -130,14 +132,6 @@ namespace Iris {
 
 				if (!rigidBody->IsAllRotationLocked())
 				{
-					//// Create a 180-degree rotation around the Y-axis
-					//glm::quat rotationQuat1 = glm::angleAxis(glm::pi<float>(), glm::vec3(1.0f, 0.0f, 0.0f));
-					//glm::quat rotationQuat2 = glm::angleAxis(glm::pi<float>(), glm::vec3(0.0f, 1.0f, 0.0f));
-					//glm::quat rotationQuat3 = glm::angleAxis(glm::pi<float>(), glm::vec3(0.0f, 0.0f, 1.0f));
-
-					//// Apply the rotation
-					//glm::quat rotatedQuat = Utils::FromJoltQuat(body->GetRotation()) * rotationQuat3;
-					//tc.SetRotation(rotatedQuat);
 					tc.SetRotation(Utils::FromJoltQuat(body->GetRotation()));
 				}
 
@@ -342,14 +336,14 @@ namespace Iris {
 					if (glm::dot(currentBodyRotation, targetRotation) < 0.0f)
 						targetRotation = -targetRotation;
 
-					//if (glm::any(glm::epsilonNotEqual(currentBodyRotation, targetRotation, 0.00001f)))
-					//{
-					//	glm::vec3 currentBodyEuler = glm::eulerAngles(currentBodyRotation);
-					//	glm::vec3 targetBodyEuler = glm::eulerAngles(transformComp.GetRotation());
+					if (glm::any(glm::epsilonNotEqual(currentBodyRotation, targetRotation, 0.000001f)))
+					{
+						glm::vec3 currentBodyEuler = glm::eulerAngles(currentBodyRotation);
+						glm::vec3 targetBodyEuler = glm::eulerAngles(transformComp.GetRotation());
 
-					//	glm::quat rotation = transformComp.GetRotation() * glm::conjugate(currentBodyRotation);
-					//	glm::vec3 rotationEuler = glm::eulerAngles(rotation);
-					//}
+						glm::quat rotation = transformComp.GetRotation() * glm::conjugate(currentBodyRotation);
+						glm::vec3 rotationEuler = glm::eulerAngles(rotation);
+					}
 
 					rigidBody->MoveKinematic(transformComp.Translation, targetRotation, ts);
 				}

@@ -45,7 +45,6 @@ namespace Iris {
 		Ref<PhysicsBody> GetExistingPhysicsBodyByID(UUID uuid) const { return m_RigidBodies.contains(uuid) ? m_RigidBodies.at(uuid) : nullptr; }
 		Ref<PhysicsBody> GetExistingPhysicsBody(Entity entity) const { return GetExistingPhysicsBodyByID(entity.GetUUID()); }
 
-		// static functions
 		static JPH::BodyInterface& GetBodyInterface(bool shouldLock = true);
 		static const JPH::BodyLockInterface& GetBodyLockInterface(bool shouldLock = true);
 		static JPH::PhysicsSystem& GetJoltSystem();

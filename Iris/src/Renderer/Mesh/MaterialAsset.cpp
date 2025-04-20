@@ -21,16 +21,6 @@ namespace Iris {
 	constexpr static const char* s_RoughnessMapUniform = "u_RoughnessTexture";
 	constexpr static const char* s_MetalnessMapUniform = "u_MetalnessTexture";
 
-	Ref<MaterialAsset> MaterialAsset::Create(bool isTransparent)
-	{
-		return CreateRef<MaterialAsset>(isTransparent);
-	}
-
-	Ref<MaterialAsset> MaterialAsset::Create(Ref<Material> material)
-	{
-		return CreateRef<MaterialAsset>(material);
-	}
-
 	MaterialAsset::MaterialAsset(bool isTransparent)
 		: m_Transparent(isTransparent)
 	{
@@ -373,16 +363,6 @@ namespace Iris {
 			ClearRoughnessMap();
 			ClearMetalnessMap();
 		}
-	}
-
-	Ref<MaterialTable> MaterialTable::Create(uint32_t materialCount)
-	{
-		return CreateRef<MaterialTable>(materialCount);
-	}
-
-	Ref<MaterialTable> MaterialTable::Create(Ref<MaterialTable> other)
-	{
-		return CreateRef<MaterialTable>(other);
 	}
 
 	MaterialTable::MaterialTable(uint32_t materialCount)

@@ -19,6 +19,9 @@ namespace Iris {
 	private:
 		bool OnKeyPressed(Events::KeyPressedEvent& e);
 
+	private:
+		bool m_WindowFocused = false;
+
 	};
 
 }

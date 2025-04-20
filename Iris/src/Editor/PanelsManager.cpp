@@ -44,7 +44,8 @@ namespace Iris {
         for (auto& panelMap : m_Panels)
         {
             for (auto& [id, panelSpec] : panelMap)
-                panelSpec.Panel->OnEvent(e);
+                if (panelSpec.IsOpen)
+                    panelSpec.Panel->OnEvent(e);
         }
     }
 

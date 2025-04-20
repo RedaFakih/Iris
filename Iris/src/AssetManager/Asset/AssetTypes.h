@@ -17,6 +17,7 @@ namespace Iris {
 		Scene,
 		StaticMesh,
 		MeshSource,
+		MeshCollider,
 		Material, // This refers to the MaterialAsset class and not the Material class since that is used with renderpasses
 		Texture,
 		EnvironmentMap,
@@ -31,6 +32,7 @@ namespace Iris {
 			if (assetType == "Scene")               return AssetType::Scene;
 			if (assetType == "StaticMesh")          return AssetType::StaticMesh;
 			if (assetType == "MeshSource")          return AssetType::MeshSource;
+			if (assetType == "MeshCollider")        return AssetType::MeshCollider;
 			if (assetType == "Material")            return AssetType::Material;
 			if (assetType == "Texture")             return AssetType::Texture;
 			if (assetType == "EnvironmentMap")      return AssetType::EnvironmentMap;
@@ -47,6 +49,7 @@ namespace Iris {
 				case AssetType::Scene:               return "Scene";
 				case AssetType::StaticMesh:          return "StaticMesh";
 				case AssetType::MeshSource:          return "MeshSource";
+				case AssetType::MeshCollider:        return "MeshCollider";
 				case AssetType::Material:            return "Material";
 				case AssetType::Texture:             return "Texture";
 				case AssetType::EnvironmentMap:      return "EnvironmentMap";

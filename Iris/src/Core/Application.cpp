@@ -1,6 +1,7 @@
 #include "IrisPCH.h"
 #include "Application.h"
 
+#include "Editor/EditorSettings.h"
 #include "Input/Input.h"
 #include "Project/Project.h"
 #include "Renderer/Renderer.h"
@@ -37,6 +38,9 @@ namespace Iris {
 		m_Window->Init();
 		m_Window->SetEventCallbackFunction([](Events::Event& e) { s_Instance->Application::OnEvent(e); });
 
+		// Load editor settings (if non exist it will generate a default config)
+		EditorSettingsSerializer::Init();
+
 		IR_VERIFY(NFD::Init() == NFD_OKAY);
 
 		Renderer::SetConfig(spec.RendererConfig);
@@ -64,6 +68,8 @@ namespace Iris {
 	Application::~Application()
 	{
 		NFD::Quit();
+
+		EditorSettingsSerializer::Serialize();
 
 		m_Window->SetEventCallbackFunction([](Events::Event& e) { (void)e; });
 

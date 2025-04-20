@@ -8,7 +8,7 @@
 
 const float PI = 3.14159265358979323846f;
 const float TwoPI = 2 * PI;
-const float Epsilon = 0.00001;
+const float Epsilon = 0.00001f;
 
 layout(set = 3, binding = 0, rgba32f) restrict writeonly uniform imageCube o_OutputCubeMap;
 layout(set = 3, binding = 1) uniform samplerCube u_RadianceMap;

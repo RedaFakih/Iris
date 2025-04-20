@@ -148,6 +148,15 @@ namespace Iris {
 
 						IR_CORE_WARN_TAG("Renderer", "[RenderPass ({})::Init] Setting {} to white 2D texture.", m_Specification.DebugName, name);
 					}
+					else if (inputDeclaration.Type == RenderPassInputType::StorageImage2D)
+					{
+						for (std::size_t i = 0; i < input.Input.size(); i++)
+						{
+							input.Input[i] = Renderer::GetStorageImage();
+						}
+
+						IR_CORE_WARN_TAG("Renderer", "[RenderPass ({})::Init] Setting {} to white 2D texture.", m_Specification.DebugName, name);
+					}
 					else if (inputDeclaration.Type == RenderPassInputType::ImageSampler3D)
 					{
 						for (std::size_t i = 0; i < input.Input.size(); i++)
@@ -369,6 +378,8 @@ namespace Iris {
 								for (uint32_t i = 0; i < input.Input.size(); i++)
 								{
 									Ref<Texture2D> texture = input.Input[i].As<Texture2D>();
+									IR_ASSERT(texture->GetTextureSpecification().Usage == ImageUsage::Texture || texture->GetTextureSpecification().Usage == ImageUsage::Attachment);
+
 									imageInfoStorage[imageInfoStorageIndex][i] = texture->GetDescriptorImageInfo();
 								}
 								writeDescriptor.pImageInfo = imageInfoStorage[imageInfoStorageIndex].data();
@@ -377,6 +388,8 @@ namespace Iris {
 							else
 							{
 								Ref<Texture2D> texture = input.Input[0].As<Texture2D>();
+								IR_ASSERT(texture->GetTextureSpecification().Usage == ImageUsage::Texture || texture->GetTextureSpecification().Usage == ImageUsage::Attachment);
+
 								writeDescriptor.pImageInfo = &texture->GetDescriptorImageInfo();
 							}
 
@@ -422,14 +435,16 @@ namespace Iris {
 						}
 						case DescriptorResourceType::StorageImage:
 						{
-							Ref<StorageImage> storageImage = input.Input[0].As<StorageImage>();
+							Ref<Texture2D> storageImage = input.Input[0].As<Texture2D>();
+							IR_ASSERT(storageImage->GetTextureSpecification().Usage == ImageUsage::Storage);
+
 							writeDescriptor.pImageInfo = &storageImage->GetDescriptorImageInfo();
 							storedWriteDescriptor.ResourceHandles[0] = writeDescriptor.pImageInfo->imageView;
-
+						
 							// Defer the resource if it does not exist...
 							if (writeDescriptor.pImageInfo->imageView == nullptr)
 								m_InvalidatedInputResources[set][binding] = input;
-
+						
 							break;
 						}
 					}
@@ -535,11 +550,11 @@ namespace Iris {
 					}
 					case DescriptorResourceType::StorageImage:
 					{
-						Ref<StorageImage> storageImage = renderPassInput.Input[0].As<StorageImage>();
+						Ref<Texture2D> storageImage = renderPassInput.Input[0].As<Texture2D>();
 						const VkDescriptorImageInfo& imageInfo = storageImage->GetDescriptorImageInfo();
 						if (imageInfo.imageView != m_WriteDescriptorMap[currentFrameIndex].at(set).at(binding).ResourceHandles[0])
 							m_InvalidatedInputResources[set][binding] = renderPassInput;
-
+					
 						break;
 					}
 				}
@@ -641,10 +656,10 @@ namespace Iris {
 					}
 					case DescriptorResourceType::StorageImage:
 					{
-						Ref<StorageImage> storageImage = input.Input[0].As<StorageImage>();
+						Ref<Texture2D> storageImage = input.Input[0].As<Texture2D>();
 						writeDescriptor.pImageInfo = &storageImage->GetDescriptorImageInfo();
 						storedWriteDescriptor.ResourceHandles[0] = writeDescriptor.pImageInfo->imageView;
-
+					
 						break;
 					}
 				}
@@ -728,16 +743,6 @@ namespace Iris {
 
 		if (decl)
 			m_InputResources.at(decl->Set).at(decl->Binding).Set(imageView);
-		else
-			IR_CORE_ERROR_TAG("Renderer", "[RenderPass ({})::SetInput] Input {} not found!", m_Specification.DebugName, name);
-	}
-
-	void DescriptorSetManager::SetInput(std::string_view name, Ref<StorageImage> storageImage, uint32_t index)
-	{
-		const RenderPassInputDeclaration* decl = GetInputDeclaration(name);
-
-		if (decl)
-			m_InputResources.at(decl->Set).at(decl->Binding).Set(storageImage, index);
 		else
 			IR_CORE_ERROR_TAG("Renderer", "[RenderPass ({})::SetInput] Input {} not found!", m_Specification.DebugName, name);
 	}

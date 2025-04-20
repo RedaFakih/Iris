@@ -6,7 +6,7 @@ namespace Iris {
 
 	enum class SelectionContext
 	{
-		Global = 0, Scene
+		Global = 0, Scene, ContentBrowser
 	};
 
 	class SelectionManager

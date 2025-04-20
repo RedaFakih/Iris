@@ -34,12 +34,12 @@ namespace Iris {
 
 	bool FileSystem::CopyFile(const std::filesystem::path& srcPath, const std::filesystem::path& destPath)
 	{
-		return Copy(srcPath, destPath);
+		return Copy(srcPath, destPath / srcPath.filename());
 	}
 
 	bool FileSystem::MoveFile(const std::filesystem::path& srcPath, const std::filesystem::path& destPath)
 	{
-		return Move(srcPath, destPath);
+		return Move(srcPath, destPath / srcPath.filename());
 	}
 
 	bool FileSystem::IsDirectory(const std::filesystem::path& path)
@@ -54,16 +54,16 @@ namespace Iris {
 
 	bool FileSystem::Copy(const std::filesystem::path& oldPath, const std::filesystem::path& newPath)
 	{
-		if (!Exists(newPath))
+		if (Exists(newPath))
 			return false;
 
-		std::filesystem::copy(oldPath, newPath);
+		std::filesystem::copy(oldPath, newPath, IsDirectory(oldPath) ? std::filesystem::copy_options::recursive : std::filesystem::copy_options::none);
 		return true;
 	}
 
 	bool FileSystem::Move(const std::filesystem::path& oldPath, const std::filesystem::path& newPath)
 	{
-		if (!Exists(newPath))
+		if (Exists(newPath))
 			return false;
 
 		std::filesystem::rename(oldPath, newPath);
@@ -148,7 +148,7 @@ namespace Iris {
 		return buffer;
 	}
 
-	std::filesystem::path FileSystem::GetUniqueFilename(const std::filesystem::path& path)
+	std::filesystem::path FileSystem::GetUniqueFileName(const std::filesystem::path& path)
 	{
 		if (!Exists(path))
 			return path;
@@ -178,7 +178,7 @@ namespace Iris {
 		return std::filesystem::absolute(path);
 	}
 
-	std::filesystem::path FileSystem::OpenFileDialog(const std::initializer_list<FileDialogFilterItem> inFilters)
+	std::filesystem::path FileSystem::OpenFileDialog(const std::initializer_list<FileDialogFilterItem> inFilters) noexcept
 	{
 		NFD::UniquePath filePath;
 		nfdresult_t result = NFD::OpenDialog(filePath, reinterpret_cast<const nfdfilteritem_t*>(inFilters.begin()), static_cast<nfdfiltersize_t>(inFilters.size()));
@@ -200,7 +200,7 @@ namespace Iris {
 		return "";
 	}
 
-	std::filesystem::path FileSystem::OpenFolderDialog(const char* initialFolder)
+	std::filesystem::path FileSystem::OpenFolderDialog(const char* initialFolder) noexcept
 	{
 		NFD::UniquePath filePath;
 		nfdresult_t result = NFD::PickFolder(filePath, initialFolder);
@@ -222,7 +222,7 @@ namespace Iris {
 		return "";
 	}
 
-	std::filesystem::path FileSystem::SaveFileDialog(const std::initializer_list<FileDialogFilterItem> inFilters)
+	std::filesystem::path FileSystem::SaveFileDialog(const std::initializer_list<FileDialogFilterItem> inFilters) noexcept
 	{
 		NFD::UniquePath filePath;
 		nfdresult_t result = NFD::SaveDialog(filePath, reinterpret_cast<const nfdfilteritem_t*>(inFilters.begin()), static_cast<nfdfiltersize_t>(inFilters.size()));

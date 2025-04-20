@@ -1,0 +1,6 @@
+RendererConfiguration:
+  ComputeEnvironmentMaps: true
+  EnvironmentMapResolution: 1024
+  IrradianceMapComputeSamples: 512
+  MaxNumberOfPointLights: 100
+  MaxNumberOfSpotLights: 100

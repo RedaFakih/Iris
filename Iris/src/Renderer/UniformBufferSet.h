@@ -9,10 +9,10 @@ namespace Iris {
 	class UniformBufferSet : public RefCountedObject
 	{
 	public:
-		UniformBufferSet(size_t size, uint32_t framesInFlight);
+		UniformBufferSet(std::size_t size, uint32_t framesInFlight);
 		~UniformBufferSet() = default;
 
-		[[nodiscard]] inline static Ref<UniformBufferSet> Create(size_t size, uint32_t frame = 0)
+		[[nodiscard]] inline static Ref<UniformBufferSet> Create(std::size_t size, uint32_t frame = 0)
 		{
 			return CreateRef<UniformBufferSet>(size, frame);
 		}

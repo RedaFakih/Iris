@@ -78,23 +78,9 @@ namespace Iris {
 	/// StaticMesh
 	///////////////////////////////////////////////////////////////////////////////////////////////////
 
-	static std::vector<uint32_t> s_CurrentlyLoadingMeshSourceIndices;
-
-	Ref<StaticMesh> StaticMesh::Create(AssetHandle meshSource)
+	StaticMesh::StaticMesh(AssetHandle meshSource, bool generateColliders)
+		: m_MeshSource(meshSource), m_GenerateColliders(generateColliders)
 	{
-		return CreateRef<StaticMesh>(meshSource);
-	}
-
-	Ref<StaticMesh> StaticMesh::Create(AssetHandle meshSource, const std::vector<uint32_t>& subMeshes)
-	{
-		return CreateRef<StaticMesh>(meshSource, subMeshes);
-	}
-
-	StaticMesh::StaticMesh(AssetHandle meshSource)
-		: m_MeshSource(meshSource)
-	{
-		Handle = {};
-
 		Ref<MeshSource> meshSourceAsset = AssetManager::GetAsset<MeshSource>(meshSource);
 		if (meshSourceAsset)
 		{
@@ -105,18 +91,13 @@ namespace Iris {
 
 			for (uint32_t i = 0; i < static_cast<uint32_t>(meshMaterials.size()); i++)
 				m_MaterialTable->SetMaterial(i, meshMaterials[i]);
-			// Memory only since the material table is just in memory and is not an asset
 		}
 	}
 
-	StaticMesh::StaticMesh(AssetHandle meshSource, const std::vector<uint32_t>& subMeshes)
-		: m_MeshSource(meshSource)
+	StaticMesh::StaticMesh(AssetHandle meshSource, const std::vector<uint32_t>& subMeshes, bool generateColliders)
+		: m_MeshSource(meshSource), m_GenerateColliders(generateColliders)
 	{
-		Handle = {};
-
-		s_CurrentlyLoadingMeshSourceIndices = subMeshes;
 		Ref<MeshSource> meshSourceAsset = AssetManager::GetAsset<MeshSource>(meshSource);
-		s_CurrentlyLoadingMeshSourceIndices = {}; // Clear after the meshSource if loaded
 		if (meshSourceAsset)
 		{
 			SetSubMeshes(subMeshes, meshSourceAsset);
@@ -143,9 +124,5 @@ namespace Iris {
 			for (uint32_t i = 0; i < subMeshess.size(); i++)
 				m_SubMeshes[i] = i;
 		}
-	}
-	const std::vector<uint32_t>& StaticMesh::GetCurrentlyLoadingMeshSourceIndices()
-	{
-		return s_CurrentlyLoadingMeshSourceIndices;
 	}
 }

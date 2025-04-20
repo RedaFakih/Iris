@@ -41,11 +41,10 @@ namespace Iris {
 		virtual bool TryLoadData(const AssetMetaData& metaData, Ref<Asset>& asset) const override;
 	};
 
-	// TODO:
-	// struct SceneAssetSerializer : public AssetSerializer
-	// {
-	// 	virtual void Serialize(const AssetMetaData& metaData, const Ref<Asset>& asset) const override;
-	// 	virtual bool TryLoadData(const AssetMetaData& metaData, Ref<Asset>& asset) const override;
-	// };
+	struct SceneAssetSerializer : public AssetSerializer
+	{
+		virtual void Serialize(const AssetMetaData& metaData, const Ref<Asset>& asset) const override;
+		virtual bool TryLoadData(const AssetMetaData& metaData, Ref<Asset>& asset) const override;
+	};
 
 }

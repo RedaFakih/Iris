@@ -63,6 +63,7 @@ namespace Iris {
 		None = 0,
 		Texture, // Defualt: Loaded via a filepath or image data
 		Attachment, // For Framebuffers
+		Storage
 	};
 
 	struct TextureSpecification
@@ -89,10 +90,10 @@ namespace Iris {
 		// Multisampled Image... (1, 2, 4, 8, 16, 32, 64). NOTE: NOT SUPPORTED, DO NOT SET
 		uint32_t Samples = 1;
 
-		// Used for Transfer operations? (Affects the usage of the image)
-		bool Transfer = false;
+		// Used for Transfer operations? (Affects the usage of the image, usually leave as true)
+		bool Transfer = true;
 
-		// If usage is Attachment then it will be overriden to false otherwise used value is one set by user. IGNORED by StorageImages
+		// If usage is Attachment then it will be overriden to false otherwise used value is one set by user.
 		bool GenerateMips = true;
 		// DO NOT SET THIS. This will be determined up on invalidation and is there for debugging purposes.
 		uint32_t Mips = 0;
@@ -120,10 +121,25 @@ namespace Iris {
 		~Texture2D();
 
 		// NOTE: If CreateNull is used then an Invalidate call should follow to get a valid image
-		[[nodiscard]] static Ref<Texture2D> CreateNull(const TextureSpecification& spec);
-		[[nodiscard]] static Ref<Texture2D> Create(const TextureSpecification& spec, const std::filesystem::path& filePath, VkCommandBuffer commandBuffer = nullptr);
-		[[nodiscard]] static Ref<Texture2D> Create(const TextureSpecification& spec, const std::string& filePath, VkCommandBuffer commandBuffer = nullptr);
-		[[nodiscard]] static Ref<Texture2D> Create(const TextureSpecification& spec, Buffer imageData = Buffer(), VkCommandBuffer commandBuffer = nullptr);
+		[[nodiscard]] static Ref<Texture2D> CreateNull(const TextureSpecification& spec)
+		{
+			return CreateRef<Texture2D>(spec);
+		}
+
+		[[nodiscard]] static Ref<Texture2D> Create(const TextureSpecification& spec, const std::filesystem::path& filePath, VkCommandBuffer commandBuffer = nullptr)
+		{
+			return Texture2D::Create(spec, filePath.string(), commandBuffer);
+		}
+
+		[[nodiscard]] static Ref<Texture2D> Create(const TextureSpecification& spec, const std::string& filePath, VkCommandBuffer commandBuffer = nullptr)
+		{
+			return CreateRef<Texture2D>(spec, filePath, commandBuffer);
+		}
+
+		[[nodiscard]] static Ref<Texture2D> Create(const TextureSpecification& spec, Buffer imageData = Buffer(), VkCommandBuffer commandBuffer = nullptr)
+		{
+			return CreateRef<Texture2D>(spec, imageData, commandBuffer);
+		}
 
 		void Invalidate(VkCommandBuffer commandBuffer = nullptr);
 		void Resize(uint32_t width, uint32_t height, VkCommandBuffer commandBuffer = nullptr);
@@ -248,7 +264,7 @@ namespace Iris {
 	{
 		std::string DebugName;
 
-		// IMPORTANT: Only set ONE of these, DO NOT SET BOTH. Depending on what the user sets the image view type and other info will be determined / deduced
+		// IMPORTANT: Only set ONE of these, DO NOT SET A COMBINATION OF THEM. Depending on what the user sets the image view type and other info will be determined / deduced
 		Ref<Texture2D> Image = nullptr;
 		Ref<TextureCube> CubeImage = nullptr;
 
@@ -260,64 +276,6 @@ namespace Iris {
 		int Layer = -1;
 	};
 
-	/*
-	 * Storage images are separated from the Texture class for a couple of reasons, mainly not wanting to crowd the Texure class with alot of different
-	 * types of images and having to handle that produces spaghetti code
-	 * When using StorageImages:
-	 *  - They should be managed by the ComputePass and NOT the Material
-	 *  - Compute shader fills storage image with data
-	 *	- Other shaders sample from that storage image so it just becomes a sampled image after
-	 */
-
-	class StorageImage : public RefCountedObject
-	{
-	public:
-		StorageImage(const TextureSpecification& spec);
-		~StorageImage();
-
-		[[nodiscard]] static Ref<StorageImage> Create(const TextureSpecification& spec)
-		{
-			return CreateRef<StorageImage>(spec);
-		}
-
-		void Invalidate();
-		void RT_Invalidate();
-		void Resize(uint32_t width, uint32_t height);
-		void Release();
-
-		uint64_t GetHash() const { return reinterpret_cast<uint64_t>(m_ImageView); }
-
-		ImageFormat GetFormat() const noexcept { return m_Specification.Format; }
-		uint32_t GetWidth() const { return m_Specification.Width; }
-		uint32_t GetHeight() const { return m_Specification.Height; }
-		glm::vec2 GetSize() const { return { m_Specification.Width, m_Specification.Height }; }
-		bool Loaded() const { return m_Image != nullptr; }
-
-		const VkImage GetVulkanImage() const { return m_Image; }
-		const VkImageView GetVulkanImageView() const { return m_ImageView; }
-		const VkSampler GetVulkanSampler() const { return m_Sampler; }
-		const VmaAllocation GetMemoryAllocation() const { return m_MemoryAllocation; }
-
-		const VkDescriptorImageInfo& GetDescriptorImageInfo() const { return m_DescriptorInfo; }
-
-		TextureSpecification& GetTextureSpecification() { return m_Specification; }
-		const TextureSpecification& GetTextureSpecification() const { return m_Specification; }
-
-	private:
-		// Layers? Mips?
-		TextureSpecification m_Specification;
-
-		// Image info
-		VkImage m_Image = nullptr;
-		VkImageView m_ImageView = nullptr;
-		VkSampler m_Sampler = nullptr;
-		VmaAllocation m_MemoryAllocation = nullptr;
-
-		Buffer m_ImageData; // Local storage of the image
-
-		VkDescriptorImageInfo m_DescriptorInfo = {};
-
-	};
 
 	class ImageView : public RefCountedObject
 	{

@@ -43,6 +43,7 @@ namespace Iris {
 				selectedDevice = device;
 				break;
 			}
+
 		}
 
 		// If no discrete gpu found fallback to whatever physical device is found
@@ -300,7 +301,7 @@ namespace Iris {
 		VkDeviceCreateInfo createInfo = {
 			.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
 			.pNext = &dynamicRenderingFeature,
-			.queueCreateInfoCount = (uint32_t)physicalDevice->m_QueueCreateInfos.size(),
+			.queueCreateInfoCount = static_cast<uint32_t>(physicalDevice->m_QueueCreateInfos.size()),
 			.pQueueCreateInfos = physicalDevice->m_QueueCreateInfos.data(),
 			.pEnabledFeatures = &enabledFeatures
 		};
@@ -309,7 +310,7 @@ namespace Iris {
 		
 		if (deviceExtensions.size() > 0)
 		{
-			createInfo.enabledExtensionCount = (uint32_t)deviceExtensions.size();
+			createInfo.enabledExtensionCount = static_cast<uint32_t>(deviceExtensions.size());
 			createInfo.ppEnabledExtensionNames = deviceExtensions.data();
 		}
 

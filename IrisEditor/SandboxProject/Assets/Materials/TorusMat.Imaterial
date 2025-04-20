@@ -3,7 +3,7 @@ Material:
   TwoSided: false
   ShadowCasting: true
   AlbedoColor: [0.924459994, 0.592741966, 1]
-  Emission: 0
+  Emission: 4.19999981
   Tiling: 1
   EnvMapRotation: 0
   UseNormalMap: false

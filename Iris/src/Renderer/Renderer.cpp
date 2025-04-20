@@ -4,7 +4,6 @@
 #include "AssetManager/AssetManager.h"
 #include "ComputePass.h"
 #include "IndexBuffer.h"
-#include "IndexBuffer.h"
 #include "Mesh/Material.h"
 #include "Mesh/MaterialAsset.h"
 #include "Mesh/Mesh.h"
@@ -53,6 +52,7 @@ namespace Iris {
 		Ref<Texture2D> ErrorTexture;
 		Ref<Texture2D> BRDFLutTexture;
 		Ref<TextureCube> BlackCubeTexture;
+		Ref<Texture2D> StorageImage;
 		Ref<Environment> EmptyEnvironment;
 
 		Ref<VertexBuffer> QuadVertexBuffer;
@@ -87,6 +87,8 @@ namespace Iris {
 		uint32_t DrawCallCount = 0;
 
 		RendererCapabilities RendererCaps;
+
+		std::unordered_map<std::string, std::string> GlobalShaderMacros;
 	};
 
 	static RendererConfiguration s_RendererConfig;
@@ -97,6 +99,8 @@ namespace Iris {
 	{
 		s_Data = new RendererData();
 		
+		RendererConfigurationSerialzier::Init();
+
 		s_RendererConfig.FramesInFlight = glm::min<uint32_t>(s_RendererConfig.FramesInFlight, Application::Get().GetWindow().GetSwapChain().GetImageCount());
 
 		{
@@ -175,10 +179,19 @@ namespace Iris {
 		uint32_t indices[6] = { 0, 1, 2, 2, 3, 0 };
 		s_Data->QuadIndexBuffer = IndexBuffer::Create(indices, 6 * sizeof(uint32_t));
 
+		Renderer::AddGlobalShaderMacro("IR_MAX_POINT_LIGHT_COUNT", fmt::format("{}", Renderer::GetConfig().MaxNumberOfPointLights));
+		Renderer::AddGlobalShaderMacro("IR_MAX_SPOT_LIGHT_COUNT", fmt::format("{}", Renderer::GetConfig().MaxNumberOfSpotLights));
+		Renderer::AddGlobalShaderMacro("IR_LIGHT_CULLING_WORKGROUP_SIZE", fmt::format("{}", 8));
+		Renderer::AddGlobalShaderMacro("IR_BLOOM_COMPUTE_WORKGROUP_SIZE", fmt::format("{}", 4));
+
 		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/2D/Renderer2D_Line.glsl");
 		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/2D/Renderer2D_Quad.glsl");
 		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/2D/Renderer2D_Text.glsl");
 
+		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/Compositing/Bloom-Downsample.glsl");
+		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/Compositing/Bloom-FirstUpsample.glsl");
+		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/Compositing/Bloom-Prefilter.glsl");
+		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/Compositing/Bloom-Upsample.glsl");
 		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/Compositing/Compositing.glsl");
 		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/Compositing/DepthOfField.glsl");
 		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/Compositing/Grid.glsl");
@@ -192,6 +205,9 @@ namespace Iris {
 
 		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/Geometry/DirectionalShadow.glsl");
 		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/Geometry/IrisPBRStatic.glsl");
+		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/Geometry/IrisPBRStaticLite.glsl");
+		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/Geometry/LightCulling.glsl");
+		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/Geometry/LightCulling2_5D.glsl");
 		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/Geometry/PreDepth.glsl");
 		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/Geometry/Skybox.glsl");
 
@@ -227,6 +243,11 @@ namespace Iris {
 		constexpr uint32_t blackCubeTextureData[6] = { 0xff000000, 0xff000000, 0xff000000, 0xff000000, 0xff000000, 0xff000000 };
 		spec.DebugName = "BlackCubeTexture";
 		s_Data->BlackCubeTexture = TextureCube::Create(spec, Buffer(reinterpret_cast<const uint8_t*>(&blackCubeTextureData), sizeof(blackCubeTextureData)));
+
+		spec.DebugName = "DummyStorageImage";
+		spec.GenerateMips = false;
+		spec.Usage = ImageUsage::Storage;
+		s_Data->StorageImage = Texture2D::Create(spec);
 
 		s_Data->EmptyEnvironment = Environment::Create(s_Data->BlackCubeTexture, s_Data->BlackCubeTexture);
 
@@ -291,6 +312,7 @@ namespace Iris {
 		s_Data->BlackTexutre.Reset();
 		s_Data->BRDFLutTexture.Reset();
 		s_Data->BlackCubeTexture.Reset();
+		s_Data->StorageImage.Reset();
 		s_Data->EmptyEnvironment.Reset();
 		s_Data->QuadVertexBuffer.Reset();
 		s_Data->QuadIndexBuffer.Reset();
@@ -855,6 +877,176 @@ namespace Iris {
 		});
 	}
 
+	void Renderer::BlitImage(Ref<RenderCommandBuffer> renderCommandBuffer, Ref<Texture2D> sourceImage, Ref<Texture2D> destinationImage, VkPipelineStageFlagBits2 finalDestImageStage)
+	{
+		IR_VERIFY(sourceImage);
+		IR_VERIFY(destinationImage);
+
+		Renderer::Submit([renderCommandBuffer, src = sourceImage, dst = destinationImage, finalDestImageStage]
+		{
+			const VkCommandBuffer commandBuffer = renderCommandBuffer->GetActiveCommandBuffer();
+
+			VkDevice device = RendererContext::GetCurrentDevice()->GetVulkanDevice();
+
+			VkImage srcImage = src->GetVulkanImage();
+			VkImage dstImage = dst->GetVulkanImage();
+
+			if (!srcImage || !dstImage)
+			{
+				// Can't blit if either image is null
+				IR_CORE_ERROR_TAG("Renderer", "[Renderer::BlitImage] Invalid images for blitting! srcImage = {}, dstImage = {}", reinterpret_cast<uint64_t>(srcImage), reinterpret_cast<uint64_t>(dstImage));
+				return;
+			}
+
+			glm::vec2 srcSize = src->GetSize();
+			glm::vec2 dstSize = dst->GetSize();
+			int srcMip = 0;
+
+			if (src->GetMipLevelCount() > 1)
+			{
+				// Select lower mip to sample from if we can
+				srcMip = static_cast<int>(src->GetClosestMipLevel(static_cast<uint32_t>(dstSize.x), static_cast<uint32_t>(dstSize.y)));
+				glm::ivec2 mipSize = src->GetMipSize(static_cast<uint32_t>(srcMip));
+				srcSize = { mipSize.x, mipSize.y };
+			}
+
+			VkImageBlit region = {
+				.srcSubresource = {
+					.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+					.mipLevel = static_cast<uint32_t>(srcMip),
+					.baseArrayLayer = 0,
+					.layerCount = 1
+				},
+				.srcOffsets = { { 0, 0, 0 }, { static_cast<int>(srcSize.x), static_cast<int>(srcSize.y), 1 } },
+				.dstSubresource = {
+					.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+					.mipLevel = 0,
+					.baseArrayLayer = 0,
+					.layerCount = 1
+				},
+				.dstOffsets = { {  0, 0, 0 }, { static_cast<int>(dstSize.x), static_cast<int>(dstSize.y), 1 } }
+			};
+
+			VkImageLayout srcImageLayout = src->GetDescriptorImageInfo().imageLayout;
+			VkImageLayout dstImageLayout = dst->GetDescriptorImageInfo().imageLayout;
+
+			{
+				VkImageMemoryBarrier2 imageMemoryBarrier = {
+					.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+					.srcStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+					.srcAccessMask = VK_ACCESS_2_TRANSFER_READ_BIT,
+					.dstStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+					.dstAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT,
+					.oldLayout = srcImageLayout,
+					.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+					.image = srcImage,
+					.subresourceRange = {
+						.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+						.baseMipLevel = static_cast<uint32_t>(srcMip),
+						.levelCount = 1,
+						.baseArrayLayer = 0,
+						.layerCount = 1
+					}
+				};
+
+				VkDependencyInfo dependencyInfo = {
+					.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+					.imageMemoryBarrierCount = 1,
+					.pImageMemoryBarriers = &imageMemoryBarrier
+				};
+
+				vkCmdPipelineBarrier2(commandBuffer, &dependencyInfo);
+			}
+
+			{
+				VkImageMemoryBarrier2 imageMemoryBarrier = {
+					.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+					.srcStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+					.srcAccessMask = VK_ACCESS_2_TRANSFER_READ_BIT,
+					.dstStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+					.dstAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT,
+					.oldLayout = dstImageLayout,
+					.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+					.image = dstImage,
+					.subresourceRange = {
+						.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+						.baseMipLevel = 0,
+						.levelCount = 1,
+						.baseArrayLayer = 0,
+						.layerCount = 1
+					}
+				};
+
+				VkDependencyInfo dependencyInfo = {
+					.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+					.imageMemoryBarrierCount = 1,
+					.pImageMemoryBarriers = &imageMemoryBarrier
+				};
+
+				vkCmdPipelineBarrier2(commandBuffer, &dependencyInfo);
+			}
+
+			vkCmdBlitImage(commandBuffer, srcImage, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+				dstImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region, VK_FILTER_LINEAR);
+
+			{
+				VkImageMemoryBarrier2 imageMemoryBarrier = {
+					.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+					.srcStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+					.srcAccessMask = VK_ACCESS_2_TRANSFER_READ_BIT,
+					.dstStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+					.dstAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT,
+					.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+					.newLayout = srcImageLayout,
+					.image = srcImage,
+					.subresourceRange = {
+						.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+						.baseMipLevel = static_cast<uint32_t>(srcMip),
+						.levelCount = 1,
+						.baseArrayLayer = 0,
+						.layerCount = 1
+					}
+				};
+
+				VkDependencyInfo dependencyInfo = {
+					.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+					.imageMemoryBarrierCount = 1,
+					.pImageMemoryBarriers = &imageMemoryBarrier
+				};
+
+				vkCmdPipelineBarrier2(commandBuffer, &dependencyInfo);
+			}
+
+			{
+				VkImageMemoryBarrier2 imageMemoryBarrier = {
+					.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+					.srcStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+					.srcAccessMask = VK_ACCESS_2_TRANSFER_READ_BIT,
+					.dstStageMask = finalDestImageStage, // NOTE: The caller can set what the final stage should be so that they can set FRAGMENT_SHADER/COMPUTE_SHADER or stuff like that
+					.dstAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT,
+					.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+					.newLayout = dstImageLayout,
+					.image = dstImage,
+					.subresourceRange = {
+						.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+						.baseMipLevel = 0,
+						.levelCount = 1,
+						.baseArrayLayer = 0,
+						.layerCount = 1
+					}
+				};
+
+				VkDependencyInfo dependencyInfo = {
+					.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+					.imageMemoryBarrierCount = 1,
+					.pImageMemoryBarriers = &imageMemoryBarrier
+				};
+
+				vkCmdPipelineBarrier2(commandBuffer, &dependencyInfo);
+			}
+		});
+	}
+
 	void Renderer::BeginComputePass(Ref<RenderCommandBuffer> renderCommandBuffer, Ref<ComputePass> computePass)
 	{
 		Renderer::Submit([renderCommandBuffer, computePass]() mutable
@@ -1167,6 +1359,7 @@ namespace Iris {
 					);
 
 				pipeline->SetPushConstants(Buffer(reinterpret_cast<const uint8_t*>(&Renderer::GetConfig().IrradianceMapComputeSamples), sizeof(uint32_t)));
+				// TODO: This should be the correct thing however it crashes the engine when we have bigger maps or it only computes a certain part of the face missing if we use (1, 1, 6) dispatch
 				pipeline->Dispatch({ irradianceMapSize / 32, irradianceMapSize / 32, 6 });
 
 				pipeline->End();
@@ -1275,6 +1468,11 @@ namespace Iris {
 		return s_Data->BRDFLutTexture;
 	}
 
+	Ref<Texture2D> Renderer::GetStorageImage()
+	{
+		return s_Data->StorageImage;
+	}
+
 	Ref<TextureCube> Renderer::GetBlackCubeTexture()
 	{
 		return s_Data->BlackCubeTexture;
@@ -1340,6 +1538,45 @@ namespace Iris {
 		}
 	}
 
+	void Renderer::AddGlobalShaderMacro(const std::string& name, const std::string& value)
+	{
+		const std::string nameString = std::string(name);
+
+		if (s_Data->GlobalShaderMacros.contains(nameString))
+		{
+			if (s_Data->GlobalShaderMacros.at(nameString) == value)
+			{
+				IR_CORE_WARN_TAG("Renderer", "Global Macro: {} with value: {} is already defined!", name, value);
+
+				return;
+			}
+
+			if (s_Data->GlobalShaderMacros.at(nameString) == "" && value == "")
+			{
+				IR_CORE_WARN_TAG("Renderer", "Global Macro: {} with no value is already defined!", name);
+
+				return;
+			}
+
+			if (s_Data->GlobalShaderMacros.at(nameString) == "" && value != "")
+			{
+				IR_CORE_WARN_TAG("Renderer", "Global Macro: {} with no value is being set to have a value (value: {})", name, value);
+			}
+		}
+
+		s_Data->GlobalShaderMacros[std::string(name)] = value;
+		// Reload all shaders
+		for (auto& [name, shader] : Renderer::GetShadersLibrary()->GetShaders())
+		{
+			shader->Reload();
+		}
+	}
+
+	const std::unordered_map<std::string, std::string>& Renderer::GetGlobalShaderMacros()
+	{
+		return s_Data->GlobalShaderMacros;
+	}
+
 	void Renderer::InsertMemoryBarrier(
 		VkCommandBuffer commandBuffer,
 		VkAccessFlags2 srcAccessMask,
@@ -1377,7 +1614,7 @@ namespace Iris {
 	)
 	{
 		VkBufferMemoryBarrier2 bufferMemBarrier = {
-			.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
+			.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2,
 			.pNext = nullptr,
 			.srcStageMask = srcStageMask,
 			.srcAccessMask = srcAccessMask,

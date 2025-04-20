@@ -24,18 +24,14 @@ namespace Iris {
 		switch (m_ProjectionType)
 		{
 			case ProjectionType::Perspective:
-			{
 				SetPerspectiveProjectionMatrix(m_DegPerspectiveFOV, static_cast<float>(width), static_cast<float>(height), m_PerspectiveNear, m_PerspectiveFar);
 				break;
-			}
 			case ProjectionType::Orthographic:
-			{
 				float aspecRatio = static_cast<float>(width) / static_cast<float>(height);
 				float newWidth = m_OrthographicSize * aspecRatio;
 				float newHeight = m_OrthographicSize;
 				SetOrthographicProjectionMatrix(newWidth, newHeight, m_OrthographicNear, m_OrthographicFar);
 				break;
-			}
 		}
 	}
 

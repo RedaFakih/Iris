@@ -1,32 +1,70 @@
 Scene: PhysicsTestScene
 VisibleEntities:
-  - 1164292098323295422
+  - 11296497975328487559
   - 18434944454801327763
-  - 11408097666428386747
-  - 4680931479666901323
+  - 17982637338818041142
   - 17961032067484319051
-  - 7978731426112845976
+  - 17274912491859835808
+  - 16803111224735038987
   - 16293967308316088148
   - 16242505162018475188
-  - 16803111224735038987
-  - 17982637338818041142
-  - 17274912491859835808
+  - 14866973841765846661
   - 14704026428187291133
-  - 13684802884496168827
   - 13410138448210773750
+  - 12879975837661596554
+  - 12810855100324858201
   - 12653037794705165742
-  - 12649258275151874464
-  - 12599562076012510748
-  - 10781268972243530617
+  - 11408097666428386747
+  - 10201435776732904547
+  - 10056879582256538687
+  - 9274043674842140459
   - 7551451357683168586
+  - 5567075987584281901
   - 5305009254399922957
   - 4409050500666236214
   - 4195671325320845374
+  - 3877695677669912325
   - 3204644133444135314
   - 2419040638841338767
   - 2131521204784265677
   - 1591102392629627214
+  - 1164292098323295422
+  - 1101670143013396711
 Entities:
+  - Entity: 1101670143013396711
+    TagComponent:
+      Tag: Torus
+    Parent: 17961032067484319051
+    Children:
+      []
+    TransformComponent:
+      Position: [1.2372601, 5.95281458, 3.21157217]
+      Rotation: [0, 0.354923189, -0.198673919]
+      Scale: [2.5, 2.5, 2.5]
+    StaticMeshComponent:
+      AssetID: 11155005694498319828
+      MaterialTable:
+        0: 2353021548779436402
+    RigidBodyComponent:
+      BodyType: 1
+      LayerID: 0
+      EnableDynamicTypeChange: false
+      Mass: 1
+      LinearDrag: 0.00999999978
+      AngularDrag: 0.0500000007
+      DisableGravity: false
+      IsTrigger: false
+      CollisionDetection: 0
+      InitialLinearVelocity: [0, 0, 0]
+      MaxLinearVelocity: 500
+      InitialAngularVelocity: [0, 0, 0]
+      MaxAngularVelocity: 50
+      LockedAxes: 0
+    MeshColliderComponent:
+      UseSharedShape: false
+      Friction: 0.5
+      Restitution: 0.150000006
+      CollisionComplexity: "\x00"
   - Entity: 1164292098323295422
     TagComponent:
       Tag: Sphere 1
@@ -68,7 +106,7 @@ Entities:
     Children:
       []
     TransformComponent:
-      Position: [-0.409557164, 10.6010408, 0.265097916]
+      Position: [5.24519444, 10.6010408, -0.497273684]
       Rotation: [0, -0, 0]
       Scale: [1, 1, 1]
     StaticMeshComponent:
@@ -140,12 +178,23 @@ Entities:
       AssetID: 13164229695691519330
       MaterialTable:
         0: 0
-        1: 0
     BoxColliderComponent:
       HalfSize: [0.5, 0.5, 0.5]
       Offset: [0, 0, 0]
       Friction: 0.5
       Restitution: 0.150000006
+  - Entity: 3877695677669912325
+    TagComponent:
+      Tag: Lighting
+    Parent: 0
+    Children:
+      - Handle: 9274043674842140459
+      - Handle: 12810855100324858201
+      - Handle: 14866973841765846661
+    TransformComponent:
+      Position: [0, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
   - Entity: 4195671325320845374
     TagComponent:
       Tag: Directional Light
@@ -154,13 +203,14 @@ Entities:
       []
     TransformComponent:
       Position: [0, 0, 0]
-      Rotation: [0.223852053, 0.367636144, -2.57652164]
-      Scale: [1.00000012, 1.00000012, 1]
+      Rotation: [0.0248450264, 0.251986086, 0.190184295]
+      Scale: [1, 1, 1]
     DirectionalLightComponent:
-      Radiance: [1, 0.630757749, 0.235363945]
+      Radiance: [0.97177422, 0.879055738, 0.779770434]
       Intensity: 1
       CastShadows: true
       ShadowOpacity: 1
+      LightSize: 1.79999995
   - Entity: 4409050500666236214
     TagComponent:
       Tag: Cube
@@ -175,6 +225,7 @@ Entities:
       AssetID: 13164229695691519330
       MaterialTable:
         0: 0
+        1: 0
   - Entity: 4680931479666901323
     TagComponent:
       Tag: Decor
@@ -197,13 +248,27 @@ Entities:
       Rotation: [0, -0, 0]
       Scale: [1, 1, 1]
     SkyLightComponent:
-      EnvironmentMap: 0
-      Intensity: 1
-      Lod: 0
-      DynamicSky: true
-      TurbidityAzimuthInclinationSunSize: [6.40999985, -0.104719758, 1.30620432, 0.0450000018]
-      DirectionalLightEntityID: 4195671325320845374
-      LinkDirectionalLightRadiance: true
+      EnvironmentMap: 6231482437553488223
+      Intensity: 0.439999998
+      Lod: 0.907000005
+      DynamicSky: false
+  - Entity: 5567075987584281901
+    TagComponent:
+      Tag: Spot Light
+    Parent: 10201435776732904547
+    Children:
+      []
+    TransformComponent:
+      Position: [-6.35215044, 5.0544405, -20.951086]
+      Rotation: [1.57079625, 1.1920929e-07, 1.57079625]
+      Scale: [0.999999881, 0.999999881, 0.999999881]
+    SpotLightComponent:
+      Radiance: [0.240374386, 0, 0.931451619]
+      Intensity: 10.1000004
+      Range: 4.69999981
+      Angle: 60
+      AngleAttenuation: 5
+      FallOff: 1
   - Entity: 7551451357683168586
     TagComponent:
       Tag: Cube
@@ -229,6 +294,64 @@ Entities:
       Position: [0, 0, 0]
       Rotation: [0, 0, 0]
       Scale: [1, 1, 1]
+  - Entity: 9274043674842140459
+    TagComponent:
+      Tag: Point Light
+    Parent: 3877695677669912325
+    Children:
+      []
+    TransformComponent:
+      Position: [19.3937569, 2.50331473, -6.96708107]
+      Rotation: [0, -0, 0]
+      Scale: [14.4000006, 14.4000006, 14.4000006]
+    PointLightComponent:
+      Radiance: [1, 0, 0]
+      Intensity: 1.54999995
+      Radius: 14.4000006
+      FallOff: 1
+  - Entity: 10056879582256538687
+    TagComponent:
+      Tag: Spot Light
+    Parent: 10201435776732904547
+    Children:
+      []
+    TransformComponent:
+      Position: [-2.76758456, 5.0544405, -20.951086]
+      Rotation: [1.57079625, 1.1920929e-07, 1.57079625]
+      Scale: [0.999999881, 0.999999881, 0.999999881]
+    SpotLightComponent:
+      Radiance: [0, 1, 0.90322566]
+      Intensity: 10.1000004
+      Range: 4.69999981
+      Angle: 60
+      AngleAttenuation: 5
+      FallOff: 1
+  - Entity: 10150573747935311611
+    TagComponent:
+      Tag: RotatedStairs
+    Parent: 0
+    Children:
+      []
+    TransformComponent:
+      Position: [4.67307758, -9.62034974e-05, -8.41313362]
+      Rotation: [12.566371, 0.0781275406, 6.28318548]
+      Scale: [2.352, 2.352, 2.352]
+    StaticMeshComponent:
+      AssetID: 15205824579538005087
+      MaterialTable:
+        0: 0
+  - Entity: 10201435776732904547
+    TagComponent:
+      Tag: Spot Lights
+    Parent: 0
+    Children:
+      - Handle: 10056879582256538687
+      - Handle: 12879975837661596554
+      - Handle: 5567075987584281901
+    TransformComponent:
+      Position: [0, 0, 0]
+      Rotation: [0, 0, 0]
+      Scale: [1, 1, 1]
   - Entity: 10781268972243530617
     TagComponent:
       Tag: Heart
@@ -243,7 +366,40 @@ Entities:
       AssetID: 16179563803417760851
       MaterialTable:
         0: 0
-        1: 0
+  - Entity: 11296497975328487559
+    TagComponent:
+      Tag: BloomText
+    Parent: 0
+    Children:
+      []
+    TransformComponent:
+      Position: [-14.8989096, 1.80132103, -18.4594364]
+      Rotation: [1.57079625, 0, 0]
+      Scale: [5.84640026, 5.84640026, 5.84640026]
+    StaticMeshComponent:
+      AssetID: 4011361737580101854
+      MaterialTable:
+        0: 4663714567957955262
+    RigidBodyComponent:
+      BodyType: 0
+      LayerID: 0
+      EnableDynamicTypeChange: false
+      Mass: 1
+      LinearDrag: 0.00999999978
+      AngularDrag: 0.0500000007
+      DisableGravity: false
+      IsTrigger: false
+      CollisionDetection: 0
+      InitialLinearVelocity: [0, 0, 0]
+      MaxLinearVelocity: 500
+      InitialAngularVelocity: [0, 0, 0]
+      MaxAngularVelocity: 50
+      LockedAxes: 0
+    MeshColliderComponent:
+      UseSharedShape: false
+      Friction: 0.5
+      Restitution: 0.150000006
+      CollisionComplexity: "\x00"
   - Entity: 11408097666428386747
     TagComponent:
       Tag: Compound Collider
@@ -291,7 +447,6 @@ Entities:
       AssetID: 6952546901326962044
       MaterialTable:
         0: 0
-        1: 0
   - Entity: 12649258275151874464
     TagComponent:
       Tag: Sphere
@@ -354,6 +509,38 @@ Entities:
       Radius: 0.5
       Friction: 0.5
       Restitution: 1
+  - Entity: 12810855100324858201
+    TagComponent:
+      Tag: Point Light
+    Parent: 3877695677669912325
+    Children:
+      []
+    TransformComponent:
+      Position: [14.9347172, 2.50331545, 4.77479887]
+      Rotation: [0, -0, 0]
+      Scale: [10.5999994, 10.5999994, 10.5999994]
+    PointLightComponent:
+      Radiance: [0, 0.153225899, 1]
+      Intensity: 1.54999995
+      Radius: 10.5999994
+      FallOff: 1
+  - Entity: 12879975837661596554
+    TagComponent:
+      Tag: Spot Light
+    Parent: 10201435776732904547
+    Children:
+      []
+    TransformComponent:
+      Position: [0.821447611, 5.0544405, -20.951086]
+      Rotation: [1.57079625, 1.1920929e-07, 1.57079625]
+      Scale: [0.999999881, 0.999999881, 0.999999881]
+    SpotLightComponent:
+      Radiance: [0.887096763, 1, 0]
+      Intensity: 10.1000004
+      Range: 4.69999981
+      Angle: 60
+      AngleAttenuation: 5
+      FallOff: 1
   - Entity: 13410138448210773750
     TagComponent:
       Tag: Capsule
@@ -403,7 +590,6 @@ Entities:
       AssetID: 13164229695691519330
       MaterialTable:
         0: 0
-        1: 0
     RigidBody2DComponent:
       BodyType: 1
       Mass: 0.5
@@ -446,6 +632,50 @@ Entities:
       Friction: 0.5
       Restitution: 0
       RestitutionThreshold: 0.5
+  - Entity: 14866973841765846661
+    TagComponent:
+      Tag: Point Light
+    Parent: 3877695677669912325
+    Children:
+      []
+    TransformComponent:
+      Position: [17.3962402, 2.52150249, -17.6684933]
+      Rotation: [0, -0, 0]
+      Scale: [8.01175594, 8.01175594, 8.01175594]
+    PointLightComponent:
+      Radiance: [0.330645204, 1, 0]
+      Intensity: 1.54999995
+      Radius: 8.01175594
+      FallOff: 0.414999992
+  - Entity: 15058834515222371384
+    TagComponent:
+      Tag: Sara
+    Parent: 0
+    Children:
+      []
+    TransformComponent:
+      Position: [-11.6181688, 5.08722973, -9.41862583]
+      Rotation: [3.57627869e-07, -1.4482066e-07, -0.00891969912]
+      Scale: [2.71000004, 2.7099998, 2.7099998]
+    StaticMeshComponent:
+      AssetID: 12106996295316359063
+      MaterialTable:
+        0: 4663714567957955262
+    RigidBodyComponent:
+      BodyType: 0
+      LayerID: 0
+      EnableDynamicTypeChange: false
+      Mass: 1
+      LinearDrag: 0.00999999978
+      AngularDrag: 0.0500000007
+      DisableGravity: false
+      IsTrigger: false
+      CollisionDetection: 0
+      InitialLinearVelocity: [0, 0, 0]
+      MaxLinearVelocity: 500
+      InitialAngularVelocity: [0, 0, 0]
+      MaxAngularVelocity: 50
+      LockedAxes: 0
   - Entity: 16242505162018475188
     TagComponent:
       Tag: Floor
@@ -482,7 +712,6 @@ Entities:
       AssetID: 13164229695691519330
       MaterialTable:
         0: 0
-        1: 0
     BoxColliderComponent:
       HalfSize: [0.5, 0.5, 0.5]
       Offset: [0, 0, 0]
@@ -534,6 +763,7 @@ Entities:
       - Handle: 12653037794705165742
       - Handle: 1591102392629627214
       - Handle: 11408097666428386747
+      - Handle: 1101670143013396711
     TransformComponent:
       Position: [0, 0, 0]
       Rotation: [0, 0, 0]

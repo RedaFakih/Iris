@@ -19,9 +19,12 @@ namespace Iris {
 	class ShaderCompiler : public RefCountedObject
 	{
 	public:
-		ShaderCompiler(const std::string& filePath, bool disableOptimization = false);
+		ShaderCompiler(const std::string& filePath, bool disableOptimization = false, const std::unordered_map<std::string, std::string>& macros = {});
 
-		[[nodiscard]] static Ref<ShaderCompiler> Create(const std::string& filePath, bool disableOptimization = false);
+		[[nodiscard]] inline static Ref<ShaderCompiler> Create(const std::string& filePath, bool disableOptimization = false, const std::unordered_map<std::string, std::string>& macros = {})
+		{
+			return CreateRef<ShaderCompiler>(filePath, disableOptimization, macros);
+		}
 
 		bool Reload(bool forceCompile = false);
 
@@ -58,6 +61,8 @@ namespace Iris {
 	private:
 		std::string m_FilePath;
 		bool m_DisableOptimizations = false;
+
+		std::unordered_map<std::string, std::string> m_ShaderMacros;
 
 		std::map<VkShaderStageFlagBits, std::string> m_ShaderSource;
 		std::map<VkShaderStageFlagBits, std::vector<uint32_t>> m_SPIRVData;
