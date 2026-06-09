@@ -272,7 +272,7 @@ namespace Iris {
 					if (m_CurrentlyRenderingOnlyViewport)
 						break;
 
-					if (!Input::IsKeyDown(KeyCode::LeftShift))
+					if (!Input::IsKeyDown(KeyCode::LeftShift) || Input::IsMouseButtonHeld(MouseButton::Right))
 						break;
 
 					m_OpenEntityCreateMenuPopup = true;

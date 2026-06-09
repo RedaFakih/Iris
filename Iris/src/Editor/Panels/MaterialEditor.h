@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Editor/AssetEditorPanel.h"
+#include "Editor/Panels/AssetEditorPanel.h"
 #include "Renderer/Mesh/MaterialAsset.h"
 #include "Renderer/SceneRendererLite.h"
 

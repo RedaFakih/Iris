@@ -1,7 +1,7 @@
 #include "IrisPCH.h"
 #include "AssetEditorPanel.h"
 
-#include "Panels/MaterialEditor.h"
+#include "MaterialEditor.h"
 #include "Project/Project.h"
 
 #include <imgui/imgui.h>

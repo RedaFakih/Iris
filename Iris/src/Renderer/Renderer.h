@@ -119,7 +119,8 @@ namespace Iris {
 		static void RenderStaticMeshWithMaterial(Ref<RenderCommandBuffer> renderCommandBuffer, Ref<Pipeline> pipeline, Ref<StaticMesh> staticMesh, Ref<MeshSource> meshSource, uint32_t subMeshIndex, Ref<Material> material, Ref<VertexBuffer> transformBuffer, uint32_t transformOffset, uint32_t instanceCount);
 		static void RenderStaticMeshWithMaterial(Ref<RenderCommandBuffer> renderCommandBuffer, Ref<Pipeline> pipeline, Ref<StaticMesh> staticMesh, Ref<MeshSource> meshSource, uint32_t subMeshIndex, Ref<Material> material, Ref<VertexBuffer> transformBuffer, uint32_t transformOffset, uint32_t instanceCount, Buffer vertexShaderOverrides);
 		static void RenderGeometry(Ref<RenderCommandBuffer> renderCommandBuffer, Ref<Pipeline> pipeline, Ref<Material> material, Ref<VertexBuffer> vertexBuffer, Ref<IndexBuffer> indexBuffer, const glm::mat4& transform, uint32_t indexCount = 0);
-		static void BlitImage(Ref<RenderCommandBuffer> renderCommandBuffer, Ref<Texture2D> sourceImage, Ref<Texture2D> destinationImage, VkPipelineStageFlagBits2 finalDestImageStage);
+		// NOTE: By default it sets the destImage in FRAGMENT_SHADER_BIT pipeline stage
+		static void BlitImage(Ref<RenderCommandBuffer> renderCommandBuffer, Ref<Texture2D> sourceImage, Ref<Texture2D> destinationImage, bool outputForComputeShader = false);
 
 		// Compute passes
 		static void BeginComputePass(Ref<RenderCommandBuffer> renderCommandBuffer, Ref<ComputePass> computePass);

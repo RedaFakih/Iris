@@ -386,7 +386,7 @@ namespace Iris {
 
 			m_RenderCommandBuffer->Begin();
 			// Fragment shader since it will be displayed by ImGui
-			Renderer::BlitImage(m_RenderCommandBuffer, texture, result, VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT);
+			Renderer::BlitImage(m_RenderCommandBuffer, texture, result);
 			m_RenderCommandBuffer->End();
 			m_RenderCommandBuffer->Submit();
 

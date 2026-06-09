@@ -77,7 +77,7 @@ project "Iris"
 
         links
         {
-            "%{Library.AssimpDebug}",
+            "%{Library.AssimpDebugLib}",
             "%{Library.ShadercDebug}",
             "%{Library.ShadercUtilsDebug}",
             "%{Library.SPIRV_CrossDebug}",
@@ -106,7 +106,7 @@ project "Iris"
         }
 
         links {
-            "%{Library.AssimpRelease}",
+            "%{Library.AssimpReleaseLib}",
             "%{Library.ShadercRelease}",
             "%{Library.ShadercUtilsRelease}",
             "%{Library.SPIRV_CrossRelease}",

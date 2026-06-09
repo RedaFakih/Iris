@@ -282,23 +282,32 @@ namespace Iris {
 			// Add to the global VkDescriptorPoolSize for the global descriptor pool in the DescriptorSetManager
 			if (shaderDescriptorSet.UniformBuffers.size())
 			{
-				m_DescriptorPoolTypeCounts[VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER] += static_cast<uint32_t>(shaderDescriptorSet.UniformBuffers.size());
+				m_DescriptorPoolTypeCounts[VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER] += static_cast<uint32_t>(shaderDescriptorSet.UniformBuffers.size()) * Renderer::GetConfig().FramesInFlight;
 			}
 
 			if (shaderDescriptorSet.StorageBuffers.size())
 			{
-				m_DescriptorPoolTypeCounts[VK_DESCRIPTOR_TYPE_STORAGE_BUFFER] += static_cast<uint32_t>(shaderDescriptorSet.StorageBuffers.size());
+				m_DescriptorPoolTypeCounts[VK_DESCRIPTOR_TYPE_STORAGE_BUFFER] += static_cast<uint32_t>(shaderDescriptorSet.StorageBuffers.size()) * Renderer::GetConfig().FramesInFlight;
 			}
 
 			if (shaderDescriptorSet.ImageSamplers.size())
 			{
-				// TODO: Maybe also do it for `VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE`
-				m_DescriptorPoolTypeCounts[VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER] += static_cast<uint32_t>(shaderDescriptorSet.ImageSamplers.size());
+				m_DescriptorPoolTypeCounts[VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER] += static_cast<uint32_t>(shaderDescriptorSet.ImageSamplers.size()) * Renderer::GetConfig().FramesInFlight;
+
+				for (const auto& [_, descSetFromShader] : shaderDescriptorSet.ImageSamplers)
+				{
+					if (descSetFromShader.ArraySize > 1)
+					{
+						// NOTE(Reda): The - FramesInFlight here is to account for the 3 combinedImageSamplers already accounted for in the top line of code
+						m_DescriptorPoolTypeCounts[VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER] += static_cast<uint32_t>(descSetFromShader.ArraySize) * Renderer::GetConfig().FramesInFlight - Renderer::GetConfig().FramesInFlight;
+						break;
+					}
+				}
 			}
 
 			if (shaderDescriptorSet.StorageImages.size())
 			{
-				m_DescriptorPoolTypeCounts[VK_DESCRIPTOR_TYPE_STORAGE_IMAGE] += static_cast<uint32_t>(shaderDescriptorSet.StorageImages.size());
+				m_DescriptorPoolTypeCounts[VK_DESCRIPTOR_TYPE_STORAGE_IMAGE] += static_cast<uint32_t>(shaderDescriptorSet.StorageImages.size()) * Renderer::GetConfig().FramesInFlight;
 			}
 
 			/////////////////////////////////////////////////////////////////////////////////////////////////////

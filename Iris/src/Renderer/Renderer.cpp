@@ -877,12 +877,12 @@ namespace Iris {
 		});
 	}
 
-	void Renderer::BlitImage(Ref<RenderCommandBuffer> renderCommandBuffer, Ref<Texture2D> sourceImage, Ref<Texture2D> destinationImage, VkPipelineStageFlagBits2 finalDestImageStage)
+	void Renderer::BlitImage(Ref<RenderCommandBuffer> renderCommandBuffer, Ref<Texture2D> sourceImage, Ref<Texture2D> destinationImage, bool outputForComputeShader)
 	{
 		IR_VERIFY(sourceImage);
 		IR_VERIFY(destinationImage);
 
-		Renderer::Submit([renderCommandBuffer, src = sourceImage, dst = destinationImage, finalDestImageStage]
+		Renderer::Submit([renderCommandBuffer, src = sourceImage, dst = destinationImage, outputForComputeShader]
 		{
 			const VkCommandBuffer commandBuffer = renderCommandBuffer->GetActiveCommandBuffer();
 
@@ -932,11 +932,11 @@ namespace Iris {
 
 			{
 				VkImageMemoryBarrier2 imageMemoryBarrier = {
-					.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
-					.srcStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT,
-					.srcAccessMask = VK_ACCESS_2_TRANSFER_READ_BIT,
-					.dstStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT,
-					.dstAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT,
+					.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
+					.srcStageMask = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,
+					.srcAccessMask = VK_ACCESS_2_SHADER_READ_BIT,
+					.dstStageMask = VK_PIPELINE_STAGE_2_BLIT_BIT,
+					.dstAccessMask = VK_ACCESS_2_TRANSFER_READ_BIT,
 					.oldLayout = srcImageLayout,
 					.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
 					.image = srcImage,
@@ -960,10 +960,10 @@ namespace Iris {
 
 			{
 				VkImageMemoryBarrier2 imageMemoryBarrier = {
-					.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
-					.srcStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT,
-					.srcAccessMask = VK_ACCESS_2_TRANSFER_READ_BIT,
-					.dstStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+					.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
+					.srcStageMask = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,
+					.srcAccessMask = VK_ACCESS_2_SHADER_READ_BIT,
+					.dstStageMask = VK_PIPELINE_STAGE_2_BLIT_BIT,
 					.dstAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT,
 					.oldLayout = dstImageLayout,
 					.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
@@ -991,11 +991,11 @@ namespace Iris {
 
 			{
 				VkImageMemoryBarrier2 imageMemoryBarrier = {
-					.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
-					.srcStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+					.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
+					.srcStageMask = VK_PIPELINE_STAGE_2_BLIT_BIT,
 					.srcAccessMask = VK_ACCESS_2_TRANSFER_READ_BIT,
-					.dstStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT,
-					.dstAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT,
+					.dstStageMask = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,
+					.dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT,
 					.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
 					.newLayout = srcImageLayout,
 					.image = srcImage,
@@ -1018,12 +1018,17 @@ namespace Iris {
 			}
 
 			{
+				VkPipelineStageFlagBits2 finalDestImageStage = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
+				VkAccessFlagBits2 finalDestAccessMask = VK_ACCESS_2_SHADER_READ_BIT;
+				if (outputForComputeShader)
+					finalDestImageStage = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
+
 				VkImageMemoryBarrier2 imageMemoryBarrier = {
-					.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
-					.srcStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT,
-					.srcAccessMask = VK_ACCESS_2_TRANSFER_READ_BIT,
-					.dstStageMask = finalDestImageStage, // NOTE: The caller can set what the final stage should be so that they can set FRAGMENT_SHADER/COMPUTE_SHADER or stuff like that
-					.dstAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT,
+					.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
+					.srcStageMask = VK_PIPELINE_STAGE_2_BLIT_BIT,
+					.srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT,
+					.dstStageMask = finalDestImageStage,
+					.dstAccessMask = finalDestAccessMask,
 					.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
 					.newLayout = dstImageLayout,
 					.image = dstImage,

@@ -154,7 +154,7 @@ layout(std140, set = 1, binding = 4) uniform PointLightsData
 	PointLight Lights[IR_MAX_POINT_LIGHT_COUNT];
 } u_PointLights;
 
-layout(std430, set = 1, binding = 5) buffer VisiblePointLightIndicesBuffer
+layout(std430, set = 1, binding = 5) readonly buffer VisiblePointLightIndicesBuffer
 {
 	int Indices[];
 } s_VisiblePointLightIndicesBuffer;
@@ -178,7 +178,7 @@ layout(std140, set = 1, binding = 6) uniform SpotLightsData
 	SpotLight Lights[IR_MAX_SPOT_LIGHT_COUNT];
 } u_SpotLights;
 
-layout(std430, set = 1, binding = 7) writeonly buffer VisibleSpotLightIndicesBuffer
+layout(std430, set = 1, binding = 7) readonly buffer VisibleSpotLightIndicesBuffer
 {
 	int Indices[];
 } s_VisibleSpotLightIndicesBuffer;

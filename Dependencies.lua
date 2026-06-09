@@ -26,8 +26,10 @@ LibraryDir["VulkanSDK"]           = "%{VULKAN_SDK}/Lib"
 
 Library = {}
 
-Library["AssimpDebug"]			  = "%{wks.location}/Iris/dependencies/assimp/AssimpBin/Debug/assimp-vc143-mtd.lib"
-Library["AssimpRelease"]	      = "%{wks.location}/Iris/dependencies/assimp/AssimpBin/Release/assimp-vc143-mt.lib"
+Library["AssimpDebug"]			  = "%{wks.location}/Iris/dependencies/assimp/AssimpBin/Debug/assimp-vc143-mtd.dll"
+Library["AssimpDebugLib"]         = "%{wks.location}/Iris/dependencies/assimp/AssimpBin/Debug/assimp-vc143-mtd.lib"
+Library["AssimpRelease"]	      = "%{wks.location}/Iris/dependencies/assimp/AssimpBin/Release/assimp-vc143-mt.dll"
+Library["AssimpReleaseLib"]	      = "%{wks.location}/Iris/dependencies/assimp/AssimpBin/Release/assimp-vc143-mt.lib"
 
 Library["Vulkan"]                 = "%{LibraryDir.VulkanSDK}/vulkan-1.lib"
 Library["dxc"]                    = "%{LibraryDir.VulkanSDK}/dxcompiler.lib"

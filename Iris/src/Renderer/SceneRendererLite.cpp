@@ -626,7 +626,7 @@ namespace Iris {
 			Renderer::InsertImageMemoryBarrier(
 				instance->m_CommandBuffer->GetActiveCommandBuffer(),
 				instance->m_PreDepthPass->GetDepthOutput()->GetVulkanImage(),
-				0,
+				VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
 				VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
 				VK_IMAGE_LAYOUT_UNDEFINED,
 				VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL,
@@ -636,17 +636,20 @@ namespace Iris {
 			);
 
 			// Geometry Color images
-			Renderer::InsertImageMemoryBarrier(
-				instance->m_CommandBuffer->GetActiveCommandBuffer(),
-				instance->m_GeometryPass->GetOutput(0)->GetVulkanImage(),
-				0,
-				VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
-				VK_IMAGE_LAYOUT_UNDEFINED,
-				VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-				VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
-				VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
-				{ .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = 1 }
-			);
+			for (int i = 0; i < instance->m_GeometryPass->GetTargetFramebuffer()->GetColorAttachmentCount(); i++)
+			{
+				Renderer::InsertImageMemoryBarrier(
+					instance->m_CommandBuffer->GetActiveCommandBuffer(),
+					instance->m_GeometryPass->GetOutput(i)->GetVulkanImage(),
+					0,
+					VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
+					VK_IMAGE_LAYOUT_UNDEFINED,
+					VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+					VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
+					VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
+					{ .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = 1 }
+				);
+			}
 
 			// Composite color image
 			Renderer::InsertImageMemoryBarrier(
@@ -680,17 +683,20 @@ namespace Iris {
 			Ref<SceneRendererLite> instance = this;
 			Renderer::Submit([instance]()
 			{
-				Renderer::InsertImageMemoryBarrier(
-					instance->m_CommandBuffer->GetActiveCommandBuffer(),
-					instance->m_GeometryPass->GetOutput(0)->GetVulkanImage(),
-					VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
-					VK_ACCESS_2_SHADER_SAMPLED_READ_BIT,
-					VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-					VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-					VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
-					VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
-					{ .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = 1 }
-				);
+				for (int i = 0; i < instance->m_GeometryPass->GetTargetFramebuffer()->GetColorAttachmentCount(); i++)
+				{
+					Renderer::InsertImageMemoryBarrier(
+						instance->m_CommandBuffer->GetActiveCommandBuffer(),
+						instance->m_GeometryPass->GetOutput(i)->GetVulkanImage(),
+						VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
+						VK_ACCESS_2_SHADER_SAMPLED_READ_BIT,
+						VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+						VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+						VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
+						VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+						{ .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = 1 }
+					);
+				}
 			});
 
 			if (m_Options.BloomEnabled)
@@ -1074,6 +1080,21 @@ namespace Iris {
 			Renderer::SubmitFullScreenQuad(m_CommandBuffer, m_GridPass->GetPipeline(), m_GridMaterial);
 			Renderer::EndRenderPass(m_CommandBuffer);
 		}
+
+		Renderer::Submit([instance]()
+		{
+			Renderer::InsertImageMemoryBarrier(
+				instance->m_CommandBuffer->GetActiveCommandBuffer(),
+				instance->m_CompositePass->GetOutput(0)->GetVulkanImage(),
+				VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
+				VK_ACCESS_2_SHADER_READ_BIT,
+				VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+				VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+				VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
+				VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,
+				{ .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = 1 }
+			);
+		});
 	}
 
 	void SceneRendererLite::CreateBloomPassMaterials()

@@ -562,6 +562,8 @@ namespace Iris {
         if (m_Image == nullptr)
             return;
 
+        m_TrackedImageViews.clear();
+
         Renderer::SubmitReseourceFree([image = m_Image, imageView = m_ImageView, sampler = m_Sampler, allocation = m_MemoryAllocation, name = m_Specification.DebugName]()
         {
             VkDevice device = RendererContext::GetCurrentDevice()->GetVulkanDevice();
@@ -583,26 +585,40 @@ namespace Iris {
     {
         IR_ASSERT(m_Specification.GenerateMips && mip < GetMipLevelCount());
 
+        auto it = std::find_if(m_TrackedImageViews.begin(), m_TrackedImageViews.end(), [mip](const ImageViewTrackingData& val) { return val.Mip == mip; });
+        if (it != m_TrackedImageViews.end())
+            return it->ImageView;
+
         ImageViewSpecification imageViewSpec = {
             .DebugName = fmt::format("{}{}{}", m_Specification.DebugName, "imageViewMip", mip),
             .Image = this,
             .Mip = static_cast<int>(mip)
         };
         
-        return ImageView::Create(imageViewSpec, false);
+        Ref<ImageView> result = ImageView::Create(imageViewSpec, false);
+        m_TrackedImageViews.emplace_back(mip, -1, result);
+
+        return result;
     }
 
     Ref<ImageView> Texture2D::CreateImageViewSingleLayer(uint32_t layer)
     {
         IR_ASSERT(layer < m_Specification.Layers);
+    
+        auto it = std::find_if(m_TrackedImageViews.begin(), m_TrackedImageViews.end(), [layer](const ImageViewTrackingData& val) { return val.Layer == layer; });
+        if (it != m_TrackedImageViews.end())
+            return it->ImageView;
 
         ImageViewSpecification imageViewSpec = {
             .DebugName = fmt::format("{}{}{}", m_Specification.DebugName, "imageViewLayer", layer),
             .Image = this,
             .Layer = static_cast<int>(layer)
         };
-        
-        return ImageView::Create(imageViewSpec, false);
+
+        Ref<ImageView> result = ImageView::Create(imageViewSpec, false);
+        m_TrackedImageViews.emplace_back(-1, layer, result);
+
+        return result;
     }
 
     std::vector<Ref<ImageView>> Texture2D::CreatePerLayerImageViews()

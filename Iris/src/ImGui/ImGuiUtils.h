@@ -1,7 +1,7 @@
 #pragma once
 
 #include "AssetManager/AssetManager.h"
-#include "Editor/AssetEditorPanel.h"
+#include "Editor/Panels/AssetEditorPanel.h"
 #include "Editor/EditorResources.h"
 #include "Renderer/Texture.h"
 #include "Themes.h"

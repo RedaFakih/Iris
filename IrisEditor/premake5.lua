@@ -68,10 +68,12 @@ project "IrisEditor"
 
     filter { "system:windows", "configurations:Debug" }
         postbuildcommands {
-            '{COPY} "%{Library.AssimpDebug}" "%{cfg.targetdir}"'
+            '{COPY} "%{Library.AssimpDebug}" "%{cfg.targetdir}"',
+            '{COPY} "%{Library.AssimpDebugLib}" "%{cfg.targetdir}"'
         }
 
     filter { "system:windows", "configurations:Release" }
         postbuildcommands {
-            '{COPY} "%{Library.AssimpRelease}" "%{cfg.targetdir}"'
+            '{COPY} "%{Library.AssimpRelease}" "%{cfg.targetdir}"',
+            '{COPY} "%{Library.AssimpReleaseLib}" "%{cfg.targetdir}"'
         }

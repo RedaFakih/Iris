@@ -3,7 +3,7 @@
 #include "AssetManager/Importers/MeshImporter.h"
 #include "Core/Input/Input.h"
 #include "Core/Ray.h"
-#include "Editor/AssetEditorPanel.h"
+#include "Editor/Panels/AssetEditorPanel.h"
 #include "Editor/EditorResources.h"
 #include "Editor/EditorSettings.h"
 #include "Editor/Panels/AssetManagerPanel.h"

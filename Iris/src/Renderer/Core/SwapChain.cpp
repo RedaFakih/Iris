@@ -310,7 +310,7 @@ namespace Iris {
 				.commandBufferCount = 1
 			};
 
-			m_CommandBuffers.resize(m_ImageCount);
+			m_CommandBuffers.resize(Renderer::GetConfig().FramesInFlight);
 			int i = 0;
 			for (auto& commandBuffer : m_CommandBuffers)
 			{
@@ -336,7 +336,7 @@ namespace Iris {
 			 */
 		
 			uint32_t framesInFlight = Renderer::GetConfig().FramesInFlight;
-			if (m_ImageAvailableSemaphores.size() != framesInFlight)
+			if (m_ImageAvailableSemaphores.size() != framesInFlight || m_RenderFinishedSemaphores.size() != framesInFlight)
 			{
 				m_ImageAvailableSemaphores.resize(framesInFlight);
 				m_RenderFinishedSemaphores.resize(framesInFlight);
@@ -432,8 +432,6 @@ namespace Iris {
 
 		// We reset the current command pool since it will reset its command buffer
 		VK_CHECK_RESULT(vkResetCommandPool(m_Device->GetVulkanDevice(), m_CommandBuffers[m_CurrentFrameIndex].CommandPool, 0));
-
-
 	}
 
 	void SwapChain::Present()
@@ -454,7 +452,7 @@ namespace Iris {
 			.commandBufferCount = 1,
 			.pCommandBuffers = &m_CommandBuffers[m_CurrentFrameIndex].CommandBuffer,
 			.signalSemaphoreCount = 1, // NOTE: Specifies the semaphore to signal once the command buffer has finished execution
-			.pSignalSemaphores = &m_RenderFinishedSemaphores[m_CurrentFrameIndex]
+			.pSignalSemaphores = &m_RenderFinishedSemaphores[m_CurrentImageIndex]
 		};
 
 		m_Device->LockQueue();
@@ -470,7 +468,7 @@ namespace Iris {
 				.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
 				.pNext = nullptr,
 				.waitSemaphoreCount = 1,
-				.pWaitSemaphores = &m_RenderFinishedSemaphores[m_CurrentFrameIndex], // We want to wait for the commandbuffer to finish execution
+				.pWaitSemaphores = &m_RenderFinishedSemaphores[m_CurrentImageIndex], // We want to wait for the commandbuffer to finish execution
 				.swapchainCount = 1,
 				.pSwapchains = &m_SwapChain,
 				.pImageIndices = &m_CurrentImageIndex,

@@ -192,6 +192,15 @@ namespace Iris {
 		Buffer m_ImageData; // Local storage of the image
 
 		VkDescriptorImageInfo m_DescriptorInfo = {};
+	
+		struct ImageViewTrackingData
+		{
+			int Mip = -1;
+			int Layer = -1;
+			Ref<ImageView> ImageView;
+		};
+
+		std::vector<ImageViewTrackingData> m_TrackedImageViews = {};
 	};
 
 	class TextureCube : public Asset

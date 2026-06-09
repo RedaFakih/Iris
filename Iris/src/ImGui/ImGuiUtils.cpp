@@ -1164,7 +1164,6 @@ namespace Iris::UI {
 
 	ImTextureID GetTextureID(Ref<Texture2D> texture, uint32_t imageLayer)
 	{
-		// TODO: This needs some fixing since the image view gets destroyed and we are using it to render the image
 		const VkDescriptorImageInfo& info = texture->GetDescriptorImageInfo();
 		Ref<ImageView> imageView = texture->CreateImageViewSingleLayer(imageLayer);
 		if (!imageView)

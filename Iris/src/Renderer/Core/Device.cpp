@@ -284,23 +284,16 @@ namespace Iris {
 		IR_VERIFY(physicalDevice->IsExtensionSupported(VK_KHR_SWAPCHAIN_EXTENSION_NAME));
 		deviceExtensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
 
-		// TODO: Some more extensions to check and add Aftermath maybe..??
-
-		VkPhysicalDeviceSynchronization2Features synchronization2Feature = {
-			.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SYNCHRONIZATION_2_FEATURES,
-			.pNext = nullptr,
-			.synchronization2 = VK_TRUE
-		};
-
-		VkPhysicalDeviceDynamicRenderingFeatures dynamicRenderingFeature = {
-			.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES,
-			.pNext = &synchronization2Feature,
+		VkPhysicalDeviceVulkan13Features vulkan1_3Features = {
+			.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES,
+			.shaderDemoteToHelperInvocation = VK_TRUE,
+			.synchronization2 = VK_TRUE,
 			.dynamicRendering = VK_TRUE
 		};
 
 		VkDeviceCreateInfo createInfo = {
 			.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
-			.pNext = &dynamicRenderingFeature,
+			.pNext = &vulkan1_3Features,
 			.queueCreateInfoCount = static_cast<uint32_t>(physicalDevice->m_QueueCreateInfos.size()),
 			.pQueueCreateInfos = physicalDevice->m_QueueCreateInfos.data(),
 			.pEnabledFeatures = &enabledFeatures
