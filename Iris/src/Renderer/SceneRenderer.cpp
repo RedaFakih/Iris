@@ -167,21 +167,6 @@ namespace Iris {
 				m_BloomTextures[2].Texture = Texture2D::Create(spec);
 			}
 
-			//// Image Views (per-mip)
-			ImageViewSpecification imageViewSpec;
-			for (uint32_t i = 0; i < 3; i++)
-			{
-				uint32_t mipCount = m_BloomTextures[i].Texture->GetMipLevelCount();
-				m_BloomTextures[i].ImageViews.resize(mipCount);
-				for (uint32_t mip = 0; mip < mipCount; mip++)
-				{
-					imageViewSpec.DebugName = fmt::format("BloomImageView-({} - {})", i, mip);
-					imageViewSpec.Image = m_BloomTextures[i].Texture;
-					imageViewSpec.Mip = mip;
-					m_BloomTextures[i].ImageViews[mip] = ImageView::Create(imageViewSpec);
-				}
-			}
-
 			// Pre-Filter
 			Ref<Shader> preFilterShader = Renderer::GetShadersLibrary()->Get("Bloom-Prefilter");
 			ComputePassSpecification preFilterPassSpec = {
@@ -298,6 +283,32 @@ namespace Iris {
 				m_WireframeViewPreDepthPass->SetInput("Camera", m_UBSCamera);
 				m_WireframeViewPreDepthPass->Bake();
 			}
+		}
+
+		// Hierarchal Z-Buffer
+		{
+			TextureSpecification spec = {
+				.DebugName = "HierarchalZ-Buffer",
+				.Width = 1,
+				.Height = 1,
+				.Format = ImageFormat::R32F,
+				.Usage = ImageUsage::Storage,
+				.WrapMode = TextureWrap::Clamp,
+				.FilterMode = TextureFilter::Nearest,
+				.GenerateMips = true
+			};
+			m_HierarchalZBufferResources.Texture = Texture2D::Create(spec);
+
+			Ref<Shader> hzbShader = Renderer::GetShadersLibrary()->Get("HierarchalZBuffer");
+			ComputePassSpecification hieZBufferSpecPass = {
+				.DebugName = "HierarchalZBufferPass",
+				.Pipeline = ComputePipeline::Create(hzbShader, "HierarchalZBufferPipeline"),
+				.MarkerColor = { 0.1f, 0.55f, 0.8f, 1.0f }
+			};
+			m_HierarchalZBufferPass = ComputePass::Create(hieZBufferSpecPass);
+
+			// No resources to add since everything will be set by the materials
+			m_HierarchalZBufferPass->Bake();
 		}
 
 		// Geometry
@@ -422,7 +433,7 @@ namespace Iris {
 				.ClearColor = { 0.0f, 0.0f, 0.0f, 0.0f },
 				.Attachments = { ImageFormat::RGBA32F }
 			};
-		
+
 			PipelineSpecification selectedGeoPipeline = {
 				.DebugName = "SelectedGeoIsolationPipeline",
 				.Shader = Renderer::GetShadersLibrary()->Get("SelectedGeometry"),
@@ -431,7 +442,7 @@ namespace Iris {
 				.InstanceLayout = instanceLayout,
 				.DepthOperator = DepthCompareOperator::LessOrEqual
 			};
-		
+
 			RenderPassSpecification selectedGeoPass = {
 				.DebugName = "SelectedGeoPass",
 				.Pipeline = Pipeline::Create(selectedGeoPipeline),
@@ -439,10 +450,10 @@ namespace Iris {
 			};
 			m_SelectedGeometryPass = RenderPass::Create(selectedGeoPass);
 			m_SelectedGeometryMaterial = Material::Create(selectedGeoPipeline.Shader, "SelectedGeoIsolationMaterial");
-		
+
 			m_SelectedGeometryPass->SetInput("Camera", m_UBSCamera);
 			m_SelectedGeometryPass->Bake();
-		
+
 			// DoubleSided
 			{
 				FramebufferSpecification doubleSidedFBSpec = {
@@ -452,7 +463,7 @@ namespace Iris {
 					.Attachments = { ImageFormat::RGBA32F }
 				};
 				doubleSidedFBSpec.ExistingImages[0] = m_SelectedGeometryPass->GetOutput(0);
-		
+
 				selectedGeoPipeline.DebugName = "DoubleSidedSelectedGeoPipeline";
 				selectedGeoPipeline.TargetFramebuffer = Framebuffer::Create(doubleSidedFBSpec);
 				selectedGeoPipeline.BackFaceCulling = false;
@@ -461,7 +472,7 @@ namespace Iris {
 				selectedGeoPass.DebugName = "DoubleSidedSelectedGeoPass";
 				selectedGeoPass.Pipeline = Pipeline::Create(selectedGeoPipeline);
 				m_DoubleSidedSelectedGeometryPass = RenderPass::Create(selectedGeoPass);
-		
+
 				m_DoubleSidedSelectedGeometryPass->SetInput("Camera", m_UBSCamera);
 				m_DoubleSidedSelectedGeometryPass->Bake();
 			}
@@ -502,7 +513,7 @@ namespace Iris {
 			m_CompositePass->SetInput("u_Texture", m_GeometryPass->GetOutput(0));
 			m_CompositePass->SetInput("u_BloomTexture", m_BloomTextures[2].Texture);
 			m_CompositePass->SetInput("u_BloomDirtTexture", m_BloomDirtTexture);
-			// TODO: To use this we need to also transition its layout in the composite pass
+			// NOTE: To use this we need to also transition its layout in the composite pass
 			// m_CompositePass->SetInput("u_DepthTexture", m_PreDepthPass->GetDepthOutput());
 			m_CompositePass->Bake();
 		}
@@ -915,6 +926,29 @@ namespace Iris {
 
 				// Visible Spot Light Indices storage buffer (set = 1, binding = 7)
 				m_SBSVisibleSpotLightIndicesBuffer->Resize(m_LightCullingWorkGroups.x * m_LightCullingWorkGroups.y * 4 * 100);
+			}
+
+			// Hierarchal Z-Buffer
+			{
+				const glm::uvec2 numMips = glm::ceil(glm::log2(glm::vec2{ viewportSize }));
+
+				const glm::uvec2 hzbSize = BIT(numMips);
+				m_HierarchalZBufferResources.Texture->Resize(hzbSize.x, hzbSize.y);
+
+				// Image Views (per-mip)
+				ImageViewSpecification imageViewSpec;
+				uint32_t mipCount = m_HierarchalZBufferResources.Texture->GetMipLevelCount();
+				m_HierarchalZBufferResources.ImageViews.resize(mipCount);
+				for (uint32_t mip = 0; mip < mipCount; mip++)
+				{
+					imageViewSpec.DebugName = std::format("HierarchicalZBuffer-({})", mip);
+					imageViewSpec.Image = m_HierarchalZBufferResources.Texture;
+					imageViewSpec.Mip = mip;
+					m_HierarchalZBufferResources.ImageViews[mip] = ImageView::Create(imageViewSpec);
+				}
+
+				// Re-setup materials with new image views
+				CreateHierarchalZBufferPassMaterials();
 			}
 
 			// Bloom
@@ -1388,6 +1422,7 @@ namespace Iris {
 			ResetImageLayouts();
 			DirectionalShadowPass();
 			PreDepthPass();
+			HZBPass();
 			LightCullingPass();
 			GeometryPass();
 			SkyboxPass();
@@ -1647,8 +1682,11 @@ namespace Iris {
 		}
 	}
 
-	void SceneRenderer::LightCullingPass()
+	void SceneRenderer::HZBPass()
 	{
+		constexpr uint32_t maxMipBatchSize = 4;
+		const uint32_t hzbMipCount = m_HierarchalZBufferResources.Texture->GetMipLevelCount();
+
 		Ref<SceneRenderer> instance = this;
 		Renderer::Submit([instance]()
 		{
@@ -1656,14 +1694,62 @@ namespace Iris {
 				instance->m_CommandBuffer->GetActiveCommandBuffer(),
 				instance->m_PreDepthPass->GetDepthOutput()->GetVulkanImage(),
 				VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
-				VK_ACCESS_2_SHADER_SAMPLED_READ_BIT,
+				VK_ACCESS_2_SHADER_READ_BIT,
 				VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL,
 				VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL,
 				VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT,
-				VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+				VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
 				{ .aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = 1 }
 			);
 		});
+
+		Renderer::BeginComputePass(m_CommandBuffer, m_HierarchalZBufferPass);
+
+		auto ReduceHZB = [commandBuffer = m_CommandBuffer, hierarchicalDepthPass = m_HierarchalZBufferPass, hierarchicalDepthTexture = m_HierarchalZBufferResources.Texture, hzbMaterials = m_HierarchalZBufferMaterials, hzbMipCount]
+		(const uint32_t startDestMip, const uint32_t parentMip, const glm::vec2& DispatchThreadIdToBufferUV, const glm::vec2& InputViewportMaxBound, const bool isFirstPass)
+			{
+				struct HierarchicalZComputePushConstants
+				{
+					glm::vec2 DispatchThreadIdToBufferUV;
+					glm::vec2 InputViewportMaxBound;
+					glm::vec2 InvSize;
+					uint32_t FirstLod;
+					uint32_t ValidMipCount;
+					bool IsFirstPass;
+					char Padding[3]{ 0, 0, 0 };
+				} hierarchicalZComputePushConstants;
+
+				hierarchicalZComputePushConstants.IsFirstPass = isFirstPass;
+				hierarchicalZComputePushConstants.FirstLod = startDestMip;
+				hierarchicalZComputePushConstants.DispatchThreadIdToBufferUV = DispatchThreadIdToBufferUV;
+				hierarchicalZComputePushConstants.InputViewportMaxBound = InputViewportMaxBound;
+				hierarchicalZComputePushConstants.ValidMipCount = glm::min(maxMipBatchSize, hzbMipCount - startDestMip);
+
+				const glm::ivec2 srcSize(Math::DivideAndRoundUp(hierarchicalDepthTexture->GetSize(), 1u << parentMip));
+				const glm::ivec2 dstSize(Math::DivideAndRoundUp(hierarchicalDepthTexture->GetSize(), 1u << startDestMip));
+				hierarchicalZComputePushConstants.InvSize = glm::vec2{ 1.0f / (float)srcSize.x, 1.0f / (float)srcSize.y };
+
+				glm::uvec3 workGroups(Math::DivideAndRoundUp(dstSize.x, 8), Math::DivideAndRoundUp(dstSize.y, 8), 1);
+				Renderer::DispatchComputePass(commandBuffer, hierarchicalDepthPass, hzbMaterials[startDestMip / 4], workGroups, Buffer(reinterpret_cast<const uint8_t*>(&hierarchicalZComputePushConstants), sizeof(hierarchicalZComputePushConstants)));
+			};
+
+		// Reduce first 4 mips
+		glm::ivec2 srcSize = m_PreDepthPass->GetDepthOutput()->GetSize();
+		ReduceHZB(0, 0, { 1.0f / glm::vec2{ srcSize } }, { (glm::vec2{ srcSize } - 0.5f) / glm::vec2{ srcSize } }, true);
+
+		// Reduce the next mips
+		for (uint32_t startDestMip = maxMipBatchSize; startDestMip < hzbMipCount; startDestMip += maxMipBatchSize)
+		{
+			srcSize = Math::DivideAndRoundUp(m_HierarchalZBufferResources.Texture->GetSize(), 1u << uint32_t(startDestMip - 1));
+			ReduceHZB(startDestMip, startDestMip - 1, { 2.0f / glm::vec2{ srcSize } }, glm::vec2{ 1.0f }, false);
+		}
+
+		Renderer::EndComputePass(m_CommandBuffer, m_HierarchalZBufferPass);
+	}
+
+	void SceneRenderer::LightCullingPass()
+	{
+		Ref<SceneRenderer> instance = this;
 
 		Renderer::BeginComputePass(m_CommandBuffer, m_LightCullingPass);
 		Renderer::DispatchComputePass(m_CommandBuffer, m_LightCullingPass, m_LightCullingMaterial, m_LightCullingWorkGroups);
@@ -2203,8 +2289,50 @@ namespace Iris {
 		}
 	}
 
+	void SceneRenderer::CreateHierarchalZBufferPassMaterials()
+	{
+		m_HierarchalZBufferMaterials.clear();
+
+		constexpr uint32_t maxMipBatchSize = 4;
+		const uint32_t hzbMipCount = m_HierarchalZBufferResources.Texture->GetMipLevelCount();
+
+		Ref<Shader> hzbShader = Renderer::GetShadersLibrary()->Get("HierarchalZBuffer");
+
+		m_HierarchalZBufferMaterials.resize(Math::DivideAndRoundUp(hzbMipCount, maxMipBatchSize));
+		for (uint32_t startDestMip = 0, materialIndex = 0; startDestMip < hzbMipCount; startDestMip += maxMipBatchSize, materialIndex++)
+		{
+			m_HierarchalZBufferMaterials[materialIndex] = Material::Create(hzbShader, fmt::format("HZBMaterial-{}", startDestMip));
+
+			if (startDestMip == 0)
+				m_HierarchalZBufferMaterials[materialIndex]->Set("u_InputDepthMap", m_PreDepthPass->GetDepthOutput());
+			else
+				m_HierarchalZBufferMaterials[materialIndex]->Set("u_InputDepthMap", m_HierarchalZBufferResources.Texture);
+
+			const uint32_t endDestMip = glm::min(startDestMip + maxMipBatchSize, hzbMipCount);
+			uint32_t destMip = startDestMip;
+			for (; destMip < endDestMip; destMip++)
+			{
+				uint32_t index = destMip - startDestMip;
+				m_HierarchalZBufferMaterials[materialIndex]->Set("o_HierarchalZBuffer", m_HierarchalZBufferResources.ImageViews[destMip], index);
+			}
+
+			// Fill the rest in case there is any
+			destMip -= startDestMip;
+			for (; destMip < maxMipBatchSize; ++destMip)
+			{
+				m_HierarchalZBufferMaterials[materialIndex]->Set("o_HierarchalZBuffer", m_HierarchalZBufferResources.ImageViews[hzbMipCount - 1], destMip);
+			}
+		}
+	}
+
 	void SceneRenderer::CreateBloomPassMaterials()
 	{
+		m_BloomMaterials.PreFilterMaterial.Reset();
+		m_BloomMaterials.DownSampleAMaterials.clear();
+		m_BloomMaterials.DownSampleBMaterials.clear();
+		m_BloomMaterials.FirstUpSampleMaterial.Reset();
+		m_BloomMaterials.UpSampleMaterials.clear();
+
 		Ref<Texture2D> inputImage = m_GeometryPass->GetOutput(0);
 
 		// Prefilter

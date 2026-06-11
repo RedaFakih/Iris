@@ -279,7 +279,7 @@ namespace Iris {
 		void SetInput(std::string_view name, Ref<StorageBufferSet> storageBufferSet);
 		void SetInput(std::string_view name, Ref<Texture2D> texture, uint32_t index = 0);
 		void SetInput(std::string_view name, Ref<TextureCube> textureCube);
-		void SetInput(std::string_view name, Ref<ImageView> imageView);
+		void SetInput(std::string_view name, Ref<ImageView> imageView, uint32_t index = 0);
 
 		template<typename T>
 		Ref<T> GetInput(std::string_view name)

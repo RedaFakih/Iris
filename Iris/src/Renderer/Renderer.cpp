@@ -183,6 +183,7 @@ namespace Iris {
 		Renderer::AddGlobalShaderMacro("IR_MAX_SPOT_LIGHT_COUNT", fmt::format("{}", Renderer::GetConfig().MaxNumberOfSpotLights));
 		Renderer::AddGlobalShaderMacro("IR_LIGHT_CULLING_WORKGROUP_SIZE", fmt::format("{}", 8));
 		Renderer::AddGlobalShaderMacro("IR_BLOOM_COMPUTE_WORKGROUP_SIZE", fmt::format("{}", 4));
+		Renderer::AddGlobalShaderMacro("IR_HZB_COMPUTE_WORKGROUP_SIZE", fmt::format("{}", 8));
 
 		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/2D/Renderer2D_Line.glsl");
 		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/2D/Renderer2D_Quad.glsl");
@@ -204,6 +205,7 @@ namespace Iris {
 		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/EnvironmentMapping/PreethamSky.glsl");
 
 		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/Geometry/DirectionalShadow.glsl");
+		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/Geometry/HierarchalZBuffer.glsl");
 		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/Geometry/IrisPBRStatic.glsl");
 		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/Geometry/IrisPBRStaticLite.glsl");
 		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/Geometry/LightCulling.glsl");

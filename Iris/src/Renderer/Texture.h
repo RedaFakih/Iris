@@ -158,7 +158,7 @@ namespace Iris {
 		ImageFormat GetFormat() const noexcept { return m_Specification.Format; }
 		uint32_t GetWidth() const noexcept { return m_Specification.Width; }
 		uint32_t GetHeight() const noexcept { return m_Specification.Height; }
-		glm::vec2 GetSize() const noexcept { return { m_Specification.Width, m_Specification.Height }; }
+		glm::uvec2 GetSize() const noexcept { return { m_Specification.Width, m_Specification.Height }; }
 		bool Loaded() const { return m_ImageView != nullptr; }
 
 		const VkImage GetVulkanImage() const { return m_Image; }

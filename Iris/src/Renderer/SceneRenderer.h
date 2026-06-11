@@ -197,6 +197,7 @@ namespace Iris {
 
 		void DirectionalShadowPass();
 		void PreDepthPass();
+		void HZBPass();
 		void LightCullingPass();
 		void GeometryPass();
 		void SkyboxPass();
@@ -204,6 +205,7 @@ namespace Iris {
 		void BloomPass();
 		void CompositePass();
 
+		void CreateHierarchalZBufferPassMaterials();
 		void CreateBloomPassMaterials();
 		void CalculateCascades(const SceneRendererCamera& sceneCamera, const glm::vec3& lightDirection, CascadeData* cascades) const;
 		void CopyFromDOFImage();
@@ -342,6 +344,16 @@ namespace Iris {
 		Ref<RenderPass> m_DoubleSidedPreDepthPass;
 		Ref<RenderPass> m_WireframeViewPreDepthPass; // For having wireframe view in the future
 		Ref<Material> m_PreDepthMaterial;
+
+		// Hierarchal Z-Buffer
+		Ref<ComputePass> m_HierarchalZBufferPass;
+
+		struct HierarchalZBufferTextures
+		{
+			Ref<Texture2D> Texture;
+			std::vector<Ref<ImageView>> ImageViews; // Per-mip
+		} m_HierarchalZBufferResources;
+		std::vector<Ref<Material>> m_HierarchalZBufferMaterials; // Per-mip
 
 		// Skybox
 		Ref<RenderPass> m_SkyboxPass;

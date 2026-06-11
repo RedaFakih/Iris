@@ -11,7 +11,7 @@
 #include "Assert.h"
 
 // For creating enum bit fields
-#define BIT(x) 1 << x
+#define BIT(x) 1u << x
 
 namespace Iris {
 

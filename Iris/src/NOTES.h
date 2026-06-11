@@ -6,23 +6,17 @@
  *
  * - Always Checkout https://gpuopen.com/learn/rdna-performance-guide/ and https://developer.nvidia.com/blog/vulkan-dos-donts/ for any extra optimisations we could find from the vulkan side
  *
- * TODO: Renderer Re-write
- * - - Re-write the renderer using NVRHI which will help make it alot more stable and portable
- *
  * TODO: ContentBrowser
  * - We need to make the content browser be able to be rendered in different contexts
  * - We need to make the material editor have its own context in a way since it needs to handle inputs alone
  * - Fix the main viewport widgets rendering since they no longer work for input
- * - Fix Image Layouts for SceneRendererLite
  * - Since we can detect lost focus on tabs now maybe bring back shadows to the SceneRendererLite?
  *		- If we bring back shadows, It will not be full CSM, rather just maybe one cascade and not Medium quality shadows
- * - Add stuff like environment maps used by the engine for thumbnails or other stuff to the Resources folder of the editor and not in the Assets folder!
- *		- Move default meshes from the Assets directory to the Resources directory of the Editor
- * - For now we only display thumbnails for Textures and Materials, maybe add support for meshes and EnvironmentMaps?
+ * - For now we only display thumbnails for Textures and Materials and Meshes, see how to add support for EnvironmentMaps?
  *		- Add memory limit to the ThumbnailCache
  *
  * TODO: Jolt Physics
- * - Serializing MeshColliders in MeshCookingFactory is actually useless because each time we load the engine we will regenerate the same colliders with different IDs so the previous ones are just stacked and waste memory
+ * - Serializing MeshColliders in MeshCookingFactory is actually useless because each time we load the engine we will regenerate the same colliders with different IDs so the previous ones are just stacked and waste storage
  * - Optimizing broad phase:
  *		- Include a button in the Physics settings in the Project panel to optimize the broad phase on demand.
  *		- Maybe we should optimize the broad phase after a certain amount of bodies has been added before we PhysicsScene::PreSimulate?
@@ -48,11 +42,9 @@
  * - Add the application settings panel that for now is only gonna be used to set or unset the colored meshes highlighting in SceneHierarchyPanel
  * - Embed as much as possible the images that the engine uses such as icons and other stuff that way we can minize engien startup time since we won't have to decode so many images
  * - When we have the ConsolePanel, we should cleanup the logging settings in the project panel and make it comply with only stuff that logs to the console panel
- * - Add Thumbnails...?
  * - Add Area Lights <https://learnopengl.com/Guest-Articles/2022/Area-Lights>
  * - Duplicated Meshes all reference the same material and have the same material table
  * - Add the Depth Of Field Picker
- * - Need to clean up image layouts for the depth of field
  * - When creating a logging console panel we need to enable some sort of flag in compile time that reroutes all logging for both application console and also console panel 
  * - Make the window title be {Iris - SceneName (*)} the * is whether it is saved or not
  * - Make the SceneName in the engine contain a (*) if it is saved or not
@@ -61,13 +53,11 @@
  *		-	- Not equal Hashes => Something in scene changed, add * to scene name
  *		- Or we can use another `actions` based method. Where we detect if any action has occured in the editor and we know that the scene state has changed and needs serializing
  *		-	- This is the better method and should be used however it will need us to redo the whole way we treat actions in the editor!
- * - We are getting best practices warning that for the pass where no resources are created we have unused bound vertex buffers...
  * - NOT HIGH PRIORITY:
  *      - Maybe Generate the BRDFLut Texture ourselves?
  *		- Add Tracy for profiling
  *
  * TODO: Creative Ideas:
- * - Should bloom resources be double/triple buffered?
  * - We need to serialize the SceneRenderer BloomDirtTexture
  * - Should we serialize the scene renderer settings for example the postFx stuff?
  * - Put an error or highlight in the viewport when there is no primary camera in the scene

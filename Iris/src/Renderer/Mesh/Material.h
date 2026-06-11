@@ -57,6 +57,7 @@ namespace Iris {
 		void Set(std::string_view name, const Ref<Texture2D>& value, uint32_t arrayIndex);
 		void Set(std::string_view name, const Ref<TextureCube>& value);
 		void Set(std::string_view name, const Ref<ImageView>& imageView);
+		void Set(std::string_view name, const Ref<ImageView>& imageView, uint32_t arrayIndex);
 
 		template<typename T>
 		void Set(std::string_view name, const T& value)
@@ -140,6 +141,7 @@ namespace Iris {
 		void SetVulkanDescriptor(std::string_view name, const Ref<Texture2D>& texture, uint32_t arrayIndex);
 		void SetVulkanDescriptor(std::string_view name, const Ref<TextureCube>& texture);
 		void SetVulkanDescriptor(std::string_view name, const Ref<ImageView>& imageView);
+		void SetVulkanDescriptor(std::string_view name, const Ref<ImageView>& imageView, uint32_t arrayIndex);
 
 		const ShaderUniform* FindUniformDeclaration(std::string_view name) const;
 

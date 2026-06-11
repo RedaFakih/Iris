@@ -308,6 +308,16 @@ namespace Iris {
 			if (shaderDescriptorSet.StorageImages.size())
 			{
 				m_DescriptorPoolTypeCounts[VK_DESCRIPTOR_TYPE_STORAGE_IMAGE] += static_cast<uint32_t>(shaderDescriptorSet.StorageImages.size()) * Renderer::GetConfig().FramesInFlight;
+
+				for (const auto& [_, descSetFromShader] : shaderDescriptorSet.StorageImages)
+				{
+					if (descSetFromShader.ArraySize > 1)
+					{
+						// NOTE(Reda): The - FramesInFlight here is to account for the 3 storageImages already accounted for in the top line of code
+						m_DescriptorPoolTypeCounts[VK_DESCRIPTOR_TYPE_STORAGE_IMAGE] += static_cast<uint32_t>(descSetFromShader.ArraySize) * Renderer::GetConfig().FramesInFlight - Renderer::GetConfig().FramesInFlight;
+						break;
+					}
+				}
 			}
 
 			/////////////////////////////////////////////////////////////////////////////////////////////////////

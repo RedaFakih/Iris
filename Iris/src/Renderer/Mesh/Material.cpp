@@ -120,6 +120,11 @@ namespace Iris {
 		SetVulkanDescriptor(name, value);
 	}
 
+	void Material::Set(std::string_view name, const Ref<ImageView>& value, uint32_t arrayIndex)
+	{
+		SetVulkanDescriptor(name, value, arrayIndex);
+	}
+
 	int& Material::GetInt(std::string_view name)
 	{
 		return Get<int>(name);
@@ -257,6 +262,11 @@ namespace Iris {
 	void Material::SetVulkanDescriptor(std::string_view name, const Ref<ImageView>& imageView)
 	{
 		m_DescriptorSetManager.SetInput(name, imageView);
+	}
+
+	void Material::SetVulkanDescriptor(std::string_view name, const Ref<ImageView>& texture, uint32_t arrayIndex)
+	{
+		m_DescriptorSetManager.SetInput(name, texture, arrayIndex);
 	}
 
 	const ShaderUniform* Material::FindUniformDeclaration(std::string_view name) const
