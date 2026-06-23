@@ -1153,6 +1153,15 @@ namespace Iris::UI {
 		return changed;
 	}
 
+	ImTextureID GetTextureID(Ref<ImageView> imageView)
+	{
+		const VkDescriptorImageInfo& info = imageView->GetDescriptorImageInfo();
+		if (!info.imageView)
+			return nullptr;
+
+		return ImGui_ImplVulkan_AddTexture(info.sampler, info.imageView, info.imageLayout);
+	}
+
 	ImTextureID GetTextureID(Ref<Texture2D> texture)
 	{
 		const VkDescriptorImageInfo& info = texture->GetDescriptorImageInfo();
@@ -1612,6 +1621,12 @@ namespace Iris::UI {
 
 		//window->Size = window->SizeFull;
 		return changed;
+	}
+
+	void Image(const Ref<ImageView>& imageView, const ImVec2& size, const ImVec2& uv0, const ImVec2& uv1, const ImVec4& tint_col, const ImVec4& border_col)
+	{
+		const auto textureID = GetTextureID(imageView);
+		ImGui::Image(textureID, size, uv0, uv1, tint_col, border_col);
 	}
 
 	void Image(const Ref<Texture2D>& image, const ImVec2& size, const ImVec2& uv0, const ImVec2& uv1, const ImVec4& tint_col, const ImVec4& border_col)

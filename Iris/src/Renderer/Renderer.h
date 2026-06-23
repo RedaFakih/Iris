@@ -136,6 +136,7 @@ namespace Iris {
 		static Ref<Texture2D> GetBlackTexture();
 		static Ref<Texture2D> GetErrorTexture();
 		static Ref<Texture2D> GetBRDFLutTexture();
+		static Ref<Texture2D> GetHilbertLUT();
 		static Ref<Texture2D> GetStorageImage();
 		static Ref<TextureCube> GetBlackCubeTexture();
 		static Ref<Environment> GetEmptyEnvironment();

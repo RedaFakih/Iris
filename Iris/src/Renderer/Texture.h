@@ -143,7 +143,7 @@ namespace Iris {
 
 		void Invalidate(VkCommandBuffer commandBuffer = nullptr);
 		void Resize(uint32_t width, uint32_t height, VkCommandBuffer commandBuffer = nullptr);
-		void GenerateMips(VkCommandBuffer commandBuffer = nullptr);
+		void GenerateMips(VkCommandBuffer commandBuffer = nullptr, bool manual = false);
 		void Release();
 
 		Ref<ImageView> CreateImageViewSingleMip(uint32_t mip);

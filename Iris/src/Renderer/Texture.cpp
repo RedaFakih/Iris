@@ -46,6 +46,7 @@ namespace Iris {
                 case ImageFormat::R8UN:                     return width * height;
                 case ImageFormat::R16UI:                    return width * height * sizeof(uint16_t);
                 case ImageFormat::R32F:                     return width * height * sizeof(float);
+                case ImageFormat::R32UI:                    return width * height * sizeof(uint32_t);
                 case ImageFormat::RG16F:                    return width * height * 2 * sizeof(uint16_t);
                 case ImageFormat::RG32F:                    return width * height * 2 * sizeof(float);
                 case ImageFormat::RGBA:                     return width * height * 4;
@@ -182,7 +183,7 @@ namespace Iris {
 
         VkImageCreateInfo imageCI = {
             .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
-            .flags = 0,
+            .flags = static_cast<VkImageCreateFlags>(0),
             .imageType = VK_IMAGE_TYPE_2D,
             .format = Utils::GetVulkanImageFormat(m_Specification.Format),
             .extent = { .width = m_Specification.Width, .height = m_Specification.Height, .depth = 1u },
@@ -201,17 +202,26 @@ namespace Iris {
         m_MemoryAllocation = allocator.AllocateImage(&imageCI, memUsage, &m_Image, &gpuAllocationSize);
         VKUtils::SetDebugUtilsObjectName(device, VK_OBJECT_TYPE_IMAGE, m_Specification.DebugName, m_Image);
 
+        bool manualCommandBuffer = false;
+        if (!commandBuffer)
+        {
+            commandBuffer = logicalDevice->GetCommandBuffer(true);
+            manualCommandBuffer = true;
+        }
+
         // Only ImageUsage texture can have predefined data
+        VkBuffer stagingBuffer = nullptr;
+        VmaAllocation stagingBufferAlloc = nullptr;
         if (m_ImageData && m_Specification.Usage != ImageUsage::Attachment && m_Specification.Usage != ImageUsage::Storage)
         {
-            VkBuffer stagingBuffer;
+            //VkBuffer stagingBuffer;
             VkBufferCreateInfo stagingBufferCI = {
                 .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
                 .size = m_ImageData.Size,
                 .usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                 .sharingMode = VK_SHARING_MODE_EXCLUSIVE
             };
-            VmaAllocation stagingBufferAlloc = allocator.AllocateBuffer(&stagingBufferCI, VMA_MEMORY_USAGE_CPU_TO_GPU, &stagingBuffer);
+            /*VmaAllocation */stagingBufferAlloc = allocator.AllocateBuffer(&stagingBufferCI, VMA_MEMORY_USAGE_CPU_TO_GPU, &stagingBuffer);
 
             uint8_t* dstData = allocator.MapMemory<uint8_t>(stagingBufferAlloc);
             std::memcpy(dstData, m_ImageData.Data, m_ImageData.Size);
@@ -243,13 +253,6 @@ namespace Iris {
              *      destinationStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
              * }
              */
-
-            bool manualCommandBuffer = false;
-            if (!commandBuffer)
-            {
-                commandBuffer = logicalDevice->GetCommandBuffer(true);
-                manualCommandBuffer = true;
-            }
 
             // https://themaister.net/blog/2019/08/14/yet-another-blog-explaining-vulkan-synchronization/ (ImageMemoryBarriers)
             // https://gpuopen.com/learn/vulkan-barriers-explained/ (TOP_OF_PIPE and BOTTOM_OF_PIPE)
@@ -343,14 +346,6 @@ namespace Iris {
                     }
                 );
             }
-
-            if (manualCommandBuffer)
-            {
-                logicalDevice->FlushCommandBuffer(commandBuffer);
-                commandBuffer = nullptr;
-            }
-
-            allocator.DestroyBuffer(stagingBufferAlloc, stagingBuffer);
         }
 
         VkImageViewCreateInfo imageViewCI = {
@@ -386,7 +381,7 @@ namespace Iris {
                 .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
                 .magFilter = Utils::GetVulkanSamplerFilter(m_Specification.FilterMode),
                 .minFilter = Utils::GetVulkanSamplerFilter(m_Specification.FilterMode),
-                .mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR,
+                .mipmapMode = m_Specification.FilterMode == TextureFilter::Nearest ? VK_SAMPLER_MIPMAP_MODE_NEAREST : VK_SAMPLER_MIPMAP_MODE_LINEAR,
                 .addressModeU = Utils::GetVulkanSamplerWrap(m_Specification.WrapMode),
                 .addressModeV = Utils::GetVulkanSamplerWrap(m_Specification.WrapMode),
                 .addressModeW = Utils::GetVulkanSamplerWrap(m_Specification.WrapMode),
@@ -426,7 +421,31 @@ namespace Iris {
         };
 
         if (m_Specification.GenerateMips && mipCount > 1)
-            GenerateMips(commandBuffer);
+            GenerateMips(commandBuffer, manualCommandBuffer);
+        else if (m_Specification.Usage == ImageUsage::Storage)
+        {
+            Renderer::InsertImageMemoryBarrier(
+                commandBuffer,
+                m_Image,
+                0,
+                VK_ACCESS_2_SHADER_READ_BIT,
+                VK_IMAGE_LAYOUT_UNDEFINED,
+                VK_IMAGE_LAYOUT_GENERAL,
+                VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT,
+                manualCommandBuffer ? VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT : VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+                { .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .levelCount = mipCount, .baseArrayLayer = 0, .layerCount = m_Specification.Layers }
+            );
+        }
+
+        if (manualCommandBuffer)
+        {
+            logicalDevice->FlushCommandBuffer(commandBuffer);
+            commandBuffer = nullptr;
+        }
+
+        // Destroy any leftover memory if the texture was created with some ImageData provided
+        if (m_ImageData && stagingBuffer != nullptr && stagingBufferAlloc != nullptr)
+            allocator.DestroyBuffer(stagingBufferAlloc, stagingBuffer);
     }
 
     void Texture2D::Resize(uint32_t width, uint32_t height, VkCommandBuffer commandBuffer)
@@ -441,20 +460,13 @@ namespace Iris {
         });
     }
 
-    void Texture2D::GenerateMips(VkCommandBuffer commandBuffer)
+    void Texture2D::GenerateMips(VkCommandBuffer commandBuffer, bool manualCommandBuffer)
     {
         IR_VERIFY(m_Specification.Usage != ImageUsage::Attachment, "CAN NOT GENERATE MIPS FOR A FRAMEBUFFER ATTACHMENT!!");
 
         Ref<VulkanDevice> logicalDevice = RendererContext::GetCurrentDevice();
 
         const uint32_t mipCount = GetMipLevelCount();
-
-        bool manualCommandBuffer = false;
-        if (!commandBuffer)
-        {
-            commandBuffer = logicalDevice->GetCommandBuffer(true);
-            manualCommandBuffer = true;
-        }
 
         if (m_Specification.Usage == ImageUsage::Storage)
         {
@@ -548,12 +560,6 @@ namespace Iris {
             manualCommandBuffer ? VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT : VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
             { .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .levelCount = mipCount, .baseArrayLayer = 0, .layerCount = m_Specification.Layers }
         );
-
-        if (manualCommandBuffer)
-        {
-            logicalDevice->FlushCommandBuffer(commandBuffer);
-            commandBuffer = nullptr;
-        }
     }
 
     void Texture2D::Release()

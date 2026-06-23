@@ -51,6 +51,7 @@ namespace Iris {
 		Ref<Texture2D> WhiteTexutre;
 		Ref<Texture2D> ErrorTexture;
 		Ref<Texture2D> BRDFLutTexture;
+		Ref<Texture2D> HilbertLUT;
 		Ref<TextureCube> BlackCubeTexture;
 		Ref<Texture2D> StorageImage;
 		Ref<Environment> EmptyEnvironment;
@@ -252,6 +253,56 @@ namespace Iris {
 		s_Data->StorageImage = Texture2D::Create(spec);
 
 		s_Data->EmptyEnvironment = Environment::Create(s_Data->BlackCubeTexture, s_Data->BlackCubeTexture);
+		
+		// HilbertLUT
+		{
+			TextureSpecification hilbertLUTSpec = {
+				.DebugName = "HilbertLUT",
+				.Width = 64,
+				.Height = 64,
+				.Format = ImageFormat::R16UI,
+				.WrapMode = TextureWrap::Clamp,
+				.FilterMode = TextureFilter::Nearest
+			};
+
+			constexpr auto HilbertIndex = [](uint32_t posX, uint32_t posY)
+			{
+				uint16_t index = 0u;
+				for (uint16_t curLevel = 64 / 2u; curLevel > 0u; curLevel /= 2u)
+				{
+					const uint16_t regionX = (posX & curLevel) > 0u;
+					const uint16_t regionY = (posY & curLevel) > 0u;
+					index += curLevel * curLevel * ((3u * regionX) ^ regionY);
+
+					if (regionY == 0u)
+					{
+						if (regionX == 1u)
+						{
+							posX = static_cast<uint16_t>(64 - 1u) - posX;
+							posY = static_cast<uint16_t>(64 - 1u) - posY;
+						}
+
+						std::swap(posX, posY);
+					}
+				}
+
+				return index;
+			};
+
+			uint16_t* data = new uint16_t[64 * 64];
+			for (int x = 0; x < 64; x++)
+			{
+				for (int y = 0; y < 64; y++)
+				{
+					const uint16_t r2Index = HilbertIndex(x, y);
+					IR_ASSERT(r2Index < 65536);
+					data[x + 64 * y] = r2Index;
+				}
+			}
+
+			s_Data->HilbertLUT = Texture2D::Create(hilbertLUTSpec, Buffer(reinterpret_cast<const uint8_t*>(data), 64 * 64 * 2));
+			delete[] data;
+		}
 
 		Renderer::Submit([]()
 		{
@@ -1473,6 +1524,11 @@ namespace Iris {
 	Ref<Texture2D> Renderer::GetBRDFLutTexture()
 	{
 		return s_Data->BRDFLutTexture;
+	}
+
+	Ref<Texture2D> Renderer::GetHilbertLUT()
+	{
+		return s_Data->HilbertLUT;
 	}
 
 	Ref<Texture2D> Renderer::GetStorageImage()
