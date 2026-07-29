@@ -119,18 +119,8 @@ namespace Iris {
 					.DebugName = fmt::format("DirectionalShadowPipeline-{}", i),
 					.Shader = Renderer::GetShadersLibrary()->Get("DirectionalShadow"),
 					.TargetFramebuffer = Framebuffer::Create(directionalShadowFBSpec),
-					.VertexLayout = {
-						{ ShaderDataType::Float3, "a_Position" },
-						{ ShaderDataType::Float3, "a_Normal"   },
-						{ ShaderDataType::Float3, "a_Tangent"  },
-						{ ShaderDataType::Float3, "a_Binormal" },
-						{ ShaderDataType::Float2, "a_TexCoord" }
-					},
-					.InstanceLayout = {
-						{ ShaderDataType::Float4, "a_MatrixRow0" },
-						{ ShaderDataType::Float4, "a_MatrixRow1" },
-						{ ShaderDataType::Float4, "a_MatrixRow2" }
-					},
+					.VertexLayout = vertexLayout,
+					.InstanceLayout = instanceLayout,
 					.DepthOperator = DepthCompareOperator::LessOrEqual
 				};
 
@@ -425,6 +415,90 @@ namespace Iris {
 			}
 		}
 
+		// GTAO
+		{
+			{
+				TextureSpecification gtaoOutputImageSpec = {
+					.DebugName = "GTAO-FinalImage",
+					.Format = ImageFormat::R32UI,
+					.Usage = ImageUsage::Storage,
+					.FilterMode = TextureFilter::Nearest,
+					.GenerateMips = false
+				};
+
+				m_GTAOOutputImage = Texture2D::Create(gtaoOutputImageSpec);
+
+				// Edges
+				TextureSpecification gtaoEdgesImageSpec = {
+					.DebugName = "GTAO-EdgesOutputImage",
+					.Format = ImageFormat::R8UN,
+					.Usage = ImageUsage::Storage,
+					.GenerateMips = false
+				};
+
+				m_GTAOEdgesOutputImage = Texture2D::Create(gtaoEdgesImageSpec);
+
+				Ref<Shader> gtaoShader = Renderer::GetShadersLibrary()->Get("GTAO");
+				ComputePassSpecification gtaoPassSpec = {
+					.DebugName = "GTAO-Pass",
+					.Pipeline = ComputePipeline::Create(gtaoShader),
+					.MarkerColor = { 0.1847f, 0.7362f, 0.5918f, 1.0f }
+				};
+				m_GTAOPass = ComputePass::Create(gtaoPassSpec);
+
+				m_GTAOPass->SetInput("Camera", m_UBSCamera);
+				m_GTAOPass->SetInput("ScreenData", m_UBSScreenData);
+				m_GTAOPass->SetInput("u_HZB", m_HierarchalZBufferResources.Texture);
+				m_GTAOPass->SetInput("u_HilbertLUT", Renderer::GetHilbertLUT());
+				m_GTAOPass->SetInput("u_ViewNormal", m_GeometryPass->GetOutput(1));
+				m_GTAOPass->SetInput("o_AOwBentNormals", m_GTAOOutputImage);
+				m_GTAOPass->SetInput("o_Edges", m_GTAOEdgesOutputImage);
+
+				m_GTAOPass->Bake();
+			}
+
+			// TODO: GTAO Denoise
+			{
+
+			}
+
+			// GTAO Compositing
+			{
+				FramebufferSpecification gtaoCompositeFBSpec = {
+					.DebugName = "GTAO-CompositingFB",
+					.ClearColorOnLoad = false,
+					.Attachments = { ImageFormat::RGBA32F },
+					.Blend = true,
+					.BlendMode = FramebufferBlendMode::ZeroSrcColor
+				};
+				gtaoCompositeFBSpec.ExistingImages[0] = m_GeometryPass->GetOutput(0);
+
+				PipelineSpecification gtaoCompositePLSpec = {
+					.DebugName = "GTAO-CompositingPL",
+					.Shader = Renderer::GetShadersLibrary()->Get("GTAOCompositing"),
+					.TargetFramebuffer = Framebuffer::Create(gtaoCompositeFBSpec),
+					.VertexLayout = {
+						{ ShaderDataType::Float3, "a_Position" },
+						{ ShaderDataType::Float2, "a_TexCoord" }
+					},
+					.BackFaceCulling = true,
+					.DepthTest = false,
+					.DepthWrite = false,
+					.ReleaseShaderModules = false
+				};
+
+				RenderPassSpecification gtaoCompositeRPSpec = {
+					.DebugName = "GTAO-CompositingRP",
+					.Pipeline = Pipeline::Create(gtaoCompositePLSpec),
+					.MarkerColor = { 0.156f, 0.462f, 0.2777f, 1.0f }
+				};
+				m_GTAOCompositingPass = RenderPass::Create(gtaoCompositeRPSpec);
+
+				m_GTAOCompositingPass->SetInput("u_GTAOTexture", m_GTAOOutputImage);
+				m_GTAOCompositingPass->Bake();
+			}
+		}
+
 		// Selected Geometry isolation
 		{
 			FramebufferSpecification selectedGeoFB = {
@@ -494,7 +568,7 @@ namespace Iris {
 					{ ShaderDataType::Float3, "a_Position" },
 					{ ShaderDataType::Float2, "a_TexCoord" }
 				},
-				.BackFaceCulling = false,
+				.BackFaceCulling = true,
 				.DepthTest = false,
 				.DepthWrite = false,
 				.ReleaseShaderModules = false
@@ -894,6 +968,7 @@ namespace Iris {
 		 	m_GeometryPass->GetTargetFramebuffer()->Resize(m_ViewportWidth, m_ViewportHeight);
 		 	m_SelectedGeometryPass->GetTargetFramebuffer()->Resize(m_ViewportWidth, m_ViewportHeight);
 		 	m_SkyboxPass->GetTargetFramebuffer()->Resize(m_ViewportWidth, m_ViewportHeight);
+			m_GTAOCompositingPass->GetTargetFramebuffer()->Resize(m_ViewportWidth, m_ViewportHeight);
 		 	m_CompositePass->GetTargetFramebuffer()->Resize(m_ViewportWidth, m_ViewportHeight);
 
 		 	m_CompositingFramebuffer->Resize(m_ViewportWidth, m_ViewportHeight);
@@ -926,6 +1001,19 @@ namespace Iris {
 
 				// Visible Spot Light Indices storage buffer (set = 1, binding = 7)
 				m_SBSVisibleSpotLightIndicesBuffer->Resize(m_LightCullingWorkGroups.x * m_LightCullingWorkGroups.y * 4 * 100);
+			}
+
+			// GTAO
+			if (m_Options.GTAOEnabled)
+			{
+				glm::uvec2 gtaoSize = m_Options.GTAOHalfResolution ? (viewportSize + 1u) / 2u : viewportSize;
+
+				m_GTAOOutputImage->Resize(gtaoSize.x, gtaoSize.y);
+				m_GTAOEdgesOutputImage->Resize(gtaoSize.x, gtaoSize.y);
+
+				gtaoSize += IR_GTAO_COMPUTE_WORKGROUP_SIZE - gtaoSize % IR_GTAO_COMPUTE_WORKGROUP_SIZE;
+				m_GTAOWorkGroups.x = gtaoSize.x / IR_GTAO_COMPUTE_WORKGROUP_SIZE;
+				m_GTAOWorkGroups.y = gtaoSize.y / IR_GTAO_COMPUTE_WORKGROUP_SIZE;
 			}
 
 			// Hierarchal Z-Buffer
@@ -1007,6 +1095,16 @@ namespace Iris {
 				depthLinearizeAdd = -depthLinearizeAdd;
 
 			cameraData.DepthUnpackConsts = { depthLinearMul, depthLinearizeAdd };
+
+			const float* P = glm::value_ptr(m_SceneInfo.Camera.Camera.GetProjectionMatrix());
+			const glm::vec4 projInfoPerspective = {
+					  2.0f / (P[4 * 0 + 0]),                  // (x) * (R - L)/N
+					  2.0f / (P[4 * 1 + 1]),                  // (y) * (T - B)/N
+					-(1.0f -  P[4 * 2 + 0]) / P[4 * 0 + 0],   // L/N
+					-(1.0f +  P[4 * 2 + 1]) / P[4 * 1 + 1],   // B/N
+			};
+			cameraData.NDCToViewMul = { projInfoPerspective[0], projInfoPerspective[1] };
+			cameraData.NDCToViewAdd = { projInfoPerspective[2], projInfoPerspective[3] };
 
 			Ref<SceneRenderer> instance = this;
 			Renderer::Submit([instance, cameraData]() mutable
@@ -1124,6 +1222,13 @@ namespace Iris {
 			{
 				instance->m_UBSRendererData->RT_Get()->RT_SetData(&rendererData, sizeof(UBRendererData));
 			});
+		}
+
+		// Update GTAO Data
+		if (m_Options.GTAOEnabled)
+		{
+			m_Options.GTAONDCToViewMul_x_PixelSize = { m_CameraDataUB.NDCToViewMul * (m_Options.GTAOHalfResolution ? m_ScreenDataUB.InverseHalfResolution : m_ScreenDataUB.InverseFullResolution) };
+			m_Options.GTAOHZBUVFactor = { glm::vec2{ m_ViewportWidth, m_ViewportHeight } / glm::vec2{ BIT(glm::uvec2(glm::ceil(glm::log2(glm::vec2({ m_ViewportWidth, m_ViewportHeight }))))) } };
 		}
 	}
 
@@ -1426,6 +1531,12 @@ namespace Iris {
 			LightCullingPass();
 			GeometryPass();
 			SkyboxPass();
+
+			if (m_Options.GTAOEnabled)
+			{
+				GTAO();
+				GTAOComposite();
+			}
 
 			if (m_Specification.JumpFloodPass)
 				JumpFloodPass();
@@ -1870,6 +1981,86 @@ namespace Iris {
 
 		Renderer::BeginRenderPass(m_CommandBuffer, m_SkyboxPass);
 		Renderer::SubmitFullScreenQuad(m_CommandBuffer, m_SkyboxPass->GetPipeline(), m_SkyboxMaterial);
+		Renderer::EndRenderPass(m_CommandBuffer);
+	}
+
+	void SceneRenderer::GTAO()
+	{
+		Ref<SceneRenderer> instance = this;
+		Renderer::Submit([instance]()
+		{
+			Renderer::InsertImageMemoryBarrier(
+				instance->m_CommandBuffer->GetActiveCommandBuffer(),
+				instance->m_GeometryPass->GetOutput(1)->GetVulkanImage(),
+				VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
+				VK_ACCESS_2_SHADER_SAMPLED_READ_BIT,
+				VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+				VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+				VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
+				VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+				{ .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = 1 }
+			);
+		});
+
+		struct GTAOPushConstantDataBuffer
+		{
+			glm::vec2 NDCToViewMul_x_PixelSize;
+			float EffectRadius = 0.5f;
+			float EffectFalloffRange = 0.62f;
+
+			float RadiusMultiplier = 1.46f;
+			float FinalValuePower = 2.2f;
+			float DenoiseBlurBeta = 1.2f;
+			uint32_t HalfRes = 0; // Boolean
+
+			float SampleDistributionPower = 2.0f;
+			float ThinOccluderCompensation = 0.0f;
+			float DepthMIPSamplingOffset = 3.3f;
+			int NoiseIndex = 0;
+
+			glm::vec2 HZBUVFactor;
+			float ShadowTolerance;
+			float Padding0 = 0.0f;
+		} gtaoPushConstantData;
+
+		gtaoPushConstantData.NDCToViewMul_x_PixelSize = m_Options.GTAONDCToViewMul_x_PixelSize;
+		gtaoPushConstantData.EffectRadius = m_Options.GTAOEffectRadius;
+		gtaoPushConstantData.EffectFalloffRange = m_Options.GTAOEffectFalloffRange;
+		gtaoPushConstantData.RadiusMultiplier = m_Options.GTAORadiusMultiplier;
+		gtaoPushConstantData.FinalValuePower = m_Options.GTAOFinalValuePower;
+		gtaoPushConstantData.HalfRes = static_cast<uint32_t>(m_Options.GTAOHalfResolution);
+		gtaoPushConstantData.SampleDistributionPower = m_Options.GTAOSampleDistributionPower;
+		gtaoPushConstantData.ThinOccluderCompensation = m_Options.GTAOThinOccluderCompensation;
+		gtaoPushConstantData.DepthMIPSamplingOffset = m_Options.GTAODepthMIPSamplingOffset;
+		gtaoPushConstantData.NoiseIndex = m_Options.GTAONoiseIndex;
+		gtaoPushConstantData.HZBUVFactor = m_Options.GTAOHZBUVFactor;
+		gtaoPushConstantData.ShadowTolerance = m_Options.GTAOShadowTolerance;
+
+		Renderer::BeginComputePass(m_CommandBuffer, m_GTAOPass);
+		Renderer::DispatchComputePass(m_CommandBuffer, m_GTAOPass, nullptr, m_GTAOWorkGroups, Buffer(reinterpret_cast<const uint8_t*>(&gtaoPushConstantData), sizeof(gtaoPushConstantData)));
+		Renderer::EndComputePass(m_CommandBuffer, m_GTAOPass);
+
+		// TODO: Should this be here to return it to COLOR_ATTACHMENT_OPTIMAL? I dont think any else is requesting to return it to COLOR_ATTACHMENT_OPTIMAL
+		Renderer::Submit([instance]()
+		{
+			Renderer::InsertImageMemoryBarrier(
+				instance->m_CommandBuffer->GetActiveCommandBuffer(),
+				instance->m_GeometryPass->GetOutput(1)->GetVulkanImage(),
+				VK_ACCESS_2_SHADER_SAMPLED_READ_BIT,
+				VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
+				VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+				VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+				VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+				VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
+				{ .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = 1 }
+			);
+		});
+	}
+
+	void SceneRenderer::GTAOComposite()
+	{
+		Renderer::BeginRenderPass(m_CommandBuffer, m_GTAOCompositingPass);
+		Renderer::SubmitFullScreenQuad(m_CommandBuffer, m_GTAOCompositingPass->GetSpecification().Pipeline, nullptr);
 		Renderer::EndRenderPass(m_CommandBuffer);
 	}
 

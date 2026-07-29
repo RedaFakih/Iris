@@ -1,14 +1,146 @@
 ShaderRegistry:
+  - Filepath: Resources/Shaders/Src/2D/Renderer2D_Line.glsl
+    Stages:
+      - Stage: Vertex
+        Hash: 683549573
+      - Stage: Fragment
+        Hash: 204399149
+  - Filepath: Resources/Shaders/Src/2D/Renderer2D_Quad.glsl
+    Stages:
+      - Stage: Vertex
+        Hash: 2226383087
+      - Stage: Fragment
+        Hash: 3216749646
+  - Filepath: Resources/Shaders/Src/2D/Renderer2D_Text.glsl
+    Stages:
+      - Stage: Vertex
+        Hash: 1793806376
+      - Stage: Fragment
+        Hash: 204115938
   - Filepath: Resources/Shaders/Src/Compositing.glsl
     Stages:
       - Stage: Vertex
         Hash: 384166942
       - Stage: Fragment
         Hash: 1697262260
+  - Filepath: Resources/Shaders/Src/Compositing/Bloom-Downsample.glsl
+    Stages:
+      - Stage: Compute
+        Hash: 2923268083
+  - Filepath: Resources/Shaders/Src/Compositing/Bloom-FirstUpsample.glsl
+    Stages:
+      - Stage: Compute
+        Hash: 2441130438
+  - Filepath: Resources/Shaders/Src/Compositing/Bloom-Prefilter.glsl
+    Stages:
+      - Stage: Compute
+        Hash: 2778204467
+  - Filepath: Resources/Shaders/Src/Compositing/Bloom-Upsample.glsl
+    Stages:
+      - Stage: Compute
+        Hash: 3995992953
+  - Filepath: Resources/Shaders/Src/Compositing/Compositing.glsl
+    Stages:
+      - Stage: Vertex
+        Hash: 384166942
+      - Stage: Fragment
+        Hash: 2059000984
+  - Filepath: Resources/Shaders/Src/Compositing/DepthOfField.glsl
+    Stages:
+      - Stage: Vertex
+        Hash: 2845901109
+      - Stage: Fragment
+        Hash: 3402206270
+  - Filepath: Resources/Shaders/Src/Compositing/GTAO.glsl
+    Stages:
+      - Stage: Compute
+        Hash: 2272629524
+  - Filepath: Resources/Shaders/Src/Compositing/GTAOCompositing.glsl
+    Stages:
+      - Stage: Vertex
+        Hash: 125958489
+      - Stage: Fragment
+        Hash: 716997248
+  - Filepath: Resources/Shaders/Src/Compositing/Grid.glsl
+    Stages:
+      - Stage: Vertex
+        Hash: 4049361029
+      - Stage: Fragment
+        Hash: 1454184867
+  - Filepath: Resources/Shaders/Src/Compositing/TexturePass.glsl
+    Stages:
+      - Stage: Vertex
+        Hash: 4074897929
+      - Stage: Fragment
+        Hash: 1657808289
+  - Filepath: Resources/Shaders/Src/Compositing/WireFrame.glsl
+    Stages:
+      - Stage: Vertex
+        Hash: 4098295837
+      - Stage: Fragment
+        Hash: 3624750344
+  - Filepath: Resources/Shaders/Src/EnvironmentMapping/EnvironmentIrradiance.glsl
+    Stages:
+      - Stage: Compute
+        Hash: 1268012802
+  - Filepath: Resources/Shaders/Src/EnvironmentMapping/EnvironmentMipChainFilter.glsl
+    Stages:
+      - Stage: Compute
+        Hash: 1513071000
+  - Filepath: Resources/Shaders/Src/EnvironmentMapping/EquirectangularToCubemap.glsl
+    Stages:
+      - Stage: Compute
+        Hash: 3382781861
+  - Filepath: Resources/Shaders/Src/EnvironmentMapping/PreethamSky.glsl
+    Stages:
+      - Stage: Compute
+        Hash: 3359006620
   - Filepath: Resources/Shaders/Src/EquirectangularToCubemap.glsl
     Stages:
       - Stage: Compute
         Hash: 2400374005
+  - Filepath: Resources/Shaders/Src/Geometry/DirectionalShadow.glsl
+    Stages:
+      - Stage: Vertex
+        Hash: 3430330626
+      - Stage: Fragment
+        Hash: 120913975
+  - Filepath: Resources/Shaders/Src/Geometry/HierarchalZBuffer.glsl
+    Stages:
+      - Stage: Compute
+        Hash: 1157389208
+  - Filepath: Resources/Shaders/Src/Geometry/IrisPBRStatic.glsl
+    Stages:
+      - Stage: Vertex
+        Hash: 1269187673
+      - Stage: Fragment
+        Hash: 1767552173
+  - Filepath: Resources/Shaders/Src/Geometry/IrisPBRStaticLite.glsl
+    Stages:
+      - Stage: Vertex
+        Hash: 1646098683
+      - Stage: Fragment
+        Hash: 710309723
+  - Filepath: Resources/Shaders/Src/Geometry/LightCulling.glsl
+    Stages:
+      - Stage: Compute
+        Hash: 2481041014
+  - Filepath: Resources/Shaders/Src/Geometry/LightCulling2_5D.glsl
+    Stages:
+      - Stage: Compute
+        Hash: 141391288
+  - Filepath: Resources/Shaders/Src/Geometry/PreDepth.glsl
+    Stages:
+      - Stage: Vertex
+        Hash: 1835663146
+      - Stage: Fragment
+        Hash: 1396873168
+  - Filepath: Resources/Shaders/Src/Geometry/Skybox.glsl
+    Stages:
+      - Stage: Vertex
+        Hash: 3734111244
+      - Stage: Fragment
+        Hash: 1719232569
   - Filepath: Resources/Shaders/Src/Grid.glsl
     Stages:
       - Stage: Vertex
@@ -27,6 +159,30 @@ ShaderRegistry:
         Hash: 2759639136
       - Stage: Fragment
         Hash: 254718762
+  - Filepath: Resources/Shaders/Src/JumpFlood/JumpFloodComposite.glsl
+    Stages:
+      - Stage: Vertex
+        Hash: 1496087526
+      - Stage: Fragment
+        Hash: 1214278668
+  - Filepath: Resources/Shaders/Src/JumpFlood/JumpFloodInit.glsl
+    Stages:
+      - Stage: Vertex
+        Hash: 1496087526
+      - Stage: Fragment
+        Hash: 3374137404
+  - Filepath: Resources/Shaders/Src/JumpFlood/JumpFloodPass.glsl
+    Stages:
+      - Stage: Vertex
+        Hash: 4269110465
+      - Stage: Fragment
+        Hash: 2417879620
+  - Filepath: Resources/Shaders/Src/JumpFlood/SelectedGeometry.glsl
+    Stages:
+      - Stage: Vertex
+        Hash: 1503195096
+      - Stage: Fragment
+        Hash: 439562219
   - Filepath: Resources/Shaders/Src/JumpFloodComposite.glsl
     Stages:
       - Stage: Vertex

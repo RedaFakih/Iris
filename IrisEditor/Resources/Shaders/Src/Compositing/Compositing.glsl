@@ -27,6 +27,8 @@ layout(std140, set = 1, binding = 0) uniform Camera
 	mat4 InverseProjectionMatrix;
 	mat4 ViewMatrix;
 	mat4 InverseViewMatrix;
+	vec2 NDCToViewMul;
+	vec2 NDCToViewAdd;
 	vec2 DepthUnpackConsts;
 } u_Camera;
 
@@ -94,6 +96,25 @@ vec3 ACESTonemap(vec3 color)
 	return clamp(m2 * (a / b), 0.0f, 1.0f);
 }
 
+vec3 pbrNeutralTonemap(vec3 color) {
+    const float startCompression = 0.8 - 0.04;
+    const float desaturation = 0.15;
+
+    float x = min(color.r, min(color.g, color.b));
+    float offset = x < 0.08 ? x - 6.25 * x * x : 0.04;
+    color -= offset;
+
+    float peak = max(color.r, max(color.g, color.b));
+    if (peak < startCompression) return color;
+
+    float d = 1.0 - startCompression;
+    float newPeak = 1.0 - d * d / (peak + d - startCompression);
+    color *= newPeak / peak;
+
+    float g = 1.0 - 1.0 / (desaturation * (peak - newPeak) + 1.0);
+    return mix(color, newPeak * vec3(1.0, 1.0, 1.0), g);
+}
+
 vec3 GammaCorrect(vec3 color, float gamma)
 {
 	return pow(color, vec3(1.0f / gamma));
@@ -115,12 +136,12 @@ void main()
 	color *= u_Uniforms.Exposure;
 
 	// Grain
-	float grainStrength = 4.0f;
+	float grainStrength = 5.0f;
 	float x = (v_TexCoord.x + 1.0f) * (v_TexCoord.y + 1.0f) * u_Uniforms.Time;
 	float grain = mod((mod(x, 13.0f) + 1.0f) * (mod(x, 123.0f) + 1.0f), 0.01f) - 0.006f;
 	// color += grain * grainStrength;
 
-	color = ACESTonemap(color);
+	color = pbrNeutralTonemap(color);
 	color = GammaCorrect(color, gamma);
 	color *= u_Uniforms.Opacity;
 

@@ -20,9 +20,6 @@ Assets:
   - Handle: 1004083127057183663
     FilePath: Meshes/LowPolySponza/3455394979645218238.jpg
     Type: Texture
-  - Handle: 1049043152922236468
-    FilePath: Meshes/scene.Ismesh
-    Type: StaticMesh
   - Handle: 1125107410041696214
     FilePath: Meshes/LowPolySponza/332936164838540657.jpg
     Type: Texture
@@ -71,9 +68,6 @@ Assets:
   - Handle: 2732277024539045285
     FilePath: Meshes/Default/Plane.Ismesh
     Type: StaticMesh
-  - Handle: 2815947910054064020
-    FilePath: Meshes/Sara/Sara.gltf
-    Type: MeshSource
   - Handle: 2996722834544417821
     FilePath: Meshes/LowPolySponza/4675343432951571524.jpg
     Type: Texture
@@ -254,9 +248,6 @@ Assets:
   - Handle: 9521122861929777337
     FilePath: Meshes/Illaio/scene.gltf
     Type: MeshSource
-  - Handle: 9566771638748652882
-    FilePath: Textures/Screenshot 2025-01-22 010746.png
-    Type: Texture
   - Handle: 9685325371244041466
     FilePath: Meshes/Galio.Ismesh
     Type: StaticMesh
@@ -308,9 +299,6 @@ Assets:
   - Handle: 12062500036675514477
     FilePath: Meshes/LowPolySponza/7441062115984513793.jpg
     Type: Texture
-  - Handle: 12106996295316359063
-    FilePath: Meshes/Sara.Ismesh
-    Type: StaticMesh
   - Handle: 12237675157703731561
     FilePath: Meshes/LowPolySponza/16885566240357350108.jpg
     Type: Texture
@@ -323,6 +311,9 @@ Assets:
   - Handle: 12675536551984449533
     FilePath: Scenes/TestingScene.Iscene
     Type: Scene
+  - Handle: 13130332071860572003
+    FilePath: Meshes/Plate.Ismesh
+    Type: StaticMesh
   - Handle: 13164229695691519330
     FilePath: Meshes/Default/Cube.Ismesh
     Type: StaticMesh

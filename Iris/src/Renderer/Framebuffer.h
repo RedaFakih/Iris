@@ -43,6 +43,8 @@ namespace Iris {
 
 		FramebufferTextureSpecification(ImageFormat format, AttachmentLoadOp loadOp) : Format(format), LoadOp(loadOp) {}
 
+		FramebufferTextureSpecification(ImageFormat format, TextureFilter filter) : Format(format), FilterMode(filter) {}
+
 		FramebufferTextureSpecification(ImageFormat format, bool blend, FramebufferBlendMode mode) 
 			: Format(format), Blend(blend), BlendMode(mode) {}
 

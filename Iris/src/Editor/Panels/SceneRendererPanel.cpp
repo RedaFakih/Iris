@@ -119,6 +119,21 @@ namespace Iris {
 				ImGui::TreePop();
 			}
 
+			if (UI::PropertyGridHeader("Ground-Truth Ambient Occlusion"))
+			{
+				SceneRendererOptions& rendererOptions = m_Context->m_Options;
+
+				UI::BeginPropertyGrid();
+				
+				// TODO: Add all the other property settings
+				UI::Property("Enabled", rendererOptions.GTAOEnabled, "Enable/Disable GTAO Effect");
+				UI::Property("ShadowTolerance", rendererOptions.GTAOShadowTolerance, 0.001f, 0.0f, 1.0f);
+
+				UI::EndPropertyGrid();
+
+				ImGui::TreePop();
+			}
+
 			if (UI::PropertyGridHeader("Depth of Field"))
 			{
 				SceneRendererOptions& rendererOptions = m_Context->m_Options;

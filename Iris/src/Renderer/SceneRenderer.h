@@ -20,6 +20,7 @@ namespace Iris {
 
 #define IR_BLOOM_COMPUTE_WORKGROUP_SIZE 4u
 #define IR_LIGHT_CULLING_WORKGROUP_SIZE 8u
+#define IR_GTAO_COMPUTE_WORKGROUP_SIZE 16u
 
 	struct SceneRendererCamera
 	{
@@ -54,6 +55,23 @@ namespace Iris {
 		float BloomKnee = 0.1f;
 		float BloomUpsampleScale = 1.0f;
 		float BloomDirtIntensity = 1.0f;
+
+		// GTAO
+		bool GTAOEnabled = true;
+		// Everything under this comment in the GTAO section is to be pushed into a push_constant buffer for the GTAO shader
+		bool GTAOHalfResolution = false;
+		float GTAOShadowTolerance = 1.0f;
+		glm::vec2 GTAONDCToViewMul_x_PixelSize;
+		float GTAOEffectRadius = 0.5f;
+		float GTAOEffectFalloffRange = 0.62f;
+		float GTAORadiusMultiplier = 1.46f;
+		float GTAOFinalValuePower = 2.2f;
+		float GTAODenoiseBlurBeta = 1.2f;
+		float GTAOSampleDistributionPower = 2.0f;
+		float GTAOThinOccluderCompensation = 0.0f;
+		float GTAODepthMIPSamplingOffset = 3.3f;
+		int GTAONoiseIndex = 0;
+		glm::vec2 GTAOHZBUVFactor;
 
 		// DOF
 		bool DOFEnabled = false;
@@ -201,6 +219,8 @@ namespace Iris {
 		void LightCullingPass();
 		void GeometryPass();
 		void SkyboxPass();
+		void GTAO();
+		void GTAOComposite();
 		void JumpFloodPass();
 		void BloomPass();
 		void CompositePass();
@@ -251,6 +271,8 @@ namespace Iris {
 			glm::mat4 InverseProjectionMatrix;
 			glm::mat4 ViewMatrix;
 			glm::mat4 InverseViewMatrix;
+			glm::vec2 NDCToViewMul;
+			glm::vec2 NDCToViewAdd;
 			glm::vec2 DepthUnpackConsts;
 		} m_CameraDataUB;
 		Ref<UniformBufferSet> m_UBSCamera;
@@ -354,6 +376,15 @@ namespace Iris {
 			std::vector<Ref<ImageView>> ImageViews; // Per-mip
 		} m_HierarchalZBufferResources;
 		std::vector<Ref<Material>> m_HierarchalZBufferMaterials; // Per-mip
+
+		// GTAO
+		Ref<ComputePass> m_GTAOPass;
+		Ref<Texture2D> m_GTAOOutputImage;
+		Ref<Texture2D> m_GTAOEdgesOutputImage;
+		glm::uvec3 m_GTAOWorkGroups{ 1 };
+
+		// GTAO Compositing
+		Ref<RenderPass> m_GTAOCompositingPass;
 
 		// Skybox
 		Ref<RenderPass> m_SkyboxPass;

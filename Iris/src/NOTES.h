@@ -33,6 +33,8 @@
  *			  default rigid body as well because thats how it works in Jolt unlike Box2D where the rigid body is separate from the collider shape
  *
  * TODO: DynamicRendering branch:
+ * - Added GTAO with default Bent normals implementation.
+ * - Need an optimization to the SceneRenderer::BeginScene, since sometimes we do not need to resize absolutely everything
  * - Importing specific sub meshes from a mesh file should only be a feature for dynamic meshes and not static meshes, since for static meshes the hierarchy is flattended and doesnt make sense to load specific submeshes from it
  *		- Thats why it will only be available for dynamic meshes since the hierarchy is not flattened
  * - LightCulling2_5.glsl is a rewrite of the LightCulling shader that uses 2.5D culling but it doesnt fully work yet and needs some fixing

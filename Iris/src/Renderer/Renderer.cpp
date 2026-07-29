@@ -185,6 +185,7 @@ namespace Iris {
 		Renderer::AddGlobalShaderMacro("IR_LIGHT_CULLING_WORKGROUP_SIZE", fmt::format("{}", 8));
 		Renderer::AddGlobalShaderMacro("IR_BLOOM_COMPUTE_WORKGROUP_SIZE", fmt::format("{}", 4));
 		Renderer::AddGlobalShaderMacro("IR_HZB_COMPUTE_WORKGROUP_SIZE", fmt::format("{}", 8));
+		Renderer::AddGlobalShaderMacro("IR_GTAO_COMPUTE_WORKGROUP_SIZE", fmt::format("{}", 16));
 
 		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/2D/Renderer2D_Line.glsl");
 		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/2D/Renderer2D_Quad.glsl");
@@ -197,6 +198,8 @@ namespace Iris {
 		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/Compositing/Compositing.glsl");
 		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/Compositing/DepthOfField.glsl");
 		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/Compositing/Grid.glsl");
+		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/Compositing/GTAO.glsl");
+		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/Compositing/GTAOCompositing.glsl");
 		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/Compositing/TexturePass.glsl");
 		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/Compositing/WireFrame.glsl");
 

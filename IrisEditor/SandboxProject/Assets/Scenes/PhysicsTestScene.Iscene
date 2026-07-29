@@ -1,6 +1,8 @@
 Scene: PhysicsTestScene
 VisibleEntities:
-  - 11296497975328487559
+  - 10150573747935311611
+  - 12599562076012510748
+  - 10781268972243530617
   - 18434944454801327763
   - 17982637338818041142
   - 17961032067484319051
@@ -15,6 +17,7 @@ VisibleEntities:
   - 12810855100324858201
   - 12653037794705165742
   - 11408097666428386747
+  - 11296497975328487559
   - 10201435776732904547
   - 10056879582256538687
   - 9274043674842140459
@@ -225,7 +228,6 @@ Entities:
       AssetID: 13164229695691519330
       MaterialTable:
         0: 0
-        1: 0
   - Entity: 4680931479666901323
     TagComponent:
       Tag: Decor
@@ -647,35 +649,6 @@ Entities:
       Intensity: 1.54999995
       Radius: 8.01175594
       FallOff: 0.414999992
-  - Entity: 15058834515222371384
-    TagComponent:
-      Tag: Sara
-    Parent: 0
-    Children:
-      []
-    TransformComponent:
-      Position: [-11.6181688, 5.08722973, -9.41862583]
-      Rotation: [3.57627869e-07, -1.4482066e-07, -0.00891969912]
-      Scale: [2.71000004, 2.7099998, 2.7099998]
-    StaticMeshComponent:
-      AssetID: 12106996295316359063
-      MaterialTable:
-        0: 4663714567957955262
-    RigidBodyComponent:
-      BodyType: 0
-      LayerID: 0
-      EnableDynamicTypeChange: false
-      Mass: 1
-      LinearDrag: 0.00999999978
-      AngularDrag: 0.0500000007
-      DisableGravity: false
-      IsTrigger: false
-      CollisionDetection: 0
-      InitialLinearVelocity: [0, 0, 0]
-      MaxLinearVelocity: 500
-      InitialAngularVelocity: [0, 0, 0]
-      MaxAngularVelocity: 50
-      LockedAxes: 0
   - Entity: 16242505162018475188
     TagComponent:
       Tag: Floor

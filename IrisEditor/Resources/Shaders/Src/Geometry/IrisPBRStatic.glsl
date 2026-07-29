@@ -24,6 +24,8 @@ layout(std140, set = 1, binding = 0) uniform Camera
 	mat4 InverseProjectionMatrix;
 	mat4 ViewMatrix;
 	mat4 InverseViewMatrix;
+	vec2 NDCToViewMul;
+	vec2 NDCToViewAdd;
 	vec2 DepthUnpackConsts;
 } u_Camera;
 

@@ -37,7 +37,7 @@ project "freetype"
 		"src/base/ftwinfnt.c",
 		"src/bdf/bdf.c",
 		"src/bzip2/ftbzip2.c",
-		"src/cache/ftcache.c",
+		-- "src/cache/ftcache.c",
 		"src/cff/cff.c",
 		"src/cid/type1cid.c",
 		"src/gzip/ftgzip.c",

@@ -1,0 +1,4 @@
+StaticMesh:
+  MeshSource: 16687119491521298911
+  SubMeshIndices: []
+  GenerateColliders: true
