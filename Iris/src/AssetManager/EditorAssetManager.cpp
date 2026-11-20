@@ -449,9 +449,8 @@ namespace Iris {
 
 					if (bestScore > 0 && score == bestScore)
 					{
-						// TODO: How do we handle this?
-						// Probably prompt the user at this point?
-						IR_VERIFY(false);
+						// TODO: LOG TO APPLICATION CONSOLE AND HAVE A POPUP MODAL!!!!
+						IR_CORE_ERROR_TAG("AssetManager", "Changes detected since last engine load. Asset: '{0}' is missing. Best candidate found is '{1}'. Check if that is the correct one and replace it in the content browser.", metaData.FilePath, mostLikelyCandidate);
 					}
 
 					if (score <= bestScore)
@@ -461,15 +460,16 @@ namespace Iris {
 					mostLikelyCandidate = path.string();
 				}
 
-				if (mostLikelyCandidate.empty() && bestScore == 0)
-				{
-					IR_CORE_ERROR_TAG("AssetManager", "Failed to locate a potential match for '{0}'", metaData.FilePath);
-					continue;
-				}
+				// TODO: This shouldnt happen maybe or maybe happens in another way since this overrites the filepath and completely changes the asset structure.
+				//if (mostLikelyCandidate.empty() && bestScore == 0)
+				//{
+				//	IR_CORE_ERROR_TAG("AssetManager", "Failed to locate a potential match for '{0}'", metaData.FilePath);
+				//	continue;
+				//}
 
-				std::replace(mostLikelyCandidate.begin(), mostLikelyCandidate.end(), '\\', '/');
-				metaData.FilePath = std::filesystem::relative(mostLikelyCandidate, Project::GetActive()->GetAssetDirectory());
-				IR_CORE_WARN_TAG("AssetManager", "Found most likely match '{0}'", metaData.FilePath);
+				//std::replace(mostLikelyCandidate.begin(), mostLikelyCandidate.end(), '\\', '/');
+				//metaData.FilePath = std::filesystem::relative(mostLikelyCandidate, Project::GetActive()->GetAssetDirectory());
+				//IR_CORE_WARN_TAG("AssetManager", "Found most likely match '{0}'", metaData.FilePath);
 			}
 
 			if (metaData.Handle == 0)

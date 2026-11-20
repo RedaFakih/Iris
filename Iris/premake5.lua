@@ -115,13 +115,13 @@ project "Iris"
         }
 
     filter "files:dependencies/stb/**.cpp"
-        flags { "NoPCH" }
+        enablepch ("Off")
 
     filter "files:dependencies/yaml-cpp/src/**.cpp"
-        flags { "NoPCH" }
+        enablepch ("Off")
 
     filter "files:dependencies/Vma/**.cpp"
-        flags { "NoPCH" }
+        enablepch ("Off")
 
     filter "files:src/ImGui/imgui_demo.cpp"
-        flags { "NoPCH" }
+        enablepch ("Off")

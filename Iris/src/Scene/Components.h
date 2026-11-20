@@ -299,7 +299,6 @@ namespace Iris {
 
 	struct MeshColliderComponent
 	{
-		AssetHandle ColliderAsset = 0;
 		uint32_t SubMeshIndex = 0;
 		bool UseSharedShape = false; // TODO: What is this?
 		ColliderMaterial Material;

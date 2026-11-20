@@ -7,6 +7,7 @@
 #include "Core/Layer.h"
 #include "Editor/EditorCamera.h"
 #include "Editor/PanelsManager.h"
+#include "Editor/SelectionHighlightCache.h"
 #include "Project/Project.h"
 #include "Project/UserPreferences.h"
 #include "Renderer/Renderer2D.h"
@@ -138,6 +139,8 @@ namespace Iris {
 		std::string m_SceneFilePath;
 
 		EditorCamera m_EditorCamera;
+
+		SelectionHighlightCache m_SelectionHighlighCache;
 
 		ImRect m_ViewportRect;
 		ImVec2 m_ViewportSize = { 0.0f, 0.0f };

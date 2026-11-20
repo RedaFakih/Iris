@@ -1,7 +1,7 @@
 #pragma once
 
-#include "AssetManager/Asset/MeshColliderAsset.h"
 #include "MeshColliderTypes.h"
+#include "Physics/PhysicsTypes.h"
 #include "Renderer/Mesh/Mesh.h"
 
 namespace Iris {
@@ -19,7 +19,7 @@ namespace Iris {
 			return CreateRef<MeshColliderCache>();
 		}
 
-		bool Exists(Ref<MeshColliderAsset> meshColliderAsset) const;
+		bool Exists(AssetHandle staticMeshHandle) const;
 		
 		void Clear();
 
@@ -28,18 +28,20 @@ namespace Iris {
 		AssetHandle GetCylinderDebugMesh() const { return m_CylinderMesh; }
 		AssetHandle GetCapsuleDebugMesh() const { return m_CapsuleMesh; }
 
-		const CachedColliderData& GetMeshData(Ref<MeshColliderAsset> meshColliderAsset);
-		Ref<StaticMesh> GetDebugStaticMesh(Ref<MeshColliderAsset> meshColliderAsset);
+		const CachedColliderData& GetMeshData(AssetHandle staticMeshHandle);
+		void AddMeshData(AssetHandle staticMeshHandle, const CachedColliderData& data);
+
+		Ref<StaticMesh> GetDebugStaticMesh(AssetHandle staticMeshHandle, PhysicsCollisionComplexity complexity);
 
 	private:
-		void AddSimpleDebugStaticMesh(Ref<MeshColliderAsset> meshColliderAsset, const Ref<StaticMesh> debugMesh);
-		void AddComplexDebugStaticMesh(Ref<MeshColliderAsset> meshColliderAsset, const Ref<StaticMesh> debugMesh);
+		void AddSimpleDebugStaticMesh(AssetHandle staticMeshHandle, const Ref<StaticMesh> debugMesh);
+		void AddComplexDebugStaticMesh(AssetHandle staticMeshHandle, const Ref<StaticMesh> debugMesh);
 
 	private:
-		std::unordered_map<AssetHandle, std::map<AssetHandle, CachedColliderData>> m_MeshData;
+		std::unordered_map<AssetHandle, CachedColliderData> m_MeshData;
 
-		std::unordered_map<AssetHandle, std::map<AssetHandle, Ref<StaticMesh>>> m_DebugSimpleStaticMeshes;
-		std::unordered_map<AssetHandle, std::map<AssetHandle, Ref<StaticMesh>>> m_DebugComplexStaticMeshes;
+		std::unordered_map<AssetHandle, Ref<StaticMesh>> m_DebugSimpleStaticMeshes;
+		std::unordered_map<AssetHandle, Ref<StaticMesh>> m_DebugComplexStaticMeshes;
 
 		AssetHandle m_BoxMesh = 0;
 		AssetHandle m_SphereMesh = 0;

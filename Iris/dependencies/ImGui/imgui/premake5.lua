@@ -33,10 +33,12 @@ project "ImGui"
         systemversion "latest"
 
     filter "configurations:Debug"
+        defines "IR_CONFIG_DEBUG"
         runtime "Debug"
         symbols "on"
 
     filter "configurations:Release"
+        defines "IR_CONFIG_RELEASE"
         runtime "Release"
         optimize "Full"
         -- symbols "off"

@@ -54,6 +54,11 @@ namespace Iris {
 		s_ActiveScenes[m_SceneID] = this;
 
 		m_Registry.on_construct<MeshColliderComponent>().connect<&Scene::OnMeshColliderComponentConstruct>(this);
+
+		m_Registry.on_construct<StaticMeshComponent>().connect<&Scene::OnRenderableComponentChanged>(this);
+		m_Registry.on_destroy <StaticMeshComponent>().connect<&Scene::OnRenderableComponentChanged>(this);
+		m_Registry.on_construct<VisibleComponent>().connect<&Scene::OnRenderableComponentChanged>(this);
+		m_Registry.on_destroy <VisibleComponent>().connect<&Scene::OnRenderableComponentChanged>(this);
 	}
 
 	Scene::~Scene()
@@ -350,23 +355,23 @@ namespace Iris {
 				const StaticMeshComponent& staticMeshComponenet = entities.get<StaticMeshComponent>(entity);
 
 				AsyncAssetResult<StaticMesh> staticMeshResult = AssetManager::GetAssetAsync<StaticMesh>(staticMeshComponenet.StaticMesh);
-				if (staticMeshResult.IsReady)
-				{
-					Ref<StaticMesh> staticMesh = staticMeshResult;
-					AsyncAssetResult<MeshSource> meshSourceResult = AssetManager::GetAssetAsync<MeshSource>(staticMesh->GetMeshSource());
-					if (meshSourceResult.IsReady)
-					{
-						Ref<MeshSource> meshSource = meshSourceResult;
+				if (!staticMeshResult.IsReady)
+					continue;
+			
+				Ref<StaticMesh> staticMesh = staticMeshResult;
+				AsyncAssetResult<MeshSource> meshSourceResult = AssetManager::GetAssetAsync<MeshSource>(staticMesh->GetMeshSource());
+				if (!meshSourceResult.IsReady)
+					continue;
+			
+				Ref<MeshSource> meshSource = meshSourceResult;
 
-						Entity e = { entity, this };
-						glm::mat4 transform = GetWorldSpaceTransformMatrix(e);
+				Entity e = { entity, this };
+				glm::mat4 transform = GetWorldSpaceTransformMatrix(e);
 
-						if (SelectionManager::IsEntityOrAncestorSelected(e))
-							renderer->SubmitSelectedStaticMesh(staticMesh, meshSource, staticMeshComponenet.MaterialTable, transform);
-						else
-							renderer->SubmitStaticMesh(staticMesh, meshSource, staticMeshComponenet.MaterialTable, transform);
-					}
-				}
+				if (SelectionManager::IsEntityOrAncestorSelected(e))
+					renderer->SubmitSelectedStaticMesh(staticMesh, meshSource, staticMeshComponenet.MaterialTable, transform);
+				else
+					renderer->SubmitStaticMesh(staticMesh, meshSource, staticMeshComponenet.MaterialTable, transform);
 			}
 
 			RenderPhysicsDebug(renderer);
@@ -565,23 +570,21 @@ namespace Iris {
 				const StaticMeshComponent& staticMeshComponenet = entities.get<StaticMeshComponent>(entity);
 
 				AsyncAssetResult<StaticMesh> staticMeshResult = AssetManager::GetAssetAsync<StaticMesh>(staticMeshComponenet.StaticMesh);
-				if (staticMeshResult.IsReady)
-				{
-					Ref<StaticMesh> staticMesh = staticMeshResult;
-					AsyncAssetResult<MeshSource> meshSourceResult = AssetManager::GetAssetAsync<MeshSource>(staticMesh->GetMeshSource());
-					if (meshSourceResult.IsReady)
-					{
-						Ref<MeshSource> meshSource = meshSourceResult;
+				if (!staticMeshResult.IsReady)
+					continue;
+				
+				Ref<StaticMesh> staticMesh = staticMeshResult;
+				AsyncAssetResult<MeshSource> meshSourceResult = AssetManager::GetAssetAsync<MeshSource>(staticMesh->GetMeshSource());
+				if (!meshSourceResult.IsReady)
+					continue;
 
-						Entity e = { entity, this };
-						glm::mat4 transform = GetWorldSpaceTransformMatrix(e);
+				Ref<MeshSource> meshSource = meshSourceResult;
 
-						renderer->SubmitStaticMesh(staticMesh, meshSource, staticMeshComponenet.MaterialTable, transform);
-					}
-				}
+				Entity e = { entity, this };
+				glm::mat4 transform = GetWorldSpaceTransformMatrix(e);
+
+				renderer->SubmitStaticMesh(staticMesh, meshSource, staticMeshComponenet.MaterialTable, transform);
 			}
-
-			RenderPhysicsDebug(renderer);
 
 			renderer->EndScene();
 		}
@@ -592,7 +595,7 @@ namespace Iris {
 		// NOTE: Should update some state for physics/scripting/animations but for now nothing...
 	}
 
-	void Scene::OnRenderEditor(Ref<SceneRenderer> renderer, const EditorCamera& camera)
+	void Scene::OnRenderEditor(Ref<SceneRenderer> renderer, const EditorCamera& camera, SelectionHighlightMask selctionHighlightMask)
 	{
 		// Render the scene
 
@@ -762,29 +765,32 @@ namespace Iris {
 			renderer->BeginScene({ camera, camera.GetViewMatrix(), camera.GetNearClip(), camera.GetFarClip(), camera.GetFOV() });
 
 			// Render static meshes
-			auto entities = GetAllEntitiesWith<StaticMeshComponent, VisibleComponent>();
-			for (auto entity : entities)
+
+			const bool anythingSelected = selctionHighlightMask.AnyHighlighted;
+
+			auto visibleStaticMeshes = GetAllEntitiesWith<StaticMeshComponent, VisibleComponent>();
+			for (auto entity : visibleStaticMeshes)
 			{
-				const StaticMeshComponent& staticMeshComponenet = entities.get<StaticMeshComponent>(entity);
+				const StaticMeshComponent& staticMeshComponenet = visibleStaticMeshes.get<StaticMeshComponent>(entity);
 
 				AsyncAssetResult<StaticMesh> staticMeshResult = AssetManager::GetAssetAsync<StaticMesh>(staticMeshComponenet.StaticMesh);
-				if (staticMeshResult.IsReady)
-				{
-					Ref<StaticMesh> staticMesh = staticMeshResult;
-					AsyncAssetResult<MeshSource> meshSourceResult = AssetManager::GetAssetAsync<MeshSource>(staticMesh->GetMeshSource());
-					if (meshSourceResult.IsReady)
-					{
-						Ref<MeshSource> meshSource = meshSourceResult;
+				if (!staticMeshResult.IsReady)
+					continue;
+				
+				Ref<StaticMesh> staticMesh = staticMeshResult;
+				AsyncAssetResult<MeshSource> meshSourceResult = AssetManager::GetAssetAsync<MeshSource>(staticMesh->GetMeshSource());
+				if (!meshSourceResult.IsReady)
+					continue;
 
-						Entity e = { entity, this };
-						glm::mat4 transform = GetWorldSpaceTransformMatrix(e);
+				Ref<MeshSource> meshSource = meshSourceResult;
 
-						if (SelectionManager::IsEntityOrAncestorSelected(e))
-							renderer->SubmitSelectedStaticMesh(staticMesh, meshSource, staticMeshComponenet.MaterialTable, transform);
-						else
-							renderer->SubmitStaticMesh(staticMesh, meshSource, staticMeshComponenet.MaterialTable, transform);
-					}
-				}
+				Entity e = { entity, this };
+				glm::mat4 transform = GetWorldSpaceTransformMatrix(e);
+
+				if (anythingSelected && selctionHighlightMask.Test(entity))
+					renderer->SubmitSelectedStaticMesh(staticMesh, meshSource, staticMeshComponenet.MaterialTable, transform);
+				else
+					renderer->SubmitStaticMesh(staticMesh, meshSource, staticMeshComponenet.MaterialTable, transform);
 			}
 
 			RenderPhysicsDebug(renderer);
@@ -974,23 +980,21 @@ namespace Iris {
 				const StaticMeshComponent& staticMeshComponenet = entities.get<StaticMeshComponent>(entity);
 
 				AsyncAssetResult<StaticMesh> staticMeshResult = AssetManager::GetAssetAsync<StaticMesh>(staticMeshComponenet.StaticMesh);
-				if (staticMeshResult.IsReady)
-				{
-					Ref<StaticMesh> staticMesh = staticMeshResult;
-					AsyncAssetResult<MeshSource> meshSourceResult = AssetManager::GetAssetAsync<MeshSource>(staticMesh->GetMeshSource());
-					if (meshSourceResult.IsReady)
-					{
-						Ref<MeshSource> meshSource = meshSourceResult;
+				if (!staticMeshResult.IsReady)
+					continue;
+				
+				Ref<StaticMesh> staticMesh = staticMeshResult;
+				AsyncAssetResult<MeshSource> meshSourceResult = AssetManager::GetAssetAsync<MeshSource>(staticMesh->GetMeshSource());
+				if (!meshSourceResult.IsReady)
+					continue;
 
-						Entity e = { entity, this };
-						glm::mat4 transform = GetWorldSpaceTransformMatrix(e);
+				Ref<MeshSource> meshSource = meshSourceResult;
 
-						renderer->SubmitStaticMesh(staticMesh, meshSource, staticMeshComponenet.MaterialTable, transform);
-					}
-				}
+				Entity e = { entity, this };
+				glm::mat4 transform = GetWorldSpaceTransformMatrix(e);
+
+				renderer->SubmitStaticMesh(staticMesh, meshSource, staticMeshComponenet.MaterialTable, transform);
 			}
-
-			RenderPhysicsDebug(renderer);
 
 			renderer->EndScene();
 		}
@@ -1164,6 +1168,8 @@ namespace Iris {
 	Entity Scene::CreateChildEntity(Entity parent, const std::string& name, bool visible)
 	{
 		auto entity = Entity{ m_Registry.create(), this };
+		++m_HierarchyVersion;
+
 		auto& idComponent = entity.AddComponent<IDComponent>();
 		idComponent.ID = {};
 
@@ -1177,7 +1183,7 @@ namespace Iris {
 			entity.AddComponent<VisibleComponent>();
 
 		if (parent)
-			entity.SetParent(parent);
+			AttachChild(parent, entity);
 
 		m_EntityIDMap[idComponent.ID] = entity;
 
@@ -1189,6 +1195,8 @@ namespace Iris {
 	Entity Scene::CreateEntityWithUUID(UUID id, const std::string& name, bool visible, bool shouldSort)
 	{
 		Entity entity = { m_Registry.create(), this };
+		++m_HierarchyVersion;
+
 		entity.AddComponent<IDComponent>(id);
 
 		if (!name.empty())
@@ -1214,6 +1222,8 @@ namespace Iris {
 		if (!entity)
 			return;
 
+		++m_HierarchyVersion;
+
 		if (!m_IsEditorScene)
 		{
 			Ref<PhysicsScene> physicsScene = GetPhysicsScene();
@@ -1234,13 +1244,30 @@ namespace Iris {
 
 		if (!excludeChildren)
 		{
-			// Copy here since if we do not then we will have entity leaks
-			auto children = entity.Children();
-			for (std::size_t i = 0; i < children.size(); i++)
+			// Copy here since if we do not then we will have entity leaks since the collection is mutated during recursion
+			std::vector<UUID> children = entity.Children();
+			for (UUID childId : children)
 			{
-				auto childID = children[i];
-				Entity child = GetEntityWithUUID(childID);
-				DestroyEntity(childID, excludeChildren, false);
+				Entity child = TryGetEntityWithUUID(childId);
+				if (!child)
+					continue;
+
+				// Detach FIRST: no live entity's Children list may reference a dead
+				// UUID while callbacks / SortEntities run during the cascade.
+				DetachChild(entity, child);
+				DestroyEntity(child, excludeChildren, false);
+			}
+		}
+		else
+		{
+			// children survive a targeted destroy — detach them so their
+			// ParentHandle doesn't dangle at a dead UUID. They become roots
+			std::vector<UUID> children = entity.Children();
+			for (UUID childId : children)
+			{
+				Entity child = TryGetEntityWithUUID(childId);
+				if (child)
+					DetachChild(entity, child);
 			}
 		}
 
@@ -1248,7 +1275,7 @@ namespace Iris {
 		{
 			Entity parent = entity.GetParent();
 			if (parent)
-				parent.RemoveChild(entity);
+				DetachChild(parent, entity);
 		}
 
 		UUID id = entity.GetUUID();
@@ -1268,46 +1295,77 @@ namespace Iris {
 		if (it == m_EntityIDMap.end())
 			return;
 
-		DestroyEntity(it->second);
+		DestroyEntity(it->second, excludeChildren, first);
+	}
+
+	void Scene::ParentEntity(Entity entity, Entity parent)
+	{
+		if (!entity || !parent || entity == parent)
+			return;
+
+		if (parent.IsDescendantOf(entity))
+		{
+			UnparentEntity(parent);
+
+			Entity grandParent = TryGetEntityWithUUID(entity.GetParentUUID());
+			if (grandParent)
+			{
+				UnparentEntity(entity);
+				ParentEntity(parent, grandParent);
+			}
+		}
+		else
+		{
+			Entity previousParent = TryGetEntityWithUUID(entity.GetParentUUID());
+
+			if (previousParent)
+				UnparentEntity(entity);
+		}
+
+		AttachChild(parent, entity);
+
+		ConvertToLocalSpace(entity);
+	}
+
+	void Scene::UnparentEntity(Entity entity, bool convertToWorldSpace)
+	{
+		Entity parent = TryGetEntityWithUUID(entity.GetParentUUID());
+		if (!parent)
+			return;
+
+		DetachChild(parent, entity);
+
+		if (convertToWorldSpace)
+			ConvertToWorldSpace(entity);
 	}
 
 	Entity Scene::DuplicateEntity(Entity entity)
 	{
-		auto parentNewEntity = [&entity, scene = this](Entity newEntity)
-		{
-			auto parent = entity.GetParent();
-			if (parent)
-			{
-				newEntity.SetParentUUID(parent.GetUUID());
-				parent.Children().push_back(newEntity.GetUUID());
-			}
-		};
-
 		Entity newEntity;
 		if (entity.HasComponent<TagComponent>())
 			newEntity = CreateEntity(entity.GetComponent<TagComponent>().Tag);
 		else
 			newEntity = CreateEntity();
 
-		CopyComponentIfExists<TransformComponent>(newEntity.m_EntityHandle, m_Registry, entity);
-		CopyComponentIfExists<StaticMeshComponent>(newEntity.m_EntityHandle, m_Registry, entity);
-		CopyComponentIfExists<CameraComponent>(newEntity.m_EntityHandle, m_Registry, entity);
-		CopyComponentIfExists<SpriteRendererComponent>(newEntity.m_EntityHandle, m_Registry, entity);
-		// CopyComponentIfExists<SkyLightComponent>(newEntity.m_EntityHandle, m_Registry, entity); // NOTE: You can not duplicate sky lights since you should only have one
-		CopyComponentIfExists<DirectionalLightComponent>(newEntity.m_EntityHandle, m_Registry, entity);
-		CopyComponentIfExists<PointLightComponent>(newEntity.m_EntityHandle, m_Registry, entity);
-		CopyComponentIfExists<SpotLightComponent>(newEntity.m_EntityHandle, m_Registry, entity);
-		CopyComponentIfExists<TextComponent>(newEntity.m_EntityHandle, m_Registry, entity);
-		CopyComponentIfExists<RigidBodyComponent>(newEntity.m_EntityHandle, m_Registry, entity);
-		CopyComponentIfExists<BoxColliderComponent>(newEntity.m_EntityHandle, m_Registry, entity);
-		CopyComponentIfExists<SphereColliderComponent>(newEntity.m_EntityHandle, m_Registry, entity);
-		CopyComponentIfExists<CylinderColliderComponent>(newEntity.m_EntityHandle, m_Registry, entity);
-		CopyComponentIfExists<CapsuleColliderComponent>(newEntity.m_EntityHandle, m_Registry, entity);
-		CopyComponentIfExists<CompoundColliderComponent>(newEntity.m_EntityHandle, m_Registry, entity);
-		CopyComponentIfExists<MeshColliderComponent>(newEntity.m_EntityHandle, m_Registry, entity);
-		CopyComponentIfExists<RigidBody2DComponent>(newEntity.m_EntityHandle, m_Registry, entity);
-		CopyComponentIfExists<BoxCollider2DComponent>(newEntity.m_EntityHandle, m_Registry, entity);
-		CopyComponentIfExists<CircleCollider2DComponent>(newEntity.m_EntityHandle, m_Registry, entity);
+		CopyComponentIfExists<TransformComponent>(newEntity.m_EntityHandle, m_Registry, static_cast<entt::entity>(entity));
+		CopyComponentIfExists<StaticMeshComponent>(newEntity.m_EntityHandle, m_Registry, static_cast<entt::entity>(entity));
+		CopyComponentIfExists<CameraComponent>(newEntity.m_EntityHandle, m_Registry, static_cast<entt::entity>(entity));
+		CopyComponentIfExists<SpriteRendererComponent>(newEntity.m_EntityHandle, m_Registry, static_cast<entt::entity>(entity));
+		// CopyComponentIfExists<SkyLightComponent>(newEntity.m_EntityHandle, m_Registry, static_cast<entt::entity>(entity)); // NOTE: You can not duplicate sky lights since you should only have one
+		CopyComponentIfExists<DirectionalLightComponent>(newEntity.m_EntityHandle, m_Registry, static_cast<entt::entity>(entity));
+		CopyComponentIfExists<PointLightComponent>(newEntity.m_EntityHandle, m_Registry, static_cast<entt::entity>(entity));
+		CopyComponentIfExists<SpotLightComponent>(newEntity.m_EntityHandle, m_Registry, static_cast<entt::entity>(entity));
+		CopyComponentIfExists<TextComponent>(newEntity.m_EntityHandle, m_Registry, static_cast<entt::entity>(entity));
+		CopyComponentIfExists<RigidBodyComponent>(newEntity.m_EntityHandle, m_Registry, static_cast<entt::entity>(entity));
+		CopyComponentIfExists<BoxColliderComponent>(newEntity.m_EntityHandle, m_Registry, static_cast<entt::entity>(entity));
+		CopyComponentIfExists<SphereColliderComponent>(newEntity.m_EntityHandle, m_Registry, static_cast<entt::entity>(entity));
+		CopyComponentIfExists<CylinderColliderComponent>(newEntity.m_EntityHandle, m_Registry, static_cast<entt::entity>(entity));
+		CopyComponentIfExists<CapsuleColliderComponent>(newEntity.m_EntityHandle, m_Registry, static_cast<entt::entity>(entity));
+		CopyComponentIfExists<CompoundColliderComponent>(newEntity.m_EntityHandle, m_Registry, static_cast<entt::entity>(entity));
+		CopyComponentIfExists<MeshColliderComponent>(newEntity.m_EntityHandle, m_Registry, static_cast<entt::entity>(entity));
+		CopyComponentIfExists<RigidBody2DComponent>(newEntity.m_EntityHandle, m_Registry, static_cast<entt::entity>(entity));
+		CopyComponentIfExists<BoxCollider2DComponent>(newEntity.m_EntityHandle, m_Registry, static_cast<entt::entity>(entity));
+		CopyComponentIfExists<CircleCollider2DComponent>(newEntity.m_EntityHandle, m_Registry, static_cast<entt::entity>(entity));
 
 		// Need to copy the children here because the collection is mutated below
 		std::vector<UUID> childIDs = entity.Children();
@@ -1317,12 +1375,12 @@ namespace Iris {
 
 			// Here childDuplicate is a child of entity, we need to remove it from that entity and change its parent
 			UnparentEntity(childDuplicate, false);
-
-			childDuplicate.SetParentUUID(newEntity.GetUUID());
-			newEntity.Children().push_back(childDuplicate.GetUUID());
+			AttachChild(newEntity,  childDuplicate);
 		}
 
-		parentNewEntity(newEntity);
+		Entity parent = entity.GetParent();
+		if (parent)
+			AttachChild(parent, newEntity);
 
 		return newEntity;
 	}
@@ -1335,14 +1393,10 @@ namespace Iris {
 
 		if (staticMesh->ShouldGenerateColliders())
 		{
-			MeshColliderComponent& colliderComponent = rootEntity.AddComponent<MeshColliderComponent>();
-			Ref<MeshColliderAsset> colliderAsset = PhysicsSystem::GetOrCreateMeshColliderAsset(rootEntity, colliderComponent);
-
-			colliderComponent.ColliderAsset = colliderAsset->Handle;
-			colliderComponent.SubMeshIndex = 0;
-			colliderComponent.UseSharedShape = colliderAsset->AlwaysShareShape;
-			
+			rootEntity.AddComponent<MeshColliderComponent>();
 			rootEntity.AddComponent<RigidBodyComponent>();
+			
+			PhysicsSystem::EnsureMeshColliderReady(rootEntity);
 		}
 
 		return rootEntity;
@@ -1437,48 +1491,6 @@ namespace Iris {
 		return {};
 	}
 
-	void Scene::ParentEntity(Entity entity, Entity parent)
-	{
-		if (parent.IsDescendantOf(entity))
-		{
-			UnparentEntity(parent);
-
-			Entity newParent = TryGetEntityWithUUID(entity.GetParentUUID());
-			if (newParent)
-			{
-				UnparentEntity(entity);
-				ParentEntity(parent, newParent);
-			}
-		}
-		else
-		{
-			Entity previousParent = TryGetEntityWithUUID(entity.GetParentUUID());
-
-			if (previousParent)
-				UnparentEntity(entity);
-		}
-
-		entity.SetParentUUID(parent.GetUUID());
-		parent.Children().push_back(entity.GetUUID());
-
-		ConvertToLocalSpace(entity);
-	}
-
-	void Scene::UnparentEntity(Entity entity, bool convertToWorldSpace)
-	{
-		Entity parent = TryGetEntityWithUUID(entity.GetParentUUID());
-		if (!parent)
-			return;
-
-		auto& parentChildren = parent.Children();
-		parentChildren.erase(std::remove(parentChildren.begin(), parentChildren.end(), entity.GetUUID()), parentChildren.end());
-
-		if (convertToWorldSpace)
-			ConvertToWorldSpace(entity);
-
-		entity.SetParentUUID(0);
-	}
-
 	Ref<PhysicsScene> Scene::GetPhysicsScene() const
 	{
 		if (!m_Registry.has<JoltWorldComponent>(m_SceneEntity))
@@ -1523,14 +1535,10 @@ namespace Iris {
 
 			if (staticMesh->ShouldGenerateColliders())
 			{
-				MeshColliderComponent& colliderComponent = nodeEntity.AddComponent<MeshColliderComponent>();
-				Ref<MeshColliderAsset> colliderAsset = PhysicsSystem::GetOrCreateMeshColliderAsset(nodeEntity, colliderComponent);
-
-				colliderComponent.ColliderAsset = colliderAsset->Handle;
-				colliderComponent.SubMeshIndex = subMeshIndex;
-				colliderComponent.UseSharedShape = colliderAsset->AlwaysShareShape;
-				
+				nodeEntity.AddComponent<MeshColliderComponent>();
 				nodeEntity.AddComponent<RigidBodyComponent>();
+				
+				PhysicsSystem::EnsureMeshColliderReady(nodeEntity);
 			}
 		}
 		else if (node.SubMeshes.size() > 1)
@@ -1545,14 +1553,10 @@ namespace Iris {
 
 				if (staticMesh->ShouldGenerateColliders())
 				{
-					MeshColliderComponent& colliderComponent = childEntity.AddComponent<MeshColliderComponent>();
-					Ref<MeshColliderAsset> colliderAsset = PhysicsSystem::GetOrCreateMeshColliderAsset(childEntity, colliderComponent);
-
-					colliderComponent.ColliderAsset = colliderAsset->Handle;
-					colliderComponent.SubMeshIndex = subMeshIndex;
-					colliderComponent.UseSharedShape = colliderAsset->AlwaysShareShape;
-					
+					childEntity.AddComponent<MeshColliderComponent>();
 					childEntity.AddComponent<RigidBodyComponent>();
+					
+					PhysicsSystem::EnsureMeshColliderReady(childEntity);
 				}
 			}
 		}
@@ -1600,21 +1604,21 @@ namespace Iris {
 
 		auto submitMeshCollider = [this, &renderer](Entity entity)
 		{
+			if (!entity.HasComponent<StaticMeshComponent>() || !entity.HasComponent<MeshColliderComponent>())
+				return;
+
 			glm::mat4 transform = GetWorldSpaceTransformMatrix(entity);
 			const MeshColliderComponent& colliderComp = entity.GetComponent<MeshColliderComponent>();
+			AssetHandle staticMeshHandle = entity.GetComponent<StaticMeshComponent>().StaticMesh;
 
-			Ref<MeshColliderAsset> colliderAsset = AssetManager::GetAsset<MeshColliderAsset>(colliderComp.ColliderAsset);
-			if (colliderAsset)
+			bool isSimpleCollider = colliderComp.CollisionComplexity == PhysicsCollisionComplexity::UseComplexAsSimple ? false : true;
+
+			Ref<StaticMesh> staticMesh = PhysicsSystem::GetMesheColliderCache()->GetDebugStaticMesh(staticMeshHandle, colliderComp.CollisionComplexity);
+			if (staticMesh)
 			{
-				bool isSimpleCollider = colliderAsset->CollisionComplexity == PhysicsCollisionComplexity::UseComplexAsSimple ? false : true;
-
-				Ref<StaticMesh> staticMesh = PhysicsSystem::GetMesheColliderCache()->GetDebugStaticMesh(colliderAsset); // TODO: Here we do not get back the static mesh that we need to render
-				if (staticMesh)
+				if (Ref<MeshSource> meshSource = AssetManager::GetAsset<MeshSource>(staticMesh->GetMeshSource()); meshSource)
 				{
-					if (Ref<MeshSource> meshSource = AssetManager::GetAsset<MeshSource>(staticMesh->GetMeshSource()); meshSource)
-					{
-						renderer->SubmitPhysicsStaticDebugMesh(staticMesh, meshSource, transform, isSimpleCollider);
-					}
+					renderer->SubmitPhysicsStaticDebugMesh(staticMesh, meshSource, transform, isSimpleCollider);
 				}
 			}
 		};
@@ -1805,9 +1809,36 @@ namespace Iris {
 	void Scene::OnMeshColliderComponentConstruct(entt::registry& registry, entt::entity entity)
 	{
 		Entity e = { entity, this };
-		auto& component = e.GetComponent<MeshColliderComponent>();
-		if (AssetManager::IsAssetHandleValid(component.ColliderAsset))
-			PhysicsSystem::GetOrCreateMeshColliderAsset(e, component);
+		PhysicsSystem::EnsureMeshColliderReady(e);
+	}
+
+	void Scene::AttachChild(Entity parent, Entity child)
+	{
+		IR_ASSERT(parent && child);
+		IR_ASSERT(parent != child);
+
+		auto& childRel = m_Registry.get<RelationshipComponent>(static_cast<entt::entity>(child));
+		IR_ASSERT(childRel.ParentHandle == 0); // caller must detach first — no double-parents, ever
+
+		childRel.ParentHandle = parent.GetUUID();
+		m_Registry.get<RelationshipComponent>(static_cast<entt::entity>(parent)).Children.push_back(child.GetUUID());
+
+		++m_HierarchyVersion;
+	}
+
+	void Scene::DetachChild(Entity parent, Entity child)
+	{
+		IR_ASSERT(parent && child);
+
+		auto& children = m_Registry.get<RelationshipComponent>(static_cast<entt::entity>(parent)).Children;
+		UUID childID = child.GetUUID();
+		auto it = std::find(children.begin(), children.end(), childID);
+		IR_ASSERT(it != children.end()); // link must exist in both directions
+		children.erase(it);
+
+		m_Registry.get<RelationshipComponent>(static_cast<entt::entity>(child)).ParentHandle = 0;
+
+		++m_HierarchyVersion;
 	}
 
 }

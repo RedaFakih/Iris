@@ -26,10 +26,6 @@ layout(std140, set = 1, binding = 0) uniform Camera
 	vec2 DepthUnpackConsts;
 } u_Camera;
 
-// NOTE(IMPORTANT): Causes jitters on Nvidia driver versions post 552.44
-// Make sure both the PreDepth shader and the PBR shader compute the exact same result
-// precise invariant gl_Position;
-
 void main()
 {
 	mat4 transform = mat4(

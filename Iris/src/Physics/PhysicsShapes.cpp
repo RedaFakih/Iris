@@ -250,13 +250,14 @@ namespace Iris {
 	{
 		MeshColliderComponent& component = entity.GetComponent<MeshColliderComponent>();
 
-		Ref<MeshColliderAsset> colliderAsset = AssetManager::GetAsset<MeshColliderAsset>(component.ColliderAsset);
-		IR_VERIFY(colliderAsset);
+		IR_VERIFY(entity.HasComponent<StaticMeshComponent>());
+		AssetHandle staticMeshHandle = entity.GetComponent<StaticMeshComponent>().StaticMesh;
+		IR_VERIFY(AssetManager::IsAssetHandleValid(staticMeshHandle));
 
 		auto scene = Scene::GetScene(entity.GetSceneUUID());
 		TransformComponent worldTransform = scene->GetWorldSpaceTransform(entity);
 
-		const CachedColliderData& colliderData = PhysicsSystem::GetMesheColliderCache()->GetMeshData(colliderAsset);
+		const CachedColliderData& colliderData = PhysicsSystem::GetMesheColliderCache()->GetMeshData(staticMeshHandle);
 		const auto& meshData = colliderData.SimpleColliderData;
 		IR_ASSERT(meshData.SubMeshes.size() > component.SubMeshIndex);
 
@@ -292,13 +293,14 @@ namespace Iris {
 	{
 		MeshColliderComponent& component = entity.GetComponent<MeshColliderComponent>();
 
-		Ref<MeshColliderAsset> colliderAsset = AssetManager::GetAsset<MeshColliderAsset>(component.ColliderAsset);
-		IR_VERIFY(colliderAsset);
+		IR_VERIFY(entity.HasComponent<StaticMeshComponent>());
+		AssetHandle staticMeshHandle = entity.GetComponent<StaticMeshComponent>().StaticMesh;
+		IR_VERIFY(AssetManager::IsAssetHandleValid(staticMeshHandle));
 
 		auto scene = Scene::GetScene(entity.GetSceneUUID());
 		TransformComponent worldTransform = scene->GetWorldSpaceTransform(entity);
 
-		const CachedColliderData& colliderData = PhysicsSystem::GetMesheColliderCache()->GetMeshData(colliderAsset);
+		const CachedColliderData& colliderData = PhysicsSystem::GetMesheColliderCache()->GetMeshData(staticMeshHandle);
 		const auto& meshData = colliderData.ComplexColliderData;
 
 		JPH::StaticCompoundShapeSettings compoundShapeSettings;

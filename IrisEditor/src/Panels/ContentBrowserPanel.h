@@ -54,7 +54,7 @@ namespace Iris {
 	{
 		// We need a handle for directories since that makes it easier to deal with rather than using filenames/filepaths
 		AssetHandle Handle;
-		Ref<DirectoryInfo> Parent;
+		WeakRef<DirectoryInfo> Parent;
 		std::filesystem::path FilePath;
 
 		std::vector<AssetHandle> Assets;
@@ -352,7 +352,7 @@ namespace Iris {
 	{
 	public:
 		ContentBrowserPanel();
-		~ContentBrowserPanel() = default;
+		~ContentBrowserPanel();
 
 		[[nodiscard]] inline static Ref<ContentBrowserPanel> Create()
 		{
@@ -363,7 +363,7 @@ namespace Iris {
 
 		virtual void OnEvent(Events::Event& e) override;
 		virtual void OnProjectChanged(const Ref<Project>& project) override;
-		virtual void SetSceneContext(const Ref<Scene>& context) override { m_SceneContext = context; }
+		virtual void SetSceneContext(const Ref<Scene>& context) override;
 
 		inline Utils::ItemList& GetCurrentItems() { return m_CurrentItems; }
 		inline const Utils::ItemList& GetCurrentItems() const { return m_CurrentItems; }
@@ -423,7 +423,7 @@ namespace Iris {
 			return CreateAssetInDirectory<T>(fileName, m_CurrentDirectory, std::forward<Args>(args)...);
 		}
 
-		// NOTE: Should only used insdie ContentBrowserPanel, everywhere else use the AssetManager!
+		// NOTE: Should only used inside ContentBrowserPanel, everywhere else use the AssetManager!
 		template<typename T, typename... Args>
 		Ref<T> CreateAssetInDirectory(const std::string& fileName, Ref<DirectoryInfo>& directory, Args&&... args)
 		{

@@ -14,7 +14,6 @@ namespace Iris {
 		s_Serializers[AssetType::Texture] = CreateScope<TextureSerializer>();
 		s_Serializers[AssetType::StaticMesh] = CreateScope<StaticMeshSerializer>();
 		s_Serializers[AssetType::MeshSource] = CreateScope<MeshSourceSerializer>();
-		s_Serializers[AssetType::MeshCollider] = CreateScope<MeshColliderSerializer>();
 		s_Serializers[AssetType::Material] = CreateScope<MaterialAssetSerializer>();
 		s_Serializers[AssetType::Font] = CreateScope<FontSerializer>();
 		s_Serializers[AssetType::EnvironmentMap] = CreateScope<EnvironmentSerializer>();

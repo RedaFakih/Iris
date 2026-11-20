@@ -5,6 +5,7 @@
 #include "Core/TimeStep.h"
 #include "Core/UUID.h"
 #include "Editor/EditorCamera.h"
+#include "Editor/SelectionHighlightMask.h"
 #include "Renderer/Mesh/Mesh.h"
 #include "SceneEnvironment.h"
 
@@ -84,7 +85,7 @@ namespace Iris {
 		void OnRenderRuntime(Ref<SceneRendererLite> renderer);
 
 		void OnUpdateEditor(TimeStep ts);
-		void OnRenderEditor(Ref<SceneRenderer> renderer, const EditorCamera& camera);
+		void OnRenderEditor(Ref<SceneRenderer> renderer, const EditorCamera& camera, SelectionHighlightMask selctionHighlightMask = {});
 		void OnRenderEditor(Ref<SceneRendererLite> renderer, const EditorCamera& camera);
 
 		void SetViewportSize(uint32_t width, uint32_t height);
@@ -105,6 +106,9 @@ namespace Iris {
 		//void SubmitToDestroyEntity(Entity entity);
 		void DestroyEntity(Entity entity, bool excludeChildren = false, bool first = true);
 		void DestroyEntity(UUID entityID, bool excludeChildren = false, bool first = true);
+
+		void ParentEntity(Entity entity, Entity parent);
+		void UnparentEntity(Entity entity, bool convertToWorldSpace = true);
 
 		Entity DuplicateEntity(Entity entity);
 
@@ -136,9 +140,6 @@ namespace Iris {
 		// return descendant entity with tag as specified, or empty entity if cannot be found - caller must check
 		// descendant could be immediate child, or deeper in the hierachy
 		Entity TryGetDescendantEntityWithTag(Entity entity, const std::string& tag);
-
-		void ParentEntity(Entity entity, Entity parent);
-		void UnparentEntity(Entity entity, bool convertToWorldSpace = true);
 
 		UUID GetUUID() const { return m_SceneID; }
 
@@ -191,6 +192,9 @@ namespace Iris {
 		static AssetType GetStaticType() { return AssetType::Scene; }
 		virtual AssetType GetAssetType() const override { return GetStaticType(); }
 
+		inline uint64_t GetHierarchyVersion() const { return m_HierarchyVersion; }
+		inline uint64_t GetRenderableVersion() const { return m_RenderableVersion; }
+
 	private:
 		void SortEntities();
 		void BuildMeshEntityHierarchy(Entity parent, Ref<StaticMesh> staticMesh, const MeshUtils::MeshNode& node);
@@ -199,6 +203,18 @@ namespace Iris {
 		void Render2DPhysicsDebug(Ref<SceneRenderer> renderer, Ref<Renderer2D> renderer2D);
 
 		void OnMeshColliderComponentConstruct(entt::registry& registry, entt::entity entity);
+		void OnRenderableComponentChanged(entt::registry&, entt::entity) { ++m_RenderableVersion; }
+
+		// Raw link primitives: the ONLY functions that write ParentHandle / Children.
+		// No space conversion, no cycle logic (asserts only). Use for construction
+		// paths — creation, duplication, deserialization. For anything user-driven
+		// that needs transform conversion and cycle handling, use
+		// ParentEntity / UnparentEntity, which are built on these.
+		// So basically nothing in the engine is allowed to edit the parent
+		// and the children of an entity EXCEPT for the Scene Object since
+		// it is the one that owns the right to create and destroy such components
+		void AttachChild(Entity parent, Entity child);
+		void DetachChild(Entity parent, Entity child);
 
 	private:
 		// Scene Entity to create some stuff that is owned by the scene and store it in the ECS registry
@@ -226,6 +242,11 @@ namespace Iris {
 		bool m_IsPlaying = false;
 
 		glm::vec2 m_Box2DGravity = { 0.0f, -9.81f };
+
+		// Note(Reda): Used to signal a change in the Entity Component System to other systems is one way to explain what this does.
+		uint64_t m_HierarchyVersion = 0;
+		// Note(Reda): Used to signal a change in the ECS that an entity's Visibility or StaticMeshComponent has changed in order for proper JFA optimization
+		uint64_t m_RenderableVersion = 0;
 
 		// The Scene class also keeps a map of currently active scenes in case we have multiple active at the same time
 		// This way we can get access in the scene that a certain entity exists in...

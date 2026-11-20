@@ -10,5 +10,10 @@ int main(int argc, char** argv)
     IR_VERIFY(app, "App is Null!");
     app->Run();
     delete app;
+
+#if IR_CONFIG_DEBUG
+    Iris::RefUtils::DumpLiveReferences();
+#endif
+
     Iris::Initializers::ShutdownCore();
 }

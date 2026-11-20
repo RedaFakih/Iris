@@ -65,6 +65,7 @@ layout(std140, set = 1, binding = 1) uniform ScreenData
 	vec2 InverseHalfResolution;
 } u_ScreenData;
 
+#define XE_GTAO_FP32_DEPTHS
 #define XE_GTAO_DEPTH_MIP_LEVELS      5                   // this one is hard-coded to 5 for now
 #define XE_GTAO_PI               	 (3.1415926535897932384626433832795f)
 #define XE_GTAO_PI_HALF              (1.5707963267948966192313216916398f)
@@ -132,8 +133,8 @@ float XeGTAO_FastSqrt(float x)
 float XeGTAO_FastACos(float inX)
 {
     float x = abs(inX);
-    float res = -0.156583 * x + XE_GTAO_PI_HALF;
-    res *= XeGTAO_FastSqrt(1.0 - x);
+    float res = -0.156583f * x + XE_GTAO_PI_HALF;
+    res *= XeGTAO_FastSqrt(1.0f - x);
     return (inX >= 0) ? res : XE_GTAO_PI - res;
 }
 
@@ -162,7 +163,7 @@ mat3 XeGTAO_RotFromToMatrix(vec3 from, vec3 to)
 
     const vec3 v = cross(from, to);
     /* ... use this hand optimized version (9 mults less) */
-    const float h = (1.0) / (1.0 + e);      /* optimization by Gottfried Chen */
+    const float h = (1.0f) / (1.0f + e);      /* optimization by Gottfried Chen */
     const float hvx = h * v.x;
     const float hvz = h * v.z;
     const float hvxy = hvx * v.y;
@@ -409,7 +410,7 @@ void XeGTAO_MainPass(const ivec2 outputPixCoord, const ivec2 inputPixCoords, flo
             float t0 = (6.0f * sin(h0 - n) - sin(3.0f * h0 - n) + 6.0f * sin(h1 - n) - sin(3.0f * h1 - n) + 16.0f * sin(n) - 3.0f * (sin(h0 + n) + sin(h1 + n))) / 12.0f;
             float t1 = (-cos(3.0f * h0 - n) - cos(3.0f * h1 - n) + 8.0f * cos(n) - 3.0f * (cos(h0 + n) + cos(h1 + n))) / 12.0f;
             vec3 localBentNormal = vec3(directionVec.x * t0, directionVec.y * t0, -t1);
-            localBentNormal = (XeGTAO_RotFromToMatrix(vec3(0.0f, 0.0f, -1.0f), viewVec), localBentNormal) * projectedNormalVecLength;
+            localBentNormal = (XeGTAO_RotFromToMatrix(vec3(0.0f, 0.0f, -1.0f), viewVec) * localBentNormal) * projectedNormalVecLength;
             bentNormal += localBentNormal;
         }
         visibility /= sliceCount;

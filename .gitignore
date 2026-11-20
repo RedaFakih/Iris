@@ -7,3 +7,5 @@ Iris/LogDump/
 *.filters
 *.user
 *.sln
+
+vma_leak_report.json

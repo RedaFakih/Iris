@@ -3,9 +3,13 @@
 /*
  * GLOBAL IRIS SETTINGS:
  * - 1 Unit = 1 Meter in the scale so setting the grid scale to 1 shows the 1 meter we just need to add suffixes to the values displayed
- *
+ * - DescriptorSetManager handles resources in sets 0 - 2 and Material handles reseources and set 3 only
+ * 
  * - Always Checkout https://gpuopen.com/learn/rdna-performance-guide/ and https://developer.nvidia.com/blog/vulkan-dos-donts/ for any extra optimisations we could find from the vulkan side
  *
+ * TODO: Ref Counting
+ * - Rewrite the system to a better solution to be able to properly validate weak refs without tanking performance and not needing a set of live references tracking
+ * 
  * TODO: ContentBrowser
  * - We need to make the content browser be able to be rendered in different contexts
  * - We need to make the material editor have its own context in a way since it needs to handle inputs alone
@@ -16,25 +20,16 @@
  *		- Add memory limit to the ThumbnailCache
  *
  * TODO: Jolt Physics
- * - Serializing MeshColliders in MeshCookingFactory is actually useless because each time we load the engine we will regenerate the same colliders with different IDs so the previous ones are just stacked and waste storage
  * - Optimizing broad phase:
  *		- Include a button in the Physics settings in the Project panel to optimize the broad phase on demand.
  *		- Maybe we should optimize the broad phase after a certain amount of bodies has been added before we PhysicsScene::PreSimulate?
- * - MeshColliderCache currently serializes to the disk but the that happens everytime the engine is restarted since the colliders will have different UUIDs so the filenames will not match
- * - Go through all todos in physics system since some of them need to be handled
  * - Project Serializer maybe also serialize 2D physics settings?
  * - Project Panel Physics Settings
- * - Started work on PhysicsScene
- *		- Need to add alot more methods and start implementing, Bulk storage stuff is not really needed since it is not gonna be used for now.
- * - Need to work on PhysicsBody that will be where the jolt physics body and collider shape created
- *		- (NOTE: For the PhysicsShape, we do not need to have an array for each ShapeType since a body should be linked to only one collider shape but apparently C# needed to have the api that Hazel has)
- * - JoltContactListener: Two methods need the scripting engine to be implemented
  * - In Jolt: Collider shapes are joined in the same entity with the rigid body, so if we add a shape collider component to an entity, in code we have to add a
  *			  default rigid body as well because thats how it works in Jolt unlike Box2D where the rigid body is separate from the collider shape
  *
  * TODO: DynamicRendering branch:
- * - Added GTAO with default Bent normals implementation.
- * - Need an optimization to the SceneRenderer::BeginScene, since sometimes we do not need to resize absolutely everything
+ * - Since GTAO Runs befroe the PBR Shader, we can use the generated AO data in the PBR materials shader to bake the AO and get even some Specular Occlusion which is currently not possible since we use a GTAO composite pass which SHOULD BE REMOVED!!!!!!
  * - Importing specific sub meshes from a mesh file should only be a feature for dynamic meshes and not static meshes, since for static meshes the hierarchy is flattended and doesnt make sense to load specific submeshes from it
  *		- Thats why it will only be available for dynamic meshes since the hierarchy is not flattened
  * - LightCulling2_5.glsl is a rewrite of the LightCulling shader that uses 2.5D culling but it doesnt fully work yet and needs some fixing
@@ -42,7 +37,7 @@
  *		- 2: For all the helper stuff <https://github.com/turanszkij/WickedEngine/blob/master/WickedEngine/shaders/cullingShaderHF.hlsli>
  *		- 3: Also look into the flat bit arrays <https://wickedengine.net/2019/02/thoughts-on-light-culling-stream-compaction-vs-flat-bit-arrays/>
  * - Add the application settings panel that for now is only gonna be used to set or unset the colored meshes highlighting in SceneHierarchyPanel
- * - Embed as much as possible the images that the engine uses such as icons and other stuff that way we can minize engien startup time since we won't have to decode so many images
+ * - Embed as much as possible the images that the engine uses such as icons and other stuff that way we can minimize engine startup time since we won't have to decode so many images
  * - When we have the ConsolePanel, we should cleanup the logging settings in the project panel and make it comply with only stuff that logs to the console panel
  * - Add Area Lights <https://learnopengl.com/Guest-Articles/2022/Area-Lights>
  * - Duplicated Meshes all reference the same material and have the same material table

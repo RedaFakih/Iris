@@ -378,8 +378,8 @@ namespace Iris {
 			m_SkyboxPass->Bake();
 		}
 
-		// NOTE: Maybe 64 is alot as well?
-		constexpr std::size_t TransformBufferCount = 64; // 64 transforms
+		// TODO: RESIZABLE!
+		constexpr std::size_t TransformBufferCount = 128; // 128 transforms
 		m_MeshTransformBuffers.resize(framesInFlight);
 		for (uint32_t i = 0; i < framesInFlight; i++)
 		{

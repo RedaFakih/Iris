@@ -51,16 +51,32 @@ ShaderRegistry:
         Hash: 2845901109
       - Stage: Fragment
         Hash: 3402206270
+  - Filepath: Resources/Shaders/Src/Compositing/EmissiveBounce.glsl
+    Stages:
+      - Stage: Vertex
+        Hash: 384166942
+      - Stage: Fragment
+        Hash: 1551272520
+  - Filepath: Resources/Shaders/Src/Compositing/EmissiveBounce2.glsl
+    Stages:
+      - Stage: Vertex
+        Hash: 107852365
+      - Stage: Fragment
+        Hash: 2751638274
   - Filepath: Resources/Shaders/Src/Compositing/GTAO.glsl
     Stages:
       - Stage: Compute
-        Hash: 2272629524
+        Hash: 3433824747
   - Filepath: Resources/Shaders/Src/Compositing/GTAOCompositing.glsl
     Stages:
       - Stage: Vertex
-        Hash: 125958489
+        Hash: 384166942
       - Stage: Fragment
-        Hash: 716997248
+        Hash: 222445579
+  - Filepath: Resources/Shaders/Src/Compositing/GTAODenoise.glsl
+    Stages:
+      - Stage: Compute
+        Hash: 2778423550
   - Filepath: Resources/Shaders/Src/Compositing/Grid.glsl
     Stages:
       - Stage: Vertex
@@ -108,13 +124,13 @@ ShaderRegistry:
   - Filepath: Resources/Shaders/Src/Geometry/HierarchalZBuffer.glsl
     Stages:
       - Stage: Compute
-        Hash: 1157389208
+        Hash: 2118954472
   - Filepath: Resources/Shaders/Src/Geometry/IrisPBRStatic.glsl
     Stages:
       - Stage: Vertex
-        Hash: 1269187673
+        Hash: 2249566826
       - Stage: Fragment
-        Hash: 1767552173
+        Hash: 1901727536
   - Filepath: Resources/Shaders/Src/Geometry/IrisPBRStaticLite.glsl
     Stages:
       - Stage: Vertex
@@ -124,7 +140,7 @@ ShaderRegistry:
   - Filepath: Resources/Shaders/Src/Geometry/LightCulling.glsl
     Stages:
       - Stage: Compute
-        Hash: 2481041014
+        Hash: 3553125157
   - Filepath: Resources/Shaders/Src/Geometry/LightCulling2_5D.glsl
     Stages:
       - Stage: Compute
@@ -132,9 +148,9 @@ ShaderRegistry:
   - Filepath: Resources/Shaders/Src/Geometry/PreDepth.glsl
     Stages:
       - Stage: Vertex
-        Hash: 1835663146
+        Hash: 4098295837
       - Stage: Fragment
-        Hash: 1396873168
+        Hash: 364663109
   - Filepath: Resources/Shaders/Src/Geometry/Skybox.glsl
     Stages:
       - Stage: Vertex

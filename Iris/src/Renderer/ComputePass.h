@@ -33,9 +33,15 @@ namespace Iris {
 		void SetInput(std::string_view name, Ref<UniformBufferSet> uniformBufferSet);
 		void SetInput(std::string_view name, Ref<StorageBuffer> storageBuffer);
 		void SetInput(std::string_view name, Ref<StorageBufferSet> storageBufferSet);
-		void SetInput(std::string_view name, Ref<Texture2D> texture);		
+		void SetInput(std::string_view name, Ref<Texture2D> texture, uint32_t index = 0);		
 		void SetInput(std::string_view name, Ref<TextureCube> textureCube);
 		void SetInput(std::string_view name, Ref<ImageView> imageView);
+
+		void SetOutput(std::string_view name, Ref<StorageBuffer> storageBuffer);
+		void SetOutput(std::string_view name, Ref<StorageBufferSet> storageBufferSet);
+		void SetOutput(std::string_view name, Ref<Texture2D> texture, uint32_t index = 0);
+		void SetOutput(std::string_view name, Ref<TextureCube> textureCube);
+		void SetOutput(std::string_view name, Ref<ImageView> imageView);
 
 		uint32_t GetFirstSetIndex() const;
 

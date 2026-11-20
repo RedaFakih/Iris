@@ -127,6 +127,11 @@ namespace Iris {
 				
 				// TODO: Add all the other property settings
 				UI::Property("Enabled", rendererOptions.GTAOEnabled, "Enable/Disable GTAO Effect");
+				if (UI::Property("Half Res", rendererOptions.GTAOHalfResolution, "Render GTAO in Half Resolution"))
+				{
+					m_Context->SetDirtyGTAO();
+				}
+
 				UI::Property("ShadowTolerance", rendererOptions.GTAOShadowTolerance, 0.001f, 0.0f, 1.0f);
 
 				UI::EndPropertyGrid();

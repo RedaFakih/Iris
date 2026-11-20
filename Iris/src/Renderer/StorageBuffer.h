@@ -19,10 +19,16 @@ namespace Iris {
 
 		void Release();
 
-		VkDescriptorBufferInfo& GetDescriptorBufferInfo() { return m_DescriptorInfo; }
+		const VkDescriptorBufferInfo& GetDescriptorBufferInfo() const { return m_DescriptorInfo; }
+
 		VkBuffer GetVulkanBuffer() const { return m_StorageBuffer; }
 
 		bool IsDeviceLocal() const { return m_StagingBuffer != nullptr; }
+
+	private:
+		VkDescriptorBufferInfo& GetDescriptorBufferInfo() { return m_DescriptorInfo; }
+
+		friend class DescriptorSetManager;
 
 	private:
 		size_t m_Size = 0;

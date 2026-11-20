@@ -77,6 +77,7 @@ namespace Iris {
 		IR_CORE_INFO_TAG("Physics", "Shutting down physics engine...");
 		
 		s_MeshColliderCache->Shutdown();
+		s_MeshColliderCache.Reset();
 
 		// NOTE: MeshCookingFactory has no state to shutdown
 		
@@ -88,26 +89,25 @@ namespace Iris {
 		delete JPH::Factory::sInstance;
 	}
 
-	Ref<MeshColliderAsset> PhysicsSystem::GetOrCreateMeshColliderAsset(Entity entity, MeshColliderComponent& meshColliderComponent)
+	bool PhysicsSystem::EnsureMeshColliderReady(Entity entity)
 	{
-		Ref<MeshColliderAsset> meshColliderAsset = AssetManager::GetAsset<MeshColliderAsset>(meshColliderComponent.ColliderAsset);
+		if (!entity.HasComponent<StaticMeshComponent>() || !entity.HasComponent<MeshColliderComponent>())
+			return false;
 
-		if (meshColliderAsset)
-			return meshColliderAsset;
+		const StaticMeshComponent& smc = entity.GetComponent<StaticMeshComponent>();
 
-		if (entity.HasComponent<StaticMeshComponent>())
+		if (!AssetManager::IsAssetHandleValid(smc.StaticMesh))
 		{
-			meshColliderComponent.ColliderAsset = AssetManager::CreateMemoryOnlyAsset<MeshColliderAsset>(entity.GetComponent<StaticMeshComponent>().StaticMesh);
+			IR_CORE_ERROR_TAG("Physics", "Entity {} has a StaticMeshComponent with an invalid Static Mesh Handle!", entity.Name());
+			return false;
 		}
 
-		meshColliderAsset = AssetManager::GetAsset<MeshColliderAsset>(meshColliderComponent.ColliderAsset);
-
-		if (meshColliderAsset && !PhysicsSystem::GetMesheColliderCache()->Exists(meshColliderAsset))
+		if (!PhysicsSystem::GetMesheColliderCache()->Exists(smc.StaticMesh))
 		{
-			MeshCookingFactory::CookMesh(meshColliderComponent.ColliderAsset);
+			MeshCookingFactory::CookMesh(smc.StaticMesh);
 		}
 
-		return meshColliderAsset;
+		return true;
 	}
 
 	JPH::TempAllocator* PhysicsSystem::GetTemporariesAllocator()

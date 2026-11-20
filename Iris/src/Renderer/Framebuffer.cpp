@@ -81,6 +81,7 @@ namespace Iris {
                     .Samples = 1,
                     .Transfer = m_Specification.Transfer
                 };
+
                 m_DepthAttachmentImage = Texture2D::CreateNull(spec);
             }
             else
@@ -94,6 +95,7 @@ namespace Iris {
                     .Samples = 1,
                     .Transfer = m_Specification.Transfer
                 };
+
                 m_ColorAttachmentImages.emplace_back(Texture2D::CreateNull(spec));
             }
 

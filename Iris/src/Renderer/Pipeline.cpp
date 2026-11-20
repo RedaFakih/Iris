@@ -298,6 +298,15 @@ namespace Iris {
 
 							break;
 						}
+						case FramebufferBlendMode::Additive:
+						{
+							blendAttachmentStates[i].srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
+							blendAttachmentStates[i].dstColorBlendFactor = VK_BLEND_FACTOR_ONE;
+							blendAttachmentStates[i].srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+							blendAttachmentStates[i].dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+
+							break;
+						}
 						default:
 							IR_ASSERT(false);
 					}

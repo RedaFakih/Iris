@@ -97,7 +97,7 @@ namespace Iris {
 		m_PanelsManager = PanelsManager::Create();
 
 		m_PanelsManager->AddPanel<ProjectSettingsPanel>(PanelCategory::Edit, "ProjectSettingsPanel", "Project Settings", false);
-		Ref<SceneHierarchyPanel> sceneHierarchyPanel = m_PanelsManager->AddPanel<SceneHierarchyPanel>(PanelCategory::View, "SceneHierarchyPanel", "Scene Hierarchy", true, m_CurrentScene, SelectionContext::Scene);
+		Ref<SceneHierarchyPanel> sceneHierarchyPanel = m_PanelsManager->AddPanel<SceneHierarchyPanel>(PanelCategory::View, "SceneHierarchyPanel", "Scene Hierarchy", true, m_CurrentScene, SelectionContext::Scene, &m_SelectionHighlighCache);
 		sceneHierarchyPanel->SetEntityDeletedCallback([this](Entity entity) { OnEntityDeleted(entity); });
 		sceneHierarchyPanel->AddEntityContextMenuPlugin([this](Entity entity) { SceneHierarchySetEditorCameraTransform(entity); });
 
@@ -201,17 +201,20 @@ namespace Iris {
 
 	void EditorLayer::OnRender(TimeStep ts)
 	{
-		// Set jump flood pass on or off based on if we have selected something in the past frame...
-		m_ViewportRenderer->GetSpecification().JumpFloodPass = SelectionManager::GetSelectionCount(SelectionContext::Scene) > 0;
-
 		if (!m_MainWindowPanelTabOpened)
 			return;
+
+		// By default dont render any JFA passes, however if there is any selections, this will be overwritten in the code below
+		m_ViewportRenderer->GetSpecification().JumpFloodPass = false;
 
 		switch (m_SceneState)
 		{
 			case SceneState::Edit:
 			{
-				m_CurrentScene->OnRenderEditor(m_ViewportRenderer, m_EditorCamera);
+				m_SelectionHighlighCache.Prepare(m_CurrentScene);
+				m_ViewportRenderer->GetSpecification().JumpFloodPass = m_SelectionHighlighCache.AnyMeshHighlighted();
+
+				m_CurrentScene->OnRenderEditor(m_ViewportRenderer, m_EditorCamera, m_SelectionHighlighCache.GetMask());
 
 				OnRender2D();
 
@@ -221,7 +224,10 @@ namespace Iris {
 			{
 				if (m_AllowEditorCameraInRuntime)
 				{
-					m_RuntimeScene->OnRenderEditor(m_ViewportRenderer, m_EditorCamera);
+					m_SelectionHighlighCache.Prepare(m_RuntimeScene);
+					m_ViewportRenderer->GetSpecification().JumpFloodPass = m_SelectionHighlighCache.AnyMeshHighlighted();
+
+					m_RuntimeScene->OnRenderEditor(m_ViewportRenderer, m_EditorCamera, m_SelectionHighlighCache.GetMask());
 
 					OnRender2D();
 				}

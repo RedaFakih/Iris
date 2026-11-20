@@ -88,7 +88,7 @@ void main()
 	{
 		vec4 deviceZ = Gather4(u_InputDepthMap, bufferUV, u_Uniforms.FirstLOD - 1);
 
-		closestDeviceZ = min(min(deviceZ.x, deviceZ.y), min(deviceZ.z, deviceZ.w));;
+		closestDeviceZ = max(max(deviceZ.x, deviceZ.y), max(deviceZ.z, deviceZ.w));;
 		imageStore(o_HierarchalZBuffer[0], outputPixelPos, vec4(closestDeviceZ));
 	}
 
@@ -112,7 +112,7 @@ void main()
 				parentDeviceZ[i] = s_SharedClosestDeviceZ[gl_LocalInvocationIndex + i * reduceBankSize];
 			}
 		
-			closestDeviceZ = min(min(parentDeviceZ.x, parentDeviceZ.y), min(parentDeviceZ.z, parentDeviceZ.w));
+			closestDeviceZ = max(max(parentDeviceZ.x, parentDeviceZ.y), max(parentDeviceZ.z, parentDeviceZ.w));
 			outputPixelPos = outputPixelPos >> ivec2(1);
 			s_SharedClosestDeviceZ[gl_LocalInvocationIndex] = closestDeviceZ;
 		

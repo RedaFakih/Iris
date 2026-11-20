@@ -9,16 +9,8 @@ namespace Iris {
 	}
 
 	RenderPass::RenderPass(const RenderPassSpecification& spec)
-		: m_Specification(spec)
+		: m_Specification(spec), m_DescriptorSetManager({ .Shader = spec.Pipeline->GetShader(), .DebugName = spec.DebugName, .StartingSet = 0, .EndingSet = 2 })
 	{
-		// The render passes will handle descriptor sets 0, 1, 2 and the material will handle descriptor set 3 since it is the per-draw
-		DescriptorSetManagerSpecification managerSpec = {
-			.Shader = spec.Pipeline->GetShader(),
-			.DebugName = spec.DebugName,
-			.StartingSet = 0,
-			.EndingSet = 2
-		};
-		m_DescriptorSetManager = DescriptorSetManager(managerSpec);
 	}
 
 	RenderPass::~RenderPass()
@@ -60,9 +52,9 @@ namespace Iris {
 		m_DescriptorSetManager.SetInput(name, storageBufferSet);
 	}
 
-	void RenderPass::SetInput(std::string_view name, Ref<Texture2D> texture)
+	void RenderPass::SetInput(std::string_view name, Ref<Texture2D> texture, uint32_t index)
 	{
-		m_DescriptorSetManager.SetInput(name, texture);
+		m_DescriptorSetManager.SetInput(name, texture, index);
 	}
 
 	void RenderPass::SetInput(std::string_view name, Ref<TextureCube> textureCube)
@@ -71,6 +63,33 @@ namespace Iris {
 	}
 
 	void RenderPass::SetInput(std::string_view name, Ref<ImageView> imageView)
+	{
+		m_DescriptorSetManager.SetInput(name, imageView);
+	}
+
+	// ========================== Output ==========================
+
+	void RenderPass::SetOutput(std::string_view name, Ref<StorageBuffer> storageBuffer)
+	{
+		m_DescriptorSetManager.SetInput(name, storageBuffer);
+	}
+
+	void RenderPass::SetOutput(std::string_view name, Ref<StorageBufferSet> storageBufferSet)
+	{
+		m_DescriptorSetManager.SetInput(name, storageBufferSet);
+	}
+
+	void RenderPass::SetOutput(std::string_view name, Ref<Texture2D> texture, uint32_t index)
+	{
+		m_DescriptorSetManager.SetInput(name, texture, index);
+	}
+
+	void RenderPass::SetOutput(std::string_view name, Ref<TextureCube> textureCube)
+	{
+		m_DescriptorSetManager.SetInput(name, textureCube);
+	}
+
+	void RenderPass::SetOutput(std::string_view name, Ref<ImageView> imageView)
 	{
 		m_DescriptorSetManager.SetInput(name, imageView);
 	}

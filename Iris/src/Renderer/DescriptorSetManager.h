@@ -32,10 +32,10 @@ namespace Iris {
 		UniformBufferSet,
 		StorageBuffer,
 		StorageBufferSet,
+		StorageImage,
 		Texture2D,
 		TextureCube,
-		ImageView,
-		StorageImage
+		ImageView
 	};
 
 	enum class RenderPassInputType
@@ -316,6 +316,8 @@ namespace Iris {
 		void Init();
 		void Release();
 		const RenderPassInputDeclaration* GetInputDeclaration(std::string_view name) const;
+
+		std::vector<void*> GetResourceHandles(const RenderPassInput& input, uint32_t frameIndex);
 
 	private:
 		DescriptorSetManagerSpecification m_Specification;

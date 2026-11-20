@@ -59,6 +59,9 @@ namespace Iris {
 			if (descriptorPool)
 				vkDestroyDescriptorPool(device, descriptorPool, nullptr);
 		});
+
+		m_InvalidatedInputResources.clear();
+		m_InputResources.clear();
 	}
 
 	void DescriptorSetManager::Init()
@@ -152,7 +155,7 @@ namespace Iris {
 					{
 						for (std::size_t i = 0; i < input.Input.size(); i++)
 						{
-							input.Input[i] = Renderer::GetStorageImage();
+							input.Input[i] = Renderer::GetDummyStorageImage();
 						}
 
 						IR_CORE_WARN_TAG("Renderer", "[RenderPass ({})::Init] Setting {} to white 2D texture.", m_Specification.DebugName, name);
@@ -263,11 +266,7 @@ namespace Iris {
 
 			VkDescriptorPoolCreateInfo descPoolInfo = {
 				.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
-				//  The flag is actually not needed for the descriptor set manager since it does not manually free descriptor sets which lowers performance...
-				// .flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT,
-				.maxSets = 10 * descriptorSetCount, // frames in flight should contribute to this variable since we have 4 descriptor sets in total
-				// however the Manager will be split between renderpass(manages 3 sets) and material(manages 1 set) and so ten is number higher than
-				// the min required number of sets to be allocated by the renderpass(3 * 3) or the material(1 * 3).
+				.maxSets = 10 * descriptorSetCount,
 				.poolSizeCount = static_cast<uint32_t>(sizes.size()),
 				.pPoolSizes = sizes.data()
 			};
@@ -278,22 +277,12 @@ namespace Iris {
 		// - Allocate DescriptorSets
 		// - Complete the write descriptors that were partially created in the shader and then call vkUpdateDescriptorSets
 
-		// Returns the sets that contain a UniformBufferSet/StorageBufferSet resource
-		std::set<uint32_t> bufferSets = HasBufferSets();
-
-		// Add the per-frame DescriptorSet vectors...
-		for (uint32_t i = 0; i < descriptorSetCount; i++)
-			m_DescriptorSets.emplace_back();
-
-		// Clear the per-frame DescriptorSet vectors...
-		for (std::vector<VkDescriptorSet>& descriptorSet : m_DescriptorSets)
-			descriptorSet.clear();
+		m_DescriptorSets.clear();
+		m_DescriptorSets.resize(descriptorSetCount);
 
 		for (const auto& [set, setData] : m_InputResources)
 		{
 			// NOTE: Need to duplicate all the sets to the number of frames in flight.
-			// NOTE: In the future we should add the option to specify what sets should not be duplicated since they are static resources that
-			// do not get updated throughout the lifetime of the application
 			VkDescriptorSetLayout dsl = m_Specification.Shader->GetDescriptorSetLayout(set);
 			for (uint32_t frameIndex = 0; frameIndex < descriptorSetCount; frameIndex++)
 			{
@@ -496,104 +485,17 @@ namespace Iris {
 		{
 			for (const auto& [binding, renderPassInput] : inputs)
 			{
-				switch (renderPassInput.Type)
-				{
-					case DescriptorResourceType::UniformBuffer:
-					{
-						Ref<UniformBuffer> uniformBuffer = renderPassInput.Input[0].As<UniformBuffer>();
-						const VkDescriptorBufferInfo& bufferInfo = uniformBuffer->GetDescriptorBufferInfo();
-						if (bufferInfo.buffer != m_WriteDescriptorMap[currentFrameIndex].at(set).at(binding).ResourceHandles[0])
-							m_InvalidatedInputResources[set][binding] = renderPassInput;
+				const std::vector<void*> currentHandles = GetResourceHandles(renderPassInput, currentFrameIndex);
+				const std::vector<void*>& writtenHandles = m_WriteDescriptorMap[currentFrameIndex].at(set).at(binding).ResourceHandles;
 
-						break;
-					}
-					case DescriptorResourceType::UniformBufferSet:
-					{
-						Ref<UniformBufferSet> uniformBufferSet = renderPassInput.Input[0].As<UniformBufferSet>();
-						const VkDescriptorBufferInfo& bufferInfo = uniformBufferSet->Get(currentFrameIndex)->GetDescriptorBufferInfo();
-						if (bufferInfo.buffer != m_WriteDescriptorMap[currentFrameIndex].at(set).at(binding).ResourceHandles[0])
-							m_InvalidatedInputResources[set][binding] = renderPassInput;
-
-						break;
-					}
-					case DescriptorResourceType::StorageBuffer:
-					{
-						Ref<StorageBuffer> storageBuffer = renderPassInput.Input[0].As<StorageBuffer>();
-						const VkDescriptorBufferInfo& bufferInfo = storageBuffer->GetDescriptorBufferInfo();
-						if (bufferInfo.buffer != m_WriteDescriptorMap[currentFrameIndex].at(set).at(binding).ResourceHandles[0])
-							m_InvalidatedInputResources[set][binding] = renderPassInput;
-
-						break;
-					}
-					case DescriptorResourceType::StorageBufferSet:
-					{
-						Ref<StorageBufferSet> storageBufferSet = renderPassInput.Input[0].As<StorageBufferSet>();
-						const VkDescriptorBufferInfo& bufferInfo = storageBufferSet->Get(currentFrameIndex)->GetDescriptorBufferInfo();
-						if (bufferInfo.buffer != m_WriteDescriptorMap[currentFrameIndex].at(set).at(binding).ResourceHandles[0])
-							m_InvalidatedInputResources[set][binding] = renderPassInput;
-
-						break;
-					}
-					case DescriptorResourceType::Texture2D:
-					{
-						for (std::size_t i = 0; i < renderPassInput.Input.size(); i++)
-						{
-							Ref<Texture2D> texture = renderPassInput.Input[i].As<Texture2D>();
-							const VkDescriptorImageInfo& imageInfo = texture->GetDescriptorImageInfo();
-							if (imageInfo.imageView != m_WriteDescriptorMap[currentFrameIndex].at(set).at(binding).ResourceHandles[i])
-							{
-								m_InvalidatedInputResources[set][binding] = renderPassInput;
-								
-								break;
-							}
-						}
-
-						break;
-					}
-					case DescriptorResourceType::TextureCube:
-					{
-						Ref<TextureCube> textureCube = renderPassInput.Input[0].As<TextureCube>();
-						const VkDescriptorImageInfo& imageInfo = textureCube->GetDescriptorImageInfo();
-						if (imageInfo.imageView != m_WriteDescriptorMap[currentFrameIndex].at(set).at(binding).ResourceHandles[0])
-							m_InvalidatedInputResources[set][binding] = renderPassInput;
-
-						break;
-					}
-					case DescriptorResourceType::ImageView:
-					{
-						Ref<ImageView> imageView = renderPassInput.Input[0].As<ImageView>();
-						const VkDescriptorImageInfo& imageInfo = imageView->GetDescriptorImageInfo();
-						if (imageInfo.imageView != m_WriteDescriptorMap[currentFrameIndex].at(set).at(binding).ResourceHandles[0])
-							m_InvalidatedInputResources[set][binding] = renderPassInput;
-
-						break;
-					}
-					case DescriptorResourceType::StorageImage:
-					{
-						for (std::size_t i = 0; i < renderPassInput.Input.size(); i++)
-						{
-							Ref<Texture2D> storageImage = renderPassInput.Input[i].As<Texture2D>();
-							const VkDescriptorImageInfo& imageInfo = storageImage->GetDescriptorImageInfo();
-							if (imageInfo.imageView != m_WriteDescriptorMap[currentFrameIndex].at(set).at(binding).ResourceHandles[i])
-							{
-								m_InvalidatedInputResources[set][binding] = renderPassInput;
-								
-								break;
-							}
-						}
-					
-						break;
-					}
-				}
+				if (currentHandles != writtenHandles)
+					m_InvalidatedInputResources[set][binding] = renderPassInput;
 			}
 		}
 
 		// Nothing to do
 		if (m_InvalidatedInputResources.empty())
 			return;
-
-		// Returns the sets that contain a UniformBufferSet/StorageBufferSet resource
-		std::set<uint32_t> bufferSets = HasBufferSets();
 
 		for (const auto& [set, setData] : m_InvalidatedInputResources)
 		{
@@ -779,10 +681,11 @@ namespace Iris {
 	{
 		const RenderPassInputDeclaration* decl = GetInputDeclaration(name);
 
-		IR_ASSERT(index < decl->Count);
-
 		if (decl)
+		{
+			IR_ASSERT(index < decl->Count);
 			m_InputResources.at(decl->Set).at(decl->Binding).Set(texture, index);
+		}
 		else
 			IR_CORE_ERROR_TAG("Renderer", "[RenderPass ({})::SetInput] Input {} not found!", m_Specification.DebugName, name);
 	}
@@ -801,10 +704,11 @@ namespace Iris {
 	{
 		const RenderPassInputDeclaration* decl = GetInputDeclaration(name);
 
-		IR_ASSERT(index < decl->Count);
-
 		if (decl)
+		{
+			IR_ASSERT(index < decl->Count);
 			m_InputResources.at(decl->Set).at(decl->Binding).Set(imageView, index);
+		}
 		else
 			IR_CORE_ERROR_TAG("Renderer", "[RenderPass ({})::SetInput] Input {} not found!", m_Specification.DebugName, name);
 	}
@@ -871,5 +775,61 @@ namespace Iris {
 
 		const RenderPassInputDeclaration* declaration = &(m_InputDeclarations.at(nameStr));
 		return declaration;
+	}
+
+	std::vector<void*> DescriptorSetManager::GetResourceHandles(const RenderPassInput& input, uint32_t frameIndex)
+	{
+		std::vector<void*> handles(input.Input.size(), nullptr);
+
+		switch (input.Type)
+		{
+			case DescriptorResourceType::UniformBuffer:
+			{
+				handles[0] = input.Input[0].As<UniformBuffer>()->GetDescriptorBufferInfo().buffer;
+
+				break;
+			}
+			case DescriptorResourceType::UniformBufferSet:
+			{
+				handles[0] = input.Input[0].As<UniformBufferSet>()->Get(frameIndex)->GetDescriptorBufferInfo().buffer;
+
+				break;
+			}
+			case DescriptorResourceType::StorageBuffer:
+			{
+				handles[0] = input.Input[0].As<StorageBuffer>()->GetDescriptorBufferInfo().buffer;
+
+				break;
+			}
+			case DescriptorResourceType::StorageBufferSet:
+			{
+				handles[0] = input.Input[0].As<StorageBufferSet>()->Get(frameIndex)->GetDescriptorBufferInfo().buffer;
+
+				break;
+			}
+			case DescriptorResourceType::Texture2D:
+			case DescriptorResourceType::StorageImage:
+			{
+				for (uint32_t i = 0; i < input.Input.size(); i++)
+					handles[i] = input.Input[i].As<Texture2D>()->GetVulkanImageView();
+
+				break;
+			}
+			case DescriptorResourceType::TextureCube:
+			{
+				for (uint32_t i = 0; i < input.Input.size(); i++)
+					handles[i] = input.Input[i].As<TextureCube>()->GetVulkanImageView();
+
+				break;
+			}
+			case DescriptorResourceType::ImageView:
+			{
+				for (uint32_t i = 0; i < input.Input.size(); i++)
+					handles[i] = input.Input[i].As<ImageView>()->GetVulkanImageView();
+				break;
+			}
+		}
+
+		return handles;
 	}
 }

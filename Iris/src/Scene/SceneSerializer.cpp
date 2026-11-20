@@ -1,7 +1,6 @@
 #include "IrisPCH.h"
 #include "SceneSerializer.h"
 
-#include "AssetManager/Asset/MeshColliderAsset.h"
 #include "AssetManager/AssetManager.h"
 #include "Physics/Physics.h"
 #include "Project/Project.h"
@@ -317,8 +316,6 @@ namespace Iris {
 			out << YAML::BeginMap;
 
 			const MeshColliderComponent& meshColliderComponent = entity.GetComponent<MeshColliderComponent>();
-			if (!AssetManager::IsMemoryAsset(meshColliderComponent.ColliderAsset))
-				out << YAML::Key << "ColliderAsset" << YAML::Value << meshColliderComponent.ColliderAsset;
 
 			out << YAML::Key << "UseSharedShape" << YAML::Value << meshColliderComponent.UseSharedShape;
 			out << YAML::Key << "Friction" << YAML::Value << meshColliderComponent.Material.Friction;
@@ -645,27 +642,30 @@ namespace Iris {
 			{
 				MeshColliderComponent& component = deserializedEntity.AddComponent<MeshColliderComponent>();
 
-				component.ColliderAsset = meshColliderComponent["ColliderAsset"].as<AssetHandle>(0);
-				Ref<MeshColliderAsset> colliderAsset = AssetManager::GetAsset<MeshColliderAsset>(component.ColliderAsset);
-				if (!colliderAsset)
-				{
-					AssetHandle colliderMesh = 0;
-					if (deserializedEntity.HasComponent<StaticMeshComponent>())
-						colliderMesh = deserializedEntity.GetComponent<StaticMeshComponent>().StaticMesh;
-
-					component.ColliderAsset = AssetManager::CreateMemoryOnlyAsset<MeshColliderAsset>(colliderMesh);
-					colliderAsset = AssetManager::GetAsset<MeshColliderAsset>(component.ColliderAsset);
-					if (!colliderAsset)
-						IR_CORE_ERROR_TAG("AssetManager", "MeshColliderComponent is in use without a valid mesh");
-				}
-
 				component.UseSharedShape = meshColliderComponent["UseSharedShape"].as<bool>(false);
 				component.Material.Friction = meshColliderComponent["Friction"].as<float>(0.5f);
 				component.Material.Restitution = meshColliderComponent["Restitution"].as<float>(0.0f);
 				component.CollisionComplexity = static_cast<PhysicsCollisionComplexity>(meshColliderComponent["CollisionComplexity"].as<uint8_t>(0));
-			
-				if (colliderAsset && !PhysicsSystem::GetMesheColliderCache()->Exists(colliderAsset))
-					MeshCookingFactory::CookMesh(component.ColliderAsset);
+
+				if (deserializedEntity.HasComponent<StaticMeshComponent>())
+				{
+					AssetHandle staticMeshHandle = deserializedEntity.GetComponent<StaticMeshComponent>().StaticMesh;
+					if (AssetManager::IsAssetHandleValid(staticMeshHandle))
+					{
+						if (!PhysicsSystem::GetMesheColliderCache()->Exists(staticMeshHandle))
+						{
+							MeshCookingFactory::CookMesh(staticMeshHandle);
+						}
+					}
+					else
+					{
+						IR_CORE_ERROR_TAG("Physics", "Entity '{0}' has a MeshColliderComponent, but its StaticMeshComponent has an invalid mesh handle!", deserializedEntity.Name());
+					}
+				}
+				else
+				{
+					IR_CORE_ERROR_TAG("Physics", "Entity '{0}' has a MeshColliderComponent, but lacks a StaticMeshComponent!", deserializedEntity.Name());
+				}
 			}
 
 			YAML::Node rigidBody2DComponent = entity["RigidBody2DComponent"];

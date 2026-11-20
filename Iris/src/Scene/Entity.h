@@ -48,12 +48,27 @@ namespace Iris {
 		template<typename T>
 		void RemoveComponentIfExists();
 
-		std::string& Name() { return HasComponent<TagComponent>() ? GetComponent<TagComponent>().Tag : s_NoName; }
-		const std::string& Name() const { return HasComponent<TagComponent>() ? GetComponent<TagComponent>().Tag : s_NoName; }
+		std::string& Name()
+		{
+			auto* tag = TryGetComponent<TagComponent>();
+			if (tag)
+				return tag->Tag;
+
+			return s_NoName;
+		}
+
+		const std::string& Name() const
+		{
+			auto* tag = TryGetComponent<TagComponent>();
+			if (tag)
+				return tag->Tag;
+
+			return s_NoName;
+		}
 		
-		operator uint32_t() const { return static_cast<uint32_t>(m_EntityHandle); }
-		operator entt::entity() const { return m_EntityHandle; }
-		operator bool() const;
+		explicit operator uint32_t() const { return static_cast<uint32_t>(m_EntityHandle); }
+		explicit operator entt::entity() const { return m_EntityHandle; }
+		explicit operator bool() const;
 
 		bool operator==(const Entity& other) const
 		{
@@ -67,52 +82,29 @@ namespace Iris {
 
 		Entity GetParent() const;
 
-		void SetParent(Entity parent)
-		{
-			Entity currentParent = GetParent();
-			if (currentParent)
-				return;
-
-			// If changing parent, remove child from existing parent
-			if (currentParent)
-				currentParent.RemoveChild(*this);
-
-			// Setting to null is okay
-			SetParentUUID(parent.GetUUID());
-
-			if (parent)
-			{
-				auto& parentChildren = parent.Children();
-				UUID uuid = GetUUID();
-				if (std::find(parentChildren.begin(), parentChildren.end(), uuid) == parentChildren.end())
-					parentChildren.emplace_back(GetUUID());
-			}
-		}
-
-		void SetParentUUID(UUID parent) { GetComponent<RelationshipComponent>().ParentHandle = parent; }
 		UUID GetParentUUID() const { return GetComponent<RelationshipComponent>().ParentHandle; }
-		std::vector<UUID>& Children() { return GetComponent<RelationshipComponent>().Children; }
 		const std::vector<UUID>& Children() const { return GetComponent<RelationshipComponent>().Children; }
 
-		bool RemoveChild(Entity child)
+		bool IsAncestorOf(Entity entity) const { return entity.IsDescendantOf(*this); }
+
+		bool IsDescendantOf(Entity entity) const
 		{
-			UUID childID = child.GetUUID();
-			std::vector<UUID>& children = Children();
-			auto it = std::find(children.begin(), children.end(), childID);
-			if (it != children.end())
+			if (!entity)
+				return false;
+
+			const UUID target = entity.GetUUID();
+
+			for (Entity e = GetParent(); e; e = e.GetParent())
 			{
-				children.erase(it);
-				return true;
+				if (e.GetUUID() == target)
+					return true;
 			}
 
 			return false;
 		}
 
-		bool IsAncestorOf(Entity entity) const;
-		bool IsDescendantOf(Entity entity) const { return entity.IsAncestorOf(*this); }
-
 		TransformComponent& Transform() { return GetComponent<TransformComponent>(); }
-		const glm::mat4& Transform() const { return GetComponent<TransformComponent>().GetTransform(); }
+		const glm::mat4& GetTransformMatrix() const { return GetComponent<TransformComponent>().GetTransform(); }
 
 		UUID GetUUID() const { return GetComponent<IDComponent>().ID; }
 		UUID GetSceneUUID() const;

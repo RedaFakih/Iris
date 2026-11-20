@@ -25,41 +25,13 @@ namespace Iris {
         }
     }
 
-    std::pair<PhysicsCookingResult, PhysicsCookingResult> MeshCookingFactory::CookMesh(AssetHandle meshColliderAssetHandle, bool invalidateOld)
-    {
-        return CookMesh(AssetManager::GetAsset<MeshColliderAsset>(meshColliderAssetHandle), invalidateOld);
-    }
-
-    std::pair<PhysicsCookingResult, PhysicsCookingResult> MeshCookingFactory::CookMesh(Ref<MeshColliderAsset> meshColliderAsset, bool invalidateOld)
-    {
-        /*
-         * TODO: Here we should not really serialize those meshes colliders
-         */
-        
+    std::pair<PhysicsCookingResult, PhysicsCookingResult> MeshCookingFactory::CookMesh(AssetHandle staticMeshHandle, bool invalidateOld)
+    {        
         Timer timer;
 
         Utils::CreateCacheDirectoryIfNeeded();
 
-        AssetHandle colliderHandle = meshColliderAsset->Handle;
-
-        if (!AssetManager::IsAssetHandleValid(colliderHandle))
-        {
-            IR_CORE_ERROR_TAG("Physics", "Tried to cook mesh collider using an invalid mesh!");
-            return { PhysicsCookingResult::InvalidMesh, PhysicsCookingResult::InvalidMesh };
-        }
-
-        Ref<StaticMesh> mesh = AssetManager::GetAsset<StaticMesh>(meshColliderAsset->ColliderMesh);
-
-        if (!mesh)
-        {
-            IR_CORE_ERROR_TAG("Physics", "Tried to cook mesh collider using an invalid mesh!");
-            return { PhysicsCookingResult::InvalidMesh, PhysicsCookingResult::InvalidMesh };
-        }
-
-        IR_ASSERT(mesh->GetAssetType() == AssetType::StaticMesh);
-
-        std::string baseFileName = fmt::format("Mesh-{0}", colliderHandle);
-        const bool isPhysicalAsset = !AssetManager::IsMemoryAsset(colliderHandle);
+        std::string baseFileName = fmt::format("Mesh-{0}", staticMeshHandle);
 
         std::filesystem::path simpleColliderFilePath = Utils::GetCacheDirectory() / fmt::format("{0}-simple.IJmc", baseFileName);
         std::filesystem::path complexColliderFilePath = Utils::GetCacheDirectory() / fmt::format("{0}-complex.IJmc", baseFileName);
@@ -67,6 +39,10 @@ namespace Iris {
         CachedColliderData colliderData;
         PhysicsCookingResult simpleMeshResult = PhysicsCookingResult::Failure;
         PhysicsCookingResult complexMeshResult = PhysicsCookingResult::Failure;
+
+        Ref<StaticMesh> mesh = AssetManager::GetAsset<StaticMesh>(staticMeshHandle);
+        if (!mesh)
+            return { PhysicsCookingResult::InvalidMesh, PhysicsCookingResult::InvalidMesh };
 
         Ref<MeshSource> meshSource = AssetManager::GetAsset<MeshSource>(mesh->GetMeshSource());
         if (meshSource)
@@ -76,12 +52,11 @@ namespace Iris {
             // Cook or load the simple collider
             if (invalidateOld || !std::filesystem::exists(simpleColliderFilePath))
             {
-                simpleMeshResult = CookConvexMesh(meshColliderAsset, meshSource, subMeshIndices, colliderData.SimpleColliderData);
+                simpleMeshResult = CookConvexMesh(meshSource, subMeshIndices, colliderData.SimpleColliderData);
 
-                if (simpleMeshResult == PhysicsCookingResult::Success && !SerializeMeshCollider(simpleColliderFilePath, colliderData.SimpleColliderData))
+                if (simpleMeshResult == PhysicsCookingResult::Success)
                 {
-                    IR_CORE_ERROR_TAG("Physics", "Failed to cook simple collider mesh.");
-                    simpleMeshResult = PhysicsCookingResult::Failure;
+                    SerializeMeshCollider(simpleColliderFilePath, colliderData.SimpleColliderData);
                 }
             }
            else
@@ -91,17 +66,21 @@ namespace Iris {
            }
 
             if (simpleMeshResult == PhysicsCookingResult::Success)
-                GenerateDebugMesh(meshColliderAsset, subMeshIndices, colliderData.SimpleColliderData);
+            {
+                if (!PhysicsSystem::GetMesheColliderCache()->GetDebugStaticMesh(staticMeshHandle, PhysicsCollisionComplexity::UseSimpleAsComplex))
+                {
+                    GenerateDebugMesh(staticMeshHandle, subMeshIndices, colliderData.SimpleColliderData);
+                }
+            }
 
             // Cook or load the complex collider
             if (invalidateOld || !std::filesystem::exists(complexColliderFilePath))
             {
-                complexMeshResult = CookTriangleMesh(meshColliderAsset, meshSource, subMeshIndices, colliderData.ComplexColliderData);
+                complexMeshResult = CookTriangleMesh(meshSource, subMeshIndices, colliderData.ComplexColliderData);
 
-                if (complexMeshResult == PhysicsCookingResult::Success && !SerializeMeshCollider(complexColliderFilePath, colliderData.ComplexColliderData))
+                if (complexMeshResult == PhysicsCookingResult::Success)
                 {
-                    IR_CORE_ERROR_TAG("Physics", "Failed to cook complex collider mesh");
-                    complexMeshResult = PhysicsCookingResult::Failure;
+                    SerializeMeshCollider(complexColliderFilePath, colliderData.ComplexColliderData);
                 }
             }
             else
@@ -111,17 +90,14 @@ namespace Iris {
             }
 
             if (complexMeshResult == PhysicsCookingResult::Success)
-                GenerateDebugMesh(meshColliderAsset, subMeshIndices, colliderData.ComplexColliderData);
-
-            if (simpleMeshResult == PhysicsCookingResult::Success || complexMeshResult == PhysicsCookingResult::Success)
             {
-                // Add to cache
-                Ref<MeshColliderCache>& meshCache = PhysicsSystem::GetMesheColliderCache();
-                if (isPhysicalAsset)
-                    meshCache->m_MeshData[meshColliderAsset->ColliderMesh][colliderHandle] = colliderData;
-                else
-                    meshCache->m_MeshData[meshColliderAsset->ColliderMesh][0] = colliderData;
+                if (!PhysicsSystem::GetMesheColliderCache()->GetDebugStaticMesh(staticMeshHandle, PhysicsCollisionComplexity::UseComplexAsSimple))
+                {
+                    GenerateDebugMesh(staticMeshHandle, subMeshIndices, colliderData.ComplexColliderData);
+                }
             }
+
+            PhysicsSystem::GetMesheColliderCache()->AddMeshData(staticMeshHandle, colliderData);
         }
 
         IR_CORE_DEBUG("CookingFactory::CookMesh took {}ms ", timer.ElapsedMillis());
@@ -129,7 +105,7 @@ namespace Iris {
         return { simpleMeshResult, complexMeshResult };
     }
 
-    PhysicsCookingResult MeshCookingFactory::CookConvexMesh(const Ref<MeshColliderAsset>& meshColliderAsset, const Ref<MeshSource>& meshSource, const std::vector<uint32_t>& subMeshIndices, MeshColliderData& outData)
+    PhysicsCookingResult MeshCookingFactory::CookConvexMesh(const Ref<MeshSource>& meshSource, const std::vector<uint32_t>& subMeshIndices, MeshColliderData& outData)
     {
         PhysicsCookingResult cookingResult = PhysicsCookingResult::Failure;
 
@@ -185,7 +161,7 @@ namespace Iris {
 
             SubMeshColliderData& data = outData.SubMeshes.emplace_back();
             data.ColliderData = joltBufferWriter.ToBuffer();
-            data.Transform = subMesh.Transform * glm::scale(glm::mat4(1.0f), meshColliderAsset->ColliderScale);
+            data.Transform = subMesh.Transform * glm::scale(glm::mat4(1.0f), glm::vec3(1.0f));
             cookingResult = PhysicsCookingResult::Success;
         }
 
@@ -194,7 +170,7 @@ namespace Iris {
         return cookingResult;
     }
 
-    PhysicsCookingResult MeshCookingFactory::CookTriangleMesh(const Ref<MeshColliderAsset>& meshColliderAsset, const Ref<MeshSource>& meshSource, const std::vector<uint32_t>& subMeshIndices, MeshColliderData& outData)
+    PhysicsCookingResult MeshCookingFactory::CookTriangleMesh(const Ref<MeshSource>& meshSource, const std::vector<uint32_t>& subMeshIndices, MeshColliderData& outData)
     {
         PhysicsCookingResult cookingResult = PhysicsCookingResult::Failure;
 
@@ -250,7 +226,7 @@ namespace Iris {
 
             SubMeshColliderData& data = outData.SubMeshes.emplace_back();
             data.ColliderData = joltBufferWriter.ToBuffer();
-            data.Transform = subMesh.Transform * glm::scale(glm::mat4(1.0f), meshColliderAsset->ColliderScale);
+            data.Transform = subMesh.Transform * glm::scale(glm::mat4(1.0f), glm::vec3(1.0f));
             cookingResult = PhysicsCookingResult::Success;
         }
 
@@ -259,7 +235,7 @@ namespace Iris {
         return cookingResult;
     }
 
-    void MeshCookingFactory::GenerateDebugMesh(const Ref<MeshColliderAsset>& meshColliderAsset, const std::vector<uint32_t>& subMeshIndices, const MeshColliderData& colliderData)
+    void MeshCookingFactory::GenerateDebugMesh(AssetHandle staticMeshHandle, const std::vector<uint32_t>& subMeshIndices, const MeshColliderData& colliderData)
     {
         std::vector<MeshUtils::Vertex> vertices;
         std::vector<MeshUtils::Index> indices;
@@ -343,11 +319,11 @@ namespace Iris {
 
             if (colliderData.Type == MeshColliderType::Convex)
             {
-                PhysicsSystem::GetMesheColliderCache()->AddSimpleDebugStaticMesh(meshColliderAsset, StaticMesh::Create(meshSource->Handle, subMeshIndices, false));
+                PhysicsSystem::GetMesheColliderCache()->AddSimpleDebugStaticMesh(staticMeshHandle, StaticMesh::Create(meshSource->Handle, subMeshIndices, false));
             }
             else
             {
-                PhysicsSystem::GetMesheColliderCache()->AddComplexDebugStaticMesh(meshColliderAsset, StaticMesh::Create(meshSource->Handle, subMeshIndices, false));
+                PhysicsSystem::GetMesheColliderCache()->AddComplexDebugStaticMesh(staticMeshHandle, StaticMesh::Create(meshSource->Handle, subMeshIndices, false));
             }
         }
     }
@@ -357,7 +333,7 @@ namespace Iris {
         IrisPhysicsMeshHeader Imc;
         Imc.Type = meshData.Type;
         Imc.SubMeshCount = static_cast<uint32_t>(meshData.SubMeshes.size());
-
+        
         std::ofstream stream(filepath, std::ios::binary | std::ios::trunc);
         if (!stream)
         {
@@ -368,7 +344,7 @@ namespace Iris {
             meshData.SubMeshes.clear();
             return false;
         }
-
+        
         stream.write(reinterpret_cast<char*>(&Imc), sizeof(IrisPhysicsMeshHeader));
         for (SubMeshColliderData& submesh : meshData.SubMeshes)
         {

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Editor/EditorPanel.h"
+#include "Editor/SelectionHighlightCache.h"
 #include "Editor/SelectionManager.h"
 #include "ImGui/CustomTreeNode.h"
 #include "ImGui/ImGuiUtils.h"
@@ -17,10 +18,10 @@ namespace Iris {
 	{
 	public:
 		SceneHierarchyPanel() = default;
-		SceneHierarchyPanel(const Ref<Scene> scene, SelectionContext selectionContext, bool isWindow = true);
+		SceneHierarchyPanel(const Ref<Scene> scene, SelectionContext selectionContext, WeakRef<SelectionHighlightCache> selectionHighlightCache, bool isWindow = true);
 		
 		[[nodiscard]] static Ref<SceneHierarchyPanel> Create();
-		[[nodiscard]] static Ref<SceneHierarchyPanel> Create(const Ref<Scene> scene, SelectionContext selectionContext, bool isWindow = true);
+		[[nodiscard]] static Ref<SceneHierarchyPanel> Create(const Ref<Scene> scene, SelectionContext selectionContext, WeakRef<SelectionHighlightCache> selectionHighlightCache, bool isWindow = true);
 
 		virtual void SetSceneContext(const Ref<Scene>& scene) override;
 		virtual void OnImGuiRender(bool& isOpen) override;
@@ -278,6 +279,8 @@ namespace Iris {
 		std::vector<UUID> m_EntityDeletionQueue;
 
 		SelectionContext m_SelectionContext;
+
+		WeakRef<SelectionHighlightCache> m_SelectionHighlightCache;
 
 		int32_t m_FirstSelectedRow = -1;
 		int32_t m_LastSelectedRow = -1;

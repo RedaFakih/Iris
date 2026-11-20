@@ -14,11 +14,8 @@ namespace Iris {
 	}
 
 	Material::Material(Ref<Material> other, const std::string& name)
-		: m_Shader(other->GetShader()), m_Name(name)
+		: m_Shader(other->GetShader()), m_Name(name.empty() ? other->GetName() : name)
 	{
-		if (name.empty())
-			m_Name = other->GetName();
-
 		Init(true, other->m_DescriptorSetManager.GetInputResources());
 		// Renderer::RegisterShaderDependency(m_Shader, this); // Should not register this otherwise we get duplicate materials
 

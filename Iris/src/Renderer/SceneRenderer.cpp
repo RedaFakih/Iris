@@ -30,7 +30,10 @@ namespace Iris {
 		m_ViewportWidth = m_Specification.ViewportWidth;
 		m_ViewportHeight = m_Specification.ViewportHeight;
 		if (m_ViewportWidth > 0 && m_ViewportHeight > 0)
+		{
 			m_NeedsResize = true;
+			m_NeedsResizeGTAOBuffers = true;
+		}
 
 		m_CommandBuffer = RenderCommandBuffer::Create(0, "SceneRenderer");
 
@@ -98,8 +101,8 @@ namespace Iris {
 				.GenerateMips = false,
 				.Layers = m_Specification.NumberOfShadowCascades
 			};
-			Ref<Texture2D> cascadedShadowImage = Texture2D::Create(cascadedImageSpec);
-			m_DirShadowImagePerLayerViews = cascadedShadowImage->CreatePerLayerImageViews();
+			m_CascadedDirectionalShadowMap = Texture2D::Create(cascadedImageSpec);
+			m_DirShadowImagePerLayerViews = m_CascadedDirectionalShadowMap->CreatePerLayerImageViews();
 
 			m_DirectionalShadowPasses.reserve(m_Specification.NumberOfShadowCascades);
 			for (uint32_t i = 0; i < m_Specification.NumberOfShadowCascades; i++)
@@ -112,7 +115,7 @@ namespace Iris {
 					.DepthClearValue = 1.0f,
 					.Attachments = { ImageFormat::Depth32F }
 				};
-				directionalShadowFBSpec.ExistingImages[0] = cascadedShadowImage;
+				directionalShadowFBSpec.ExistingImages[0] = m_CascadedDirectionalShadowMap;
 				directionalShadowFBSpec.ExistingImageLayerViews[0] = m_DirShadowImagePerLayerViews[i];
 
 				PipelineSpecification directionalShadowPiplineSpec = {
@@ -422,6 +425,7 @@ namespace Iris {
 					.DebugName = "GTAO-FinalImage",
 					.Format = ImageFormat::R32UI,
 					.Usage = ImageUsage::Storage,
+					.WrapMode = TextureWrap::Clamp,
 					.FilterMode = TextureFilter::Nearest,
 					.GenerateMips = false
 				};
@@ -451,15 +455,49 @@ namespace Iris {
 				m_GTAOPass->SetInput("u_HZB", m_HierarchalZBufferResources.Texture);
 				m_GTAOPass->SetInput("u_HilbertLUT", Renderer::GetHilbertLUT());
 				m_GTAOPass->SetInput("u_ViewNormal", m_GeometryPass->GetOutput(1));
-				m_GTAOPass->SetInput("o_AOwBentNormals", m_GTAOOutputImage);
-				m_GTAOPass->SetInput("o_Edges", m_GTAOEdgesOutputImage);
+				m_GTAOPass->SetOutput("o_AOwBentNormals", m_GTAOOutputImage);
+				m_GTAOPass->SetOutput("o_Edges", m_GTAOEdgesOutputImage);
 
 				m_GTAOPass->Bake();
 			}
 
-			// TODO: GTAO Denoise
+			// GTAO Denoise
 			{
+				TextureSpecification gtaoOutputImageSpec = {
+					.DebugName = "GTAO-FinalImage",
+					.Format = ImageFormat::R32UI,
+					.Usage = ImageUsage::Storage,
+					.WrapMode = TextureWrap::Clamp,
+					.FilterMode = TextureFilter::Nearest,
+					.GenerateMips = false
+				};
 
+				m_GTAODenoiseImage = Texture2D::Create(gtaoOutputImageSpec);
+
+				Ref<Shader> gtaoDenoiseShader = Renderer::GetShadersLibrary()->Get("GTAODenoise");
+				ComputePassSpecification gtaoPassSpec = {
+					.DebugName = "GTAODenoise-Pass",
+					.Pipeline = ComputePipeline::Create(gtaoDenoiseShader),
+					.MarkerColor = { 0.994047, 1, 0.074129, 1.0f }
+				};
+
+				m_GTAODenoisePasses[0] = ComputePass::Create(gtaoPassSpec);
+				
+				m_GTAODenoisePasses[0]->SetInput("u_Edges", m_GTAOEdgesOutputImage);
+				m_GTAODenoisePasses[0]->SetInput("u_AOTerm", m_GTAOOutputImage);
+				m_GTAODenoisePasses[0]->SetInput("o_AOTerm", m_GTAODenoiseImage);
+				m_GTAODenoisePasses[0]->SetInput("ScreenData", m_UBSScreenData);
+
+				m_GTAODenoisePasses[0]->Bake();
+
+				m_GTAODenoisePasses[1] = ComputePass::Create(gtaoPassSpec);
+				
+				m_GTAODenoisePasses[1]->SetInput("u_Edges", m_GTAOEdgesOutputImage);
+				m_GTAODenoisePasses[1]->SetInput("u_AOTerm", m_GTAODenoiseImage);
+				m_GTAODenoisePasses[1]->SetInput("o_AOTerm", m_GTAOOutputImage);
+				m_GTAODenoisePasses[1]->SetInput("ScreenData", m_UBSScreenData);
+				
+				m_GTAODenoisePasses[1]->Bake();
 			}
 
 			// GTAO Compositing
@@ -881,7 +919,7 @@ namespace Iris {
 			m_ComplexColliderMaterial = Material::Create(Renderer::GetShadersLibrary()->Get("WireFrame"), "ComplexColliderMaterial");
 		}
 
-		// TODO: Resizable
+		// TODO: RESIZABLE
 		constexpr std::size_t TransformBufferCount = 10 * 1024; // 10240 transforms
 		m_MeshTransformBuffers.resize(framesInFlight);
 		for (uint32_t i = 0; i < framesInFlight; i++)
@@ -925,6 +963,7 @@ namespace Iris {
 		m_InverseViewportWidth = 1.0f / m_ViewportWidth;
 		m_InverseViewportHeight = 1.0f / m_ViewportHeight;
 		m_NeedsResize = true; // Resize all framebuffers...
+		m_NeedsResizeGTAOBuffers = true;
 	}
 
 	void SceneRenderer::BeginScene(const SceneRendererCamera& camera)
@@ -968,7 +1007,6 @@ namespace Iris {
 		 	m_GeometryPass->GetTargetFramebuffer()->Resize(m_ViewportWidth, m_ViewportHeight);
 		 	m_SelectedGeometryPass->GetTargetFramebuffer()->Resize(m_ViewportWidth, m_ViewportHeight);
 		 	m_SkyboxPass->GetTargetFramebuffer()->Resize(m_ViewportWidth, m_ViewportHeight);
-			m_GTAOCompositingPass->GetTargetFramebuffer()->Resize(m_ViewportWidth, m_ViewportHeight);
 		 	m_CompositePass->GetTargetFramebuffer()->Resize(m_ViewportWidth, m_ViewportHeight);
 
 		 	m_CompositingFramebuffer->Resize(m_ViewportWidth, m_ViewportHeight);
@@ -1003,21 +1041,13 @@ namespace Iris {
 				m_SBSVisibleSpotLightIndicesBuffer->Resize(m_LightCullingWorkGroups.x * m_LightCullingWorkGroups.y * 4 * 100);
 			}
 
-			// GTAO
-			if (m_Options.GTAOEnabled)
-			{
-				glm::uvec2 gtaoSize = m_Options.GTAOHalfResolution ? (viewportSize + 1u) / 2u : viewportSize;
-
-				m_GTAOOutputImage->Resize(gtaoSize.x, gtaoSize.y);
-				m_GTAOEdgesOutputImage->Resize(gtaoSize.x, gtaoSize.y);
-
-				gtaoSize += IR_GTAO_COMPUTE_WORKGROUP_SIZE - gtaoSize % IR_GTAO_COMPUTE_WORKGROUP_SIZE;
-				m_GTAOWorkGroups.x = gtaoSize.x / IR_GTAO_COMPUTE_WORKGROUP_SIZE;
-				m_GTAOWorkGroups.y = gtaoSize.y / IR_GTAO_COMPUTE_WORKGROUP_SIZE;
-			}
-
 			// Hierarchal Z-Buffer
 			{
+				// Note(Reda): This generates an HZB image greater than the viewport size (Precisly next power of two from the viewport size). So the consumers of this Map when sampling from it have to do the following:
+				// vec2(inputPixCoords) * u_ScreenData.InverseFullResolution * u_GTAOConstants.HZBUVFactor
+				// And maybe if needed have the inputPixCoords normalized as such:
+				// - vec2 normalizedScreenPos = (vec2(inputPixCoords) + vec2(0.5f)) * u_ScreenData.InverseFullResolution;
+				// - - normalizedScreenPos * u_GTAOConstants.HZBUVFactor
 				const glm::uvec2 numMips = glm::ceil(glm::log2(glm::vec2{ viewportSize }));
 
 				const glm::uvec2 hzbSize = BIT(numMips);
@@ -1065,6 +1095,34 @@ namespace Iris {
 
 				// Re-setup materials with new image views
 				CreateBloomPassMaterials();
+			}
+		}
+
+		if (m_NeedsResizeGTAOBuffers)
+		{
+			m_NeedsResizeGTAOBuffers = false;
+
+			m_GTAOCompositingPass->GetTargetFramebuffer()->Resize(m_ViewportWidth, m_ViewportHeight);
+
+			// GTAO
+			if (m_Options.GTAOEnabled)
+			{
+				const glm::uvec2 viewportSize = { m_ViewportWidth, m_ViewportHeight };
+
+				glm::uvec2 gtaoSize = m_Options.GTAOHalfResolution ? (viewportSize + 1u) / 2u : viewportSize;
+
+				m_GTAOOutputImage->Resize(gtaoSize.x, gtaoSize.y);
+				m_GTAOEdgesOutputImage->Resize(gtaoSize.x, gtaoSize.y);
+				m_GTAODenoiseImage->Resize(gtaoSize.x, gtaoSize.y);
+
+				gtaoSize += IR_GTAO_COMPUTE_WORKGROUP_SIZE - gtaoSize % IR_GTAO_COMPUTE_WORKGROUP_SIZE;
+				m_GTAOWorkGroups.x = gtaoSize.x / IR_GTAO_COMPUTE_WORKGROUP_SIZE;
+				m_GTAOWorkGroups.y = gtaoSize.y / IR_GTAO_COMPUTE_WORKGROUP_SIZE;
+
+				glm::uvec2 denoiseSize = gtaoSize;
+				denoiseSize += IR_GTAO_DENOISE_WORKGROUP_SIZE - denoiseSize % IR_GTAO_DENOISE_WORKGROUP_SIZE;
+				m_GTAODenoiseWorkGroups.x = (denoiseSize.x + 2u * IR_GTAO_DENOISE_WORKGROUP_SIZE - 1u) / (IR_GTAO_DENOISE_WORKGROUP_SIZE * 2u); // 2 horizontal pixels at a time.
+				m_GTAODenoiseWorkGroups.y = denoiseSize.y / IR_GTAO_DENOISE_WORKGROUP_SIZE;
 			}
 		}
 
@@ -1436,6 +1494,19 @@ namespace Iris {
 				{ .aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT, .baseMipLevel = 0, .levelCount = 1, .baseArrayLayer = 0, .layerCount = 1 }
 			);
 
+			// HZB Buffer
+			Renderer::InsertImageMemoryBarrier(
+				instance->m_CommandBuffer->GetActiveCommandBuffer(),
+				instance->m_HierarchalZBufferResources.Texture->GetVulkanImage(),
+				VK_ACCESS_2_SHADER_READ_BIT,
+				VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT,
+				VK_IMAGE_LAYOUT_UNDEFINED,
+				VK_IMAGE_LAYOUT_GENERAL,
+				VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,
+				VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+				{ .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .baseMipLevel = 0, .levelCount = static_cast<uint32_t>(instance->m_HierarchalZBufferResources.Texture->GetMipLevelCount()), .baseArrayLayer = 0, .layerCount = 1}
+			);
+
 			// Geometry Color images
 			for (int i = 0; i < instance->m_GeometryPass->GetTargetFramebuffer()->GetColorAttachmentCount(); i++)
 			{
@@ -1528,13 +1599,22 @@ namespace Iris {
 			DirectionalShadowPass();
 			PreDepthPass();
 			HZBPass();
+
+			//if (m_Options.GTAOEnabled)
+			//{
+			//	GTAO();
+			//	GTAODenoise();
+			//}
+
 			LightCullingPass();
 			GeometryPass();
 			SkyboxPass();
 
+			// TODO: FOR THE FUTURE THIS SHOULD BE REMOVED AND THE AO SHOULD BE SANMPLED AND BAKED IN THE PBR MATERIALS SHADER!!!!!
 			if (m_Options.GTAOEnabled)
 			{
 				GTAO();
+				GTAODenoise();
 				GTAOComposite();
 			}
 
@@ -1818,31 +1898,31 @@ namespace Iris {
 
 		auto ReduceHZB = [commandBuffer = m_CommandBuffer, hierarchicalDepthPass = m_HierarchalZBufferPass, hierarchicalDepthTexture = m_HierarchalZBufferResources.Texture, hzbMaterials = m_HierarchalZBufferMaterials, hzbMipCount]
 		(const uint32_t startDestMip, const uint32_t parentMip, const glm::vec2& DispatchThreadIdToBufferUV, const glm::vec2& InputViewportMaxBound, const bool isFirstPass)
+		{
+			struct HierarchicalZComputePushConstants
 			{
-				struct HierarchicalZComputePushConstants
-				{
-					glm::vec2 DispatchThreadIdToBufferUV;
-					glm::vec2 InputViewportMaxBound;
-					glm::vec2 InvSize;
-					uint32_t FirstLod;
-					uint32_t ValidMipCount;
-					bool IsFirstPass;
-					char Padding[3]{ 0, 0, 0 };
-				} hierarchicalZComputePushConstants;
+				glm::vec2 DispatchThreadIdToBufferUV;
+				glm::vec2 InputViewportMaxBound;
+				glm::vec2 InvSize;
+				uint32_t FirstLod;
+				uint32_t ValidMipCount;
+				bool IsFirstPass;
+				char Padding[3]{ 0, 0, 0 };
+			} hierarchicalZComputePushConstants;
 
-				hierarchicalZComputePushConstants.IsFirstPass = isFirstPass;
-				hierarchicalZComputePushConstants.FirstLod = startDestMip;
-				hierarchicalZComputePushConstants.DispatchThreadIdToBufferUV = DispatchThreadIdToBufferUV;
-				hierarchicalZComputePushConstants.InputViewportMaxBound = InputViewportMaxBound;
-				hierarchicalZComputePushConstants.ValidMipCount = glm::min(maxMipBatchSize, hzbMipCount - startDestMip);
+			hierarchicalZComputePushConstants.IsFirstPass = isFirstPass;
+			hierarchicalZComputePushConstants.FirstLod = startDestMip;
+			hierarchicalZComputePushConstants.DispatchThreadIdToBufferUV = DispatchThreadIdToBufferUV;
+			hierarchicalZComputePushConstants.InputViewportMaxBound = InputViewportMaxBound;
+			hierarchicalZComputePushConstants.ValidMipCount = glm::min(maxMipBatchSize, hzbMipCount - startDestMip);
 
-				const glm::ivec2 srcSize(Math::DivideAndRoundUp(hierarchicalDepthTexture->GetSize(), 1u << parentMip));
-				const glm::ivec2 dstSize(Math::DivideAndRoundUp(hierarchicalDepthTexture->GetSize(), 1u << startDestMip));
-				hierarchicalZComputePushConstants.InvSize = glm::vec2{ 1.0f / (float)srcSize.x, 1.0f / (float)srcSize.y };
+			const glm::ivec2 srcSize(Math::DivideAndRoundUp(hierarchicalDepthTexture->GetSize(), 1u << parentMip));
+			const glm::ivec2 dstSize(Math::DivideAndRoundUp(hierarchicalDepthTexture->GetSize(), 1u << startDestMip));
+			hierarchicalZComputePushConstants.InvSize = glm::vec2{ 1.0f / (float)srcSize.x, 1.0f / (float)srcSize.y };
 
-				glm::uvec3 workGroups(Math::DivideAndRoundUp(dstSize.x, 8), Math::DivideAndRoundUp(dstSize.y, 8), 1);
-				Renderer::DispatchComputePass(commandBuffer, hierarchicalDepthPass, hzbMaterials[startDestMip / 4], workGroups, Buffer(reinterpret_cast<const uint8_t*>(&hierarchicalZComputePushConstants), sizeof(hierarchicalZComputePushConstants)));
-			};
+			glm::uvec3 workGroups(Math::DivideAndRoundUp(dstSize.x, 8), Math::DivideAndRoundUp(dstSize.y, 8), 1);
+			Renderer::DispatchComputePass(commandBuffer, hierarchicalDepthPass, hzbMaterials[startDestMip / 4], workGroups, Buffer(reinterpret_cast<const uint8_t*>(&hierarchicalZComputePushConstants), sizeof(hierarchicalZComputePushConstants)));
+		};
 
 		// Reduce first 4 mips
 		glm::ivec2 srcSize = m_PreDepthPass->GetDepthOutput()->GetSize();
@@ -1851,8 +1931,27 @@ namespace Iris {
 		// Reduce the next mips
 		for (uint32_t startDestMip = maxMipBatchSize; startDestMip < hzbMipCount; startDestMip += maxMipBatchSize)
 		{
-			srcSize = Math::DivideAndRoundUp(m_HierarchalZBufferResources.Texture->GetSize(), 1u << uint32_t(startDestMip - 1));
-			ReduceHZB(startDestMip, startDestMip - 1, { 2.0f / glm::vec2{ srcSize } }, glm::vec2{ 1.0f }, false);
+
+			const uint32_t parentMip = startDestMip - 1;
+
+			Renderer::Submit([instance, parentMip]()
+			{
+				Renderer::InsertImageMemoryBarrier(
+					instance->m_CommandBuffer->GetActiveCommandBuffer(),
+					instance->m_HierarchalZBufferResources.Texture->GetVulkanImage(),
+					VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT,
+					VK_ACCESS_2_SHADER_READ_BIT,
+					VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_GENERAL,
+					VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+					VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+					{ .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+						.baseMipLevel = parentMip, .levelCount = 1,
+						.baseArrayLayer = 0, .layerCount = 1 }
+				);
+			});
+
+			srcSize = Math::DivideAndRoundUp(m_HierarchalZBufferResources.Texture->GetSize(), 1u << parentMip);
+			ReduceHZB(startDestMip, parentMip, { 2.0f / glm::vec2{ srcSize } }, glm::vec2{ 1.0f }, false);
 		}
 
 		Renderer::EndComputePass(m_CommandBuffer, m_HierarchalZBufferPass);
@@ -1886,7 +1985,7 @@ namespace Iris {
 	{
 		const uint32_t frameIndex = Renderer::GetCurrentFrameIndex();
 
-		// Memory Barriers for the StorageBarrier
+		// Memory Barriers for the StorageBuffers
 		Ref<SceneRenderer> instance = this;
 		Renderer::Submit([instance, frameIndex]() mutable
 		{
@@ -1894,7 +1993,16 @@ namespace Iris {
 				instance->m_CommandBuffer->GetActiveCommandBuffer(),
 				instance->m_SBSVisibleSpotLightIndicesBuffer->Get(frameIndex)->GetVulkanBuffer(),
 				VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT,
+				VK_ACCESS_2_SHADER_STORAGE_READ_BIT,
+				VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+				VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT
+			);
+
+			Renderer::InsertBufferMemoryBarrier(
+				instance->m_CommandBuffer->GetActiveCommandBuffer(),
+				instance->m_SBSVisiblePointLightIndicesBuffer->Get(frameIndex)->GetVulkanBuffer(),
 				VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT,
+				VK_ACCESS_2_SHADER_STORAGE_READ_BIT,
 				VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
 				VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT
 			);
@@ -2028,6 +2136,7 @@ namespace Iris {
 		gtaoPushConstantData.EffectFalloffRange = m_Options.GTAOEffectFalloffRange;
 		gtaoPushConstantData.RadiusMultiplier = m_Options.GTAORadiusMultiplier;
 		gtaoPushConstantData.FinalValuePower = m_Options.GTAOFinalValuePower;
+		gtaoPushConstantData.DenoiseBlurBeta = m_Options.GTAODenoiseBlurBeta;
 		gtaoPushConstantData.HalfRes = static_cast<uint32_t>(m_Options.GTAOHalfResolution);
 		gtaoPushConstantData.SampleDistributionPower = m_Options.GTAOSampleDistributionPower;
 		gtaoPushConstantData.ThinOccluderCompensation = m_Options.GTAOThinOccluderCompensation;
@@ -2040,7 +2149,6 @@ namespace Iris {
 		Renderer::DispatchComputePass(m_CommandBuffer, m_GTAOPass, nullptr, m_GTAOWorkGroups, Buffer(reinterpret_cast<const uint8_t*>(&gtaoPushConstantData), sizeof(gtaoPushConstantData)));
 		Renderer::EndComputePass(m_CommandBuffer, m_GTAOPass);
 
-		// TODO: Should this be here to return it to COLOR_ATTACHMENT_OPTIMAL? I dont think any else is requesting to return it to COLOR_ATTACHMENT_OPTIMAL
 		Renderer::Submit([instance]()
 		{
 			Renderer::InsertImageMemoryBarrier(
@@ -2057,10 +2165,32 @@ namespace Iris {
 		});
 	}
 
+	void SceneRenderer::GTAODenoise()
+	{
+		struct GTAODenoiseConstants
+		{
+			float DenoiseBlurBeta;
+			uint32_t HalfRes; // boolean
+		} gtaoDenoiseConstants;
+
+		gtaoDenoiseConstants.DenoiseBlurBeta = m_Options.GTAODenoiseBlurBeta;
+		gtaoDenoiseConstants.HalfRes = static_cast<uint32_t>(m_Options.GTAOHalfResolution);
+		
+		const Buffer pushConstantBuffer(reinterpret_cast<const uint8_t*>(&gtaoDenoiseConstants), sizeof(GTAODenoiseConstants));
+
+		for (uint32_t pass = 0; pass < static_cast<uint32_t>(m_Options.GTAODenoisePasses); pass++)
+		{
+			auto renderPass = m_GTAODenoisePasses[static_cast<uint32_t>(pass % 2 != 0)];
+			Renderer::BeginComputePass(m_CommandBuffer, renderPass);
+			Renderer::DispatchComputePass(m_CommandBuffer, renderPass, nullptr, m_GTAODenoiseWorkGroups, pushConstantBuffer);
+			Renderer::EndComputePass(m_CommandBuffer, renderPass);
+		}
+	}
+
 	void SceneRenderer::GTAOComposite()
 	{
 		Renderer::BeginRenderPass(m_CommandBuffer, m_GTAOCompositingPass);
-		Renderer::SubmitFullScreenQuad(m_CommandBuffer, m_GTAOCompositingPass->GetSpecification().Pipeline, nullptr);
+		Renderer::SubmitFullScreenQuad(m_CommandBuffer, m_GTAOCompositingPass->GetPipeline(), nullptr);
 		Renderer::EndRenderPass(m_CommandBuffer);
 	}
 
@@ -2418,10 +2548,9 @@ namespace Iris {
 			Renderer::EndRenderPass(m_CommandBuffer);
 		}
 
-		// We usualy do not want to do this in runtime
 		if (m_Specification.JumpFloodPass)
 		{
-			// Prepare image of m_JumpFloodFB[0] for coposite pass since it is the one that we read from
+			// Prepare image of m_JumpFloodFB[0] for composite pass since it is the one that we read from
 			Renderer::Submit([cmdBuff = m_CommandBuffer, jfaFBs = m_JumpFloodFramebuffers]()
 			{
 				Renderer::InsertImageMemoryBarrier(
@@ -2699,9 +2828,6 @@ namespace Iris {
 			region.srcSubresource.layerCount = 1;
 			region.srcSubresource.mipLevel = 0;
 			region.dstSubresource = region.srcSubresource;
-
-			VkImageLayout srcImageLayout = src->GetDescriptorImageInfo().imageLayout;
-			VkImageLayout dstImageLayout = dst->GetDescriptorImageInfo().imageLayout;
 
 			// Src image
 			{

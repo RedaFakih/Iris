@@ -231,32 +231,6 @@ namespace Iris {
             Utils::TextureImporter::FreeImageMemory(m_ImageData.Data);
             m_ImageData.Size = 0;
 
-            /*
-             * Layout Transitions and data copy
-             * Transition image layout from IMAGE_LAYOUT_UNDEFINED -> IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL -> IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
-             * First Transition to VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
-             * Pipeline Barriers are used to synchronize access to resources... 
-             * They ensure that a resource finished doing something before doing something else
-             * *** Certain edge cases to handle with src/dstAccessMask ***
-             * if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
-             * {
-             *      barrier.srcAccessMask = 0;
-             *      barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-             *      sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-             *      destinationStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
-             * }
-             * else if (oldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
-             * {
-             *      barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-             *      barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-             *      sourceStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
-             *      destinationStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-             * }
-             */
-
-            // https://themaister.net/blog/2019/08/14/yet-another-blog-explaining-vulkan-synchronization/ (ImageMemoryBarriers)
-            // https://gpuopen.com/learn/vulkan-barriers-explained/ (TOP_OF_PIPE and BOTTOM_OF_PIPE)
-
             Renderer::InsertImageMemoryBarrier(
                 commandBuffer,
                 m_Image,
@@ -1438,6 +1412,15 @@ namespace Iris {
         {
             imageViewCI.image = m_Specification.CubeImage->GetVulkanImage();
             imageViewCI.viewType = VK_IMAGE_VIEW_TYPE_CUBE;
+        }
+
+        if (m_ImageView != VK_NULL_HANDLE)
+        {
+            VkImageView oldView = m_ImageView;
+            Renderer::SubmitReseourceFree([oldView]()
+            {
+                vkDestroyImageView(RendererContext::GetCurrentDevice()->GetVulkanDevice(), oldView, nullptr);
+            });
         }
 
         VK_CHECK_RESULT(vkCreateImageView(device, &imageViewCI, nullptr, &m_ImageView));

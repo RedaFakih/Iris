@@ -274,8 +274,9 @@ namespace Iris {
 		std::string DebugName;
 
 		// IMPORTANT: Only set ONE of these, DO NOT SET A COMBINATION OF THEM. Depending on what the user sets the image view type and other info will be determined / deduced
-		Ref<Texture2D> Image = nullptr;
-		Ref<TextureCube> CubeImage = nullptr;
+		// NOTE(Reda): WeakRefs since they should not be owning otherwise we get cyclic references and leak memory. In implementation WeakRef::IsValid is not called to check validity of original texture pointer since ImageView shouldnt outlive Texture. Crash instead is good for fixing the problem
+		WeakRef<Texture2D> Image = nullptr;
+		WeakRef<TextureCube> CubeImage = nullptr;
 
 		// Desired mip for the image view
 		// Leave at - 1 if you want to include ALL mips of the image in the image view
@@ -300,6 +301,18 @@ namespace Iris {
 		void Invalidate();
 		void RT_Invalidate();
 
+		ImageFormat GetFormat() const
+		{
+			if (m_Specification.Image)
+				return m_Specification.Image->GetFormat();
+
+			if (m_Specification.CubeImage)
+				return m_Specification.CubeImage->GetFormat();
+
+			IR_ASSERT(false);
+			return ImageFormat::None;
+		}
+		
 		VkImageView GetVulkanImageView() const { return m_ImageView; }
 
 		const VkDescriptorImageInfo& GetDescriptorImageInfo() const { return m_DescriptorInfo; }

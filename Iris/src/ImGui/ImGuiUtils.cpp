@@ -1623,7 +1623,7 @@ namespace Iris::UI {
 		return changed;
 	}
 
-	void Image(const Ref<ImageView>& imageView, const ImVec2& size, const ImVec2& uv0, const ImVec2& uv1, const ImVec4& tint_col, const ImVec4& border_col)
+	void Image_View(const Ref<ImageView>& imageView, const ImVec2& size, const ImVec2& uv0, const ImVec2& uv1, const ImVec4& tint_col, const ImVec4& border_col)
 	{
 		const auto textureID = GetTextureID(imageView);
 		ImGui::Image(textureID, size, uv0, uv1, tint_col, border_col);

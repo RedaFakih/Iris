@@ -17,7 +17,12 @@ namespace Iris {
 		void SetData(const void* data, std::size_t size, std::size_t offset = 0);
 		void RT_SetData(const void* data, std::size_t size, std::size_t offset = 0);
 
+		const VkDescriptorBufferInfo& GetDescriptorBufferInfo() const { return m_DescriptorInfo; }
+
+	private:
 		VkDescriptorBufferInfo& GetDescriptorBufferInfo() { return m_DescriptorInfo; }
+
+		friend class DescriptorSetManager;
 
 	private:
 		std::size_t m_Size = 0;

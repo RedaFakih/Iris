@@ -53,7 +53,7 @@ namespace Iris {
 		Ref<Texture2D> BRDFLutTexture;
 		Ref<Texture2D> HilbertLUT;
 		Ref<TextureCube> BlackCubeTexture;
-		Ref<Texture2D> StorageImage;
+		Ref<Texture2D> DummyStorageImage;
 		Ref<Environment> EmptyEnvironment;
 
 		Ref<VertexBuffer> QuadVertexBuffer;
@@ -186,6 +186,7 @@ namespace Iris {
 		Renderer::AddGlobalShaderMacro("IR_BLOOM_COMPUTE_WORKGROUP_SIZE", fmt::format("{}", 4));
 		Renderer::AddGlobalShaderMacro("IR_HZB_COMPUTE_WORKGROUP_SIZE", fmt::format("{}", 8));
 		Renderer::AddGlobalShaderMacro("IR_GTAO_COMPUTE_WORKGROUP_SIZE", fmt::format("{}", 16));
+		Renderer::AddGlobalShaderMacro("IR_GTAO_DENOISE_WORKGROUP_SIZE", fmt::format("{}", 8));
 
 		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/2D/Renderer2D_Line.glsl");
 		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/2D/Renderer2D_Quad.glsl");
@@ -200,6 +201,7 @@ namespace Iris {
 		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/Compositing/Grid.glsl");
 		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/Compositing/GTAO.glsl");
 		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/Compositing/GTAOCompositing.glsl");
+		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/Compositing/GTAODenoise.glsl");
 		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/Compositing/TexturePass.glsl");
 		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/Compositing/WireFrame.glsl");
 
@@ -253,7 +255,7 @@ namespace Iris {
 		spec.DebugName = "DummyStorageImage";
 		spec.GenerateMips = false;
 		spec.Usage = ImageUsage::Storage;
-		s_Data->StorageImage = Texture2D::Create(spec);
+		s_Data->DummyStorageImage = Texture2D::Create(spec);
 
 		s_Data->EmptyEnvironment = Environment::Create(s_Data->BlackCubeTexture, s_Data->BlackCubeTexture);
 		
@@ -367,8 +369,9 @@ namespace Iris {
 		s_Data->ErrorTexture.Reset();
 		s_Data->BlackTexutre.Reset();
 		s_Data->BRDFLutTexture.Reset();
+		s_Data->HilbertLUT.Reset();
 		s_Data->BlackCubeTexture.Reset();
-		s_Data->StorageImage.Reset();
+		s_Data->DummyStorageImage.Reset();
 		s_Data->EmptyEnvironment.Reset();
 		s_Data->QuadVertexBuffer.Reset();
 		s_Data->QuadIndexBuffer.Reset();
@@ -1534,9 +1537,9 @@ namespace Iris {
 		return s_Data->HilbertLUT;
 	}
 
-	Ref<Texture2D> Renderer::GetStorageImage()
+	Ref<Texture2D> Renderer::GetDummyStorageImage()
 	{
-		return s_Data->StorageImage;
+		return s_Data->DummyStorageImage;
 	}
 
 	Ref<TextureCube> Renderer::GetBlackCubeTexture()

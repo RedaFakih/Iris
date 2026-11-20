@@ -1,7 +1,6 @@
 #include "IrisPCH.h"
 #include "MeshSerializer.h"
 
-#include "AssetManager/Asset/MeshColliderAsset.h"
 #include "AssetManager/AssetManager.h"
 #include "MeshImporter.h"
 #include "Project/Project.h"
@@ -148,104 +147,6 @@ namespace Iris {
 		bool generateColliders = rootNode["GenerateColliders"].as<bool>(true); // TODO: For StaticMeshes we set to true and for dynamic meshes we want to set to false
 
 		targetStaticMesh = StaticMesh::Create(meshSource, subMeshIndices, generateColliders);
-		return true;
-	}
-
-	/////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	/// MeshColliderSerializer
-	/////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	
-	void MeshColliderSerializer::Serialize(const AssetMetaData& metaData, const Ref<Asset>& asset) const
-	{
-		Ref<MeshColliderAsset> meshCollider = asset.As<MeshColliderAsset>();
-
-		std::string yamlString = SerializeToYAML(meshCollider);
-
-		std::ofstream fout(Project::GetAssetDirectory() / metaData.FilePath);
-		IR_VERIFY(fout.good());
-		fout << yamlString;
-	}
-
-	bool MeshColliderSerializer::TryLoadData(const AssetMetaData& metaData, Ref<Asset>& asset) const
-	{
-		std::filesystem::path filepath = Project::GetAssetDirectory() / metaData.FilePath;
-		std::ifstream stream(filepath);
-		IR_ASSERT(stream);
-		if (!stream)
-		{
-			asset->SetFlag(AssetFlag::Missing);
-			return false;
-		}
-
-		std::stringstream strStream;
-		strStream << stream.rdbuf();
-
-		Ref<MeshColliderAsset> meshColliderAsset;
-		bool success = DeserializeFromYAML(strStream.str(), meshColliderAsset);
-		if (!success)
-		{
-			asset->SetFlag(AssetFlag::Invalid);
-			return false;
-		}
-
-		meshColliderAsset->Handle = metaData.Handle;
-		asset = meshColliderAsset;
-		return true;
-	}
-
-	std::string MeshColliderSerializer::SerializeToYAML(Ref<MeshColliderAsset> meshCollider) const
-	{
-		YAML::Emitter out;
-		out << YAML::BeginMap;
-		out << YAML::Key << "MeshCollider" << YAML::Value;
-		{
-			out << YAML::BeginMap;
-
-			out << YAML::Key << "ColliderMesh" << YAML::Value << meshCollider->ColliderMesh;
-			out << YAML::Key << "EnableVertexWelding" << YAML::Value << meshCollider->EnableVertexWelding;
-			out << YAML::Key << "VertexWeldTolerance" << YAML::Value << meshCollider->VertexWeldTolerance;
-			out << YAML::Key << "CheckZeroAreaTriangles" << YAML::Value << meshCollider->CheckZeroAreaTriangles;
-			out << YAML::Key << "AreaTestEpsilon" << YAML::Value << meshCollider->AreaTestEpsilon;
-			out << YAML::Key << "FlipNormals" << YAML::Value << meshCollider->FlipNormals;
-			out << YAML::Key << "ShiftVerticesToOrigin" << YAML::Value << meshCollider->ShiftVerticesToOrigin;
-			out << YAML::Key << "AlwaysShareShape" << YAML::Value << meshCollider->AlwaysShareShape;
-			out << YAML::Key << "CollisionComplexity" << YAML::Value << static_cast<uint8_t>(meshCollider->CollisionComplexity);
-			out << YAML::Key << "ColliderScale" << YAML::Value << meshCollider->ColliderScale;
-
-			out << YAML::Key << "ColliderMaterial" << YAML::Value << YAML::BeginMap;
-			out << YAML::Key << "Friction" << YAML::Value << meshCollider->Material.Friction;
-			out << YAML::Key << "Restitution" << YAML::Value << meshCollider->Material.Restitution;
-			out << YAML::EndMap;
-
-			out << YAML::EndMap;
-		}
-		out << YAML::EndMap;
-
-		return std::string(out.c_str());
-	}
-
-	bool MeshColliderSerializer::DeserializeFromYAML(const std::string& yamlString, Ref<MeshColliderAsset>& targetMeshCollider) const
-	{
-		YAML::Node rootNode = YAML::Load(yamlString);
-		YAML::Node colliderMeshNode = rootNode["MeshCollider"];
-
-		if (!colliderMeshNode)
-			return false;
-
-		targetMeshCollider->ColliderMesh = colliderMeshNode["ColliderMesh"].as<AssetHandle>(AssetHandle(0));
-		targetMeshCollider->EnableVertexWelding = colliderMeshNode["EnableVertexWelding"].as<bool>(true);
-		targetMeshCollider->VertexWeldTolerance = colliderMeshNode["VertexWeldTolerance"].as<float>(0.1f);
-		targetMeshCollider->CheckZeroAreaTriangles = colliderMeshNode["CheckZeroAreaTriangles"].as<bool>(true);
-		targetMeshCollider->AreaTestEpsilon = colliderMeshNode["AreaTestEpsilon"].as<float>(0.06f);
-		targetMeshCollider->FlipNormals = colliderMeshNode["FlipNormals"].as<bool>(false);
-		targetMeshCollider->ShiftVerticesToOrigin = colliderMeshNode["ShiftVerticesToOrigin"].as<bool>(false);
-		targetMeshCollider->AlwaysShareShape = colliderMeshNode["AlwaysShareShape"].as<bool>(false);
-		targetMeshCollider->CollisionComplexity = static_cast<PhysicsCollisionComplexity>(colliderMeshNode["CollisionComplexity"].as<uint8_t>(0));
-		targetMeshCollider->ColliderScale = colliderMeshNode["ColliderScale"].as<glm::vec3>(glm::vec3{ 1.0f, 1.0f, 1.0f });
-
-		targetMeshCollider->Material.Friction = colliderMeshNode["ColliderMaterial"]["Friction"].as<float>(0.1f);
-		targetMeshCollider->Material.Restitution = colliderMeshNode["ColliderMaterial"]["Restitution"].as<float>(0.05f);
-
 		return true;
 	}
 

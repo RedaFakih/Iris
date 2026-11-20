@@ -25,7 +25,7 @@ namespace Iris {
 
 		void RemoveVisibilityComponentRecursive(Entity entity, Ref<Scene> scene)
 		{
-			for (UUID& uuid : entity.Children())
+			for (const UUID& uuid : entity.Children())
 			{
 				Entity entity = scene->GetEntityWithUUID(uuid);
 				if (entity.HasComponent<VisibleComponent>())
@@ -38,7 +38,7 @@ namespace Iris {
 
 		void AddVisibilityComponentRecursive(Entity entity, Ref<Scene> scene)
 		{
-			for (UUID& uuid : entity.Children())
+			for (const UUID& uuid : entity.Children())
 			{
 				Entity entity = scene->GetEntityWithUUID(uuid);
 				if (!entity.HasComponent<VisibleComponent>())
@@ -59,13 +59,13 @@ namespace Iris {
 		return CreateRef<SceneHierarchyPanel>();
 	}
 
-	Ref<SceneHierarchyPanel> SceneHierarchyPanel::Create(const Ref<Scene> scene, SelectionContext selectionContext, bool isWindow)
+	Ref<SceneHierarchyPanel> SceneHierarchyPanel::Create(const Ref<Scene> scene, SelectionContext selectionContext, WeakRef<SelectionHighlightCache> selectionHighlightCache, bool isWindow)
 	{
-		return CreateRef<SceneHierarchyPanel>(scene, selectionContext, isWindow);
+		return CreateRef<SceneHierarchyPanel>(scene, selectionContext, selectionHighlightCache, isWindow);
 	}
 
-	SceneHierarchyPanel::SceneHierarchyPanel(const Ref<Scene> scene, SelectionContext selectionContext, bool isWindow)
-		: m_Context(scene), m_SelectionContext(selectionContext), m_IsWindow(isWindow)
+	SceneHierarchyPanel::SceneHierarchyPanel(const Ref<Scene> scene, SelectionContext selectionContext, WeakRef<SelectionHighlightCache> selectionHighlightCache, bool isWindow)
+		: m_Context(scene), m_SelectionContext(selectionContext), m_SelectionHighlightCache(selectionHighlightCache), m_IsWindow(isWindow)
 	{
 		if (m_Context)
 			m_Context->SetEntityDestroyedCallback([this](Entity entity) { OnExternalEntityDestroyed(entity); });
@@ -436,7 +436,7 @@ namespace Iris {
 				{
 					newEntity = create3DEntity("Cone", "Cone.Ismesh", "Cone.gltf");
 					newEntity.AddComponent<MeshColliderComponent>();
-					PhysicsSystem::GetOrCreateMeshColliderAsset(newEntity, newEntity.GetComponent<MeshColliderComponent>());
+					PhysicsSystem::EnsureMeshColliderReady(newEntity);
 				}
 
 				if (ImGui::MenuItem("Cylinder"))
@@ -448,7 +448,7 @@ namespace Iris {
 				{
 					newEntity = create3DEntity("Torus", "Torus.Ismesh", "Torus.gltf");
 					newEntity.AddComponent<MeshColliderComponent>();
-					PhysicsSystem::GetOrCreateMeshColliderAsset(newEntity, newEntity.GetComponent<MeshColliderComponent>());
+					PhysicsSystem::EnsureMeshColliderReady(newEntity);
 				}
 
 				if (ImGui::MenuItem("Capsule"))
@@ -589,29 +589,13 @@ namespace Iris {
 
 		// Row coloring...
 
-		auto isAnyDescendantSelected = [&](Entity entity, auto isAnyDescendantSelected) -> bool
-		{
-			if (SelectionManager::IsSelected(s_ActiveSelectionContext, entity.GetUUID()))
-				return true;
-
-			if (!entity.Children().empty())
-			{
-				for (UUID& childEntityID : entity.Children())
-				{
-					Entity childEntity = m_Context->GetEntityWithUUID(childEntityID);
-					if (isAnyDescendantSelected(childEntity, isAnyDescendantSelected))
-						return true;
-				}
-			}
-
-			return false;
-		};
-
 		auto fillRowWithColor = [](const ImColor& color)
 		{
 			for (int column = 0; column < ImGui::TableGetColumnCount(); column++)
 				ImGui::TableSetBgColor(ImGuiTableBgTarget_CellBg, color, column);
 		};
+
+		const bool hasSelectedDescendant = !isSelected && m_SelectionHighlightCache->HasSelectedDescendant(static_cast<entt::entity>(entity), s_ActiveSelectionContext);
 
 		if (isSelected)
 		{
@@ -627,7 +611,7 @@ namespace Iris {
 		{
 			fillRowWithColor(Colors::Theme::GroupHeader);
 		}
-		else if (isAnyDescendantSelected(entity, isAnyDescendantSelected))
+		else if (hasSelectedDescendant)
 		{
 			fillRowWithColor(Colors::Theme::SelectionMuted);
 		}
@@ -690,7 +674,7 @@ namespace Iris {
 		if (is_mouse_x_over_arrow && isRowClicked)
 			ImGui::SetNextItemOpen(!previousState);
 
-		if (!isSelected && isAnyDescendantSelected(entity, isAnyDescendantSelected))
+		if (hasSelectedDescendant)
 			ImGui::SetNextItemOpen(true);
 
 		const bool opened = ImGui::TreeNodeWithIcon(nullptr, ImGui::GetID(strID.c_str()), flags, name, nullptr);
@@ -1394,7 +1378,7 @@ namespace Iris {
 					}, EditorResources::CompoundColliderIcon);
 					Utils::DrawAddComponentButton<MeshColliderComponent>(this, "Mesh Collider", [this](Entity entity, MeshColliderComponent& meshColliderComp)
 					{
-						PhysicsSystem::GetOrCreateMeshColliderAsset(entity, meshColliderComp);
+						PhysicsSystem::EnsureMeshColliderReady(entity);
 					}, EditorResources::MeshColliderIcon);
 					Utils::DrawSimpleAddComponentButton<RigidBody2DComponent>(this, "Rigid Body 2D", EditorResources::RigidBody2DIcon);
 					Utils::DrawSimpleAddComponentButton<BoxCollider2DComponent>(this, "Box Collider 2D", EditorResources::BoxCollider2DIcon);
@@ -2898,36 +2882,6 @@ namespace Iris {
 		{
 			UI::BeginPropertyGrid();
 
-			ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<AssetHandle, MeshColliderComponent>([](const MeshColliderComponent& other) { return other.ColliderAsset; }));
-			if (UI::PropertyAssetReference<MeshColliderAsset>("Collider", meshColliderComp.ColliderAsset, "Select the MeshColliderAsset to use with the current mesh"))
-			{
-				const Ref<MeshColliderAsset>& colliderAsset = AssetManager::GetAsset<MeshColliderAsset>(meshColliderComp.ColliderAsset);
-
-				for (UUID entityID : entities)
-				{
-					Entity entity = m_Context->GetEntityWithUUID(entityID);
-					MeshColliderComponent& component = entity.GetComponent<MeshColliderComponent>();
-					component.ColliderAsset = meshColliderComp.ColliderAsset;
-
-					if (colliderAsset)
-					{
-						component.UseSharedShape = colliderAsset->AlwaysShareShape;
-						component.CollisionComplexity = colliderAsset->CollisionComplexity;
-					}
-
-					if (component.ColliderAsset == 0)
-						PhysicsSystem::GetOrCreateMeshColliderAsset(entity, component);
-
-					if (entity.HasComponent<StaticMeshComponent>())
-						component.SubMeshIndex = entity.GetComponent<StaticMeshComponent>().SubMeshIndex;
-				}
-			}
-			ImGui::PopItemFlag();
-
-			Ref<MeshColliderAsset> colliderAsset = AssetManager::GetAsset<MeshColliderAsset>(meshColliderComp.ColliderAsset);
-			const bool isPhysicalAsset = !AssetManager::IsMemoryAsset(meshColliderComp.ColliderAsset);
-
-			ImGui::BeginDisabled(colliderAsset && isPhysicalAsset);
 			ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<bool, MeshColliderComponent>([](const MeshColliderComponent& other) { return other.UseSharedShape; }));
 			if (UI::Property("Use Shared\nShape", meshColliderComp.UseSharedShape, "Allows this collider to share its collider data. (Default: False)"))
 			{
@@ -2938,7 +2892,6 @@ namespace Iris {
 				}
 			}
 			ImGui::PopItemFlag();
-			ImGui::EndDisabled();
 
 			ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<float, MeshColliderComponent>([](const MeshColliderComponent& other) { return other.Material.Friction; }));
 			if (UI::Property("Friction", meshColliderComp.Material.Friction, 0.1f, 0.0f, 1.0f, "Set the Friction of the mesh collider asset"))
@@ -2965,7 +2918,6 @@ namespace Iris {
 			static const char* s_ColliderUsageOptions[] = { "Default", "Use Complex as Simple", "Use Simple as Complex" };
 			int currentColliderUsageType = static_cast<int>(meshColliderComp.CollisionComplexity);
 
-			ImGui::BeginDisabled(colliderAsset && isPhysicalAsset);
 			ImGui::PushItemFlag(ImGuiItemFlags_MixedValue, isMultiSelect && IsInconsistentPrimitive<uint8_t, MeshColliderComponent>([](const MeshColliderComponent& other) { return static_cast<uint8_t>(other.CollisionComplexity); }));
 			if (UI::PropertyDropdown("Collision\nComplexity", s_ColliderUsageOptions, 3, &currentColliderUsageType))
 			{
@@ -2974,19 +2926,27 @@ namespace Iris {
 					Entity entity = m_Context->GetEntityWithUUID(entityID);
 					MeshColliderComponent& mcc = entity.GetComponent<MeshColliderComponent>();
 					mcc.CollisionComplexity = static_cast<PhysicsCollisionComplexity>(currentColliderUsageType);
-
-					Ref<MeshColliderAsset> collider = AssetManager::GetAsset<MeshColliderAsset>(mcc.ColliderAsset);
-					if (collider)
-						collider->CollisionComplexity = mcc.CollisionComplexity;
 				}
 			}
 			ImGui::PopItemFlag();
-			ImGui::EndDisabled();
 
 			UI::EndPropertyGrid();
 
 			if (ImGui::Button("Force cook mesh", { ImGui::GetContentRegionAvail().x, 30.0f }))
-				MeshCookingFactory::CookMesh(meshColliderComp.ColliderAsset, true);
+			{
+				for (UUID entityID : entities)
+				{
+					Entity entity = m_Context->GetEntityWithUUID(entityID);
+					if (entity.HasComponent<StaticMeshComponent>())
+					{
+						AssetHandle staticMeshHandle = entity.GetComponent<StaticMeshComponent>().StaticMesh;
+						if (AssetManager::IsAssetHandleValid(staticMeshHandle))
+						{
+							MeshCookingFactory::CookMesh(staticMeshHandle, true);
+						}
+					}
+				}
+			}
 			
 			UI::ShiftCursorY(2.0f);
 			UI::UnderLine();

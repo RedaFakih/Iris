@@ -30,7 +30,7 @@ namespace Iris {
 		static void Shutdown();
 
 		static Ref<PhysicsScene> CreatePhysicsScene(const Ref<Scene>& scene) { return PhysicsScene::Create(scene); }
-		static Ref<MeshColliderAsset> GetOrCreateMeshColliderAsset(Entity entity, MeshColliderComponent& meshColliderComponent);
+		static bool EnsureMeshColliderReady(Entity entity);
 
 		static PhysicsSettings& GetSettings() { return s_Settings; }
 		static Ref<MeshColliderCache>& GetMesheColliderCache() { return s_MeshColliderCache; }

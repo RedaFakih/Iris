@@ -29,7 +29,6 @@ namespace ImGui {
 
 namespace Iris::UI {
 
-	// TODO:
 	struct MessageBoxData
 	{
 		enum class MessageBoxFlags : uint32_t
@@ -478,7 +477,6 @@ namespace Iris::UI {
 	/// Button Image
 	ImTextureID GetTextureID(Ref<ImageView> imageView);
 	ImTextureID GetTextureID(Ref<Texture2D> texture);
-	
 	ImTextureID GetTextureID(Ref<Texture2D> texture, uint32_t imageLayer);
 
 	inline void DrawButtonImage(const Ref<Texture2D>& imageNormal, const Ref<Texture2D>& imageHovered, const Ref<Texture2D>& imagePressed,
@@ -529,7 +527,7 @@ namespace Iris::UI {
 	};
 
 	// Normal image
-	void Image(const Ref<ImageView>& imageView, const ImVec2& size, const ImVec2& uv0, const ImVec2& uv1, const ImVec4& tint_col, const ImVec4& border_col);
+	void Image_View(const Ref<ImageView>& imageView, const ImVec2& size, const ImVec2& uv0 = ImVec2(0, 0), const ImVec2& uv1 = ImVec2(1, 1), const ImVec4& tint_col = ImVec4(1, 1, 1, 1), const ImVec4& border_col = ImVec4(0, 0, 0, 0));
 
 	void Image(const Ref<Texture2D>& image, const ImVec2& size, const ImVec2& uv0 = ImVec2(0, 0), const ImVec2& uv1 = ImVec2(1, 1), const ImVec4& tint_col = ImVec4(1, 1, 1, 1), const ImVec4& border_col = ImVec4(0, 0, 0, 0));
 	

@@ -13,9 +13,7 @@ workspace "Iris"
         "Release"
     }
 
-    flags {
-        "MultiProcessorCompile"
-    }
+    multiprocessorcompile ("On")
 
     defines {
         "_CRT_SECURE_NO_WARNINGS"

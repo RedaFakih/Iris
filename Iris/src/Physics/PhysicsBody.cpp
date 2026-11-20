@@ -1,7 +1,6 @@
 #include "IrisPCH.h"
 #include "PhysicsBody.h"
 
-#include "AssetManager/Asset/MeshColliderAsset.h"
 #include "AssetManager/AssetManager.h"
 #include "Physics.h"
 #include "PhysicsLayer.h"
@@ -803,14 +802,15 @@ namespace Iris {
 		{
 			const MeshColliderComponent& component = entity.GetComponent<MeshColliderComponent>();
 
-			Ref<MeshColliderAsset> colliderAsset = AssetManager::GetAsset<MeshColliderAsset>(component.ColliderAsset);
-			IR_VERIFY(colliderAsset);
+			IR_VERIFY(entity.HasComponent<StaticMeshComponent>());
+			AssetHandle staticMeshHandle = entity.GetComponent<StaticMeshComponent>().StaticMesh;
+			IR_VERIFY(AssetManager::IsAssetHandleValid(staticMeshHandle), "Entity '{0}' has a MeshColliderComponent, but its StaticMeshComponent has an invalid mesh handle!", entity.Name());
 
 			auto& meshCache = PhysicsSystem::GetMesheColliderCache();
 
-			if (!meshCache->Exists(colliderAsset))
+			if (!meshCache->Exists(staticMeshHandle))
 			{
-				auto [simpleColliderResult, complexColliderResult] = MeshCookingFactory::CookMesh(colliderAsset);
+				auto [simpleColliderResult, complexColliderResult] = MeshCookingFactory::CookMesh(staticMeshHandle);
 
 				if (simpleColliderResult != PhysicsCookingResult::Success && complexColliderResult != PhysicsCookingResult::Success)
 				{
@@ -819,20 +819,20 @@ namespace Iris {
 				}
 			}
 
-			const CachedColliderData& colliderData = meshCache->GetMeshData(colliderAsset);
+			const CachedColliderData& colliderData = meshCache->GetMeshData(staticMeshHandle);
 
-			if (colliderAsset->CollisionComplexity == PhysicsCollisionComplexity::UseComplexAsSimple && rigidBodyComp.BodyType == PhysicsBodyType::Dynamic)
+			if (component.CollisionComplexity == PhysicsCollisionComplexity::UseComplexAsSimple && rigidBodyComp.BodyType == PhysicsBodyType::Dynamic)
 			{
 				IR_CORE_ERROR_TAG("Physics", "Entity '{0}' ({1}) has a dynamic RigidBodyComponent along with a Complex MeshColliderComponent! This isn't allowed.", m_Entity.Name(), m_Entity.GetUUID());
 				return;
 			}
 
 			// Create and add simple collider
-			if (colliderData.SimpleColliderData.SubMeshes.size() > 0 && colliderAsset->CollisionComplexity != PhysicsCollisionComplexity::UseComplexAsSimple)
+			if (colliderData.SimpleColliderData.SubMeshes.size() > 0 && component.CollisionComplexity != PhysicsCollisionComplexity::UseComplexAsSimple)
 				m_Shapes[PhysicsShapeType::ConvexMesh].push_back(ConvexMeshShape::Create(entity, rigidBodyComp.Mass));
 
 			// Create and add complex collider
-			if (colliderData.ComplexColliderData.SubMeshes.size() > 0 && colliderAsset->CollisionComplexity != PhysicsCollisionComplexity::UseSimpleAsComplex)
+			if (colliderData.ComplexColliderData.SubMeshes.size() > 0 && component.CollisionComplexity != PhysicsCollisionComplexity::UseSimpleAsComplex)
 				m_Shapes[PhysicsShapeType::TriangleMesh].push_back(TriangleMeshShape::Create(entity));
 		}
 	}

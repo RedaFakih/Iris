@@ -6,7 +6,7 @@
 #include "Utils/StringUtils.h"
 
 // NOTE: Enable/Disable logging messages about the allocated chunks and total allocated memory since beginning...
-#define LOG_MEMORY_USAGE_MESSAGES 1
+#define LOG_MEMORY_USAGE_MESSAGES 0
 
 namespace Iris {
 
@@ -49,6 +49,9 @@ namespace Iris {
 		s_Data = new AllocatorStaticData();
 
 		VmaAllocatorCreateInfo createInfo = {
+#if IR_CONFIG_DEBUG
+			.flags = VMA_ALLOCATOR_CREATE_EXT_MEMORY_BUDGET_BIT,
+#endif
 			.physicalDevice = RendererContext::GetCurrentDevice()->GetPhysicalDevice()->GetVulkanPhysicalDevice(),
 			.device = RendererContext::GetCurrentDevice()->GetVulkanDevice(),
 			.instance = RendererContext::GetInstance(),
@@ -60,17 +63,52 @@ namespace Iris {
 
 	void VulkanAllocator::Shutdown()
 	{
+#if IR_CONFIG_DEBUG
+
+		char* statsString = nullptr;
+		vmaBuildStatsString(s_Data->Allocator, &statsString, VK_TRUE);
+		if (statsString) {
+			FILE* fp = fopen("vma_leak_report.json", "w");
+			if (fp) {
+				fputs(statsString, fp);
+				fclose(fp);
+			}
+
+			// 3. Free the stats string using VMA's helper function
+			vmaFreeStatsString(s_Data->Allocator, statsString);
+		}
+
+#endif
 		vmaDestroyAllocator(s_Data->Allocator);
 
 		delete s_Data;
 		s_Data = nullptr;
 	}
 
-	VmaAllocation VulkanAllocator::AllocateBuffer(const VkBufferCreateInfo* bufferCreateInfo, VmaMemoryUsage usage, VkBuffer* buffer, VmaAllocationInfo* allocationInfo)
+	VmaAllocation VulkanAllocator::AllocateBuffer(
+		const VkBufferCreateInfo* bufferCreateInfo,
+		VmaMemoryUsage usage,
+		VkBuffer* buffer,
+		VmaAllocationInfo* allocationInfo
+#if IR_CONFIG_DEBUG
+		, const char* name
+#endif
+	)
 	{
 		IR_ASSERT(bufferCreateInfo->size > 0);
 
-		VmaAllocationCreateInfo allocationCreateInfo = { .usage = usage };
+#if IR_CONFIG_DEBUG
+		static int counter = 0;
+		char nameCounterBuffer[32];
+		snprintf(nameCounterBuffer, 32, "Buffer - %04u", counter++);
+#endif
+
+		VmaAllocationCreateInfo allocationCreateInfo = {};
+		allocationCreateInfo.usage = usage;
+#if IR_CONFIG_DEBUG
+		allocationCreateInfo.flags = VMA_ALLOCATION_CREATE_USER_DATA_COPY_STRING_BIT;
+		allocationCreateInfo.pUserData = nameCounterBuffer;
+#endif
 
 		VmaAllocationInfo allocInfo;
 		VmaAllocation allocation;
@@ -126,9 +164,29 @@ namespace Iris {
 		}
 	}
 
-	VmaAllocation VulkanAllocator::AllocateImage(const VkImageCreateInfo* imageCreateInfo, VmaMemoryUsage usage, VkImage* image, VkDeviceSize* allocatedSize)
+	VmaAllocation VulkanAllocator::AllocateImage(
+		const VkImageCreateInfo* imageCreateInfo,
+		VmaMemoryUsage usage,
+		VkImage* image,
+		VkDeviceSize* allocatedSize
+#if IR_CONFIG_DEBUG
+		, const char* name
+#endif
+	)
 	{
-		VmaAllocationCreateInfo allocationCreateInfo = { .usage = usage };
+
+#if IR_CONFIG_DEBUG
+		static int counter = 0;
+		char nameCounterBuffer[32];
+		snprintf(nameCounterBuffer, 32, "Image - %04u", counter++);
+#endif
+
+		VmaAllocationCreateInfo allocationCreateInfo = {};
+		allocationCreateInfo.usage = usage;
+#if IR_CONFIG_DEBUG
+		allocationCreateInfo.flags = VMA_ALLOCATION_CREATE_USER_DATA_COPY_STRING_BIT;
+		allocationCreateInfo.pUserData = nameCounterBuffer;
+#endif
 
 		VmaAllocationInfo allocInfo;
 		VmaAllocation allocation;

@@ -21,6 +21,7 @@ namespace Iris {
 #define IR_BLOOM_COMPUTE_WORKGROUP_SIZE 4u
 #define IR_LIGHT_CULLING_WORKGROUP_SIZE 8u
 #define IR_GTAO_COMPUTE_WORKGROUP_SIZE 16u
+#define IR_GTAO_DENOISE_WORKGROUP_SIZE 8u
 
 	struct SceneRendererCamera
 	{
@@ -58,8 +59,10 @@ namespace Iris {
 
 		// GTAO
 		bool GTAOEnabled = true;
+		// This is used int he PushConstants for the Denoise Passes
+		int GTAODenoisePasses = 4;
 		// Everything under this comment in the GTAO section is to be pushed into a push_constant buffer for the GTAO shader
-		bool GTAOHalfResolution = false;
+		bool GTAOHalfResolution = true;
 		float GTAOShadowTolerance = 1.0f;
 		glm::vec2 GTAONDCToViewMul_x_PixelSize;
 		float GTAOEffectRadius = 0.5f;
@@ -125,6 +128,8 @@ namespace Iris {
 		void SetScene(Ref<Scene> scene);
 
 		void SetViewportSize(uint32_t width, uint32_t height, float renderScale);
+		void SetDirty() { m_NeedsResize = true; m_NeedsResizeGTAOBuffers = true; }
+		void SetDirtyGTAO() { m_NeedsResizeGTAOBuffers = true; }
 
 		void BeginScene(const SceneRendererCamera& camera);
 		void EndScene();
@@ -220,6 +225,7 @@ namespace Iris {
 		void GeometryPass();
 		void SkyboxPass();
 		void GTAO();
+		void GTAODenoise();
 		void GTAOComposite();
 		void JumpFloodPass();
 		void BloomPass();
@@ -382,6 +388,11 @@ namespace Iris {
 		Ref<Texture2D> m_GTAOOutputImage;
 		Ref<Texture2D> m_GTAOEdgesOutputImage;
 		glm::uvec3 m_GTAOWorkGroups{ 1 };
+		
+		// GTAO Denoise
+		std::array<Ref<ComputePass>, 2> m_GTAODenoisePasses;
+		Ref<Texture2D> m_GTAODenoiseImage;
+		glm::uvec3 m_GTAODenoiseWorkGroups{ 1 };
 
 		// GTAO Compositing
 		Ref<RenderPass> m_GTAOCompositingPass;
@@ -428,6 +439,9 @@ namespace Iris {
 		Ref<ComputePass> m_BloomFirstUpSamplePass;
 		Ref<ComputePass> m_BloomUpSamplePass;
 		Ref<Texture2D> m_BloomDirtTexture;
+
+		// Directional Shadow Map
+		Ref<Texture2D> m_CascadedDirectionalShadowMap;
 		
 		struct BloomTextures
 		{
@@ -514,6 +528,7 @@ namespace Iris {
 		float m_InverseViewportHeight = 0.0f;
 
 		bool m_NeedsResize = false;
+		bool m_NeedsResizeGTAOBuffers = false;
 		bool m_Active = false;
 		bool m_ResourcesCreated = false;
 		bool m_ResourcesCreatedGPU = false;

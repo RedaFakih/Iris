@@ -337,6 +337,7 @@ namespace Iris {
 		// Render at 512x512 then display with the content browser item thumbnail size, if less/bigger then we downscale/upscale with Blit
 		m_SceneRenderer = SceneRendererLite::Create(m_Scene, { .ViewportWidth = 512, .ViewportHeight = 512 });
 		m_SceneRenderer->GetOptions().ShowGrid = false;
+		m_SceneRenderer->GetOptions().ShowPhysicsColliders = false;
 		m_SceneRenderer->GetOptions().BloomIntensity = 0.5f;
 		m_SceneRenderer->GetOptions().BloomFilterThreshold = 1.25f;
 

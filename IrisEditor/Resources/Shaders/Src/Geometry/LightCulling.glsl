@@ -44,7 +44,7 @@ layout(std140, set = 1, binding = 4) uniform PointLightsData
 	PointLight Lights[IR_MAX_POINT_LIGHT_COUNT];
 } u_PointLights;
 
-layout(std430, set = 1, binding = 5) buffer VisiblePointLightIndicesBuffer
+layout(std430, set = 1, binding = 5) writeonly buffer VisiblePointLightIndicesBuffer
 {
 	int Indices[];
 } s_VisiblePointLightIndicesBuffer;

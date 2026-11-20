@@ -19,18 +19,9 @@ namespace Iris {
 		Clear();
 	}
 
-	bool MeshColliderCache::Exists(Ref<MeshColliderAsset> meshColliderAsset) const
+	bool MeshColliderCache::Exists(AssetHandle staticMeshHandle) const
 	{
-		AssetHandle collisionMesh = meshColliderAsset->ColliderMesh;
-
-		if (!m_MeshData.contains(collisionMesh))
-			return false;
-
-		const std::map<AssetHandle, CachedColliderData>& meshDataMap = m_MeshData.at(collisionMesh);
-		if (AssetManager::IsMemoryAsset(collisionMesh))
-			return meshDataMap.find(0) != meshDataMap.end();
-
-		return meshDataMap.contains(collisionMesh);
+		return m_MeshData.contains(staticMeshHandle);
 	}
 
 	void MeshColliderCache::Clear()
@@ -40,58 +31,36 @@ namespace Iris {
 		m_DebugSimpleStaticMeshes.clear();
 	}
 
-	const CachedColliderData& MeshColliderCache::GetMeshData(Ref<MeshColliderAsset> meshColliderAsset)
+	const CachedColliderData& MeshColliderCache::GetMeshData(AssetHandle staticMeshHandle)
 	{
-		AssetHandle collisionMesh = meshColliderAsset->ColliderMesh;
-
-		if (m_MeshData.contains(collisionMesh))
-		{
-			const std::map<AssetHandle, CachedColliderData>& meshDataMap = m_MeshData.at(collisionMesh);
-			if (meshDataMap.contains(meshColliderAsset->Handle))
-				return meshDataMap.at(meshColliderAsset->Handle);
-
-			return meshDataMap.at(0);
-		}
-
-		const std::map<AssetHandle, CachedColliderData>& meshDataMap = m_MeshData.at(collisionMesh);
-		IR_ASSERT(meshDataMap.contains(meshColliderAsset->Handle));
-		return meshDataMap.at(meshColliderAsset->Handle);
+		IR_ASSERT(m_MeshData.contains(staticMeshHandle));
+		return m_MeshData.at(staticMeshHandle);
 	}
 
-	Ref<StaticMesh> MeshColliderCache::GetDebugStaticMesh(Ref<MeshColliderAsset> meshColliderAsset)
+	void MeshColliderCache::AddMeshData(AssetHandle staticMeshHandle, const CachedColliderData& data)
 	{
-		AssetHandle collisionMesh = meshColliderAsset->ColliderMesh;
-		const auto& map = meshColliderAsset->CollisionComplexity == PhysicsCollisionComplexity::UseComplexAsSimple ? m_DebugComplexStaticMeshes : m_DebugSimpleStaticMeshes;
+		m_MeshData[staticMeshHandle] = data;
+	}
 
-		auto debugMeshes = map.find(collisionMesh);
-		if (debugMeshes != map.end())
-		{
-			auto debugMesh = debugMeshes->second.find(meshColliderAsset->Handle);
-			if (debugMesh != debugMeshes->second.end())
-				return debugMesh->second;
+	Ref<StaticMesh> MeshColliderCache::GetDebugStaticMesh(AssetHandle staticMeshHandle, PhysicsCollisionComplexity complexity)
+	{
+		const auto& map = (complexity == PhysicsCollisionComplexity::UseComplexAsSimple) ? m_DebugComplexStaticMeshes : m_DebugSimpleStaticMeshes;
 
-			debugMesh = debugMeshes->second.find(0);
-			if (debugMesh != debugMeshes->second.end())
-				return debugMesh->second;
-		}
+		auto it = map.find(staticMeshHandle);
+		if (it != map.end())
+			return it->second;
 
 		return nullptr;
 	}
 
-	void MeshColliderCache::AddSimpleDebugStaticMesh(Ref<MeshColliderAsset> meshColliderAsset, const Ref<StaticMesh> debugMesh)
+	void MeshColliderCache::AddSimpleDebugStaticMesh(AssetHandle staticMeshHandle, const Ref<StaticMesh> debugMesh)
 	{
-		if (AssetManager::IsMemoryAsset(meshColliderAsset->Handle))
-			m_DebugSimpleStaticMeshes[meshColliderAsset->ColliderMesh][0] = debugMesh;
-		else
-			m_DebugSimpleStaticMeshes[meshColliderAsset->ColliderMesh][meshColliderAsset->Handle] = debugMesh;
+		m_DebugSimpleStaticMeshes[staticMeshHandle] = debugMesh;
 	}
 
-	void MeshColliderCache::AddComplexDebugStaticMesh(Ref<MeshColliderAsset> meshColliderAsset, const Ref<StaticMesh> debugMesh)
+	void MeshColliderCache::AddComplexDebugStaticMesh(AssetHandle staticMeshHandle, const Ref<StaticMesh> debugMesh)
 	{
-		if (AssetManager::IsMemoryAsset(meshColliderAsset->Handle))
-			m_DebugComplexStaticMeshes[meshColliderAsset->ColliderMesh][0] = debugMesh;
-		else
-			m_DebugComplexStaticMeshes[meshColliderAsset->ColliderMesh][meshColliderAsset->Handle] = debugMesh;
+		m_DebugComplexStaticMeshes[staticMeshHandle] = debugMesh;
 	}
 
 }

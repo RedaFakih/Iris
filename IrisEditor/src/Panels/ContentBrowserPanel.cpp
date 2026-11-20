@@ -1,6 +1,5 @@
 #include "ContentBrowserPanel.h"
 
-#include "AssetManager/Asset/MeshColliderAsset.h"
 #include "Core/Input/Input.h"
 #include "Editor/EditorResources.h"
 #include "Editor/EditorSettings.h"
@@ -636,6 +635,11 @@ namespace Iris {
 		memset(m_SearchBuffer, 0, CB_MAX_INPUT_SEARCH_BUFFER_LENGTH);
 	}
 
+	ContentBrowserPanel::~ContentBrowserPanel()
+	{
+		m_Directories.clear();
+	}
+
 	void ContentBrowserPanel::OnImGuiRender(bool& isOpen)
 	{
 		GenerateThumbnails();
@@ -710,16 +714,6 @@ namespace Iris {
 									if (ImGui::MenuItem("Material"))
 									{
 										CreateAsset<MaterialAsset>("New Material.Imaterial");
-									}
-
-									if (ImGui::BeginMenu("Physics"))
-									{
-										if (ImGui::MenuItem("Mesh Collider"))
-										{
-											CreateAsset<MeshColliderAsset>("New Mesh Collider.Imc");
-										}
-
-										ImGui::EndMenu();
 									}
 
 									ImGui::EndMenu();
@@ -835,6 +829,16 @@ namespace Iris {
 		memset(m_SearchBuffer, 0, CB_MAX_INPUT_SEARCH_BUFFER_LENGTH);
 	}
 
+	void ContentBrowserPanel::SetSceneContext(const Ref<Scene>& context)
+	{
+		m_SceneContext = context;
+		// TODO(Reda): For now I am using this to test if this fixes the crash on close or not for the skylight null asset manager issue. Maybe we should use some sort of signal here instead of just nullptr.
+		if (m_SceneContext == nullptr)
+		{
+			m_ThumbnailGenerator = nullptr;
+		}
+	}
+
 	Ref<DirectoryInfo> ContentBrowserPanel::GetDirectory(const std::filesystem::path& filePath) const
 	{
 		if (filePath.empty() || filePath.string() == ".")
@@ -945,7 +949,7 @@ namespace Iris {
 	void ContentBrowserPanel::OnBrowseBack()
 	{
 		m_NextDirectory = m_CurrentDirectory;
-		m_PreviousDirectory = m_CurrentDirectory->Parent;
+		m_PreviousDirectory = m_CurrentDirectory->Parent.Lock();
 		ChangeDirectory(m_PreviousDirectory);
 	}
 
@@ -1321,10 +1325,10 @@ namespace Iris {
 					m_BreadCrumbData.clear();
 
 					Ref<DirectoryInfo> currentDir = m_CurrentDirectory;
-					while (currentDir && currentDir->Parent != nullptr)
+					while (currentDir && currentDir->Parent)
 					{
 						m_BreadCrumbData.push_back(currentDir);
-						currentDir = currentDir->Parent;
+						currentDir = currentDir->Parent.Lock();
 					}
 
 					std::reverse(m_BreadCrumbData.begin(), m_BreadCrumbData.end());
