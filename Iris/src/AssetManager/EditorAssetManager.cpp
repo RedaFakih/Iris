@@ -38,7 +38,7 @@ namespace Iris {
 
 	void EditorAssetManager::Shutdown()
 	{
-		m_AssetThread->StopAndWait(true);
+		m_AssetThread->StopAndWait();
 		SerializeRegistry();
 	}
 
@@ -77,7 +77,7 @@ namespace Iris {
 		{
 			metaData.Status = AssetStatus::Loading;
 			m_AssetThread->QueueAssetLoad({ .MetaData = metaData });
-			m_AssetThread->Set(ThreadState::Kick);
+			m_AssetThread->Kick();
 		}
 
 		return { AssetManager::GetPlaceHolderAsset(metaData.Type), false };
@@ -196,24 +196,29 @@ namespace Iris {
 	void EditorAssetManager::SyncWithAssetThread()
 	{
 		std::vector<AssetLoadRequest> freshAssets;
-
 		m_AssetThread->RetrieveReadyAssets(freshAssets);
+
 		for (const AssetLoadRequest& alr : freshAssets)
 		{
-			m_LoadedAssets[alr.Asset->Handle] = alr.Asset;
-
 			AssetMetaData metaData = alr.MetaData;
-			if (metaData.Status != AssetStatus::Invalid)
+
+			const bool loaded = alr.Asset && metaData.Status != AssetStatus::Invalid;
+			if (loaded)
 			{
+				m_LoadedAssets[metaData.Handle] = alr.Asset;
 				metaData.Status = AssetStatus::Ready;
 				metaData.IsDataLoaded = true;
 			}
 			else
+			{
+				m_LoadedAssets.erase(metaData.Handle);
+				metaData.Status = AssetStatus::Invalid;
 				metaData.IsDataLoaded = false;
+			}
 
-			m_AssetRegistry[alr.Asset->Handle] = metaData;
+			m_AssetRegistry[metaData.Handle] = metaData;
 
-			if (alr.Reloaded)
+			if (loaded && alr.Reloaded)
 			{
 				auto it = m_AssetDependencies.find(alr.Asset->Handle);
 				if (it != m_AssetDependencies.end())
@@ -229,7 +234,9 @@ namespace Iris {
 			}
 		}
 
-		m_AssetThread->UpdateAssetManagerLoadedAssetList(m_LoadedAssets);
+		// Only push changes when there are changes instead of locking every update
+		if (!freshAssets.empty())
+			m_AssetThread->UpdateAssetManagerLoadedAssetList(m_LoadedAssets);
 
 		for (auto it = m_PostSyncTasks.begin(); it != m_PostSyncTasks.end();)
 		{

@@ -49,9 +49,6 @@ namespace Iris {
 		static const JPH::BodyLockInterface& GetBodyLockInterface(bool shouldLock = true);
 		static JPH::PhysicsSystem& GetJoltSystem();
 
-		inline Ref<Scene> GetContextScene() { return m_ContextScene; }
-		inline const Ref<Scene>& GetContextScene() const { return m_ContextScene; }
-
 		inline void SetGravity(const glm::vec3& gravityXYZ) { m_JoltSystem->SetGravity(Utils::ToJoltVec3(gravityXYZ)); }
 		inline glm::vec3 GetGravity() const { return Utils::FromJoltVec3(m_JoltSystem->GetGravity()); }
 
@@ -67,7 +64,7 @@ namespace Iris {
 		void SynchronizeBodyTransform(WeakRef<PhysicsBody> body);
 
 	private:
-		Ref<Scene> m_ContextScene;
+		WeakRef<Scene> m_ContextScene;
 
 		Scope<JPH::PhysicsSystem> m_JoltSystem;
 		Scope<JoltLayerInterface> m_JoltLayerInterface;

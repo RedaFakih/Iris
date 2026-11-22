@@ -28,6 +28,7 @@ namespace Iris {
 
 		// Uses win32 api to set the name of the thread
 		void SetName(std::string_view name);
+		void SetAffinity(uint64_t mask);
 
 		std::thread::id GetID() const;
 

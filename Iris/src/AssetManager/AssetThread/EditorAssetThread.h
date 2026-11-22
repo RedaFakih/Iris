@@ -36,18 +36,18 @@ namespace Iris {
 
 		void Run();
 		void Stop();
-		void StopAndWait(bool terminateThread = false);
+		void StopAndWait();
 		void AssetMonitorUpdate();
 
-		void Wait(ThreadState stateToWait);
-		void Set(ThreadState stateToSet);
-		void WaitAndSet(ThreadState stateToWait, ThreadState stateToSet);
+		void Kick();
 
-		constexpr inline float GetAssetThreadSleepTime() const { return m_AssetThreadSleepTime; }
 		constexpr inline float GetAssetThreadWaitTime() const { return m_AssetThreadWaitTime; }
 		constexpr inline float GetAssetThreadEnsureCurrentTime() const { return m_AssetThreadEnsureCurrentTime; }
 
 	private:
+		void Set(ThreadState stateToSet);
+		void WaitForKick();
+
 		void AssetThreadFunc();
 
 		std::filesystem::path GetFileSystemPath(const AssetMetaData& metaData);
@@ -58,7 +58,7 @@ namespace Iris {
 		Thread m_Thread;
 		AssetThreadData* m_Data;
 
-		bool m_Running = false;
+		std::atomic<bool> m_Running = false;
 
 		std::queue<AssetLoadRequest> m_AssetLoadingQueue;
 		std::mutex m_AssetLoadingQueueMutex;
@@ -70,11 +70,8 @@ namespace Iris {
 		std::mutex m_AMLoadedAssetsMapMutex;
 
 		// Asset Monitoring
-		float m_AssetThreadSleepTime = 0.0f;
 		float m_AssetThreadWaitTime = 0.0f;
 		float m_AssetThreadEnsureCurrentTime = 0.0f;
-
-		inline static std::thread::id s_AssetThreadID;
 
 	};
 

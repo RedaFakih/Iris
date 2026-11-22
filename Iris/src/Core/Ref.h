@@ -140,7 +140,7 @@ namespace Iris {
 			other.IncrementRef();
 			DecrementRef();
 
-			m_Ptr = other.m_Ptr;
+			m_Ptr = static_cast<T*>(other.m_Ptr);
 			return *this;
 		}
 
@@ -173,6 +173,9 @@ namespace Iris {
 
 		void Reset(T* ptr = nullptr)
 		{
+			if (ptr)
+				ptr->IncRefCount();
+
 			DecrementRef();
 			m_Ptr = ptr;
 		}
@@ -287,10 +290,13 @@ namespace Iris {
 #endif
 		}
 
+		T* Raw() { return m_Ptr; }
+		const T* Raw() const { return m_Ptr; }
+
 		template<typename T2>
 		WeakRef<T2> As() const
 		{
-			return WeakRef<T2>(reinterpret_cast<T2*>(m_Ptr));
+			return WeakRef<T2>(static_cast<T2*>(m_Ptr));
 		}
 
 		T* operator->() noexcept { return m_Ptr; }

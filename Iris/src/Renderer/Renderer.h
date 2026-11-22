@@ -48,48 +48,41 @@ namespace Iris {
 		template<typename FuncT>
 		static void Submit(FuncT&& func)
 		{
-			auto renderCmd = [](void* ptr)
-			{
-				FuncT* pFunc = reinterpret_cast<FuncT*>(ptr);
-				(*pFunc)();
+			using Fn = std::decay_t<FuncT>;
+			static_assert(alignof(std::decay_t<FuncT>) <= 16, "Free Command over-aligned");
 
-				// NOTE: Instead of destroying we could try to ensure all items are trivially destructible
-				// however some items may contains std::string (uniforms).
-				// static_assert(std::is_trivially_destructible_v<FuncT>, "FuncT must be trivially destructible");
-				pFunc->~FuncT();
-			};
-
-			void* storageBuffer = Renderer::GetRenderCommandQueue().Allocate(renderCmd, sizeof(func));
-			new(storageBuffer) FuncT(std::forward<FuncT>((FuncT&&)func));
+			QueueCmd(GetRenderCommandQueue(), std::forward<FuncT>(func));
 		}
 
 		template<typename FuncT>
 		static void SubmitReseourceFree(FuncT&& func)
 		{
+			using Fn = std::decay_t<FuncT>;
+			static_assert(alignof(std::decay_t<FuncT>) <= 16, "Free Command over-aligned");
+
 			auto renderCmd = [](void* ptr)
 			{
-				FuncT* pFunc = reinterpret_cast<FuncT*>(ptr);
+				Fn* pFunc = reinterpret_cast<Fn*>(ptr);
 				(*pFunc)();
 
-				// NOTE: Instead of destroying we could try to ensure all items are trivially destructible
-				// however some items may contains std::string (uniforms).
-				// static_assert(std::is_trivially_destructible_v<FuncT>, "FuncT must be trivially destructible");
-				pFunc->~FuncT();
+				pFunc->~Fn();
 			};
 
 			if (RenderThread::IsCurrentThreadRT())
 			{
+				// Write straight into the free queue of the frame being rendered
 				const uint32_t index = Renderer::RT_GetCurrentFrameIndex();
 				void* storageBuffer = Renderer::GetRendererResourceReleaseQueue(index).Allocate(renderCmd, sizeof(func));
-				new(storageBuffer) FuncT(std::forward<FuncT>((FuncT&&)func));
+				::new(storageBuffer) Fn(std::forward<FuncT>(func));
 			}
 			else
 			{
+				// Record a command that will write into the free queue later
 				const uint32_t index = Renderer::GetMainThreadResourceFreeingQueueIndex();
 				Submit([renderCmd, index, func]()
 				{
 					void* storageBuffer = Renderer::GetRendererResourceReleaseQueue(index).Allocate(renderCmd, sizeof(func));
-					new(storageBuffer) FuncT(std::forward<FuncT>((FuncT&&)func));
+					::new(storageBuffer) Fn(std::forward<FuncT>((FuncT&&)func));
 				});
 			}
 		}
@@ -195,6 +188,24 @@ namespace Iris {
 
 		static uint32_t GetCurrentFrameIndex();
 		static uint32_t RT_GetCurrentFrameIndex();
+
+	private:
+		template<typename FuncT>
+		static void QueueCmd(RenderCommandQueue& queue, FuncT&& func)
+		{
+			using Fn = std::decay_t<FuncT>;
+
+			constexpr RenderCommandQueue::RenderCommandFn renderCmd = [](void* ptr)
+			{
+				Fn* fn = static_cast<Fn*>(ptr);
+				(*fn)();
+					
+				fn->~Fn();
+			};
+
+			void* storageBuffer = queue.Allocate(renderCmd, static_cast<uint32_t>(sizeof(Fn)));
+			::new(storageBuffer) Fn(std::forward<FuncT>(func));
+		}
 
 	};
 

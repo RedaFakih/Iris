@@ -64,8 +64,8 @@ project "IrisRuntime"
         {
             "IR_CONFIG_RELEASE",
 
-            "JPH_DEBUG_RENDERER",
-            "JPH_FLOATING_POINT_EXCEPTIONS_ENABLED",
+            "JPH_NO_DEBUG",
+            -- "JPH_DEBUG_RENDERER",
             "JPH_EXTERNAL_PROFILE"
         }
 

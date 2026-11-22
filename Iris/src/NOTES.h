@@ -10,6 +10,13 @@
  * TODO: Ref Counting
  * - Rewrite the system to a better solution to be able to properly validate weak refs without tanking performance and not needing a set of live references tracking
  * 
+ * TODO: Asset Loading
+ * - Currently the AssetThread when loading assets, those assets call Renderer::Submit while being loaded, which is wrong since may cause sine data races with the Main thread when it is recording.
+ * - To solve:
+ * - - we can either have a separate command queue per thread working.
+ * - - Or assets load their data (buffers, textures, etc...) into CPU buffers and only the Main thread can Submit the GPU allocation commands
+ * - - Or (RECCOMENDED), Use the vulkan transfer queue
+ * 
  * TODO: ContentBrowser
  * - We need to make the content browser be able to be rendered in different contexts
  * - We need to make the material editor have its own context in a way since it needs to handle inputs alone

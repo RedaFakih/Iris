@@ -29,31 +29,34 @@ namespace Iris {
 	{
 		if (m_Policy == ThreadingPolicy::MultiThreaded)
 		{
-			DeleteCriticalSection(&m_Data->CriticalSection);
 			m_Thread.Join();
+			DeleteCriticalSection(&m_Data->CriticalSection);
 		}
 
-		s_RenderThreadID = std::thread::id();
+		delete m_Data;
 	}
 
 	void RenderThread::Run()
 	{
-		m_IsRunning = true;
+		m_IsRunning.store(true, std::memory_order_release);
 		if (m_Policy == ThreadingPolicy::MultiThreaded)
-			m_Thread.Dispatch(Renderer::RenderThreadFunc, this);
-
-		s_RenderThreadID = m_Thread.GetID();
+		{
+			m_Thread.Dispatch([this]()
+			{
+				s_RenderThreadID.store(std::this_thread::get_id(), std::memory_order_release);
+				Renderer::RenderThreadFunc(this);
+				s_RenderThreadID.store(std::thread::id(), std::memory_order_release);
+			});
+		}
 	}
 
 	void RenderThread::Terminate()
 	{
-		m_IsRunning = false;
+		m_IsRunning.store(false, std::memory_order_release);
 		Pump();
 
 		if (m_Policy == ThreadingPolicy::MultiThreaded)
 			m_Thread.Join();
-
-		s_RenderThreadID = std::thread::id();
 	}
 
 	void RenderThread::Wait(ThreadState waitForState)
@@ -127,11 +130,6 @@ namespace Iris {
 		NextFrame();
 		Kick();
 		BlockUntilRenderComplete();
-	}
-
-	bool RenderThread::IsCurrentThreadRT()
-	{
-		return s_RenderThreadID == std::this_thread::get_id();
 	}
 
 }

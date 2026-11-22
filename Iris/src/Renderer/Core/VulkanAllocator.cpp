@@ -68,7 +68,12 @@ namespace Iris {
 		char* statsString = nullptr;
 		vmaBuildStatsString(s_Data->Allocator, &statsString, VK_TRUE);
 		if (statsString) {
-			FILE* fp = fopen("vma_leak_report.json", "w");
+			std::filesystem::path dumpPath = "../Iris/DebugDump/vma_leak_report.json";
+			if (!std::filesystem::exists(dumpPath))
+				std::filesystem::create_directories(dumpPath.parent_path());
+
+			std::string dumpPathString = dumpPath.string();
+			FILE* fp = fopen(dumpPathString.c_str(), "w");
 			if (fp) {
 				fputs(statsString, fp);
 				fclose(fp);

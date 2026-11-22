@@ -24,12 +24,17 @@ namespace Iris {
 
 		std::wstring threadName(name.begin(), name.end());
 		SetThreadDescription(threadHandle, threadName.c_str());
-		SetThreadAffinityMask(threadHandle, 8);
+	}
+
+	void Thread::SetAffinity(uint64_t mask)
+	{
+		HANDLE threadHandle = m_Thread.native_handle();
+		SetThreadAffinityMask(threadHandle, static_cast<DWORD_PTR>(mask));
 	}
 
 	std::thread::id Thread::GetID() const
 	{
-		return std::thread::id();
+		return m_Thread.get_id();
 	}
 
 }

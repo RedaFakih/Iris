@@ -121,11 +121,13 @@ namespace Iris {
 
 		VkQueue m_GraphicsQueue;
 		VkQueue m_ComputeQueue;
+		VkQueue m_TransferQueue;
 
 		std::map<std::thread::id, Ref<VulkanCommandPool>> m_CommandPools;
 
 		std::mutex m_GraphicsQueueMutex;
 		std::mutex m_ComputeQueueMutex;
+		std::mutex m_TrasnferQueueMutex;
 
 		friend class Renderer;
 	};

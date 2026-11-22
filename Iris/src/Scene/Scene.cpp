@@ -63,6 +63,13 @@ namespace Iris {
 
 	Scene::~Scene()
 	{
+		Ref<PhysicsScene> physics = GetPhysicsScene();
+		if (physics)
+		{
+			physics->Destroy();
+			m_Registry.remove<JoltWorldComponent>(m_SceneEntity);
+		}
+
 		// NOTE: VERY ugly hack around SkyLight GPU leaks
 		// This should be handled by the AssetManager when we create some system to auto detect when it should release assets...
 		// But for now this is good enough since that is a hard system to get in the engine since it requires alot of architecture
@@ -95,7 +102,7 @@ namespace Iris {
 		{
 			auto uuid = m_Registry.get<IDComponent>(entity).ID;
 			auto name = m_Registry.get<TagComponent>(entity).Tag;
-			Entity e = targetScene->CreateEntityWithUUID(uuid, name, false);
+			Entity e = targetScene->CreateEntityWithUUID(uuid, name, false, false);
 
 			// Take care of entity visibility
 			if (m_EntityIDMap.at(uuid).HasComponent<VisibleComponent>())
@@ -1114,14 +1121,15 @@ namespace Iris {
 
 	void Scene::OnRuntimeStop()
 	{
-		// B2World destructor automatically does all necessary cleanup
-		Box2DWorldComponent& b2WorldComp = m_Registry.get<Box2DWorldComponent>(m_SceneEntity);
-		b2WorldComp.World = nullptr;
+		if (m_Registry.has<Box2DWorldComponent>(m_SceneEntity))
+			m_Registry.remove<Box2DWorldComponent>(m_SceneEntity); // B2World destructor called and cleansup
 		
-		JoltWorldComponent& joltWorldComp = m_Registry.get<JoltWorldComponent>(m_SceneEntity);
-		joltWorldComp.PhysicsWorld->Destroy();
-		joltWorldComp.PhysicsWorld = nullptr;
-		m_Registry.remove<JoltWorldComponent>(m_SceneEntity);
+		Ref<PhysicsScene> physicsScene = GetPhysicsScene();
+		if (physicsScene)
+		{
+			physicsScene->Destroy();
+			m_Registry.remove<JoltWorldComponent>(m_SceneEntity);
+		}
 
 		m_IsPlaying = false;
 		m_ShouldSimulate = false;
@@ -1224,18 +1232,19 @@ namespace Iris {
 
 		++m_HierarchyVersion;
 
-		if (!m_IsEditorScene)
+		if (!m_IsEditorScene && m_IsPlaying)
 		{
 			Ref<PhysicsScene> physicsScene = GetPhysicsScene();
 
 			if (entity.HasComponent<RigidBodyComponent>())
 				physicsScene->DestroyBody(entity);
 
-			if (entity.HasComponent<RigidBody2DComponent>())
+			if (entity.HasComponent<RigidBody2DComponent>() && m_Registry.has<Box2DWorldComponent>(m_SceneEntity))
 			{
 				Scope<b2World>& b2DWorld = m_Registry.get<Box2DWorldComponent>(m_SceneEntity).World;
-				b2Body* body = reinterpret_cast<b2Body*>(entity.GetComponent<RigidBody2DComponent>().RuntimeBody);
-				b2DWorld->DestroyBody(body);
+				b2Body* body = static_cast<b2Body*>(entity.GetComponent<RigidBody2DComponent>().RuntimeBody);
+				if (b2DWorld && body)
+					b2DWorld->DestroyBody(body);
 			}
 		}
 
@@ -1252,8 +1261,7 @@ namespace Iris {
 				if (!child)
 					continue;
 
-				// Detach FIRST: no live entity's Children list may reference a dead
-				// UUID while callbacks / SortEntities run during the cascade.
+				// Detach FIRST: no live entity's Children list may reference a dead UUID
 				DetachChild(entity, child);
 				DestroyEntity(child, excludeChildren, false);
 			}
@@ -1286,7 +1294,8 @@ namespace Iris {
 		m_Registry.destroy(entity.m_EntityHandle);
 		m_EntityIDMap.erase(id);
 
-		SortEntities();
+		if (first)
+			SortEntities();
 	}
 
 	void Scene::DestroyEntity(UUID entityID, bool excludeChildren, bool first)
@@ -1333,10 +1342,11 @@ namespace Iris {
 		if (!parent)
 			return;
 
-		DetachChild(parent, entity);
-
+		// Do the transform conversion before DetachChild clear the parent for the entity
 		if (convertToWorldSpace)
 			ConvertToWorldSpace(entity);
+
+		DetachChild(parent, entity);
 	}
 
 	Entity Scene::DuplicateEntity(Entity entity)

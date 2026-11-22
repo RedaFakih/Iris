@@ -1623,7 +1623,7 @@ namespace Iris {
 
 			// From now on the main geometry attachment is read only since it is used for post processing
 			Ref<SceneRenderer> instance = this;
-			Renderer::Submit([instance]()
+			Renderer::Submit([instance, dofEnabled = m_Options.DOFEnabled]()
 			{
 				for (int i = 0; i < instance->m_GeometryPass->GetTargetFramebuffer()->GetColorAttachmentCount(); i++)
 				{
@@ -1640,7 +1640,7 @@ namespace Iris {
 					);
 				}
 
-				if (instance->m_Options.DOFEnabled)
+				if (dofEnabled)
 				{
 					Renderer::InsertImageMemoryBarrier(
 						instance->m_CommandBuffer->GetActiveCommandBuffer(),

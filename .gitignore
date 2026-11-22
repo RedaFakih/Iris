@@ -2,10 +2,11 @@
 bin/
 Cache/
 Iris/LogDump/
+Iris/DebugDump/
 
 *.vcxproj
 *.filters
 *.user
 *.sln
-
-vma_leak_report.json
+*.cache
+*.aps

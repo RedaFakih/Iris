@@ -16,14 +16,13 @@ namespace Iris {
 		CONDITION_VARIABLE ConditionVariable;
 
 		ThreadState State = ThreadState::Idle;
+		bool KickRequested = false;
 	};
 
 
 	EditorAssetThread::EditorAssetThread()
 		: m_Thread("Asset Thread")
 	{
-		s_AssetThreadID = m_Thread.GetID();
-
 		m_Data = new AssetThreadData();
 		InitializeCriticalSection(&m_Data->CriticalSection);
 		InitializeConditionVariable(&m_Data->ConditionVariable);
@@ -32,15 +31,18 @@ namespace Iris {
 	EditorAssetThread::~EditorAssetThread()
 	{
 		if (m_Data->State != ThreadState::Joined)
-			StopAndWait(true);
+			StopAndWait();
 
 		DeleteCriticalSection(&m_Data->CriticalSection);
-		s_AssetThreadID = std::thread::id();
+		delete m_Data;
 	}
 
 	bool EditorAssetThread::IsCurrentlyLoadingAssets() const
 	{
-		return m_Data->State == ThreadState::Busy;
+		EnterCriticalSection(&m_Data->CriticalSection);
+		const bool busy = m_Data->State == ThreadState::Busy;
+		LeaveCriticalSection(&m_Data->CriticalSection);
+		return busy;
 	}
 
 	void EditorAssetThread::QueueAssetLoad(const AssetLoadRequest& request)
@@ -51,13 +53,11 @@ namespace Iris {
 
 	bool EditorAssetThread::RetrieveReadyAssets(std::vector<AssetLoadRequest>& outAssetList)
 	{
+		std::scoped_lock<std::mutex> lock(m_LoadedAssetsVectorMutex);
 		if (m_LoadedAssets.empty())
 			return false;
 
-		std::scoped_lock<std::mutex> lock(m_LoadedAssetsVectorMutex);
-		outAssetList = m_LoadedAssets;
-		// Clear so that we do not have duplicates and leak memory
-		m_LoadedAssets.clear();
+		outAssetList.swap(m_LoadedAssets);
 		return true;
 	}
 
@@ -78,20 +78,14 @@ namespace Iris {
 		m_Running = false;
 	}
 
-	void EditorAssetThread::StopAndWait(bool terminateThread)
+	void EditorAssetThread::StopAndWait()
 	{
 		Stop();
 
-		Set(ThreadState::Kick);
-		Wait(ThreadState::Idle);
+		Kick();
+		m_Thread.Join();
 
-		if (terminateThread)
-		{
-			Set(ThreadState::Joined);
-			m_Thread.Join();
-
-			s_AssetThreadID = std::thread::id();
-		}
+		m_Data->State = ThreadState::Joined;
 	}
 
 	void EditorAssetThread::AssetMonitorUpdate()
@@ -102,51 +96,36 @@ namespace Iris {
 		m_AssetThreadEnsureCurrentTime = timer.ElapsedMillis();
 	}
 
-	void EditorAssetThread::Wait(ThreadState stateToWait)
-	{
-		// Nothing to wait for
-		if (m_Data->State == stateToWait)
-			return;
-
-		Timer assetThreadSleepTimer;
-
-		EnterCriticalSection(&m_Data->CriticalSection);
-		while (m_Data->State != stateToWait)
-		{
-			SleepConditionVariableCS(&m_Data->ConditionVariable, &m_Data->CriticalSection, INFINITE);
-		}
-		LeaveCriticalSection(&m_Data->CriticalSection);
-
-		m_AssetThreadSleepTime = assetThreadSleepTimer.ElapsedMillis();
-	}
-
 	void EditorAssetThread::Set(ThreadState stateToSet)
 	{
-		// Already set
-		if (m_Data->State == stateToSet)
-			return;
-
 		EnterCriticalSection(&m_Data->CriticalSection);
 		m_Data->State = stateToSet;
 		WakeAllConditionVariable(&m_Data->ConditionVariable);
 		LeaveCriticalSection(&m_Data->CriticalSection);
 	}
 
-	void EditorAssetThread::WaitAndSet(ThreadState stateToWait, ThreadState stateToSet)
+	void EditorAssetThread::Kick()
 	{
-		// Nothing to wait for
-		if (m_Data->State == stateToWait)
-			return;
+		EnterCriticalSection(&m_Data->CriticalSection);
+		m_Data->KickRequested = true;
+		WakeAllConditionVariable(&m_Data->ConditionVariable);
+		LeaveCriticalSection(&m_Data->CriticalSection);
+	}
 
+	void EditorAssetThread::WaitForKick()
+	{
 		Timer assetThreadWaitTimer;
 
 		EnterCriticalSection(&m_Data->CriticalSection);
-		while (m_Data->State != stateToWait)
+		while (!m_Data->KickRequested)
 		{
 			SleepConditionVariableCS(&m_Data->ConditionVariable, &m_Data->CriticalSection, INFINITE);
 		}
-		m_Data->State = stateToSet;
-		WakeAllConditionVariable(&m_Data->ConditionVariable);
+
+		// Consume the kick BEFORE draining the queue: a Kick() that lands while we are loading
+		// sets the flag again, so the next loop iteration sees it instead of losing it
+		m_Data->KickRequested = false;
+		m_Data->State = ThreadState::Busy;
 		LeaveCriticalSection(&m_Data->CriticalSection);
 
 		m_AssetThreadWaitTime = assetThreadWaitTimer.ElapsedMillis();
@@ -157,27 +136,31 @@ namespace Iris {
 		while (m_Running)
 		{
 			// Here we wait untill the Kick state is set, then we set state to Busy
-			WaitAndSet(ThreadState::Kick, ThreadState::Busy);
+			WaitForKick();
 
 			AssetMonitorUpdate();
 
 			// Go through the asset loding request queue if we have any
 			// We use a while loop in case the user queues asset loads during an asset is being loaded
-			while (!m_AssetLoadingQueue.empty())
+			for (;;)
 			{
-				Application::Get().DispatchEvent<Events::TitleBarColorChangeEvent, true>(Colors::Theme::TitlebarRed);
-
-				m_AssetLoadingQueueMutex.lock();
-				// Copy the queue and clear the original one so that it does not stay locked through out the whole asset loading
-				std::queue<AssetLoadRequest> assetLoadQeuue = m_AssetLoadingQueue;
-				m_AssetLoadingQueue = {};
-				m_AssetLoadingQueueMutex.unlock();
-
-				std::vector<AssetLoadRequest> loadedAssetsCopy(assetLoadQeuue.size());
-				uint32_t index = 0;
-				while (!assetLoadQeuue.empty())
+				std::queue<AssetLoadRequest> assetLoadQueue;
 				{
-					AssetLoadRequest& alr = assetLoadQeuue.front();
+					std::scoped_lock<std::mutex> lock(m_AssetLoadingQueueMutex);
+					if (m_AssetLoadingQueue.empty())
+						break;
+
+					assetLoadQueue.swap(m_AssetLoadingQueue);
+				}
+
+				Application::Get().DispatchEvent<Events::TitleBarColorChangeEvent>(Colors::Theme::TitlebarRed);
+
+				std::vector<AssetLoadRequest> loadedAssetsCopy;
+				loadedAssetsCopy.reserve(assetLoadQueue.size());
+				
+				while (!assetLoadQueue.empty())
+				{
+					AssetLoadRequest& alr = assetLoadQueue.front();
 
 					IR_CORE_WARN_TAG("AssetManager", "[AssetThread]: Loading asset: {}", alr.MetaData.FilePath.string());
 
@@ -195,20 +178,18 @@ namespace Iris {
 
 					// NOTE: In case the asset failed we still want to know what its meta data is... so we set the status to invalid
 					// And if the loading failed then the asset flags will most probably say the asset is invalid/missing
-					loadedAssetsCopy[index++] = alr;
+					loadedAssetsCopy.push_back(std::move(alr));
 
-					assetLoadQeuue.pop();
+					assetLoadQueue.pop();
 				}
 
-				std::scoped_lock<std::mutex> lock(m_LoadedAssetsVectorMutex);
-				// Extend the vector to hold the extra assets
-				m_LoadedAssets.reserve(m_LoadedAssets.size() +  loadedAssetsCopy.size());
-				for (uint32_t i = 0; i < loadedAssetsCopy.size(); i++)
 				{
-					m_LoadedAssets.push_back(loadedAssetsCopy[i]);
+					std::scoped_lock<std::mutex> lock(m_LoadedAssetsVectorMutex);
+					for (AssetLoadRequest& alr : loadedAssetsCopy)
+						m_LoadedAssets.push_back(std::move(alr));
 				}
 
-				Application::Get().DispatchEvent<Events::TitleBarColorChangeEvent, true>(Colors::Theme::TitlebarCyan);
+				Application::Get().DispatchEvent<Events::TitleBarColorChangeEvent>(Colors::Theme::TitlebarCyan);
 			}
 
 			// Return the thread state back to idle since we finished work

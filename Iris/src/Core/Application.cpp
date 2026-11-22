@@ -181,14 +181,17 @@ namespace Iris {
 		
 		m_Window->ProcessEvents();
 
-		// NOTE: In case we were to run the events on a different thread
-		std::scoped_lock<std::mutex> eventLock(m_EventQueueMutex);
-
-		while (m_EventQueue.size())
+		// Copy events and release lock
+		std::queue<std::function<void()>> events;
 		{
-			auto& event = m_EventQueue.front();
-			event();
-			m_EventQueue.pop();
+			std::scoped_lock<std::mutex> eventLock(m_EventQueueMutex);
+			std::swap(events, m_EventQueue);
+		}
+
+		while (!events.empty())
+		{
+			events.front()();
+			events.pop();
 		}
 	}
 

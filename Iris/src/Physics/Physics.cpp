@@ -60,11 +60,12 @@ namespace Iris {
 		JPH::RegisterTypes();
 
 		// We need a temp allocator for temporary allocations during the physics update. We're
-		// pre-allocating 10 MB to avoid having to do allocations during the physics update.
-		s_Data->TemporariesAllocator = new JPH::TempAllocatorImpl(300 * 1024 * 1024);
+		// pre-allocating 32 MB to avoid having to do allocations during the physics update.
+		s_Data->TemporariesAllocator = new JPH::TempAllocatorImpl(32 * 1024 * 1024);
 
 		// We need a job system that will execute physics jobs on multiple threads.
-		s_Data->JobSystemThreadPool = CreateScope<JPH::JobSystemThreadPool>(2048, 8, 6);
+		const int workerThreads = std::max(1, static_cast<int>(std::thread::hardware_concurrency()) - 2);
+		s_Data->JobSystemThreadPool = CreateScope<JPH::JobSystemThreadPool>(JPH::cMaxPhysicsJobs, JPH::cMaxPhysicsBarriers, workerThreads);
 
 		// NOTE: MeshCookingFactory has no state to initialize
 

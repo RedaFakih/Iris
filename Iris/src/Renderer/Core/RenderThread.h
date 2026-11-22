@@ -31,9 +31,12 @@ namespace Iris {
 		void BlockUntilRenderComplete();
 		void Pump();
 
-		bool IsRunning() const { return m_IsRunning; }
+		bool IsRunning() const { return m_IsRunning.load(); }
 
-		static bool IsCurrentThreadRT();
+		inline static bool IsCurrentThreadRT()
+		{
+			return s_RenderThreadID.load(std::memory_order_acquire) == std::this_thread::get_id();
+		}
 
 	private:
 		Thread m_Thread;
@@ -41,11 +44,11 @@ namespace Iris {
 
 		ThreadingPolicy m_Policy = ThreadingPolicy::None;
 
-		bool m_IsRunning = false;
+		std::atomic<bool> m_IsRunning = false;
 
 		std::atomic<uint32_t> m_AppThreadFrame = 0;
 
-		inline static std::thread::id s_RenderThreadID;
+		inline static std::atomic<std::thread::id> s_RenderThreadID;
 
 	};
 
