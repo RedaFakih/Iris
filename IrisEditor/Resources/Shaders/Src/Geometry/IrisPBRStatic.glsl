@@ -255,7 +255,7 @@ float HardShadows_DirectionalLight(sampler2DArray shadowMap, uint cascade, vec3 
 {
 	float bias = GetDirShadowBias();
 	float shadowMapDepth = texture(u_ShadowMap, vec3(shadowCoords.xy * 0.5f + 0.5f, cascade)).x;
-	return step(shadowCoords.z, shadowMapDepth + bias) * g_ShadowFade;
+	return mix(1.0f, step(shadowCoords.z, shadowMapDepth + bias), g_ShadowFade);
 }
 
 // Soft Shadows (PCSS)
@@ -421,7 +421,7 @@ float PCSS_DirectionalLight(sampler2DArray shadowMap, uint cascade, vec3 shadowC
 	float uvRadius = penumbraWidth * uvLightSize * NEAR / shadowCoords.z; // NOTE: Do we need the division?
 	uvRadius = min(uvRadius, 0.002f);
 
-	return PCF_DirectionalLight(shadowMap, cascade, shadowCoords, uvRadius) * g_ShadowFade;
+	return mix(1.0f, PCF_DirectionalLight(shadowMap, cascade, shadowCoords, uvRadius), g_ShadowFade);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////
@@ -470,13 +470,13 @@ vec3 FresnelSchlickRoughness(vec3 F0, float cosTheta, float roughness)
 
 vec3 IBL(vec3 F0, vec3 Lr)
 {
-	vec3 irradiance = RotateVectorAboutY(u_MaterialUniforms.EnvMapRotation, texture(u_IrradianceMap, m_Params.Normal).rgb);
+	vec3 irradiance = texture(u_IrradianceMap, RotateVectorAboutY(u_MaterialUniforms.EnvMapRotation, m_Params.Normal)).rgb;
 	vec3 F = FresnelSchlickRoughness(F0, m_Params.NdotV, m_Params.Roughness);
 	vec3 kd = (1.0f - F) * (1.0f - m_Params.Metalness);
 	vec3 diffuseIBL = m_Params.Albedo * irradiance;
 
 	int envRadianceTexLevels = textureQueryLevels(u_RadianceMap);
-	vec3 specularIrradiance = textureLod(u_RadianceMap, RotateVectorAboutY(u_MaterialUniforms.EnvMapRotation, Lr), m_Params.Roughness * envRadianceTexLevels).rgb;
+	vec3 specularIrradiance = textureLod(u_RadianceMap, RotateVectorAboutY(u_MaterialUniforms.EnvMapRotation, Lr), m_Params.Roughness * float(envRadianceTexLevels - 1)).rgb;
 
 	vec2 specularBRDF = texture(u_BRDFLutTexture, vec2(m_Params.NdotV, m_Params.Roughness)).rg;
 	vec3 specularIBL = specularIrradiance * (F0 * specularBRDF.r + specularBRDF.g);
@@ -699,8 +699,11 @@ void main()
 		o_MetalnessRoughness = vec4(m_Params.Metalness, m_Params.Roughness, 0.0f, 1.0f);
 		m_Params.Roughness = max(m_Params.Roughness, 0.05f); // Min roughness value above 0 so we keep specular highlights
 
+		const float faceSign = gl_FrontFacing ? 1.0f : -1.0f;
+		const vec3 geometricNormal = normalize(Input.Normal) * faceSign;
+
 		// Normals... Either from vertex data or from normal map
-		m_Params.Normal = normalize(Input.Normal);
+		m_Params.Normal = geometricNormal;
 		if (u_MaterialUniforms.UseNormalMap)
 		{
 			m_Params.Normal = normalize(texture(u_NormalTexture, Input.TexCoord * u_MaterialUniforms.Tiling).rgb * 2.0f - 1.0f);

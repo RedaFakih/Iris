@@ -154,6 +154,7 @@ Entities:
     CameraComponent:
       Camera:
         ProjectionType: 0
+        Exposure: 0.800000012
         PerspectiveFOV: 45
         PerspectiveNear: 0.00999999978
         PerspectiveFar: 1000
@@ -305,7 +306,6 @@ Entities:
       AssetID: 17589601687444337883
       MaterialTable:
         0: 0
-        1: 0
   - Entity: 7551451357683168586
     TagComponent:
       Tag: Cube
@@ -357,11 +357,11 @@ Entities:
     TransformComponent:
       Position: [19.3937569, 2.50331473, -6.96708107]
       Rotation: [0, -0, 0]
-      Scale: [14.4000006, 14.4000006, 14.4000006]
+      Scale: [8.64000034, 8.64000034, 8.64000034]
     PointLightComponent:
       Radiance: [1, 0, 0]
       Intensity: 1.54999995
-      Radius: 14.4000006
+      Radius: 8.64000034
       FallOff: 1
   - Entity: 10056879582256538687
     TagComponent:

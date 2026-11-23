@@ -83,12 +83,12 @@ namespace Iris {
 		void CopyTo(Ref<Scene>& targetScene);
 
 		void OnUpdateRuntime(TimeStep ts);
-		void OnRenderRuntime(Ref<SceneRenderer> renderer);
-		void OnRenderRuntime(Ref<SceneRendererLite> renderer);
+		void OnRenderRuntime(Ref<SceneRenderer> renderer, TimeStep ts);
+		void OnRenderRuntime(Ref<SceneRendererLite> renderer, TimeStep ts);
 
 		void OnUpdateEditor(TimeStep ts);
-		void OnRenderEditor(Ref<SceneRenderer> renderer, const EditorCamera& camera, SelectionHighlightMask selctionHighlightMask = {});
-		void OnRenderEditor(Ref<SceneRendererLite> renderer, const EditorCamera& camera);
+		void OnRenderEditor(Ref<SceneRenderer> renderer, const EditorCamera& camera, TimeStep ts, SelectionHighlightMask selctionHighlightMask = {});
+		void OnRenderEditor(Ref<SceneRendererLite> renderer, const EditorCamera& camera, TimeStep ts);
 
 		void SetViewportSize(uint32_t width, uint32_t height);
 

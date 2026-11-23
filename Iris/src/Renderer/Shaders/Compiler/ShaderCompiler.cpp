@@ -514,7 +514,7 @@ namespace Iris {
 					m_ReflectionData.ShaderDescriptorSets.resize(descriptorSet + 1);
 
 				ShaderResources::ShaderDescriptorSet& shaderDescriptorSet = m_ReflectionData.ShaderDescriptorSets[descriptorSet];
-				if (s_StorageBuffers[descriptorSet].contains(shaderDescriptorSet))
+				if (s_StorageBuffers[descriptorSet].contains(binding))
 				{
 					ShaderResources::StorageBuffer& sbo = s_StorageBuffers.at(descriptorSet).at(binding);
 					if (bufferSize > sbo.Size)

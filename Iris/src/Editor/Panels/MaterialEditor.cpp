@@ -26,7 +26,7 @@ namespace Iris {
 			m_Camera.SetActive(m_ViewportMouseOver || m_AllowViewportCameraEvents);
 			m_Camera.OnUpdate(ts);
 			m_Scene->OnUpdateEditor(ts);
-			m_Scene->OnRenderEditor(m_SceneRenderer, m_Camera);
+			m_Scene->OnRenderEditor(m_SceneRenderer, m_Camera, ts);
 		}
 
 		bool leftAltWithEitherLeftOrMiddleButtonOrJustRight = (Input::IsKeyDown(KeyCode::LeftAlt) && (Input::IsMouseButtonDown(MouseButton::Left) || (Input::IsMouseButtonDown(MouseButton::Middle)))) || Input::IsMouseButtonDown(MouseButton::Right);

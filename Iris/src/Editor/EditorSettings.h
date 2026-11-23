@@ -2,6 +2,7 @@
 
 namespace Iris{
 
+	// TODO: Create a panel for these
 	struct EditorSettings
 	{
 		/// ContentBrowser

@@ -342,11 +342,11 @@ namespace Iris {
 		m_SceneRenderer->GetOptions().BloomFilterThreshold = 1.25f;
 
 		// TODO: Add camera for this?
-		m_Scene->OnRenderRuntime(m_SceneRenderer);
+		m_Scene->OnRenderRuntime(m_SceneRenderer, 0.0f);
 
 		m_EnvironmentScene = Scene::Create("ThumbnailGenerator-EnvironmentScene");
 		m_EnvironmentScene->SetViewportSize(m_Width, m_Height);
-		m_EnvironmentScene->OnRenderRuntime(m_SceneRenderer);
+		m_EnvironmentScene->OnRenderRuntime(m_SceneRenderer, 0.0f);
 
 		m_RenderCommandBuffer = RenderCommandBuffer::Create(1);
 	}
@@ -401,7 +401,7 @@ namespace Iris {
 
 		m_AssetThumbnailGenerators.at(metadata.Type)->OnPrepare(handle, scene, m_SceneRenderer);
 
-		scene->OnRenderRuntime(m_SceneRenderer);
+		scene->OnRenderRuntime(m_SceneRenderer, 0.0f);
 
 		m_AssetThumbnailGenerators.at(metadata.Type)->OnFinish(handle, scene, m_SceneRenderer);
 

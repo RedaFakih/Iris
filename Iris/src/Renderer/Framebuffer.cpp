@@ -78,6 +78,8 @@ namespace Iris {
                     .Height = m_Height,
                     .Format = attachmentSpec.Format,
                     .Usage = ImageUsage::Attachment,
+                    .WrapMode = attachmentSpec.WrapMode,
+                    .FilterMode = attachmentSpec.FilterMode,
                     .Samples = 1,
                     .Transfer = m_Specification.Transfer
                 };

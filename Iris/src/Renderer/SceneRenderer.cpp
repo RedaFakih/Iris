@@ -55,6 +55,13 @@ namespace Iris {
 			// NOTE: Gets resized later
 			m_SBSVisiblePointLightIndicesBuffer = StorageBufferSet::Create(true, 1);
 			m_SBSVisibleSpotLightIndicesBuffer = StorageBufferSet::Create(true, 1);
+
+			// NOTE: Not resized later
+			// 1 exposure value + 1 luminance value + histogram values
+			const uint32_t luminanceBufferSize = (1 + 1 + IR_LUMINANCE_NUM_HISTOGRAM_BINS) * sizeof(uint32_t);
+			m_SBLuminanceHistogramBuffer = StorageBuffer::Create(luminanceBufferSize, true);
+			std::vector<uint32_t> zeros(luminanceBufferSize, 0);
+			m_SBLuminanceHistogramBuffer->SetData(zeros.data(), luminanceBufferSize);
 		}
 
 		m_RendererDataUB.SoftShadows = m_Specification.ShadowResolution == ShadowResolutionSetting::High;
@@ -620,13 +627,10 @@ namespace Iris {
 			m_CompositePass = RenderPass::Create(compositePassSpec);
 			m_CompositeMaterial = Material::Create(compPipelineSpec.Shader, "CompositingMaterial");
 
-			// For if we decide we want to view the depth image
-			// m_CompositePass->SetInput("Camera", m_UBSCamera);
 			m_CompositePass->SetInput("u_Texture", m_GeometryPass->GetOutput(0));
 			m_CompositePass->SetInput("u_BloomTexture", m_BloomTextures[2].Texture);
 			m_CompositePass->SetInput("u_BloomDirtTexture", m_BloomDirtTexture);
-			// NOTE: To use this we need to also transition its layout in the composite pass
-			// m_CompositePass->SetInput("u_DepthTexture", m_PreDepthPass->GetDepthOutput());
+			m_CompositePass->SetInput("LuminanceHistogramBuffer", m_SBLuminanceHistogramBuffer);
 			m_CompositePass->Bake();
 		}
 
@@ -721,6 +725,32 @@ namespace Iris {
 			m_LightCullingPass->Bake();
 			
 			m_LightCullingMaterial = Material::Create(lightCullingShader, "LightCullingMaterial");
+		}
+
+		// Adaptive Luminance
+		{
+			Ref<Shader> adaptiveLuminanceBuildShader = Renderer::GetShadersLibrary()->Get("AdaptiveLuminanceBuild");
+			ComputePassSpecification adaptiveLuminanceBuildPassSpec = {
+				.DebugName = "AdaptiveLuminanceBuildPass",
+				.Pipeline = ComputePipeline::Create(adaptiveLuminanceBuildShader, "AdaptiveLuminanceBuildPipeline"),
+				.MarkerColor = { 0.75f, 0.4f, 0.4f, 1.0f }
+			};
+			m_AdaptiveLuminanceBuildPass = ComputePass::Create(adaptiveLuminanceBuildPassSpec);
+
+			m_AdaptiveLuminanceBuildPass->SetInput("LuminanceHistogramBuffer", m_SBLuminanceHistogramBuffer);
+			m_AdaptiveLuminanceBuildPass->SetInput("u_Texture", m_GeometryPass->GetOutput(0));
+			m_AdaptiveLuminanceBuildPass->Bake();
+
+			Ref<Shader> adaptiveLuminanceAverageShader = Renderer::GetShadersLibrary()->Get("AdaptiveLuminanceAverage");
+			ComputePassSpecification adaptiveLuminanceAveragePassSpec = {
+				.DebugName = "AdaptiveLuminanceAveragePass",
+				.Pipeline = ComputePipeline::Create(adaptiveLuminanceAverageShader, "AdaptiveLuminanceAveragePipeline"),
+				.MarkerColor = { 0.75f, 0.4f, 0.4f, 1.0f }
+			};
+			m_AdaptiveLuminanceAveragePass = ComputePass::Create(adaptiveLuminanceAveragePassSpec);
+
+			m_AdaptiveLuminanceAveragePass->SetInput("LuminanceHistogramBuffer", m_SBLuminanceHistogramBuffer);
+			m_AdaptiveLuminanceAveragePass->Bake();
 		}
 
 		// Skybox
@@ -965,12 +995,13 @@ namespace Iris {
 		m_NeedsResizeGTAOBuffers = true;
 	}
 
-	void SceneRenderer::BeginScene(const SceneRendererCamera& camera)
+	void SceneRenderer::BeginScene(const SceneRendererCamera& camera, TimeStep ts)
 	{
 		IR_ASSERT(!m_Active);
 		IR_ASSERT(m_Scene);
 
 		m_Active = true;
+		m_DeltaTime = ts;
 
 		if (m_ResourcesCreatedGPU)
 			m_ResourcesCreated = true;
@@ -1034,10 +1065,10 @@ namespace Iris {
 				m_RendererDataUB.TilesCountX = m_LightCullingWorkGroups.x;
 				
 				// Visible Point Light Indices storage buffer (set = 1, binding = 5)
-				m_SBSVisiblePointLightIndicesBuffer->Resize(m_LightCullingWorkGroups.x * m_LightCullingWorkGroups.y * 4 * 100);
+				m_SBSVisiblePointLightIndicesBuffer->Resize(m_LightCullingWorkGroups.x * m_LightCullingWorkGroups.y * static_cast<uint32_t>(sizeof(int32_t)) * Renderer::GetConfig().MaxNumberOfPointLights);
 
 				// Visible Spot Light Indices storage buffer (set = 1, binding = 7)
-				m_SBSVisibleSpotLightIndicesBuffer->Resize(m_LightCullingWorkGroups.x * m_LightCullingWorkGroups.y * 4 * 100);
+				m_SBSVisibleSpotLightIndicesBuffer->Resize(m_LightCullingWorkGroups.x * m_LightCullingWorkGroups.y * static_cast<uint32_t>(sizeof(int32_t)) * Renderer::GetConfig().MaxNumberOfSpotLights);
 			}
 
 			// Hierarchal Z-Buffer
@@ -1066,6 +1097,11 @@ namespace Iris {
 
 				// Re-setup materials with new image views
 				CreateHierarchalZBufferPassMaterials();
+			}
+
+			// Adaptive Luminance
+			{
+				// NOTE: Nothing to do here since the workgroup size is computed from the push constant sizes set
 			}
 
 			// Bloom
@@ -1666,6 +1702,9 @@ namespace Iris {
 				}
 			});
 
+			if (m_Options.AdaptiveExposure)
+				AdaptiveLuminancePass();
+
 			if (m_Options.BloomEnabled)
 				BloomPass();
 
@@ -2019,7 +2058,7 @@ namespace Iris {
 		});
 
 		// Selected Geometry Isolation (Only happens when we have something selected, so as long we do not have anything selected we do not want to start these passes)
-		if (m_Specification.JumpFloodPass && (m_SelectedStaticMeshDrawList.size() != 0 || m_DoubleSidedSelectedStaticMeshDrawList.size() != 0))
+		if (m_Specification.JumpFloodPass)
 		{
 			Renderer::BeginRenderPass(m_CommandBuffer, m_SelectedGeometryPass);
 		
@@ -2296,6 +2335,73 @@ namespace Iris {
 		vertexOverrides.Release();
 	}
 
+	void SceneRenderer::AdaptiveLuminancePass()
+	{
+		Ref<SceneRenderer> instance = this;
+		glm::uvec3 workGroups{ 0 };
+
+		struct AdaptiveLuminancePushConstants
+		{
+			glm::ivec2 Resolution;
+			glm::vec2 Resolution_Rcp;
+			glm::vec4 Params0; // (.x = LuminanceAdaptionate, .y = LuminanceLogMin, .z = LuminanceLogMax, .w = LuminanceLogRange)
+			glm::vec4 Params1; // (.x = LuminanceLogRangeRcp, .y = LuminancePixelCount, .z = LuminanceEyeAdaptionKey, .w = FrameDeltaTime)
+		} autoExpPC;
+		autoExpPC.Resolution = glm::ivec2(m_ViewportWidth / 2, m_ViewportHeight / 2);
+		autoExpPC.Resolution_Rcp = 1.0f / glm::vec2(autoExpPC.Resolution);
+		autoExpPC.Params0.x = m_Options.EyeAdaptionRate; // AdaptionRate
+		autoExpPC.Params0.y = m_Options.LuminanceLogMin; // LuminanceLogMin
+		autoExpPC.Params0.z = m_Options.LuminanceLogMax; // LuminanceLogMax
+		autoExpPC.Params0.w = autoExpPC.Params0.z - autoExpPC.Params0.y; // LuminanceLogRange
+		autoExpPC.Params1.x = 1.0f / autoExpPC.Params0.w; // LuminanceLogRangeRcp
+		autoExpPC.Params1.y = static_cast<float>(autoExpPC.Resolution.x * autoExpPC.Resolution.y); // LuminancePixelCount
+		autoExpPC.Params1.z = m_Options.EyeAdaptionKey; // LuminanceEyeAdaptionKey
+		autoExpPC.Params1.w = m_DeltaTime;
+
+		Renderer::Submit([instance]() mutable
+		{
+			Renderer::InsertBufferMemoryBarrier(instance->m_CommandBuffer->GetActiveCommandBuffer(),
+				instance->m_SBLuminanceHistogramBuffer->GetVulkanBuffer(),
+				VK_ACCESS_2_SHADER_STORAGE_READ_BIT | VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT,
+				VK_ACCESS_2_SHADER_STORAGE_READ_BIT | VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT,
+				VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,
+				VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT
+			);
+		});
+
+		// Build Pass
+		{
+			Renderer::BeginComputePass(m_CommandBuffer, m_AdaptiveLuminanceBuildPass);
+
+			workGroups = { (autoExpPC.Resolution.x + IR_LUMINANCE_WORKGROUP_SIZE - 1) / IR_LUMINANCE_WORKGROUP_SIZE, (autoExpPC.Resolution.y + IR_LUMINANCE_WORKGROUP_SIZE - 1) / IR_LUMINANCE_WORKGROUP_SIZE, 1 };
+			Renderer::DispatchComputePass(m_CommandBuffer, m_AdaptiveLuminanceBuildPass, nullptr, workGroups, Buffer(reinterpret_cast<const uint8_t*>(&autoExpPC), sizeof(autoExpPC)));
+
+			Renderer::EndComputePass(m_CommandBuffer, m_AdaptiveLuminanceBuildPass);
+		}
+
+		Renderer::Submit([instance]() mutable
+		{
+			Renderer::InsertBufferMemoryBarrier(
+				instance->m_CommandBuffer->GetActiveCommandBuffer(),
+				instance->m_SBLuminanceHistogramBuffer->GetVulkanBuffer(),
+				VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT,
+				VK_ACCESS_2_SHADER_STORAGE_READ_BIT,
+				VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+				VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT
+			);
+		});
+
+		// Average Pass
+		{
+			Renderer::BeginComputePass(m_CommandBuffer, m_AdaptiveLuminanceAveragePass);
+
+			workGroups = { 1, 1, 1 };
+			Renderer::DispatchComputePass(m_CommandBuffer, m_AdaptiveLuminanceAveragePass, nullptr, workGroups, Buffer(reinterpret_cast<const uint8_t*>(&autoExpPC), sizeof(autoExpPC)));
+
+			Renderer::EndComputePass(m_CommandBuffer, m_AdaptiveLuminanceAveragePass);
+		}
+	}
+
 	void SceneRenderer::BloomPass()
 	{
 		Ref<SceneRenderer> instance = this;
@@ -2489,6 +2595,21 @@ namespace Iris {
 		m_CompositePass->SetInput("u_BloomDirtTexture", m_BloomDirtTexture);
 
 		m_CompositeMaterial->Set("u_Uniforms.Exposure", exposure);
+		if (m_Options.AdaptiveExposure)
+		{
+			Renderer::Submit([instance]() mutable
+			{
+				Renderer::InsertBufferMemoryBarrier(
+					instance->m_CommandBuffer->GetActiveCommandBuffer(),
+					instance->m_SBLuminanceHistogramBuffer->GetVulkanBuffer(),
+					VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT,
+					VK_ACCESS_2_SHADER_STORAGE_READ_BIT,
+					VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+					VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT
+				);
+			});
+		}
+
 		if (m_Options.BloomEnabled)
 		{
 			m_CompositeMaterial->Set("u_Uniforms.BloomIntensity", m_Options.BloomIntensity);
@@ -2503,6 +2624,8 @@ namespace Iris {
 		}
 		m_CompositeMaterial->Set("u_Uniforms.Opacity", m_Opacity);
 		m_CompositeMaterial->Set("u_Uniforms.Time", Application::Get().GetTime());
+		m_CompositeMaterial->Set("u_Uniforms.TonemapOperator", static_cast<int>(m_Options.TonemapOp));
+		m_CompositeMaterial->Set("u_Uniforms.AdaptiveExposure", static_cast<int>(m_Options.AdaptiveExposure));
 
 		Renderer::BeginRenderPass(m_CommandBuffer, m_CompositePass);
 		Renderer::SubmitFullScreenQuad(m_CommandBuffer, m_CompositePass->GetPipeline(), m_CompositeMaterial);
@@ -2808,7 +2931,7 @@ namespace Iris {
 
 			lightOrthoMatrix[3] += roundOffset;
 
-			cascades[i].ViewProjMatrix = shadowMatrix;
+			cascades[i].ViewProjMatrix = lightOrthoMatrix * lightViewMatrix;
 			cascades[i].ViewMatrix = lightViewMatrix;
 			cascades[i].SplitDepth = (nearClip + splitDist * clipRange) * -1.0f;
 

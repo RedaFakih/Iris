@@ -190,7 +190,7 @@ namespace Iris {
 		}
 	}
 
-	void Scene::OnRenderRuntime(Ref<SceneRenderer> renderer)
+	void Scene::OnRenderRuntime(Ref<SceneRenderer> renderer, TimeStep ts)
 	{
 		Entity cameraEntity = GetMainCameraEntity();
 		if (!cameraEntity)
@@ -285,7 +285,7 @@ namespace Iris {
 						IR_VERIFY(dirLightCountIndex++ < LightEnvironment::MaxDirectionalLights, "We can't have more than {} directional lights in one scene!", LightEnvironment::MaxDirectionalLights);
 
 						const auto& [transformComp, dirLightComp] = view.get<TransformComponent, DirectionalLightComponent>(entity);
-						glm::vec3 direction = -glm::normalize(glm::mat3(transformComp.GetTransform()) * glm::vec3(1.0f));
+						glm::vec3 direction = glm::normalize(glm::mat3(transformComp.GetTransform()) * glm::vec3(1.0f));
 						m_LightEnvironment.DirectionalLight = SceneDirectionalLight{
 							.Direction = direction,
 							.Radiance = dirLightComp.Radiance,
@@ -353,7 +353,7 @@ namespace Iris {
 
 		{
 			renderer->SetScene(this);
-			renderer->BeginScene({ camera, cameraViewMatrix, camera.GetPerspectiveNearClip(), camera.GetPerspectiveFarClip(), camera.GetRadPerspectiveVerticalFOV() });
+			renderer->BeginScene({ camera, cameraViewMatrix, camera.GetPerspectiveNearClip(), camera.GetPerspectiveFarClip(), camera.GetRadPerspectiveVerticalFOV() }, ts);
 
 			// Render static meshes
 			auto entities = GetAllEntitiesWith<StaticMeshComponent, VisibleComponent>();
@@ -453,7 +453,7 @@ namespace Iris {
 		}
 	}
 
-	void Scene::OnRenderRuntime(Ref<SceneRendererLite> renderer)
+	void Scene::OnRenderRuntime(Ref<SceneRendererLite> renderer, TimeStep ts)
 	{
 		Entity cameraEntity = GetMainCameraEntity();
 		if (!cameraEntity)
@@ -548,7 +548,7 @@ namespace Iris {
 						IR_VERIFY(dirLightCountIndex++ < LightEnvironment::MaxDirectionalLights, "We can't have more than {} directional lights in one scene!", LightEnvironment::MaxDirectionalLights);
 
 						const auto& [transformComp, dirLightComp] = view.get<TransformComponent, DirectionalLightComponent>(entity);
-						glm::vec3 direction = -glm::normalize(glm::mat3(transformComp.GetTransform()) * glm::vec3(1.0f));
+						glm::vec3 direction = glm::normalize(glm::mat3(transformComp.GetTransform()) * glm::vec3(1.0f));
 						m_LightEnvironment.DirectionalLight = SceneDirectionalLight{
 							.Direction = direction,
 							.Radiance = dirLightComp.Radiance,
@@ -602,7 +602,7 @@ namespace Iris {
 		// NOTE: Should update some state for physics/scripting/animations but for now nothing...
 	}
 
-	void Scene::OnRenderEditor(Ref<SceneRenderer> renderer, const EditorCamera& camera, SelectionHighlightMask selctionHighlightMask)
+	void Scene::OnRenderEditor(Ref<SceneRenderer> renderer, const EditorCamera& camera, TimeStep ts, SelectionHighlightMask selctionHighlightMask)
 	{
 		// Render the scene
 
@@ -769,7 +769,7 @@ namespace Iris {
 
 		{
 			renderer->SetScene(this);
-			renderer->BeginScene({ camera, camera.GetViewMatrix(), camera.GetNearClip(), camera.GetFarClip(), camera.GetFOV() });
+			renderer->BeginScene({ camera, camera.GetViewMatrix(), camera.GetNearClip(), camera.GetFarClip(), camera.GetFOV() }, ts);
 
 			// Render static meshes
 
@@ -872,7 +872,7 @@ namespace Iris {
 		}
 	}
 
-	void Scene::OnRenderEditor(Ref<SceneRendererLite> renderer, const EditorCamera& camera)
+	void Scene::OnRenderEditor(Ref<SceneRendererLite> renderer, const EditorCamera& camera, TimeStep ts)
 	{
 		// Render the scene
 

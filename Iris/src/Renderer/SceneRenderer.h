@@ -18,11 +18,6 @@ namespace Iris {
 	 * NOTE: If we are planning to create multiple instances of the SceneRenderer then we CAN NOT release shader modules since the modules will be needed for the other instances' pipelines to be loaded and initialized
 	 */
 
-#define IR_BLOOM_COMPUTE_WORKGROUP_SIZE 4u
-#define IR_LIGHT_CULLING_WORKGROUP_SIZE 8u
-#define IR_GTAO_COMPUTE_WORKGROUP_SIZE 16u
-#define IR_GTAO_DENOISE_WORKGROUP_SIZE 8u
-
 	struct SceneRendererCamera
 	{
 		Camera Camera;
@@ -39,6 +34,16 @@ namespace Iris {
 		High
 	};
 
+	enum class TonemapOperator
+	{
+		ACES,
+		Reinhard,
+		Filmic,
+		AGX,
+		AGX_Contrast,
+		PbrNeutral
+	};
+
 	struct SceneRendererOptions
 	{
 		// General
@@ -48,6 +53,13 @@ namespace Iris {
 		enum class PhysicsColliderViewOptions { SelectedEntity = 0, All };
 		PhysicsColliderViewOptions PhysicsColliderViewMode = PhysicsColliderViewOptions::SelectedEntity;
 		bool ShowPhysicsColliders = false;
+
+		// Adaptive Exposure
+		bool AdaptiveExposure = false;
+		float EyeAdaptionRate = 1.0f;
+		float EyeAdaptionKey = 0.115f;
+		float LuminanceLogMin = -10.0f;
+		float LuminanceLogMax = 10.0f;
 
 		// Bloom
 		bool BloomEnabled = true;
@@ -62,7 +74,7 @@ namespace Iris {
 		// This is used int he PushConstants for the Denoise Passes
 		int GTAODenoisePasses = 4;
 		// Everything under this comment in the GTAO section is to be pushed into a push_constant buffer for the GTAO shader
-		bool GTAOHalfResolution = true;
+		bool GTAOHalfResolution = false;
 		float GTAOShadowTolerance = 1.0f;
 		glm::vec2 GTAONDCToViewMul_x_PixelSize;
 		float GTAOEffectRadius = 0.5f;
@@ -80,6 +92,9 @@ namespace Iris {
 		bool DOFEnabled = false;
 		float DOFFocusDistance = 0.0f;
 		float DOFBlurSize = 1.0f;
+
+		// Composite
+		TonemapOperator TonemapOp = TonemapOperator::PbrNeutral;
 	};
 
 	struct SceneRendererSpecification
@@ -131,7 +146,7 @@ namespace Iris {
 		void SetDirty() { m_NeedsResize = true; m_NeedsResizeGTAOBuffers = true; }
 		void SetDirtyGTAO() { m_NeedsResizeGTAOBuffers = true; }
 
-		void BeginScene(const SceneRendererCamera& camera);
+		void BeginScene(const SceneRendererCamera& camera, TimeStep Ts);
 		void EndScene();
 
 		void SubmitStaticMesh(Ref<StaticMesh> staticMesh, Ref<MeshSource> meshSource, Ref<MaterialTable> materialTable, const glm::mat4& transform = glm::mat4(1.0f), Ref<Material> overrideMaterial = nullptr);
@@ -228,6 +243,7 @@ namespace Iris {
 		void GTAODenoise();
 		void GTAOComposite();
 		void JumpFloodPass();
+		void AdaptiveLuminancePass();
 		void BloomPass();
 		void CompositePass();
 
@@ -349,6 +365,9 @@ namespace Iris {
 		} m_RendererDataUB;						// Total Size: 56 bytes
 		Ref<UniformBufferSet> m_UBSRendererData;
 
+		// (set = 1, binding = 9)
+		Ref<StorageBuffer> m_SBLuminanceHistogramBuffer;
+
 		// Directional Shadow (No material required since it only runs a vertex shader)
 		std::vector<Ref<RenderPass>> m_DirectionalShadowPasses;
 		Ref<Material> m_DirectionalShadowMaterial;
@@ -417,6 +436,10 @@ namespace Iris {
 		// Composite
 		Ref<RenderPass> m_CompositePass;
 		Ref<Material> m_CompositeMaterial;
+
+		// Adaptive Luminance
+		Ref<ComputePass> m_AdaptiveLuminanceBuildPass;
+		Ref<ComputePass> m_AdaptiveLuminanceAveragePass;
 
 		// Jump Flood
 		Ref<RenderPass> m_JumpFloodInitPass;
@@ -520,6 +543,7 @@ namespace Iris {
 
 		float m_InverseViewportWidth = 0.0f;
 		float m_InverseViewportHeight = 0.0f;
+		float m_DeltaTime = 0.0f;
 
 		bool m_NeedsResize = false;
 		bool m_NeedsResizeGTAOBuffers = false;

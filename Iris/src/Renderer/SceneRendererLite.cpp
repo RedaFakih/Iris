@@ -267,7 +267,7 @@ namespace Iris {
 
 			PipelineSpecification compPipelineSpec = {
 				.DebugName = "CompositePipeline",
-				.Shader = Renderer::GetShadersLibrary()->Get("Compositing"),
+				.Shader = Renderer::GetShadersLibrary()->Get("Compositing-Lite"),
 				.TargetFramebuffer = Framebuffer::Create(compFBSpec),
 				.VertexLayout = {
 					{ ShaderDataType::Float3, "a_Position" },
@@ -287,13 +287,9 @@ namespace Iris {
 			m_CompositePass = RenderPass::Create(compositePassSpec);
 			m_CompositeMaterial = Material::Create(compPipelineSpec.Shader, "CompositingMaterial");
 
-			// For if we decide we want to view the depth image
-			// m_CompositePass->SetInput("Camera", m_UBSCamera);
 			m_CompositePass->SetInput("u_Texture", m_GeometryPass->GetOutput(0));
 			m_CompositePass->SetInput("u_BloomTexture", m_BloomTextures[2].Texture);
 			m_CompositePass->SetInput("u_BloomDirtTexture", m_BloomDirtTexture);
-			// TODO: To use this we need to also transition its layout in the composite pass
-			// m_CompositePass->SetInput("u_DepthTexture", m_PreDepthPass->GetDepthOutput());
 			m_CompositePass->Bake();
 		}
 

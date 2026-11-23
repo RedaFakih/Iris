@@ -38,6 +38,37 @@ namespace Iris {
 				ImGui::TreePop();
 			}
 
+			if (UI::PropertyGridHeader("Compositing"))
+			{
+				UI::BeginPropertyGrid(2, 160.0f);
+
+				// Tonemap Operators
+				static const char* tonemapOperators[6] = { "ACES", "Reinhard", "Filmic", "AGX", "AGX-Contrast", "Pbr-Neutral" };
+				int currentTonemapOp = static_cast<int>(m_Context->m_Options.TonemapOp);
+
+				if (UI::PropertyDropdown("Tonemap Operator", tonemapOperators, 6, &currentTonemapOp, "Select tonemap operator to use on final composited image"))
+				{
+					m_Context->m_Options.TonemapOp = static_cast<TonemapOperator>(currentTonemapOp);
+				}
+
+				UI::EndPropertyGrid();
+
+				ImGui::TreePop();
+			}
+
+			if (UI::PropertyGridHeader("Exposure"))
+			{
+				UI::BeginPropertyGrid(2, 150.0f);
+
+				SceneRendererOptions& options = m_Context->m_Options;
+
+				UI::Property("Enabled", options.AdaptiveExposure, "Enable/Disable Adaptive Exposure");
+
+				UI::EndPropertyGrid();
+
+				ImGui::TreePop();
+			}
+
 			if (UI::PropertyGridHeader("Bloom"))
 			{
 				UI::BeginPropertyGrid(2, 150.0f);

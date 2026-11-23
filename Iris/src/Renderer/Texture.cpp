@@ -109,6 +109,9 @@ namespace Iris {
             {
                 constexpr uint32_t errorTextureData = 0xff0000ff;
                 m_ImageData = Buffer(reinterpret_cast<const uint8_t*>(&errorTextureData), sizeof(uint32_t));
+                m_Specification.Width = 1;
+                m_Specification.Height = 1;
+                m_Specification.Format = ImageFormat::RGBA;
             }
 
             Utils::ValidateSpecification(m_Specification);
@@ -229,6 +232,7 @@ namespace Iris {
 
             // At this point the image data is on the gpu in the staging buffer so we dont need it on the cpu side anymore so we release
             Utils::TextureImporter::FreeImageMemory(m_ImageData.Data);
+            m_ImageData.Data = nullptr;
             m_ImageData.Size = 0;
 
             Renderer::InsertImageMemoryBarrier(
@@ -417,8 +421,8 @@ namespace Iris {
             commandBuffer = nullptr;
         }
 
-        // Destroy any leftover memory if the texture was created with some ImageData provided
-        if (m_ImageData && stagingBuffer != nullptr && stagingBufferAlloc != nullptr)
+        // Destroy any leftover memory if the texture was created
+        if (stagingBuffer != nullptr && stagingBufferAlloc != nullptr)
             allocator.DestroyBuffer(stagingBufferAlloc, stagingBuffer);
     }
 

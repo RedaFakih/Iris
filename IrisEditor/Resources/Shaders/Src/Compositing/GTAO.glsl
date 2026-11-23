@@ -95,6 +95,9 @@ vec3 XeGTAO_ComputeViewSpacePosition(const vec2 screenPos, const float viewspace
     // Replaced fma() with standard math to avoid strict type-matching errors
     ret.xy = (u_Camera.NDCToViewMul * screenPos + u_Camera.NDCToViewAdd) * viewspaceDepth;
     ret.z = viewspaceDepth;
+
+    ret.y = -ret.y; // (x, y, -z) -> S' = (x, -y, -z), same space as the march direction and the normals
+
     return vec3(ret.x , ret.y, ret.z);
 }
 

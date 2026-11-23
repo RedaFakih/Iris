@@ -62,7 +62,7 @@ namespace Iris {
 		FramebufferBlendMode BlendMode = FramebufferBlendMode::SrcAlphaOneMinusSrcAlpha;
 		AttachmentLoadOp LoadOp = AttachmentLoadOp::Inherit; // Deduces load operation from framebuffer specification parameters
 		TextureFilter FilterMode = TextureFilter::Linear;
-		TextureWrap WrapMode = TextureWrap::Repeat;
+		TextureWrap WrapMode = TextureWrap::Clamp;
 	};
 
 	struct FramebufferAttachmentSpecification

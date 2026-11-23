@@ -36,14 +36,10 @@
  *			  default rigid body as well because thats how it works in Jolt unlike Box2D where the rigid body is separate from the collider shape
  *
  * TODO: DynamicRendering branch:
- * - Since GTAO Runs befroe the PBR Shader, we can use the generated AO data in the PBR materials shader to bake the AO and get even some Specular Occlusion which is currently not possible since we use a GTAO composite pass which SHOULD BE REMOVED!!!!!!
+ * - Create a Panel for the EditorSettings. in the IrisEditor project panels folder
+ * - Since GTAO Runs before the PBR Shader, we can use the generated AO data in the PBR materials shader to bake the AO and get even some Specular Occlusion which is currently not possible since we use a GTAO composite pass which SHOULD BE REMOVED!!!!!!
  * - Importing specific sub meshes from a mesh file should only be a feature for dynamic meshes and not static meshes, since for static meshes the hierarchy is flattended and doesnt make sense to load specific submeshes from it
  *		- Thats why it will only be available for dynamic meshes since the hierarchy is not flattened
- * - LightCulling2_5.glsl is a rewrite of the LightCulling shader that uses 2.5D culling but it doesnt fully work yet and needs some fixing
- *		- 1: For the actual shader itself <https://github.com/turanszkij/WickedEngine/blob/master/WickedEngine/shaders/lightCullingCS.hlsl>
- *		- 2: For all the helper stuff <https://github.com/turanszkij/WickedEngine/blob/master/WickedEngine/shaders/cullingShaderHF.hlsli>
- *		- 3: Also look into the flat bit arrays <https://wickedengine.net/2019/02/thoughts-on-light-culling-stream-compaction-vs-flat-bit-arrays/>
- * - Add the application settings panel that for now is only gonna be used to set or unset the colored meshes highlighting in SceneHierarchyPanel
  * - Embed as much as possible the images that the engine uses such as icons and other stuff that way we can minimize engine startup time since we won't have to decode so many images
  * - When we have the ConsolePanel, we should cleanup the logging settings in the project panel and make it comply with only stuff that logs to the console panel
  * - Add Area Lights <https://learnopengl.com/Guest-Articles/2022/Area-Lights>
@@ -122,9 +118,6 @@
  *		  AssetThread and retrieve any new loaded assets and queue and dependcy changes...
  *
  * Future Plans:
- *  - LightCulling Shader:
- *		- Should we add AABB culling with the normal frustum culling? <https://wickedengine.net/2018/01/optimizing-tile-based-light-culling/>
- *		- Look into 2.5D culling
  *  - Change the way mesh materials are displayed:
  *		- Currently they are displayed in a tree node under the Mesh componenet which is disgusting
  *		- Change that into a button that takes you into a material editor that displays all the list of materials available for that mesh
@@ -149,18 +142,13 @@
  *		- Scene entities:
  *		- - Skylight
  *		- - Sphere
- *  - Look into auto exposure because its SO COOL
- * 		- 1: https://bruop.github.io/exposure/
- * 		- 2: https://mynameismjp.wordpress.com/2011/08/10/average-luminance-compute-shader/
- * 		- 3: https://www.google.com/url?sa=t&source=web&rct=j&opi=89978449&url=https://resources.mpi-inf.mpg.de/tmo/logmap/logmap.pdf&ved=2ahUKEwiIrqjRtv2FAxVih_0HHZVMBK84ChAWegQIBRAB&usg=AOvVaw2PQ0E5hUTrfiVHLXDvpYKR
- * 		- 4: https://github.com/SaschaWillems/Vulkan/tree/master?tab=readme-ov-file#Advanced
  *  - Frustum Culling:
  * 		- 1: https://vkguide.dev/docs/new_chapter_5/faster_draw/
  * 		- 2: https://vkguide.dev/docs/gpudriven/compute_culling/
  *		- 3: https://github.com/SaschaWillems/Vulkan/blob/master/examples/computecullandlod/computecullandlod.cpp
  *  - Tesselation Shaders: (For having low poly meshes with high details using tesselation and LODs)
  *		- 1: https://github.com/SaschaWillems/Vulkan/tree/master?tab=readme-ov-file#tessellation-shader
- *  - Add some Anti-Aliasing pass technique:
+ *  - Add some Anti-Aliasing pass technique (Not really needed?):
  *      - 1: https://github.com/iryoku/smaa (For SMAA which is the one preferred since it is pretty lightweight if configured correctly)
  *      - 2: https://github.com/dmnsgn/glsl-smaa
  *  - Look into this: <https://www.youtube.com/watch?v=SiCNFMhDZ1o>

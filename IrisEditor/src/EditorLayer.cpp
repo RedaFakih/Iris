@@ -214,7 +214,7 @@ namespace Iris {
 				m_SelectionHighlighCache.Prepare(m_CurrentScene);
 				m_ViewportRenderer->GetSpecification().JumpFloodPass = m_SelectionHighlighCache.AnyMeshHighlighted();
 
-				m_CurrentScene->OnRenderEditor(m_ViewportRenderer, m_EditorCamera, m_SelectionHighlighCache.GetMask());
+				m_CurrentScene->OnRenderEditor(m_ViewportRenderer, m_EditorCamera, ts, m_SelectionHighlighCache.GetMask());
 
 				OnRender2D();
 
@@ -227,13 +227,13 @@ namespace Iris {
 					m_SelectionHighlighCache.Prepare(m_RuntimeScene);
 					m_ViewportRenderer->GetSpecification().JumpFloodPass = m_SelectionHighlighCache.AnyMeshHighlighted();
 
-					m_RuntimeScene->OnRenderEditor(m_ViewportRenderer, m_EditorCamera, m_SelectionHighlighCache.GetMask());
+					m_RuntimeScene->OnRenderEditor(m_ViewportRenderer, m_EditorCamera, ts, m_SelectionHighlighCache.GetMask());
 
 					OnRender2D();
 				}
 				else
 				{
-					m_RuntimeScene->OnRenderRuntime(m_ViewportRenderer);
+					m_RuntimeScene->OnRenderRuntime(m_ViewportRenderer, ts);
 
 					OnRender2D(true);
 				}
@@ -242,7 +242,7 @@ namespace Iris {
 			}
 			case SceneState::Pause:
 			{
-				m_RuntimeScene->OnRenderRuntime(m_ViewportRenderer);
+				m_RuntimeScene->OnRenderRuntime(m_ViewportRenderer, ts);
 
 				OnRender2D(true);
 
@@ -1669,6 +1669,10 @@ namespace Iris {
 							if (UI::SectionSlider("Field of View", fov, 30, 120, "Field of view of the viewport camera"))
 								m_EditorCamera.SetFOV(fov);
 							UI::SectionSlider("Exposure", m_EditorCamera.GetExposure(), 0.0f, 10.0f, "Exposure of viewport camera,\nalso extends into rendered scene");
+							UI::SectionSlider("Eye Adaption Rate", m_ViewportRenderer->GetOptions().EyeAdaptionRate, 0.01f, 20.0f, "How quickly the eye adapts to the exposure changes");
+							UI::SectionSlider("Eye Adaption Key", m_ViewportRenderer->GetOptions().EyeAdaptionKey, 0.1f, 0.3f, "EV equivalent");
+							UI::SectionSlider("Log Min", m_ViewportRenderer->GetOptions().LuminanceLogMin, -20.0f, -1.0f, "Lowering preserves detail in dim shadows");
+							UI::SectionSlider("Log Max", m_ViewportRenderer->GetOptions().LuminanceLogMax, 1.0f, 20.0f, "Raising gives more highlight headroom");
 							static float& cameraSpeed = m_EditorCamera.GetNormalSpeed();
 							float displayCameraSpeed = cameraSpeed / 0.0002f;
 							if (UI::SectionDrag("Speed", displayCameraSpeed, 0.5f, 0.0002f, 100.0f, "Speed of viewport camera in fly mode, RightAlt + Scroll"))

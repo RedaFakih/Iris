@@ -203,11 +203,14 @@ namespace Iris {
 		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/2D/Renderer2D_Quad.glsl");
 		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/2D/Renderer2D_Text.glsl");
 
+		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/Compositing/AdaptiveLuminanceAverage.glsl");
+		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/Compositing/AdaptiveLuminanceBuild.glsl");
 		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/Compositing/Bloom-Downsample.glsl");
 		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/Compositing/Bloom-FirstUpsample.glsl");
 		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/Compositing/Bloom-Prefilter.glsl");
 		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/Compositing/Bloom-Upsample.glsl");
 		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/Compositing/Compositing.glsl");
+		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/Compositing/Compositing-Lite.glsl");
 		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/Compositing/DepthOfField.glsl");
 		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/Compositing/Grid.glsl");
 		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/Compositing/GTAO.glsl");
@@ -619,8 +622,8 @@ namespace Iris {
 				{
 					attachments[colorAttachmentCount] = VkClearAttachment{
 						// We do not need the stencil aspect since we are not using stencil buffers in our renderer
-						.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT,
-						.clearValue = framebuffer->GetColorAttachmentInfos()[colorAttachmentCount].clearValue
+						.aspectMask = static_cast<VkImageAspectFlags>(VK_IMAGE_ASPECT_DEPTH_BIT | (framebuffer->HasStencilComponent() ? VK_IMAGE_ASPECT_STENCIL_BIT : 0)),
+						.clearValue = framebuffer->GetDepthAttachmentInfo().clearValue
 					};
 			
 					clearRects[colorAttachmentCount] = VkClearRect{
