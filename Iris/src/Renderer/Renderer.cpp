@@ -182,11 +182,22 @@ namespace Iris {
 
 		Renderer::AddGlobalShaderMacro("IR_MAX_POINT_LIGHT_COUNT", fmt::format("{}", Renderer::GetConfig().MaxNumberOfPointLights));
 		Renderer::AddGlobalShaderMacro("IR_MAX_SPOT_LIGHT_COUNT", fmt::format("{}", Renderer::GetConfig().MaxNumberOfSpotLights));
-		Renderer::AddGlobalShaderMacro("IR_LIGHT_CULLING_WORKGROUP_SIZE", fmt::format("{}", 8));
-		Renderer::AddGlobalShaderMacro("IR_BLOOM_COMPUTE_WORKGROUP_SIZE", fmt::format("{}", 4));
-		Renderer::AddGlobalShaderMacro("IR_HZB_COMPUTE_WORKGROUP_SIZE", fmt::format("{}", 8));
-		Renderer::AddGlobalShaderMacro("IR_GTAO_COMPUTE_WORKGROUP_SIZE", fmt::format("{}", 16));
-		Renderer::AddGlobalShaderMacro("IR_GTAO_DENOISE_WORKGROUP_SIZE", fmt::format("{}", 8));
+
+		Renderer::AddGlobalShaderMacro("IR_LIGHT_CULLING_WORKGROUP_SIZE", fmt::format("{}", IR_LIGHT_CULLING_WORKGROUP_SIZE));
+		Renderer::AddGlobalShaderMacro("IR_LIGHT_CULLING_GRANULARITY", fmt::format("{}", IR_LIGHT_CULLING_GRANULARITY));
+		
+		Renderer::AddGlobalShaderMacro("IR_BLOOM_COMPUTE_WORKGROUP_SIZE", fmt::format("{}", IR_BLOOM_COMPUTE_WORKGROUP_SIZE));
+
+		Renderer::AddGlobalShaderMacro("IR_LUMINANCE_WORKGROUP_SIZE", fmt::format("{}", IR_LUMINANCE_WORKGROUP_SIZE));
+		Renderer::AddGlobalShaderMacro("IR_LUMINANCE_NUM_HISTOGRAM_BINS", fmt::format("{}", IR_LUMINANCE_NUM_HISTOGRAM_BINS));
+		Renderer::AddGlobalShaderMacro("IR_LUMINANCE_BUFFER_OFFSET_EXPOSURE", fmt::format("{}", IR_LUMINANCE_BUFFER_OFFSET_EXPOSURE));
+		Renderer::AddGlobalShaderMacro("IR_LUMINANCE_BUFFER_OFFSET_LUMINANCE", fmt::format("{}", IR_LUMINANCE_BUFFER_OFFSET_LUMINANCE));
+		Renderer::AddGlobalShaderMacro("IR_LUMINANCE_BUFFER_OFFSET_HISTOGRAM", fmt::format("{}", IR_LUMINANCE_BUFFER_OFFSET_HISTOGRAM));
+		
+		Renderer::AddGlobalShaderMacro("IR_HZB_COMPUTE_WORKGROUP_SIZE", fmt::format("{}", IR_HZB_COMPUTE_WORKGROUP_SIZE));
+		
+		Renderer::AddGlobalShaderMacro("IR_GTAO_COMPUTE_WORKGROUP_SIZE", fmt::format("{}", IR_GTAO_COMPUTE_WORKGROUP_SIZE));
+		Renderer::AddGlobalShaderMacro("IR_GTAO_DENOISE_WORKGROUP_SIZE", fmt::format("{}", IR_GTAO_DENOISE_WORKGROUP_SIZE));
 
 		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/2D/Renderer2D_Line.glsl");
 		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/2D/Renderer2D_Quad.glsl");
@@ -214,7 +225,6 @@ namespace Iris {
 		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/Geometry/HierarchalZBuffer.glsl");
 		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/Geometry/IrisPBRStatic.glsl");
 		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/Geometry/IrisPBRStaticLite.glsl");
-		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/Geometry/LightCulling.glsl");
 		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/Geometry/LightCulling2_5D.glsl");
 		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/Geometry/PreDepth.glsl");
 		Renderer::GetShadersLibrary()->Load("Resources/Shaders/Src/Geometry/Skybox.glsl");

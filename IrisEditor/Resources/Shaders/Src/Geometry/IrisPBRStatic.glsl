@@ -470,7 +470,7 @@ vec3 FresnelSchlickRoughness(vec3 F0, float cosTheta, float roughness)
 
 vec3 IBL(vec3 F0, vec3 Lr)
 {
-	vec3 irradiance = texture(u_IrradianceMap, m_Params.Normal).rgb;
+	vec3 irradiance = RotateVectorAboutY(u_MaterialUniforms.EnvMapRotation, texture(u_IrradianceMap, m_Params.Normal).rgb);
 	vec3 F = FresnelSchlickRoughness(F0, m_Params.NdotV, m_Params.Roughness);
 	vec3 kd = (1.0f - F) * (1.0f - m_Params.Metalness);
 	vec3 diffuseIBL = m_Params.Albedo * irradiance;

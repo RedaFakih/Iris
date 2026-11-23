@@ -7,7 +7,7 @@
 namespace Iris {
 
 	IndexBuffer::IndexBuffer(const void* data, uint32_t size)
-		: m_Size(size)
+		: m_Size(size), m_HostVisible(false) 
 	{
 		m_LocalData = Buffer::Copy(reinterpret_cast<const uint8_t*>(data), size);
 
@@ -55,7 +55,7 @@ namespace Iris {
 	}
 
 	IndexBuffer::IndexBuffer(uint32_t size)
-		: m_Size(size)
+		: m_Size(size), m_HostVisible(true)
 	{
 		IR_VERIFY(false, "Do you really wan't to do this? Index buffers are usually created once with their data...");
 		IR_CORE_FATAL_TAG("Renderer", "Creating an IndexBuffer with just a `size`. Are you sure...??? IndexBuffers are usualy created only once!");
@@ -96,14 +96,22 @@ namespace Iris {
 	void IndexBuffer::SetData(const void* data, uint32_t size, uint32_t offset)
 	{
 		IR_VERIFY(false, "Do you really wan't to do this? Index buffers are usually created once with their data...");
-		IR_VERIFY(size <= m_Size, "Can't set more data than the buffer can hold!");
+		IR_VERIFY(offset + size <= m_Size, "Can't set more data than the buffer can hold!");
+		IR_ASSERT(m_HostVisible, "SetData on a GPU_ONLY index buffer (created with initial data)");
 		IR_CORE_FATAL_TAG("Renderer", "Creating an IndexBuffer with just a `size`. Are you sure...??? IndexBuffers are usualy created only once!");
 
-		VulkanAllocator allocator("IndexBuffer");
+		if (m_LocalData.Size < m_Size)
+			m_LocalData.Allocate(m_Size);
+		std::memcpy(m_LocalData.Data + offset, data, size);
 
-		uint8_t* dstData = allocator.MapMemory<uint8_t>(m_MemoryAllocation);
-		std::memcpy(dstData, reinterpret_cast<const uint8_t*>(data) + offset, size);
-		allocator.UnmapMemory(m_MemoryAllocation);
+		Ref<IndexBuffer> instance = this;
+		Renderer::Submit([instance, size, offset]() mutable
+		{
+			VulkanAllocator allocator("IndexBuffer");
+			uint8_t* dstData = allocator.MapMemory<uint8_t>(instance->m_MemoryAllocation);
+			std::memcpy(dstData + offset, instance->m_LocalData.Data + offset, size);
+			allocator.UnmapMemory(instance->m_MemoryAllocation);
+		});
 	}
 
 }

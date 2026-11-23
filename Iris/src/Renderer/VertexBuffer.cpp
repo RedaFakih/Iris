@@ -7,7 +7,7 @@
 namespace Iris {
 
 	VertexBuffer::VertexBuffer(const void* data, uint32_t size, VertexBufferUsage usage)
-		: m_Size(size)
+		: m_Size(size), m_HostVisible(false)
 	{
 		(void)usage;
 		m_LocalData = Buffer::Copy(reinterpret_cast<const uint8_t*>(data), size);
@@ -59,7 +59,7 @@ namespace Iris {
 	}
 
 	VertexBuffer::VertexBuffer(uint32_t size, VertexBufferUsage usage)
-		: m_Size(size)
+		: m_Size(size), m_HostVisible(true)
 	{
 		(void)usage;
 		m_LocalData.Allocate(size);
@@ -93,23 +93,24 @@ namespace Iris {
 
 	void VertexBuffer::SetData(const void* data, uint32_t size, uint32_t offset)
 	{
-		IR_ASSERT(size <= m_LocalData.Size);
-		std::memcpy(m_LocalData.Data, reinterpret_cast<const uint8_t*>(data) + offset, size);
+		IR_ASSERT(offset + size <= m_LocalData.Size);
+		std::memcpy(m_LocalData.Data + offset, data, size);
 		Ref<VertexBuffer> instance = this;
 		Renderer::Submit([instance, size, offset]() mutable
 		{
-			instance->RT_SetData(instance->m_LocalData.Data, size, offset);
+			instance->RT_SetData(instance->m_LocalData.Data + offset, size, offset);
 		});
 	}
 
 	void VertexBuffer::RT_SetData(const void* data, uint32_t size, uint32_t offset)
 	{
-		IR_ASSERT(size <= m_Size, "Can't set more data than the buffer can hold!");
+		IR_ASSERT(offset + size <= m_Size, "Can't set more data than the buffer can hold!");
+		IR_ASSERT(m_HostVisible, "SetData on a GPU_ONLY vertex buffer (created with initial data)");
 
 		VulkanAllocator allocator("VertexBuffer");
 
 		uint8_t* dstData = allocator.MapMemory<uint8_t>(m_MemoryAllocation);
-		std::memcpy(dstData, reinterpret_cast<const uint8_t*>(data) + offset, size);
+		std::memcpy(dstData + offset, data, size);
 		allocator.UnmapMemory(m_MemoryAllocation);
 	}
 

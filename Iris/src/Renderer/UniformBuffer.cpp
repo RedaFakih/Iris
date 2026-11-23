@@ -45,20 +45,23 @@ namespace Iris {
 
 	void UniformBuffer::SetData(const void* data, std::size_t size, std::size_t offset)
 	{
-		std::memcpy(m_LocalData.Data, reinterpret_cast<const uint8_t*>(data) + offset, size); // Copy all the data here and then in the other function account for the offset
+		IR_ASSERT(offset + size <= m_Size);
+		std::memcpy(m_LocalData.Data + offset, data, size); // Copy all the data here and then in the other function account for the offset
+
 		Ref<UniformBuffer> instance = this;
 		Renderer::Submit([instance, size, offset]() mutable
 		{
-			instance->RT_SetData(instance->m_LocalData.Data, size, offset);
+			instance->RT_SetData(instance->m_LocalData.Data + offset, size, offset);
 		});
 	}
 
 	void UniformBuffer::RT_SetData(const void* data, std::size_t size, std::size_t offset)
 	{
+		IR_ASSERT(offset + size <= m_Size);
 		VulkanAllocator allocator("UniformBuffer");
 
 		uint8_t* dstData = allocator.MapMemory<uint8_t>(m_MemoryAllocation);
-		std::memcpy(dstData, reinterpret_cast<const uint8_t*>(data) + offset, size);
+		std::memcpy(dstData + offset, data, size);
 		allocator.UnmapMemory(m_MemoryAllocation);
 	}
 

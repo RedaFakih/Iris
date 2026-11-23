@@ -55,17 +55,18 @@ namespace Iris {
 
 	void StorageBuffer::Resize(uint32_t newSize)
 	{
+		m_Size = newSize;
+		m_LocalData.Allocate(newSize);
+
 		// Only create the staging buffer and the storage buffer without doing any data uploads since storage buffers most probs dont have preallocated data
 		Ref<StorageBuffer> instance = this;
-		Renderer::Submit([instance, newSize]() mutable
+		Renderer::Submit([instance]() mutable
 		{
-			instance->m_Size = newSize;
-			instance->Release();
+			const bool deviceLocal = (instance->m_StagingBufferAllocation != nullptr) && (instance->m_StagingBuffer != nullptr);
+			instance->Release(true);
 
 			VulkanAllocator allocator("StorageBuffer");
-
 			// If we do not have already a stagingbuffer means that we are not in device local memory
-			bool deviceLocal = (instance->m_StagingBufferAllocation != nullptr) && (instance->m_StagingBuffer != nullptr);
 			if (deviceLocal)
 			{
 				VkBufferCreateInfo stagingBufferCI = {
@@ -95,17 +96,19 @@ namespace Iris {
 
 	void StorageBuffer::SetData(const void* data, std::size_t size, std::size_t offset)
 	{
-		IR_ASSERT(size <= m_Size);
-		std::memcpy(m_LocalData.Data, reinterpret_cast<const uint8_t*>(data) + offset, size);
+		IR_ASSERT(offset + size <= m_Size);
+		std::memcpy(m_LocalData.Data + offset, data, size);
 		Ref<StorageBuffer> instance = this;
 		Renderer::Submit([instance, size, offset]() mutable
 		{
-			instance->RT_SetData(instance->m_LocalData.Data, size, offset);
+			instance->RT_SetData(instance->m_LocalData.Data + offset, size, offset);
 		});
 	}
 
 	void StorageBuffer::RT_SetData(const void* data, std::size_t size, std::size_t offset)
 	{
+		IR_ASSERT(offset + size <= m_Size);
+
 		Ref<VulkanDevice> device = RendererContext::GetCurrentDevice();
 		VulkanAllocator allocator("StorageBuffer");
 
@@ -113,7 +116,7 @@ namespace Iris {
 		{
 			// mem map to staging buffer, copy mem, then copy staging buffer to storage buffer
 			uint8_t* dstData = allocator.MapMemory<uint8_t>(m_StagingBufferAllocation);
-			std::memcpy(dstData, reinterpret_cast<const uint8_t*>(data) + offset, size);
+			std::memcpy(dstData + offset, data, size);
 			allocator.UnmapMemory(m_StagingBufferAllocation);
 
 			VkCommandBuffer commandBuffer = device->GetCommandBuffer(true);
@@ -121,7 +124,7 @@ namespace Iris {
 			VkBufferCopy copyRegion = {
 				.srcOffset = offset,
 				.dstOffset = offset,
-				.size = m_Size
+				.size = size
 			};
 
 			vkCmdCopyBuffer(commandBuffer, m_StagingBuffer, m_StorageBuffer, 1, &copyRegion);
@@ -134,12 +137,12 @@ namespace Iris {
 		{
 			// mem map and copy to storage buffer directly
 			uint8_t* dstData = allocator.MapMemory<uint8_t>(m_StorageBufferAllocation);
-			std::memcpy(dstData, reinterpret_cast<const uint8_t*>(data) + offset, size);
+			std::memcpy(dstData + offset, data, size);
 			allocator.UnmapMemory(m_StorageBufferAllocation);
 		}
 	}
 
-	void StorageBuffer::Release()
+	void StorageBuffer::Release(bool gpuOnly)
 	{
 		if (!m_StorageBuffer || !m_StorageBufferAllocation)
 			return;
@@ -155,7 +158,13 @@ namespace Iris {
 			}
 		});
 
-		m_LocalData.Release();
+		m_StorageBuffer = nullptr;
+		m_StorageBufferAllocation = nullptr;
+		m_StagingBuffer = nullptr;
+		m_StagingBufferAllocation = nullptr;
+
+		if (!gpuOnly)
+			m_LocalData.Release();
 	}
 
 }

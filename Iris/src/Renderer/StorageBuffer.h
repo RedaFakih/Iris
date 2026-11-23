@@ -17,7 +17,7 @@ namespace Iris {
 		void SetData(const void* data, std::size_t size, std::size_t offset = 0);
 		void RT_SetData(const void* data, std::size_t size, std::size_t offset = 0);
 
-		void Release();
+		void Release(bool gpuOnly = false);
 
 		const VkDescriptorBufferInfo& GetDescriptorBufferInfo() const { return m_DescriptorInfo; }
 

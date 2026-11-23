@@ -34,6 +34,8 @@ namespace Iris {
 
 		VkBuffer m_VulkanBuffer = nullptr;
 		VmaAllocation m_MemoryAllocation = nullptr;
+
+		bool m_HostVisible = false;
 	};
 
 }

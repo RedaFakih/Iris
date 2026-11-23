@@ -434,6 +434,9 @@ Assets:
   - Handle: 17569616831467014791
     FilePath: EnvironmentMaps/dikhololo_night_4k.hdr
     Type: EnvironmentMap
+  - Handle: 17589601687444337883
+    FilePath: Meshes/scene.Ismesh
+    Type: StaticMesh
   - Handle: 17681878077841557574
     FilePath: Meshes/Donut.Ismesh
     Type: StaticMesh

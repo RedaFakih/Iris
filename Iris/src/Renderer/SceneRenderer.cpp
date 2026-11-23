@@ -45,8 +45,8 @@ namespace Iris {
 			m_UBSScreenData = UniformBufferSet::Create(sizeof(UBScreenData));
 			m_UBSSceneData = UniformBufferSet::Create(sizeof(UBScene));
 			m_UBSDirectionalShadowData = UniformBufferSet::Create(sizeof(UBDirectionalShadowData));
-			m_UBSPointLights = UniformBufferSet::Create(sizeof(UBPointLights));
-			m_UBSSpotLights = UniformBufferSet::Create(sizeof(UBSpotLights));
+			m_UBSPointLights = UniformBufferSet::Create(sizeof(UBLightsHeader) + sizeof(ScenePointLight) * Renderer::GetConfig().MaxNumberOfPointLights);
+			m_UBSSpotLights = UniformBufferSet::Create(sizeof(UBLightsHeader) + sizeof(SceneSpotLight) * Renderer::GetConfig().MaxNumberOfSpotLights);
 			m_UBSRendererData = UniformBufferSet::Create(sizeof(UBRendererData));
 		}
 
@@ -703,8 +703,7 @@ namespace Iris {
 
 		// Light Culling
 		{
-			// Ref<Shader> lightCullingShader = Renderer::GetShadersLibrary()->Get("LightCulling2_5D");
-			Ref<Shader> lightCullingShader = Renderer::GetShadersLibrary()->Get("LightCulling");
+			Ref<Shader> lightCullingShader = Renderer::GetShadersLibrary()->Get("LightCulling2_5D");
 			ComputePassSpecification mipChainFilterPassSpec = {
 				.DebugName = "LightCullingPass",
 				.Pipeline = ComputePipeline::Create(lightCullingShader, "LightCullingPipeline"),
@@ -1232,34 +1231,45 @@ namespace Iris {
 
 		// Point Light uniform buffer (set = 1, binding = 4)
 		{
-			UBPointLights& pointLightData = m_PointLightsUB;
+			const uint32_t maxPointLights = Renderer::GetConfig().MaxNumberOfPointLights;
+			const std::vector<ScenePointLight>& lights = m_SceneInfo.SceneLightEnvironment.PointLights;
+			const uint32_t count = std::min(static_cast<uint32_t>(lights.size()), maxPointLights);
 
-			const LightEnvironment lightEnvironment = m_SceneInfo.SceneLightEnvironment;
-			const std::vector<ScenePointLight>& pointLightsVec = lightEnvironment.PointLights;
-			pointLightData.Count = static_cast<uint32_t>(pointLightsVec.size());
-			std::memcpy(pointLightData.PointLights, pointLightsVec.data(), lightEnvironment.GetPointLightsSize());
+			// Make copies so that they can be passed to the render thread
+			UBLightsHeader header = { .Count = count };
+			std::vector<ScenePointLight> shaderData(lights.begin(), lights.begin() + count);
 
 			Ref<SceneRenderer> instance = this;
-			Renderer::Submit([instance, pointLightData]() mutable
+			Renderer::Submit([instance, header, data = std::move(shaderData)]() mutable
 			{
-				// NOTE: The 16 here is the size of UBPointLights::Count + 12 bytes padding
-				instance->m_UBSPointLights->RT_Get()->RT_SetData(&pointLightData, 16 + sizeof(ScenePointLight) * pointLightData.Count);
+				Ref<UniformBuffer> ub = instance->m_UBSPointLights->RT_Get();
+				ub->RT_SetData(&header, sizeof(UBLightsHeader), 0);
+				if (!data.empty())
+				{
+					ub->RT_SetData(data.data(), data.size() * sizeof(ScenePointLight), sizeof(UBLightsHeader));
+				}
 			});
 		}
 
 		// Spot Light uniform buffer (set = 1, binding = 6)
 		{
-			UBSpotLights& spotLightData = m_SpotLightsUB;
+			const uint32_t maxSpotLights = Renderer::GetConfig().MaxNumberOfSpotLights;
+			const std::vector<SceneSpotLight>& lights = m_SceneInfo.SceneLightEnvironment.SpotLights;
+			const uint32_t count = std::min(static_cast<uint32_t>(lights.size()), maxSpotLights);
 
-			const LightEnvironment lightEnvironment = m_SceneInfo.SceneLightEnvironment;
-			const std::vector<SceneSpotLight>& spotLightsVec = lightEnvironment.SpotLights;
-			spotLightData.Count = static_cast<int>(spotLightsVec.size());
-			std::memcpy(spotLightData.SpotLights, spotLightsVec.data(), lightEnvironment.GetSpotLightsSize());
-			
+			// Make copies so that they can be passed to the render thread
+			UBLightsHeader header = { .Count = count };
+			std::vector<SceneSpotLight> shaderData(lights.begin(), lights.begin() + count);
+
 			Ref<SceneRenderer> instance = this;
-			Renderer::Submit([instance, &spotLightData]() mutable
+			Renderer::Submit([instance, header, data = std::move(shaderData)]() mutable
 			{
-				instance->m_UBSSpotLights->RT_Get()->RT_SetData(&spotLightData, 16 + sizeof(SceneSpotLight) * spotLightData.Count);
+				Ref<UniformBuffer> ub = instance->m_UBSSpotLights->RT_Get();
+				ub->RT_SetData(&header, sizeof(UBLightsHeader), 0);
+				if (!data.empty())
+				{
+					ub->RT_SetData(data.data(), data.size() * sizeof(SceneSpotLight), sizeof(UBLightsHeader));
+				}
 			});
 		}
 
@@ -1920,7 +1930,7 @@ namespace Iris {
 			const glm::ivec2 dstSize(Math::DivideAndRoundUp(hierarchicalDepthTexture->GetSize(), 1u << startDestMip));
 			hierarchicalZComputePushConstants.InvSize = glm::vec2{ 1.0f / (float)srcSize.x, 1.0f / (float)srcSize.y };
 
-			glm::uvec3 workGroups(Math::DivideAndRoundUp(dstSize.x, 8), Math::DivideAndRoundUp(dstSize.y, 8), 1);
+			glm::uvec3 workGroups(Math::DivideAndRoundUp(dstSize.x, static_cast<int>(IR_HZB_COMPUTE_WORKGROUP_SIZE)), Math::DivideAndRoundUp(dstSize.y, static_cast<int>(IR_HZB_COMPUTE_WORKGROUP_SIZE)), 1);
 			Renderer::DispatchComputePass(commandBuffer, hierarchicalDepthPass, hzbMaterials[startDestMip / 4], workGroups, Buffer(reinterpret_cast<const uint8_t*>(&hierarchicalZComputePushConstants), sizeof(hierarchicalZComputePushConstants)));
 		};
 

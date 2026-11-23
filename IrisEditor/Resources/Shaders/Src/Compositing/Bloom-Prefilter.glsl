@@ -63,7 +63,7 @@ vec4 QuadraticThreshold(vec4 color, float threshold, vec3 curve)
     // Maximum pixel brightness
     float brightness = max(max(color.r, color.g), color.b);
     // Quadratic curve
-    float rq = clamp(brightness - curve.x, 0.0, curve.y);
+    float rq = clamp(brightness - curve.x, 0.0f, curve.y);
     rq = (rq * rq) * curve.z;
     color *= max(rq, brightness - threshold) / max(brightness, Epsilon);
     return color;

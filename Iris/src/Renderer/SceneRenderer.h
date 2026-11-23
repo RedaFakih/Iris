@@ -309,27 +309,21 @@ namespace Iris {
 		} m_DirectionalShadowDataUB;
 		Ref<UniformBufferSet> m_UBSDirectionalShadowData;
 
-		// (set = 1, binding = 4)
-		struct UBPointLights
+		struct UBLightsHeader
 		{
 			uint32_t Count = 0;
 			glm::vec3 padding{};
-			ScenePointLight PointLights[100]{};
-		} m_PointLightsUB;
-		Ref<UniformBufferSet> m_UBSPointLights;
+		};
 
+		// (set = 1, binding = 4)
+		UBLightsHeader m_PointLightsUB;
+		Ref<UniformBufferSet> m_UBSPointLights;
 		// (set = 1, binding = 5)
 		Ref<StorageBufferSet> m_SBSVisiblePointLightIndicesBuffer;
-		
-		// (set = 1, binding = 6)
-		struct UBSpotLights
-		{
-			uint32_t Count = 0;
-			glm::vec3 Padding{};
-			SceneSpotLight SpotLights[100]{};
-		} m_SpotLightsUB;
-		Ref<UniformBufferSet> m_UBSSpotLights;
 
+		// (set = 1, binding = 6)
+		UBLightsHeader m_SpotLightsUB;
+		Ref<UniformBufferSet> m_UBSSpotLights;
 		// (set = 1, binding = 7)
 		Ref<StorageBufferSet> m_SBSVisibleSpotLightIndicesBuffer;
 

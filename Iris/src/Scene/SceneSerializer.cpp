@@ -37,7 +37,7 @@ namespace Iris {
 
 			out << YAML::Key << "Children" << YAML::Value << YAML::BeginSeq;
 
-			for (auto child : relationshipComp.Children)
+			for (UUID child : relationshipComp.Children)
 			{
 				out << YAML::BeginMap;
 				out << YAML::Key << "Handle" << YAML::Value << child;
@@ -72,6 +72,7 @@ namespace Iris {
 			out << YAML::BeginMap;
 
 			out << YAML::Key << "ProjectionType" << YAML::Value << static_cast<int>(camera.GetProjectionType());
+			out << YAML::Key << "Exposure" << YAML::Value << camera.GetExposure();
 			out << YAML::Key << "PerspectiveFOV" << YAML::Value << camera.GetDegPerspectiveVerticalFOV();
 			out << YAML::Key << "PerspectiveNear" << YAML::Value << camera.GetPerspectiveNearClip();
 			out << YAML::Key << "PerspectiveFar" << YAML::Value << camera.GetPerspectiveFarClip();
@@ -421,12 +422,14 @@ namespace Iris {
 				const auto& cameraNode = cameraComp["Camera"];
 
 				component.Camera = SceneCamera();
-				auto& camera = component.Camera;
+				SceneCamera& camera = component.Camera;
 
 				if (cameraNode.IsMap())
 				{
 					if (cameraNode["ProjectionType"])
 						camera.SetProjectionType((SceneCamera::ProjectionType)cameraNode["ProjectionType"].as<int>());
+					if (cameraNode["Exposure"])
+						camera.GetExposure() = cameraNode["Exposure"].as<float>(0.0f);
 					if (cameraNode["PerspectiveFOV"])
 						camera.SetDegPerspectiveVerticalFOV(cameraNode["PerspectiveFOV"].as<float>());
 					if (cameraNode["PerspectiveNear"])
@@ -720,7 +723,7 @@ namespace Iris {
 			out << YAML::Key << "VisibleEntities" << YAML::Value << YAML::BeginSeq;
 
 			auto visibleEntities = scene->GetAllEntitiesWith<VisibleComponent>();
-			for (auto e : visibleEntities)
+			for (entt::entity e : visibleEntities)
 			{
 				Entity entity = { e, scene.Raw() };
 				out << static_cast<uint64_t>(entity.GetUUID());
@@ -733,7 +736,7 @@ namespace Iris {
 
 		std::map<UUID, entt::entity> sortedEntityMap;
 		auto idComponentView = scene->m_Registry.view<IDComponent>();
-		for (auto entity : idComponentView)
+		for (entt::entity entity : idComponentView)
 			sortedEntityMap[idComponentView.get<IDComponent>(entity).ID] = entity;
 
 		for (auto [id, entity] : sortedEntityMap)

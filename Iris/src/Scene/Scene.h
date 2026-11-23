@@ -29,6 +29,7 @@ namespace Iris {
 		bool CastShadows = true;
 	};
 
+	// Matches Shader
 	struct ScenePointLight
 	{
 		glm::vec3 Position = { 0.0f, 0.0f, 0.0f };
@@ -39,6 +40,7 @@ namespace Iris {
 		float Falloff = 1.0f;
 	};
 
+	// Matches Shader
 	struct SceneSpotLight
 	{
 		glm::vec3 Position = { 0.0f, 0.0f, 0.0f };
